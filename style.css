@@ -1,0 +1,1021 @@
+/* ---
+==========================================================================
+   1. SHARED GAME STYLES (for game.html)
+==========================================================================
+--- */
+
+/* --- Layout Containers --- */
+.main-layout {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 20px;
+  margin-top: 20px;
+  padding: 0 20px;
+}
+.game-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+* {
+  box-sizing: border-box;
+}
+
+/* --- Components --- */
+.top-menu-btn {
+  padding: 10px 15px;
+  background: #7a6a4f;
+  color: #fff;
+  border: 2px solid #c8bda9;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: "Georgia", serif;
+  font-weight: bold;
+  width: 100%;
+  margin-bottom: 20px;
+  transition: background 0.2s;
+}
+.top-menu-btn:hover {
+  background: #9c8b6d;
+}
+#mobile-top-bar,
+#messageLogContainer-mobile,
+#timerContainer-mobile,
+#mobile-ability-bar,
+#totalTurnsCounter-mobile {
+  display: none;
+}
+.ui-container {
+  background: rgba(10, 5, 0, 0.7);
+  border: 2px solid #7a6a4f;
+  border-radius: 10px;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.7);
+  padding: 15px;
+}
+.ui-header {
+  font-size: 18px;
+  font-weight: bold;
+  text-align: center;
+  color: #c8bda9;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 2px solid #7a6a4f;
+}
+#timerContainer {
+  width: 250px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 20px;
+  height: 935px;
+  padding: 15px;
+}
+.top-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  gap: 15px;
+}
+#messageLogContainer {
+  height: 850px;
+  width: 250px;
+  display: flex;
+  flex-direction: column;
+}
+.timer-display {
+  font-size: 48px;
+  font-weight: bold;
+  padding: 8px 12px;
+  border-radius: 6px;
+  color: #fff;
+  min-width: 150px;
+  text-align: center;
+  transition: color 0.3s, background 0.3s;
+  text-shadow: 0 0 10px #000;
+}
+#ashTimer,
+#ashTimer-mobile {
+  box-shadow: 0 0 10px rgba(255, 80, 80, 0.7);
+  background: rgba(255, 99, 71, 0.3);
+}
+#snowTimer,
+#snowTimer-mobile {
+  box-shadow: 0 0 10px rgba(150, 200, 255, 0.7);
+  background: rgba(173, 216, 230, 0.3);
+}
+#startResetBtn,
+#startResetBtn-mobile {
+  font-size: 28px;
+  font-weight: bold;
+  padding: 8px 16px;
+  border: 2px solid #c8bda9;
+  border-radius: 6px;
+  background: #7a6a4f;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin: 10px 0;
+}
+#startResetBtn:hover,
+#startResetBtn-mobile:hover {
+  background: #9c8b6d;
+}
+.ability-panel {
+  width: 100%;
+  background: rgba(10, 5, 0, 0.9);
+  border: 2px solid #7a6a4f;
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+  color: #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+.ability-panel h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #c8bda9;
+}
+.ability-panel p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.3;
+  color: #ccc;
+}
+#ability-cooldown-container,
+#charge-container {
+  font-size: 12px;
+  font-weight: bold;
+}
+#abilityBtn,
+#despawnBtn,
+#siphonBtn,
+.unleash-btn,
+#riftPulseBtn {
+  font-size: 14px;
+  font-weight: bold;
+  padding: 6px 10px;
+  border: 2px solid #c8bda9;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #7a6a4f;
+  width: 100%;
+  margin-top: 5px;
+}
+#abilityBtn:disabled,
+#despawnBtn:disabled,
+#siphonBtn:disabled,
+.unleash-btn:disabled,
+#riftPulseBtn:disabled {
+  background: #555;
+  cursor: not-allowed;
+  border-color: #888;
+}
+#unleash-abilities {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 5px;
+  margin-top: 5px;
+}
+#gameBoard {
+  background: #222;
+  border: 3px solid #444;
+  box-shadow: 0 4px 24px #000a;
+  cursor: default;
+}
+.labels-bar {
+  width: 886px;
+  background: #222;
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-radius: 0 0 8px 8px;
+}
+.label {
+  font-size: 24px;
+  font-weight: bold;
+  padding: 0 24px;
+}
+.snow {
+  color: #7ecbff;
+}
+.ash {
+  color: orangered;
+}
+.turn {
+  text-align: center;
+}
+#totalTurnsCounter,
+#totalTurnsCounter-mobile {
+  font-size: 24px;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 20px;
+}
+#messageLog,
+#messageLog-mobile {
+  list-style: none;
+  padding: 0 10px;
+  margin: 0;
+  overflow-y: auto;
+  flex-grow: 1;
+}
+#messageLog li,
+#messageLog-mobile li {
+  padding: 8px 0;
+  border-bottom: 1px solid #444;
+  font-size: 14px;
+  word-break: break-word;
+}
+#messageLog li:last-child,
+#messageLog-mobile li:last-child {
+  border-bottom: none;
+}
+.turn-number {
+  font-weight: bold;
+  color: #aaa;
+  margin-right: 8px;
+}
+.snow-message {
+  color: #87cefa;
+}
+.ash-message {
+  color: #ff6347;
+}
+.neutral-message {
+  color: #fff;
+}
+#victoryScreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    background-color: rgba(0, 0, 0, 0.7); /* Fallback color */
+    display: none; /* Starts hidden */
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    padding: 20px;
+    animation: fadeIn 0.5s ease-in-out; /* Smooth fade-in */
+}
+#victoryScreen::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.3); /* Adjust this RGBA value! */
+    z-index: 1001; /* Make sure it's above the background image but below content */
+}
+
+/* Add this to your shared styles if it's not already there */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.victory-content {
+    background: rgba(10, 5, 0, 0.8);
+    border: 2px solid #7a6a4f;
+    border-radius: 15px;
+    padding: 30px 40px;
+    text-align: center;
+    color: #f0f0f0;
+    max-width: 600px;
+    box-shadow: 0 0 30px rgba(0,0,0,0.8);
+    position: relative;
+    z-index: 1002; /* Above the overlay */
+}
+
+#victory-character-art {
+    display: none; /* Hidden on desktop, we use the background instead */
+}
+
+#victory-title {
+    font-size: 52px;
+    margin: 0 0 15px 0;
+    font-weight: bold;
+    text-shadow: 0 0 15px #000;
+}
+
+#victory-quote {
+    font-size: 20px;
+    font-style: italic;
+    color: #c8bda9;
+    margin: 0 0 30px 0;
+    line-height: 1.5;
+}
+
+#restartBtn { /* Using existing styles, but you can override if needed */
+    padding: 15px 40px;
+    font-size: 24px;
+    border-radius: 16px;
+    position: relative;
+    z-index: 1003;
+}
+
+#restartBtn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(255, 204, 0, 0.6);
+}
+#restartBtn:active {
+  transform: scale(0.98);
+}
+
+/* --- Victory Button Team Styles --- */
+.btn-snow-victory {
+    background-color: #007bff; /* A nice blue for Snow */
+    border-color: #0056b3;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(0, 123, 255, 0.6);
+}
+
+.btn-snow-victory:hover {
+    background-color: #0056b3;
+    box-shadow: 0 0 15px rgba(0, 123, 255, 0.8);
+}
+
+.btn-ash-victory {
+    background-color: #dc3545; /* A strong red for Ash */
+    border-color: #bd2130;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(220, 53, 69, 0.6);
+}
+
+.btn-ash-victory:hover {
+    background-color: #bd2130;
+    box-shadow: 0 0 15px rgba(220, 53, 69, 0.8);
+}
+
+.btn-draw-victory { /* Optional: for draw button if you add it */
+    background-color: #6c757d; /* Grey for a neutral draw */
+    border-color: #545b62;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(108, 117, 125, 0.6);
+}
+
+.btn-draw-victory:hover {
+    background-color: #545b62;
+    box-shadow: 0 0 15px rgba(108, 117, 125, 0.8);
+}
+#piecePopup {
+  position: fixed;
+  z-index: 100;
+  pointer-events: none;
+  background: #222;
+  color: #fff;
+  border: 2px solid #fff;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 14px;
+  line-height: 1.4;
+  display: none;
+}
+#piecePopup.snow {
+  border-color: #7ecbff;
+}
+#piecePopup.ash {
+  border-color: orangered;
+}
+.buff-text {
+  color: #4caf50;
+}
+.debuff-text {
+  color: #f44336;
+}
+#game-wrapper {
+  position: relative;
+  width: 1420px;
+  margin: 0 auto;
+  transform-origin: top center;
+}
+@media (min-width: 1400px) {
+  #game-wrapper {
+    transform: scale(0.8);
+  }
+}
+@media (min-width: 1200px) and (max-width: 1399px) {
+  #game-wrapper {
+    transform: scale(0.75);
+  }
+}
+@media (min-width: 992px) and (max-width: 1199px) {
+  #game-wrapper {
+    transform: scale(0.65);
+  }
+}
+@media (min-width: 769px) and (max-width: 991px) {
+  #game-wrapper {
+    transform: scale(0.55);
+  }
+}
+@media (max-width: 768px) {
+  #game-wrapper {
+    width: 100%;
+    transform: none;
+    padding-bottom: 20px;
+  }
+  .main-layout {
+    flex-direction: column;
+    align-items: center;
+    padding: 0 10px;
+    gap: 10px;
+  }
+  #left-column,
+  #right-column,
+  .bottom-bar {
+    display: none;
+  }
+  #messageLogContainer-mobile,
+  #timerContainer-mobile,
+  #mobile-ability-bar,
+  #totalTurnsCounter-mobile,
+  #mobile-top-bar {
+    display: flex;
+    width: 100%;
+    max-width: 886px;
+  }
+  #messageLogContainer-mobile {
+    height: 130px;
+    flex-direction: column;
+  }
+  #timerContainer-mobile {
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    padding: 10px;
+  }
+  #timerContainer-mobile .timer-display {
+    font-size: 28px;
+    min-width: 90px;
+    padding: 5px;
+  }
+  #startResetBtn-mobile {
+    font-size: 18px;
+    padding: 6px 12px;
+    margin: 0;
+  }
+  #mobile-ability-bar {
+    flex-direction: row;
+    padding: 8px;
+    gap: 10px;
+    align-items: center;
+  }
+  #totalTurnsCounter-mobile {
+    padding: 10px;
+    font-size: 20px;
+    justify-content: center;
+  }
+  #mobile-top-bar {
+    margin-top: 10px;
+  }
+  #mobile-top-bar .top-menu-btn {
+    margin-bottom: 0;
+  }
+  #mobile-ability-info {
+    flex-grow: 1;
+    text-align: left;
+  }
+  #mobile-ability-info h3,
+  #mobile-ability-info p {
+    margin: 0;
+    font-size: 14px;
+    color: #c8bda9;
+  }
+  #mobile-ability-info p {
+    font-size: 12px;
+    color: #ccc;
+    line-height: 1.4;
+  }
+  .mobile-button-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 5px;
+    width: 150px;
+    height: 80px;
+  }
+  .ability-btn-mobile {
+    font-size: 11px;
+    font-weight: bold;
+    border: 2px solid #c8bda9;
+    border-radius: 6px;
+    color: #fff;
+    cursor: pointer;
+    background: #7a6a4f;
+    padding: 0 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    height: 35px;
+    line-height: 1.1;
+  }
+  .ability-btn-mobile:disabled {
+    background: #444;
+    border-color: #666;
+    color: #888;
+    cursor: not-allowed;
+  }
+  .labels-bar {
+    width: 100%;
+    padding: 5px 0;
+  }
+  .label {
+    font-size: 18px;
+    padding: 0 10px;
+  }
+  #gameBoard {
+    width: 100%;
+    height: auto;
+  }
+  #victoryScreen {
+        background-image: none !important; /* IMPORTANT: We disable the large background */
+        background-color: rgba(0,0,0,0.9);
+    }
+    #victoryScreen::before {
+        background-color: rgba(0, 0, 0, 0.5); /* Slightly darker overlay for mobile */
+    }
+
+    .victory-content {
+        padding: 20px;
+    }
+
+    #victory-character-art {
+        display: block; /* The character art is now visible as an element */
+        width: 150px;
+        height: 150px;
+        margin: 0 auto 15px auto;
+        border-radius: 50%; /* Makes it a nice circle */
+        border: 4px solid #7a6a4f;
+    }
+
+    #victory-title {
+        font-size: 36px;
+    }
+
+    #victory-quote {
+        font-size: 16px;
+    }
+
+    #restartBtn {
+        font-size: 18px;
+        padding: 12px 30px;
+    }
+}
+@media (max-width: 480px) {
+  #messageLogContainer-mobile {
+    height: 100px;
+    padding: 10px;
+  }
+  #messageLogContainer-mobile .ui-header {
+    margin-bottom: 5px;
+  }
+  #messageLog-mobile {
+    padding: 0 5px 0 0;
+  }
+  #messageLog-mobile li {
+    word-break: break-all;
+  }
+  .label {
+    font-size: 12px;
+    font-weight: normal;
+    padding: 0 5px;
+  }
+  #timerContainer-mobile .timer-display {
+    font-size: 18px;
+    min-width: 60px;
+  }
+  #startResetBtn-mobile {
+    font-size: 14px;
+    padding: 4px 8px;
+  }
+  .top-menu-btn {
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+}
+
+/* ---
+==========================================================================
+   2. UNIQUE MENU STYLES (for index.html)
+==========================================================================
+--- */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.menu-container {
+  background: rgba(10, 5, 0, 0.85);
+  padding: 30px 40px;
+  border-radius: 15px;
+  border: 2px solid #7a6a4f;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+  text-align: center;
+  width: 100%;
+  max-width: 500px;
+  animation: fadeIn 0.5s;
+  margin-top: 20px;
+}
+.game-title {
+  font-size: 42px;
+  font-weight: bold;
+  color: #f0f0f0;
+  text-shadow: 0 0 10px #ffcc00, 0 0 20px #ff8c00;
+  margin-bottom: 25px;
+  letter-spacing: 2px;
+}
+.team-selection h2 {
+  font-size: 20px;
+  color: #c8bda9;
+  margin-bottom: 20px;
+  font-weight: normal;
+}
+.teams {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 30px;
+}
+.team-card {
+  background: #2a2a2a;
+  border: 3px solid #555;
+  border-radius: 10px;
+  padding: 15px;
+  cursor: pointer;
+  transition: all 0.3s;
+  width: 180px;
+  position: relative;
+  overflow: hidden;
+}
+.team-card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transition: all 0.3s;
+  box-shadow: inset 0 0 20px 10px rgba(0, 0, 0, 0.5);
+}
+.team-card:hover {
+  transform: translateY(-5px);
+  border-color: #c8bda9;
+}
+.team-card#team-snow.selected {
+  border-color: #7ecbff;
+  box-shadow: 0 0 25px rgba(126, 203, 255, 0.7);
+  transform: translateY(-5px);
+}
+.team-card#team-ash.selected {
+  border-color: #ff6347;
+  box-shadow: 0 0 25px rgba(255, 99, 71, 0.7);
+  transform: translateY(-5px);
+}
+.team-card img {
+  width: 120px;
+  height: 120px;
+  transition: transform 0.3s;
+}
+.team-card:hover img {
+  transform: scale(1.05);
+}
+.team-card h3 {
+  font-size: 20px;
+  margin-top: 10px;
+  color: #f0f0f0;
+}
+.menu-btn {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 15px;
+  font-size: 18px;
+  font-weight: bold;
+  color: #e0e0e0;
+  background: linear-gradient(180deg, #7a6a4f, #5f523e);
+  border: 2px solid #c8bda9;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-shadow: 1px 1px 3px #000;
+}
+.menu-btn:hover {
+  background: linear-gradient(180deg, #9c8b6d, #7a6a4f);
+  color: #fff;
+}
+.menu-btn:active {
+  transform: translateY(2px);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+.menu-btn:disabled {
+  background: #444;
+  border-color: #666;
+  color: #888;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+/* --- IMPROVEMENT: Added styles for very small screens --- */
+@media (max-width: 480px) {
+  .menu-container {
+    padding: 20px 15px;
+  }
+  .game-title {
+    font-size: 32px;
+  }
+  .teams {
+    flex-direction: column;
+    align-items: center;
+  }
+  .menu-btn {
+    font-size: 16px;
+    padding: 10px;
+  }
+}
+
+/* ---
+==========================================================================
+   3. UNIQUE RULES STYLES (for rules.html)
+==========================================================================
+--- */
+.container {
+  background: rgba(10, 5, 0, 0.85);
+  border: 2px solid #7a6a4f;
+  border-radius: 15px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+  padding: 30px 40px;
+  max-width: 1000px;
+  width: 100%;
+  margin: 20px auto;
+}
+.container header {
+  text-align: center;
+  border-bottom: 2px solid #7a6a4f;
+  padding-bottom: 20px;
+  margin-bottom: 30px;
+}
+.container header h1 {
+  font-size: 2.8em;
+  color: #c8bda9;
+  text-shadow: 0 0 10px #ffcc00;
+  margin: 0;
+  word-wrap: break-word;
+}
+.container section {
+  margin-bottom: 40px;
+}
+.container h2 {
+  font-size: 1.8em;
+  color: #c8bda9;
+  border-bottom: 1px solid #5f523e;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+.container h3 {
+  font-size: 1.4em;
+  color: #c8bda9;
+  margin-top: 30px;
+}
+.container h4 {
+  font-size: 1.2em;
+  color: #c8bda9;
+  margin: 15px 0 10px 0;
+}
+.container ul {
+  list-style: none;
+  padding-left: 0;
+}
+.container li {
+  margin-bottom: 10px;
+  padding-left: 25px;
+  position: relative;
+  font-size: 1.1em;
+}
+.container li::before {
+  content: "✦";
+  position: absolute;
+  left: 0;
+  color: #c8bda9;
+  font-size: 1.2em;
+  top: -2px;
+}
+.container strong {
+  color: #ffcc00;
+  font-weight: normal;
+}
+.ability-split {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 20px;
+}
+.faction-abilities {
+  width: 48%;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid #5f523e;
+  padding: 5px 20px 15px 20px;
+  border-radius: 8px;
+}
+.faction-abilities ul {
+  margin-top: 10px;
+}
+.faction-abilities li {
+  font-size: 1em;
+}
+.container button {
+  display: block;
+  margin: 30px auto 0;
+  padding: 12px 25px;
+  background-color: #7a6a4f;
+  color: white;
+  font-weight: bold;
+  border: 2px solid #c8bda9;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1.1em;
+  font-family: "Georgia", serif;
+}
+.container button:hover {
+  background-color: #9c8b6d;
+  transform: scale(1.05);
+}
+@media (max-width: 768px) {
+  .container {
+    padding: 20px 15px;
+    margin: 10px auto;
+  }
+  .container header h1 {
+    font-size: 2em;
+  }
+  .container h2 {
+    font-size: 1.4em;
+  }
+  .container h3 {
+    font-size: 1.2em;
+  }
+  .container li {
+    font-size: 1em;
+    padding-left: 20px;
+  }
+  .ability-split {
+    flex-direction: column;
+  }
+  .faction-abilities {
+    width: 100%;
+  }
+}
+
+/* ---
+==========================================================================
+   4. UNIQUE NOTES STYLES (for notes.html)
+==========================================================================
+--- */
+.notes-container {
+  background: rgba(10, 5, 0, 0.85);
+  border: 2px solid #7a6a4f;
+  border-radius: 15px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+  padding: 30px 40px;
+  max-width: 1000px;
+  width: 100%;
+  margin: 20px auto;
+}
+.notes-title {
+  text-align: center;
+  font-size: 2.8em;
+  color: #c8bda9;
+  text-shadow: 0 0 10px #ffcc00;
+  margin-bottom: 30px;
+  border-bottom: 2px solid #7a6a4f;
+  padding-bottom: 20px;
+  word-wrap: break-word;
+}
+.notes-content {
+  padding-right: 0;
+  margin-bottom: 80px;
+}
+.note-card {
+  border: 1px solid #5f523e;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  background: rgba(0, 0, 0, 0.2);
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.5);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.note-card:hover {
+  transform: translateY(-5px);
+  border-color: #7a6a4f;
+}
+.note-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #444;
+  flex-wrap: wrap;
+}
+.note-version {
+  font-size: 1.1em;
+  font-weight: bold;
+  color: #ffcc00;
+}
+.note-card-title {
+  font-size: 1.5em;
+  color: #c8bda9;
+  font-weight: bold;
+  flex-basis: 100%;
+  order: -1;
+  margin-bottom: 10px;
+}
+.note-date {
+  font-size: 0.9em;
+  color: #aaa;
+}
+.note-detail {
+  font-size: 1.1em;
+  line-height: 1.7;
+  color: #ddd;
+  overflow-wrap: break-word;
+}
+.note-detail ul {
+  list-style: none;
+  padding-left: 0;
+  margin-top: 10px;
+}
+.note-detail li {
+  padding-left: 20px;
+  position: relative;
+  margin-bottom: 8px;
+}
+.note-detail li::before {
+  content: "✦";
+  position: absolute;
+  left: 0;
+  color: #c8bda9;
+}
+.back-btn {
+  position: sticky;
+  bottom: 20px;
+  z-index: 10;
+  display: block;
+  width: fit-content;
+  margin: 30px auto 0;
+  padding: 12px 25px;
+  background-color: #7a6a4f;
+  color: white;
+  font-weight: bold;
+  border: 2px solid #c8bda9;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 1.1em;
+  font-family: "Georgia", serif;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+.back-btn:hover {
+  background-color: #9c8b6d;
+  transform: scale(1.05);
+}
+@media (max-width: 768px) {
+  .notes-container {
+    padding: 20px 15px;
+    margin: 10px auto;
+  }
+  .notes-title {
+    font-size: 2.2em;
+  }
+  .note-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .note-card-title {
+    order: 0;
+    margin-bottom: 5px;
+    font-size: 1.3em;
+  }
+  .note-detail {
+    font-size: 1em;
+  }
+}

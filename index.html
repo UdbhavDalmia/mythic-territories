@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mythic Territories - Main Menu</title>
+    <link rel="stylesheet" href="styles/style.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            background: url('images/bg-menu.png') center/cover fixed;
+            font-family: 'Georgia', serif;
+            padding: 20px;
+            overflow-y: auto;
+            color: #f0f0f0;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="menu-container">
+        <h1 class="game-title">Mythic Territories</h1>
+        <div class="team-selection">
+            <h2>Choose Your Allegiance</h2>
+            <div class="teams">
+                <div class="team-card" id="team-snow">
+                    <img src="images/frost-lord.png" alt="Snow Team">
+                    <h3>Snow</h3>
+                </div>
+                <div class="team-card" id="team-ash">
+                    <img src="images/ash-tyrant.png" alt="Ash Team">
+                    <h3>Ash</h3>
+                </div>
+            </div>
+        </div>
+        <div class="start-options">
+            <button id="play-human-btn" class="menu-btn" disabled>Pass and Play</button>
+            <button id="play-ai-btn" class="menu-btn" disabled>Challenge the Architect</button>
+        </div>
+        <button id="rules-btn" class="menu-btn">Game Rules</button>
+        <button id="notes-btn" class="menu-btn">Patch Notes</button>
+    </div>
+    <script src="menu.js"></script>
+</body>
+</html>

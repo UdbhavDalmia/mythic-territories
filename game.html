@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mythic Territories</title>
+  <link rel="stylesheet" href="styles/style.css">
+  <style>
+    /* --- Added missing body styles for game.html --- */
+    body {
+      background: #181818 url('../images/bg-menu.png') no-repeat center center fixed;
+      background-size: cover;
+      margin: 0;
+      font-family: 'Georgia', serif;
+      overflow: auto;
+      color: #f0f0f0;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="game-wrapper">
+    <div class="main-layout">
+      <div id="left-column" class="ui-column">
+        <div id="timerContainer" class="ui-container">
+          <div class="top-section">
+            <button id="menuButton" class="top-menu-btn">Main Menu</button>
+            <div class="ui-header">TIME REMAINING</div>
+            <div id="ashTimer" class="timer-display">10:00</div>
+            <button id="startResetBtn">Start</button>
+            <div id="snowTimer" class="timer-display">10:00</div>
+          </div>
+          <div id="ability-info-panel" class="ability-panel" style="display: none;">
+            <h3 id="ability-name"></h3>
+            <p id="ability-description"></p>
+            <div id="charge-container" style="display: none;">
+              Charges: <span id="charge-count">0/3</span>
+            </div>
+            <div id="ability-cooldown-container" style="display: none;">
+              Cooldown: <span id="ability-cooldown"></span> turns
+            </div>
+            <button id="abilityBtn">Use Ability</button>
+            <button id="siphonBtn">Siphon</button>
+            <div id="unleash-abilities">
+              <button id="unleash1Btn" class="unleash-btn" data-cost="1"><span id="unleash1Name"></span></button>
+              <button id="unleash2Btn" class="unleash-btn" data-cost="2"><span id="unleash2Name"></span></button>
+              <button id="unleash3Btn" class="unleash-btn" data-cost="3"><span id="unleash3Name"></span></button>
+            </div>
+            <button id="riftPulseBtn">Rift Pulse</button>
+            <button id="despawnBtn" style="display: none;">Despawn</button>
+          </div>
+        </div>
+      </div>
+      <div class="game-container">
+        <canvas id="gameBoard"></canvas>
+        <div class="labels-bar">
+          <div id="snowLabel" class="label snow"></div>
+          <div id="turnLabel" class="label turn"></div>
+          <div id="ashLabel" class="label ash"></div>
+        </div>
+      </div>
+      <div id="right-column" class="ui-column">
+        <div id="totalTurnsCounter" class="ui-container">Total Turns: 0</div>
+        <div id="messageLogContainer" class="ui-container">
+          <div class="ui-header">EVENT LOG</div>
+          <ul id="messageLog"></ul>
+        </div>
+      </div>
+      <div id="messageLogContainer-mobile" class="ui-container">
+        <div class="ui-header">EVENT LOG</div>
+        <ul id="messageLog-mobile"></ul>
+      </div>
+      <div id="timerContainer-mobile" class="ui-container">
+        <div id="ashTimer-mobile" class="timer-display">10:00</div>
+        <button id="startResetBtn-mobile">Start</button>
+        <div id="snowTimer-mobile" class="timer-display">10:00</div>
+      </div>
+      <div id="mobile-ability-bar" class="ability-panel ui-container">
+        <div id="mobile-ability-info">
+          <h3 id="mobile-ability-name">No Unit Selected</h3>
+          <p id="mobile-ability-description">Select a unit to see its actions.</p>
+        </div>
+        <div class="mobile-button-grid">
+          <button id="action-btn-1" class="ability-btn-mobile"></button>
+          <button id="action-btn-2" class="ability-btn-mobile"></button>
+          <button id="action-btn-3" class="ability-btn-mobile"></button>
+          <button id="action-btn-4" class="ability-btn-mobile"></button>
+        </div>
+      </div>
+      <div id="totalTurnsCounter-mobile" class="ui-container">Total Turns: 0</div>
+      <div id="mobile-top-bar">
+        <button id="menuButton-mobile" class="top-menu-btn">Main Menu</button>
+      </div>
+    </div>
+  </div>
+  <div id="victoryScreen">
+    <div class="victory-content">
+        <img id="victory-character-art" src="" alt="Winning Faction Leader" />
+        <h2 id="victory-title"></h2>
+        <p id="victory-quote"></p>
+        <button id="restartBtn">Play Again</button>
+    </div>
+  </div>
+  <div id="flashMessage"></div>
+  <div id="piecePopup" class="piece-Popup"></div>
+  <script src="script.js" type="module"></script>
+</body>
+
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game Guidebook</title>
+  <link rel="stylesheet" href="styles/style.css">
+  <style>
+      body {
+          background: #181818 url('images/bg-menu.png') no-repeat center center fixed;
+          background-size: cover;
+          color: #ddd;
+          font-family: "Georgia", serif;
+          line-height: 1.7;
+          margin: 0;
+          padding: 10px;
+      }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <header><h1>Game Guidebook</h1></header>
+    <section id="objective">
+      <h2>1. The Objective</h2>
+      <p>
+        Welcome to Mythic Territories, a game of strategy and conquest. Your goal is to achieve victory in one of two ways:
+      </p>
+      <ul>
+        <li>
+          <strong>Vanquish a Rival:</strong> In "Pass and Play," you must outmaneuver a human opponent and capture their leader: the <strong>Ash Tyrant</strong> or <strong>Frost Lord</strong>.
+        </li>
+        <li>
+          <strong>Defy a God:</strong> In "Challenge the Architect," you must face the maker of the world itself. Prove that your mortal will can triumph over the flawless, primordial intelligence that forged the realms.
+        </li>
+      </ul>
+    </section>
+    <section id="gameplay"><h2>2. Core Gameplay</h2><ul><li><strong>Turns:</strong> Each player moves one piece per turn. A full round consists of both players taking a turn.</li><li><strong>Movement:</strong> Pieces may move one square in any direction, including diagonals.</li><li><strong>Combat:</strong> Moving onto a square occupied by an enemy initiates combat. The piece with the higher <strong>Effective Power</strong> wins. If powers are equal, the player controlling more <strong>Territory</strong> wins.</li><li><strong>Territory:</strong> Moving a piece to an unoccupied square converts it to your territory. This is the tie-breaker in combat.</li></ul></section>
+    <section id="the-board"><h2>3. The Battlefield</h2><p>The board itself contains volatile and strategic locations that can turn the tide of war.</p><h3>The Awakened Conduit (Rifts)</h3><ul><li><strong>Forming the Link:</strong> When you occupy both rift zones simultaneously, a <strong>Conduit Link</strong> is formed. The two occupying pieces become <strong>Anchors</strong>.</li><li><strong>Conduit Highway:</strong> While the link is active, any friendly piece adjacent to one Anchor can use its turn to teleport to an empty square adjacent to the other Anchor.</li><li><strong>Anchor Bonuses:</strong> Both Anchors gain <strong>+2 Power</strong>. The top-left Anchor is immune to enemy abilities (<strong>Defensive Ward</strong>), while the bottom-right Anchor gains a one-time <strong>Rift Pulse</strong> ability, which pushes away all adjacent pieces and dazes them for one turn.</li></ul><h3>The Unstable Shrine</h3><ul>
+        <li><strong>Charging:</strong> Capturing a piece on a Shrine square grants the attacker a one-time <strong>+1 permanent Power boost</strong> and adds one charge to the Shrine.</li>
+        <li><strong>Overload:</strong> After three charges, the Shrine becomes Overloaded. The next piece to enter is <strong>vaporized</strong> by the raw energy! This also unleashes a <strong>Cataclysmic Pulse</strong>: all pieces adjacent to the shrine are <strong>pushed back one square</strong> and become <strong>Dazed for 2 turns</strong>.</li>
+    </ul></section>
+    <section id="abilities"><h2>4. Special Abilities</h2><p>Many pieces possess unique abilities that consume their turn to use. These abilities have cooldowns, meaning they cannot be used for a set number of turns after activation.</p><h3>Siphoner Abilities (Void Chanter & Rift Warden)</h3><p>The Void Chanter and Rift Warden share the unique <strong>Siphon</strong> ability.</p><ul><li><strong>Siphon:</strong> Use a turn on a Rift or Shrine to gain 1 <strong>Charge</strong> (max 3). These charges can be spent to unleash powerful, faction-specific abilities detailed below.</li></ul><div class="ability-split"><div class="faction-abilities"><h4>Snow Faction Unleash</h4><ul><li><strong>(1) Flash Freeze:</strong> Freezes an enemy piece within 4 squares, preventing it from moving for 2 rounds.</li>
+        <li><strong>(2) Glacial Step:</strong> Teleport to any friendly territory square *within 5 squares*.</li>
+        <li><strong>(3) Whiteout:</strong> Reduces the power of all enemies within a 3-square radius by 1 for 1 round.</li>
+    </ul></div><div class="faction-abilities"><h4>Ash Faction Unleash</h4><ul><li><strong>(1) Stoke the Flames:</strong> Grants a friendly piece within 4 squares +2 Power for 3 rounds.</li><li><strong>(2) Rift Assault:</strong> Teleport to an empty square adjacent to an enemy, up to 3 squares away. The user becomes Dazed for their next turn and cannot move.</li><li><strong>(3) Burning Ground:</strong> Creates damaging terrain in all adjacent squares that lasts for 1 round. Enemies entering take 1 permanent damage.</li></ul></div></div><h3 style="margin-top: 40px;">Piece-Specific Abilities</h3><ul><li><strong>Chilling Aura (Soul Freeze):</strong> Activates an aura that reduces the power of all adjacent enemies by 1. The aura lasts for 3 turns. <strong>(Cooldown: 4 turns)</strong></li><li><strong>MarkOfCinder (Scorch Priest):</strong> Marks an enemy within 2 squares, reducing its power by 1 for 3 turns. <strong>(Cooldown: 4 turns)</strong></li><li><strong>GlacialWall (Ice Weaver):</strong> Creates two impassable walls on adjacent empty squares. The walls last for 3 turns. <strong>(Cooldown: 6 turns)</strong></li>
+        <li><strong>Unstable Ground (Rift Forger):</strong> Makes an empty square within 4 squares hazardous for 3 turns. The next piece to enter takes 1 permanent damage. <strong>(Cooldown: 4 turns)</strong></li>
+        <li><strong>SummonIceWisp (Cryomancer):</strong> Summons a Power 0 wisp to an empty square within 4 squares. This wisp can be used for blocking or capturing territory. <strong>(Cooldown: 4 turns)</strong></li>
+        <li><strong>Lava Glob (Magma Spitter):</strong> Deals 1 permanent damage to an enemy with a *base power* of 1 or 2, within a 4-square range. (Boosts do not affect targeting). <strong>(Cooldown: 10 turns)</strong></li>
+    </ul><h3>Inherent Abilities</h3><p>These abilities are passive and trigger automatically under certain conditions.</p><ul><li><strong>Territory Surge (Yeti & Hell Hound):</strong> When this piece captures an enemy, you immediately gain control of 2 random, unoccupied squares on the board.</li></ul></section>
+    <div style="text-align:center; margin: 40px 0;"><button onclick="window.location.href='index.html'">Back to Menu</button></div>
+  </main>
+</body>
+</html>
