@@ -12,9 +12,49 @@ import { getValidMoves, getEffectivePower, isCaptureSuccessful } from './utils.j
 import { createPiece } from './game.js';
 
 // --- STEP 2: EVALUATION FUNCTIONS ---
-// (No changes here, evaluateBoardState and its helpers remain the same)
-// --- STEP 2: EVALUATION FUNCTIONS ---
-// (evaluateBoardState remains the same, helpers are modified below)
+
+/**
+ * NEW: evaluateBoardHazards
+ * Adds value for strategically placed walls and ground effects.
+ */
+function evaluateBoardHazards(gameState, aiTeam, opponentTeam) {
+    let hazardScore = 0;
+    const opponentLeader = gameState.pieces.find(p => p.team === opponentTeam && (p.key.includes('Lord') || p.key.includes('Tyrant')));
+    const aiLeader = gameState.pieces.find(p => p.team === aiTeam && (p.key.includes('Lord') || p.key.includes('Tyrant')));
+
+    for (const wall of gameState.glacialWalls) {
+        // Simple bonus: Is the wall near the opponent's leader?
+        if (opponentLeader && Math.max(Math.abs(wall.row - opponentLeader.row), Math.abs(wall.col - opponentLeader.col)) <= 2) {
+            hazardScore += 150; // Good, it's blocking/trapping the leader
+        }
+
+        // Is it protecting *my* leader?
+         if (aiLeader && Math.max(Math.abs(wall.row - aiLeader.row), Math.abs(wall.col - aiLeader.col)) <= 1) {
+            hazardScore += 100; // Good, it's protecting
+        }
+    }
+
+    for (const ground of gameState.unstableGrounds) {
+        let nearbyEnemies = 0;
+        for (const piece of gameState.pieces) {
+            if (piece.team === opponentTeam && Math.max(Math.abs(ground.row - piece.row), Math.abs(ground.col - piece.col)) <= 1) {
+                nearbyEnemies++;
+            }
+        }
+        // Bonus for each enemy this hazard is threatening
+        hazardScore += nearbyEnemies * 75;
+
+        // Extra bonus if it's on the shrine
+        if (C.SHAPES.shrineArea.some(([r,c]) => r === ground.row && c === ground.col)) {
+            hazardScore += 100;
+        }
+    }
+
+    // This evaluation is simple and assumes the AI created the hazards.
+    // A more advanced simulation would track `creator` team.
+    return hazardScore;
+}
+
 
 function evaluateBoardState(gameState, aiTeam) {
     let score = 0;
@@ -37,6 +77,7 @@ function evaluateBoardState(gameState, aiTeam) {
     const W_ABILITY = 1.0;
     const W_TERR_MOB = 1.0;
     const W_POSITIONAL = 1.0; // New weight for positional value
+    const W_HAZARDS = 1.0; // --- ADDED THIS ---
 
     score += evaluateLeaderSafety(aiLeader, opponentTeam, gameState) * W_LEADER_SAFETY;
     score += evaluatePieceSafety(gameState, aiTeam, opponentTeam) * W_PIECE_SAFETY;
@@ -49,6 +90,7 @@ function evaluateBoardState(gameState, aiTeam) {
     score += evaluateAbilityStatus(gameState, aiTeam, opponentTeam) * W_ABILITY;
     score += evaluateTerritoryAndMobility(gameState, aiTeam, opponentTeam) * W_TERR_MOB;
     score += evaluatePositionalValue(gameState, aiTeam, opponentTeam) * W_POSITIONAL; // Added positional evaluation
+    score += evaluateBoardHazards(gameState, aiTeam, opponentTeam) * W_HAZARDS; // --- ADDED THIS ---
 
     return score;
 }
@@ -364,19 +406,54 @@ function simulateMove(gameState, piece, target) {
     tempState.pieces.forEach(p => { tempState.boardMap[p.row][p.col] = p; });
     return tempState;
 }
+
+/**
+ * MODIFIED: simulateAbility
+ * Now checks for 'Siphon' and 'canBeBlocked' to properly simulate.
+ */
 function simulateAbility(gameState, piece, abilityKey, target = null) {
     const tempState = deepClone(gameState);
     const simPiece = findPieceInState(tempState, piece);
     if (!simPiece) return tempState;
 
+    // --- ADDED SIPHON SIMULATION ---
+    if (abilityKey === 'Siphon') {
+        if (simPiece.charges < simPiece.ability.maxCharges) {
+            simPiece.charges = (simPiece.charges || 0) + 1;
+        }
+        return tempState;
+    }
+    // --- END ADDITION ---
+
     const ability = C.ABILITIES[abilityKey];
     if (ability?.effect) {
-        ability.effect(simPiece, target, tempState, createPiece);
+        
+        // --- ADDED THIS CHECK ---
+        let canApplyEffect = true;
+        if (target && ability.canBeBlocked) {
+            const targetPiece = C.getPieceAt(target.r, target.c, tempState.boardMap);
+            if (targetPiece && targetPiece.hasDefensiveWard) {
+                canApplyEffect = false; // Simulation matches reality: effect is blocked
+            }
+        }
+        
+        if (canApplyEffect) {
+            ability.effect(simPiece, target, tempState, createPiece);
+        }
+        // --- END ADDITION ---
+
+        // --- ADDED ABILITY COST SIMULATION ---
+        if (typeof ability.cost === 'number') {
+            simPiece.charges = Math.max(0, (simPiece.charges || 0) - ability.cost);
+        }
+        // --- END ADDITION ---
+
         tempState.boardMap = Array.from({ length: C.ROWS }, () => Array(C.COLS).fill(null));
         tempState.pieces.forEach(p => { tempState.boardMap[p.row][p.col] = p; });
     }
     return tempState;
 }
+
 function simulateAction(gameState, action) {
     if (action.type === 'move') {
         return simulateMove(gameState, action.piece, action.target);
@@ -389,8 +466,8 @@ function simulateAction(gameState, action) {
 // --- STEP 4: ACTION GENERATION & ORDERING ---
 
 /**
- * NEW: Quickly scores an action heuristically for move ordering.
- * Higher scores are better/more likely to be good moves.
+ * REPLACED: scoreActionHeuristically
+ * This new version is much more detailed and scores abilities individually.
  */
 function scoreActionHeuristically(action, gameState, aiTeam) {
     let score = 0;
@@ -422,27 +499,89 @@ function scoreActionHeuristically(action, gameState, aiTeam) {
         }
     } else if (action.type === 'ability') {
         const abilityKey = action.abilityKey;
-        score += 500; // General bonus for using abilities
+        
+        if (abilityKey === 'Siphon') {
+            score += 700; // Prioritize gaining charges
+            // Bonus if siphoner is "safe" while siphoning
+            const isThreatened = gameState.pieces.some(p => 
+                p.team === opponentTeam && 
+                getValidMoves(p, gameState).some(m => m.row === piece.row && m.col === piece.col)
+            );
+            if (!isThreatened) {
+                score += 300;
+            }
+        }
+        
+        // --- Handle targeting abilities ---
+        else if (action.target) {
+            const targetPiece = C.getPieceAt(action.target.r, action.target.c, gameState.boardMap);
+            
+            switch (abilityKey) {
+                // Debuffs / Direct Attacks
+                case 'FlashFreeze':
+                case 'MarkOfCinder':
+                case 'LavaGlob':
+                    if (targetPiece) {
+                        score += 800 + (C.PIECE_VALUES[targetPiece.key] || 0) * 2; // Prioritize high-value targets
+                        if (targetPiece.key.includes('Lord') || targetPiece.key.includes('Tyrant')) {
+                            score += 5000; // Highly prioritize targeting the leader
+                        }
+                    }
+                    break;
+                
+                // Buffs
+                case 'StokeTheFlames':
+                    if (targetPiece) {
+                        score += 400 + (C.PIECE_VALUES[targetPiece.key] || 0); // Prioritize high-value friendlies
+                    }
+                    break;
+                
+                // Teleports
+                case 'RiftAssault':
+                case 'GlacialStep':
+                    score += 600; // Teleporting is generally a good strategic move
+                    break;
 
-        // Prioritize high-impact abilities
-        if (['Whiteout', 'BurningGround'].includes(abilityKey)) score += 300;
-        if (['FlashFreeze', 'RiftAssault', 'MarkOfCinder'].includes(abilityKey)) score += 200;
-        if (abilityKey === 'LavaGlob') score += 150;
-        if (abilityKey === 'StokeTheFlames') score += 100;
-
-        // Prioritize targeting valuable pieces with debuffs/attacks
-        if (target && C.ABILITIES[abilityKey].targetType === 'enemy') {
-            const targetPiece = C.getPieceAt(target.r, target.c, gameState.boardMap);
-            if (targetPiece) {
-                score += (C.PIECE_VALUES[targetPiece.key] || 0) * 2;
+                // Summons / Placement
+                case 'SummonIceWisp':
+                    score += 300;
+                    break;
+                case 'UnstableGround':
+                case 'GlacialWall':
+                    score += 450; // Good strategic placement
+                    break;
+            }
+        }
+        
+        // --- Handle non-targeting abilities ---
+        else {
+            switch (abilityKey) {
+                case 'Whiteout':
+                case 'BurningGround':
+                    // Score based on nearby enemies
+                    let enemiesHit = 0;
+                    const radius = (abilityKey === 'Whiteout') ? C.ABILITY_VALUES.Whiteout.radius : 1;
+                    gameState.pieces.forEach(p => {
+                        if (p.team === opponentTeam && Math.max(Math.abs(p.row - piece.row), Math.abs(p.col - piece.col)) <= radius) {
+                            enemiesHit++;
+                        }
+                    });
+                    score += 500 + (enemiesHit * 300); // Highly value hitting multiple targets
+                    break;
+                
+                case 'ChillingAura':
+                    score += 350;
+                    break;
             }
         }
     }
     return score;
 }
 
+
 /**
- * MODIFIED: Generates and sorts actions based on heuristic score.
+ * MODIFIED: Generates and sorts actions, now checks for Siphon
+ * and for Defensive Wards on targets.
  */
 function getOrderedActions(gameState, team) {
     const possibleActions = [];
@@ -488,6 +627,12 @@ function getOrderedActions(gameState, team) {
                             }
                         }
 
+                        // --- MODIFIED: ADDED THIS CHECK ---
+                        if (isValid && targetPiece && ability.canBeBlocked && targetPiece.hasDefensiveWard) {
+                            isValid = false; // Target is warded, this is not a valid action.
+                        }
+                        // --- END MODIFICATION ---
+
                         if (isValid) {
                             possibleActions.push({ type: 'ability', piece: p, abilityKey: abilityKey, target: { r, c } });
                         }
@@ -496,13 +641,27 @@ function getOrderedActions(gameState, team) {
             }
         };
 
+        // --- ADDED THIS BLOCK ---
+        // 2a. Check for Siphon action
+        if (p.ability?.name === 'Siphon' && (p.charges || 0) < p.ability.maxCharges) {
+            const isOnRift = C.SHAPES.riftAreas.some(r => r.cells.some(([rr, cc]) => rr === p.row && cc === p.col));
+            const isOnShrine = C.SHAPES.shrineArea.some(([r, c]) => r === p.row && c === p.col);
+            
+            if (isOnRift || isOnShrine) {
+                possibleActions.push({ type: 'ability', piece: p, abilityKey: 'Siphon', target: null });
+            }
+        }
+        // --- END OF NEW BLOCK ---
+
+        // 2b. Check for other piece abilities
         if (p.ability?.key && p.ability.key !== 'Siphon' && p.ability.cooldown <= 0) {
             checkAndAddAbility(p.ability.key);
         }
 
-        if (p.ability?.name === 'Siphon' && p.charges > 0) {
+        // 2c. Check for unleash abilities
+        if (p.ability?.name === 'Siphon' && (p.charges || 0) > 0) {
             p.ability.unleash.forEach((abilityKey, i) => {
-                if (p.charges >= i + 1) checkAndAddAbility(abilityKey);
+                if ((p.charges || 0) >= i + 1) checkAndAddAbility(abilityKey);
             });
         }
     });

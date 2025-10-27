@@ -207,7 +207,22 @@ export const ABILITIES = {
             const distance = Math.max(Math.abs(p.row - t.r), Math.abs(p.col - t.c));
             const targetPiece = getPieceAt(t.r, t.c, gs.boardMap);
             return distance === 1 && !targetPiece;
+        },
+        // --- ADDED THIS FUNCTION ---
+        effect: (p, t, gs) => {
+            // This is a simplified effect for simulation.
+            // The real logic in game.js handles the two-part placement.
+            // For the AI, we'll assume the target 't' is the *first* wall.
+            // The AI's getOrderedActions will only pass valid first targets.
+            if (t) {
+                 gs.glacialWalls.push({ 
+                    row: t.r, 
+                    col: t.c, 
+                    duration: ABILITY_VALUES.GlacialWall.duration 
+                });
+            }
         }
+        // --- END ADDITION ---
     },
 
     UnstableGround: {
