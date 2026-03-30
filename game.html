@@ -5,27 +5,43 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mythic Territories</title>
-  <link rel="stylesheet" href="styles/style.css">
+  <link rel="stylesheet" href="styles/game.css">
   <style>
-    /* --- Added missing body styles for game.html --- */
     body {
-      background: #181818 url('../images/bg-menu.png') no-repeat center center fixed;
+      background: #181818 url('/images/bg-menu.png') no-repeat center center fixed;
       background-size: cover;
       margin: 0;
       font-family: 'Georgia', serif;
-      overflow: auto;
       color: #f0f0f0;
       display: flex;
       justify-content: center;
       align-items: flex-start;
+      padding-top: 10px;
+    }
+    @media (max-width: 768px) {
+      body {
+        overflow: auto;
+      }
     }
   </style>
 </head>
 
 <body>
+  <div id="ascensionScreen" class="ascension-overlay" style="display: none;">
+      <div class="ascension-content dark-glass-container">
+          <h2 id="ascension-role-title">PRIMAL ASCENSION: ROLE NAME</h2>
+          <div id="ascension-description-content" class="ascension-choices-detail">
+              </div>
+          <div class="ascension-button-group">
+              <button id="ascensionPathABtn-popup" class="ascension-btn">Choose Path A</button>
+              <button id="ascensionPathBBtn-popup" class="ascension-btn">Choose Path B</button>
+          </div>
+          <button id="ascensionCancelBtn-popup" class="ascension-cancel-btn">Cancel Ascension</button>
+      </div>
+  </div>
   <div id="game-wrapper">
     <div class="main-layout">
-      <div id="left-column" class="ui-column">
+      <div id="left-column" class="ui-column primal-snow">
         <div id="timerContainer" class="ui-container">
           <div class="top-section">
             <button id="menuButton" class="top-menu-btn">Main Menu</button>
@@ -45,6 +61,8 @@
             </div>
             <button id="abilityBtn">Use Ability</button>
             <button id="siphonBtn">Siphon</button>
+            <button id="sacrificeBtn" style="display: none;" class="unleash-btn">Sacrifice</button>
+            <button id="releaseBtn" style="display: none;" class="unleash-btn">Release</button>
             <div id="unleash-abilities">
               <button id="unleash1Btn" class="unleash-btn" data-cost="1"><span id="unleash1Name"></span></button>
               <button id="unleash2Btn" class="unleash-btn" data-cost="2"><span id="unleash2Name"></span></button>
@@ -52,6 +70,14 @@
             </div>
             <button id="riftPulseBtn">Rift Pulse</button>
             <button id="despawnBtn" style="display: none;">Despawn</button>
+
+            <div id="ultimate-charge-selection" style="display: none; margin-top: 10px;">
+                <div class="ui-header" style="font-size: 14px;">Use Charges (1 Turn)</div>
+                <button id="ultimateUse1Btn" class="unleash-btn">Use 1 Charge</button>
+                <button id="ultimateUse2Btn" class="unleash-btn">Use 2 Charges</button>
+                <button id="ultimateUse3Btn" class="unleash-btn">Use 3 Charges</button>
+            </div>
+            <button id="ultimateDeactivateBtn" style="display: none;" class="unleash-btn stop-channeling-btn">Deactivate Aura (Free)</button>
           </div>
         </div>
       </div>
@@ -63,8 +89,7 @@
           <div id="ashLabel" class="label ash"></div>
         </div>
       </div>
-      <div id="right-column" class="ui-column">
-        <div id="totalTurnsCounter" class="ui-container">Total Turns: 0</div>
+      <div id="right-column" class="ui-column primal-ash">
         <div id="messageLogContainer" class="ui-container">
           <div class="ui-header">EVENT LOG</div>
           <ul id="messageLog"></ul>
@@ -91,7 +116,6 @@
           <button id="action-btn-4" class="ability-btn-mobile"></button>
         </div>
       </div>
-      <div id="totalTurnsCounter-mobile" class="ui-container">Total Turns: 0</div>
       <div id="mobile-top-bar">
         <button id="menuButton-mobile" class="top-menu-btn">Main Menu</button>
       </div>

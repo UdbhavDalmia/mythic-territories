@@ -4,10 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Game Guidebook</title>
-  <link rel="stylesheet" href="styles/style.css">
+  <link rel="stylesheet" href="styles/rules.css">
   <style>
+      /* Note: Body styles moved from inline styles to rules.css */
       body {
-          background: #181818 url('images/bg-menu.png') no-repeat center center fixed;
+          background: #181818 url('/images/bg-menu.png') no-repeat center center fixed;
           background-size: cover;
           color: #ddd;
           font-family: "Georgia", serif;
@@ -17,37 +18,322 @@
       }
   </style>
 </head>
-<body>
-  <main class="container">
+<body class="primal-rules">
+  <main class="container dark-glass-container">
     <header><h1>Game Guidebook</h1></header>
+    
     <section id="objective">
       <h2>1. The Objective</h2>
       <p>
-        Welcome to Mythic Territories, a game of strategy and conquest. Your goal is to achieve victory in one of two ways:
+        Command the elemental forces of Snow or Ash. Achieve victory by fulfilling one of these conditions:
       </p>
       <ul>
         <li>
-          <strong>Vanquish a Rival:</strong> In "Pass and Play," you must outmaneuver a human opponent and capture their leader: the <strong>Ash Tyrant</strong> or <strong>Frost Lord</strong>.
-        </li>
-        <li>
-          <strong>Defy a God:</strong> In "Challenge the Architect," you must face the maker of the world itself. Prove that your mortal will can triumph over the flawless, primordial intelligence that forged the realms.
+          <b>Vanquish the Enemy Leader:</b> Capture the opponent's <b>Ash Tyrant</b> or <b>Frost Lord</b>.
         </li>
       </ul>
     </section>
-    <section id="gameplay"><h2>2. Core Gameplay</h2><ul><li><strong>Turns:</strong> Each player moves one piece per turn. A full round consists of both players taking a turn.</li><li><strong>Movement:</strong> Pieces may move one square in any direction, including diagonals.</li><li><strong>Combat:</strong> Moving onto a square occupied by an enemy initiates combat. The piece with the higher <strong>Effective Power</strong> wins. If powers are equal, the player controlling more <strong>Territory</strong> wins.</li><li><strong>Territory:</strong> Moving a piece to an unoccupied square converts it to your territory. This is the tie-breaker in combat.</li></ul></section>
-    <section id="the-board"><h2>3. The Battlefield</h2><p>The board itself contains volatile and strategic locations that can turn the tide of war.</p><h3>The Awakened Conduit (Rifts)</h3><ul><li><strong>Forming the Link:</strong> When you occupy both rift zones simultaneously, a <strong>Conduit Link</strong> is formed. The two occupying pieces become <strong>Anchors</strong>.</li><li><strong>Conduit Highway:</strong> While the link is active, any friendly piece adjacent to one Anchor can use its turn to teleport to an empty square adjacent to the other Anchor.</li><li><strong>Anchor Bonuses:</strong> Both Anchors gain <strong>+2 Power</strong>. The top-left Anchor is immune to enemy abilities (<strong>Defensive Ward</strong>), while the bottom-right Anchor gains a one-time <strong>Rift Pulse</strong> ability, which pushes away all adjacent pieces and dazes them for one turn.</li></ul><h3>The Unstable Shrine</h3><ul>
-        <li><strong>Charging:</strong> Capturing a piece on a Shrine square grants the attacker a one-time <strong>+1 permanent Power boost</strong> and adds one charge to the Shrine.</li>
-        <li><strong>Overload:</strong> After three charges, the Shrine becomes Overloaded. The next piece to enter is <strong>vaporized</strong> by the raw energy! This also unleashes a <strong>Cataclysmic Pulse</strong>: all pieces adjacent to the shrine are <strong>pushed back one square</strong> and become <strong>Dazed for 2 turns</strong>.</li>
-    </ul></section>
-    <section id="abilities"><h2>4. Special Abilities</h2><p>Many pieces possess unique abilities that consume their turn to use. These abilities have cooldowns, meaning they cannot be used for a set number of turns after activation.</p><h3>Siphoner Abilities (Void Chanter & Rift Warden)</h3><p>The Void Chanter and Rift Warden share the unique <strong>Siphon</strong> ability.</p><ul><li><strong>Siphon:</strong> Use a turn on a Rift or Shrine to gain 1 <strong>Charge</strong> (max 3). These charges can be spent to unleash powerful, faction-specific abilities detailed below.</li></ul><div class="ability-split"><div class="faction-abilities"><h4>Snow Faction Unleash</h4><ul><li><strong>(1) Flash Freeze:</strong> Freezes an enemy piece within 4 squares, preventing it from moving for 2 rounds.</li>
-        <li><strong>(2) Glacial Step:</strong> Teleport to any friendly territory square *within 5 squares*.</li>
-        <li><strong>(3) Whiteout:</strong> Reduces the power of all enemies within a 3-square radius by 1 for 1 round.</li>
-    </ul></div><div class="faction-abilities"><h4>Ash Faction Unleash</h4><ul><li><strong>(1) Stoke the Flames:</strong> Grants a friendly piece within 4 squares +2 Power for 3 rounds.</li><li><strong>(2) Rift Assault:</strong> Teleport to an empty square adjacent to an enemy, up to 3 squares away. The user becomes Dazed for their next turn and cannot move.</li><li><strong>(3) Burning Ground:</strong> Creates damaging terrain in all adjacent squares that lasts for 1 round. Enemies entering take 1 permanent damage.</li></ul></div></div><h3 style="margin-top: 40px;">Piece-Specific Abilities</h3><ul><li><strong>Chilling Aura (Soul Freeze):</strong> Activates an aura that reduces the power of all adjacent enemies by 1. The aura lasts for 3 turns. <strong>(Cooldown: 4 turns)</strong></li><li><strong>MarkOfCinder (Scorch Priest):</strong> Marks an enemy within 2 squares, reducing its power by 1 for 3 turns. <strong>(Cooldown: 4 turns)</strong></li><li><strong>GlacialWall (Ice Weaver):</strong> Creates two impassable walls on adjacent empty squares. The walls last for 3 turns. <strong>(Cooldown: 6 turns)</strong></li>
-        <li><strong>Unstable Ground (Rift Forger):</strong> Makes an empty square within 4 squares hazardous for 3 turns. The next piece to enter takes 1 permanent damage. <strong>(Cooldown: 4 turns)</strong></li>
-        <li><strong>SummonIceWisp (Cryomancer):</strong> Summons a Power 0 wisp to an empty square within 4 squares. This wisp can be used for blocking or capturing territory. <strong>(Cooldown: 4 turns)</strong></li>
-        <li><strong>Lava Glob (Magma Spitter):</strong> Deals 1 permanent damage to an enemy with a *base power* of 1 or 2, within a 4-square range. (Boosts do not affect targeting). <strong>(Cooldown: 10 turns)</strong></li>
-    </ul><h3>Inherent Abilities</h3><p>These abilities are passive and trigger automatically under certain conditions.</p><ul><li><strong>Territory Surge (Yeti & Hell Hound):</strong> When this piece captures an enemy, you immediately gain control of 2 random, unoccupied squares on the board.</li></ul></section>
-    <div style="text-align:center; margin: 40px 0;"><button onclick="window.location.href='index.html'">Back to Menu</button></div>
-  </main>
+
+    <section id="core-mechanics">
+      <h2>2. Core Gameplay</h2>
+      
+      <h3>Turns & Movement</h3>
+      <ul>
+        <li><b>Turn Structure:</b> Each player moves one piece per turn. A full round consists of one turn for the Snow faction and one for the Ash faction.</li>
+        <li><b>Movement:</b> Units may move one square in any direction (orthogonal or diagonal), unless restricted by an ability or status (<code>Hamstrung</code>, <code>Stuck</code>).</li>
+      </ul>
+
+      <h3>Combat & Territory</h3>
+      <ul>
+        <li><b>Combat Initiation:</b> Moving a unit onto a square occupied by an enemy unit initiates combat.</li>
+        <li><b>Winning Combat:</b> The unit with the higher <b>Effective Power</b> wins and captures the enemy unit.</li>
+        <li><b>Combat Tie-Breaker:</b> If the Effective Power is equal, the player controlling more <b>Territory</b> wins the combat.</li>
+        <li><b>Territory Acquisition:</b> Moving a piece to an unoccupied square converts it to your territory. Territory size is the core tie-breaker.</li>
+      </ul>
+    </section>
+    
+    <section id="map-objectives">
+      <h2>3. The Map Objectives</h2>
+      
+      <h3>The Awakened Conduit (Rifts)</h3>
+      <p>
+        The board corners contain two Power Rift zones that can awaken and link to form a living, changing feature of the map called the <b>Awakened Conduit</b> (or simply "the Conduit"). Its behavior is dynamic—rifts can expand, spawn Cores, become contested, overcharge, or even collapse into dangerous Void scars.
+      </p>
+
+      <h4>How the Conduit works</h4>
+      <ul>
+        <li><b>Forming the Link:</b> When one faction occupies at least one unit on each Rift area simultaneously (one unit on the top-left Rift and one on the bottom-right Rift), a <b>Conduit Link</b> is established and the occupying units become <b>Anchors</b>.</li>
+
+        <li><b>Conduit Highway:</b> While the link is active, any friendly unit adjacent to one Anchor may use its turn to teleport to an empty square adjacent to the other Anchor. Using the highway grants a short temporary boost to the teleported unit (the Anchor Aura).</li>
+
+        <li><b>Anchor Bonuses & Defensive Ward:</b> Anchors receive an anchor boost to their power (normally <b>+2</b>). The top-left anchor also gains a one-time <b>Defensive Ward</b> while the link is active. If the conduit is <i>Contested</i> (see below), the anchor boost is reduced to <b>+1</b>.</li>
+
+        <li><b>Contested vs Uncontested:</b> If an opposing unit occupies <i>either</i> Rift area, the link is considered <b>Contested</b>. Contested links reduce some bonuses and slow the Conduit's overcharge progress. Uncontested control allows the owning faction to charge the Conduit toward stronger effects.</li>
+      </ul>
+
+      <h4>Conduit Overcharge & the Abyssal Forge</h4>
+      <p>
+        The Conduit accumulates progress while a faction holds it uncontested. Over time this can trigger map-changing events driven by the Abyssal Forge:
+      </p>
+      <ul>
+        <li><b>Progress and Tiers:</b> The Conduit tracks consecutive uncontested turns. After several full turns held, it reaches higher charge tiers. Higher tiers increase the chance of dramatic outcomes (see below).</li>
+
+        <li><b>Abyssal Forge Events (periodic):</b> At regular intervals while the Conduit is active, the Forge evaluates the rift and performs one of two outcomes (approximately a 50/50 chance):
+          <ol>
+            <li><b>Expansion:</b> The Rift may expand by adding an adjacent empty tile to the Conduit area. If the owning faction had already held the Conduit long enough to claim territory, newly added tiles immediately become that faction's territory.</li>
+            <li><b>Elemental Core Spawn:</b> The Forge may instead spawn an <b>Elemental Core</b> (Ruby, Topaz, Emerald, or Sapphire) on an adjacent empty tile. Cores are collectible and grant special effects when consumed by a piece.
+            </li>
+          </ol>
+        </li>
+
+        <li><b>Highly Charged State & Void Snap:</b> If the Conduit becomes highly charged (many uncontested turns and special conditions met), it can <b>collapse</b) in a catastrophic event called the <b>Void Snap</b>. When the Void snaps it converts all Rift cells into dangerous <b>Void Scar</b> squares and removes the Conduit link entirely. Void Scars are impassable and persist.</li>
+      </ul>
+
+      <h4>Elemental Cores</h4>
+      <p>
+        Cores spawned by the Abyssal Forge are single-square items with immediate-use effects when a piece moves onto them. Core types and effects:
+      </p>
+      <ul>
+        <li><b>Ruby:</b> Grants an offensive charge—small power bursts that can stack a limited number of times (useful for short damage or attack bonuses).</li>
+        <li><b>Topaz:</b> Grants temporary movement or cooldown advantages (used to perform an immediate extra movement or reduce ability cooldowns).</li>
+        <li><b>Emerald:</b> Provides a defensive or status effect (shield, heal, or remove a debuff in some cases).</li>
+        <li><b>Sapphire:</b> Grants utility—extra siphon charges or small area effects (example: supply a Siphoner with charges to fuel an Unleash).
+        </li>
+      </ul>
+
+      <h4>Anchor Abilities & Siphoning</h4>
+      <ul>
+        <li><b>Anchor Rift Pulse:</b> Anchors (Void Chanter / Rift Warden) can unleash a one-time or limited <b>Rift Pulse</b> while serving as an Anchor. The Pulse damages or debilitates nearby enemies and is tied to the Anchor's state (cooldowns or once-per-link rules may apply).</li>
+        <li><b>Rift Assault (Rift Warden):</b> Some Ash Anchor units have an ability to Rift-Assault: teleport to a square adjacent to an enemy and apply a daze or self-debuff after use.</li>
+        <li><b>Siphoner Charges:</b> Siphoner units (Void Chanter / Rift Warden) gain charges by standing on Rift tiles, Shrine tiles, or (with certain ascension passives) friendly territory. Charges fuel powerful Unleash abilities.
+        </li>
+      </ul>
+
+      <h4>Practical Notes</h4>
+      <ul>
+        <li>The Conduit is a strategic objective: contesting it can prevent the opponent from acquiring long-term map advantages.</li>
+        <li>Expanding rifts can change terrain and territory—plan movement and placement carefully when the Forge is active.</li>
+        <li>If the Conduit collapses (Void Snap), any active Anchor bonuses and highway teleports end immediately and any pieces standing on newly-formed Void Scars may be affected per special terrain rules.</li>
+      </ul>
+
+      <h3>The Unstable Shrine</h3>
+      <ul>
+        <li><b>Charging:</b> Capturing a piece on a Shrine square grants the attacker a permanent <b>+1 Power boost</b> and adds one charge to the Shrine.</li>
+        <li><b>Overload:</b> After <b>two (2) charges</b>, the Shrine becomes Overloaded. The next piece that moves onto an empty Shrine square is immediately <b>Trapped</b> instead of capturing territory.</li>
+        <li><b>The Sacrifice:</b> A Trapped unit's owner must choose one action on their next turn:
+            <ol>
+                <li><b>Primal Ascension (Sacrifice):</b> The unit is permanently destroyed, and the faction gains a powerful, permanent upgrade (see Section 4). This resets the Shrine.</li>
+                <li><b>Release:</b> The unit is freed but suffers <b>-1 permanent Power</b> and is <b>Dazed</b> for 3 turns. This resets the Shrine.</li>
+            </ol>
+        </li>
+        <li><b>Stealing the Sacrifice:</b> If an opponent moves a unit onto the Shrine while your piece is Trapped, they "steal" the sacrifice. Your Trapped piece is destroyed, and the opponent's team gains a temporary Faction-Wide +1 Power buff. This resets the Shrine.</li>
+      </ul>
+    </section>
+
+    <section id="ascension-paths">
+      <h2>4. Primal Ascension Paths</h2>
+      <p>Sacrificing a unit allows your faction to choose a permanent, game-changing upgrade based on the unit's role.</p>
+
+      <div class="ascension-paths">
+        <div class="unit-category">
+          <h4>Shaper (Ice Weaver / Rift Forger)</h4>
+          <div class="path-choice">
+            <b>Path A: [Master of Creation]</b><br>
+            Your Leader gains a one-time-use wall or hazard placement ability.
+          </div>
+          <div class="path-choice">
+            <b>Path B: [Territorial Claim]</b><br>
+            Passive: Vanquishing an enemy allows you to capture two (2) unoccupied adjacent squares as territory.
+          </div>
+        </div>
+
+        <div class="unit-category">
+          <h4>Priest (Soul Freeze / Scorch Priest)</h4>
+          <div class="path-choice">
+            <b>Path A: [Leader's Ward]</b><br>
+            Your Leader gains a one-time Priest's Ward, blocking the next enemy ability targeting them.
+          </div>
+          <div class="path-choice">
+            <b>Path B: [Martyrdom]</b><br>
+            Passive: When one of your units is vanquished, the attacking enemy unit is Dazed for 2 turns.
+          </div>
+        </div>
+        
+        <div class="unit-category">
+          <h4>Striker (Frostbite Stalker / Cinder Scout)</h4>
+          <div class="path-choice">
+            <b>Path A: [Lethal Precision]</b><br>
+            Your Skirmisher unit (Arctic Trapper / Ash Strider) permanently gains <b>+1 Base Power</b>.
+          </div>
+          <div class="path-choice">
+            <b>Path B: [Targeted Weakness]</b><br>
+            Passive: Your units gain <b>+1 Power (Attacking only)</b> when targeting an already debuffed enemy unit.
+          </div>
+        </div>
+
+        <div class="unit-category">
+          <h4>Warrior (Glacial Brute / Magma Prowler)</h4>
+          <div class="path-choice">
+            <b>Path A: [Unstoppable Force]</b><br>
+            Your Brawler unit (Rampaging Yeti / Blazebound Beast) gains the permanent <b>"Steadfast"</b> passive (Immune to Daze, Stuck, and push/pull effects).
+          </div>
+          <div class="path-choice">
+            <b>Path B: [Home-Field Advantage]</b><br>
+            Passive: Units defending on their original starting squares gain <b>+1 Power</b>.
+          </div>
+        </div>
+
+        <div class="unit-category">
+          <h4>Siphoner (Void Chanter / Rift Warden)</h4>
+          <div class="path-choice">
+            <b>Path A: [Primal Power]</b><br>
+            Your Mage's ability is upgraded (Cryomancer: Wisp is Power 1 / Magma Spitter: Lava Glob targets up to Power 3).
+          </div>
+          <div class="path-choice">
+            <b>Path B: [Energy Siphon]</b><br>
+            Passive: Capturing an empty square adjacent to an enemy Dazes that enemy for 1 turn.
+          </div>
+        </div>
+
+        <div class="unit-category">
+          <h4>Mage (Cryomancer / Magma Spitter)</h4>
+          <div class="path-choice">
+            <b>Path A: [Elemental Harmony]</b><br>
+            Your Priest's ability is upgraded (Soul Freeze: Aura also Hamstrings / Scorch Priest: Mark of Cinder deals 1 permanent damage on application).
+          </div>
+          <div class="path-choice">
+            <b>Path B: [Magical Supremacy]</b><br>
+            Passive: If your unit loses a combat tie-breaker, it is not vanquished. Instead, it is "Banished" (teleported away) with a -1 permanent power debuff and Dazed for 1 turn.
+          </div>
+        </div>
+
+        <div class="unit-category">
+          <h4>Brawler (Rampaging Yeti / Blazebound Beast)</h4>
+          <div class="path-choice">
+            <b>Path A: [Rampage]</b><br>
+            Your Warrior's primary ability is permanently upgraded.
+          </div>
+          <div class="path-choice">
+            <b>Path B: [Vengeance]</b><br>
+            Passive: If an enemy vanquishes one of your units, the attacking enemy is "Marked" for 2 turns.
+          </div>
+        </div>
+
+        <div class="unit-category">
+          <h4>Skirmisher (Arctic Trapper / Ash Strider)</h4>
+          <div class="path-choice">
+            <b>Path A: [Acrobatic Tactics]</b><br>
+            Your Striker unit (Frostbite Stalker / Cinder Scout) gains the permanent "Acrobat" passive (jumps over allied units).
+          </div>
+          <div class="path-choice">
+            <b>Path B: [Hit and Run]</b><br>
+            Passive: Units that end their turn on a newly captured empty square gain "Entrenched" (wins combat tie-breakers until your next turn).
+          </div>
+        </div>
+
+        <div class="unit-category">
+          <h4>Mystic (Hoarfrost Mystic / Obsidian Shaper)</h4>
+          <div class="path-choice">
+            <b>Path A: [Arcane Attunement]</b><br>
+            Your Siphoners can use their Siphon ability on any friendly territory square.
+          </div>
+          <div class="path-choice">
+            <b>Path B: [Rift Reinforcement]</b><br>
+            Passive: Your Conduit Anchors always receive the full +2 Power boost, even if the link is Contested.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="abilities-reference">
+      <h2>5. Unit Abilities Reference</h2>
+      
+      <h3>Leader Ultimates (One-Time Use)</h3>
+      <ul>
+          <li><b>King's Edict (Frost Lord):</b> For 2 full rounds, all Ash Faction pieces suffer <b>-1 Power</b> and <b>cannot move diagonally</b>.</li>
+          <li><b>Tyrant's Proclamation (Ash Tyrant):</b> For 2 full rounds, all friendly Ash Faction pieces gain <b>+1 Power</b>. Any friendly unit that captures an enemy during this time also creates <b>Burning Ground</b> on that square.</li>
+      </ul>
+
+      <div class="unit-category primal-ash" style="background: rgba(0,0,0,0.3); border: 1px solid #5f523e; padding: 15px 15px 5px 15px; border-radius: 8px; margin-top: 30px; clip-path: polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 0 100%);">
+        <h3>Siphoner Abilities (Void Chanter & Rift Warden)</h3>
+        <p>The Siphoners gain <b>Charges</b> (Max 3) from Rifts or the Shrine, which are spent to <b>Unleash</b> powerful spells.</p>
+        <div class="ability-split">
+          <div class="faction-abilities primal-snow">
+            <h4>Snow Faction Unleash (Void Chanter)</h4>
+            <ul>
+              <li><b>(1 Charge) Flash Freeze:</b> Freezes an enemy piece within 4 squares, preventing it from moving for 2 rounds.</li>
+              <li><b>(2 Charge) Glacial Step:</b> Teleport to any friendly territory square within 5 squares.</li>
+              <li><b>(3 Charge) Whiteout:</b> Reduces the power of all enemies within a 3-square radius by 1 for 1 round.</li>
+            </ul>
+          </div>
+          <div class="faction-abilities primal-ash">
+            <h4>Ash Faction Unleash (Rift Warden)</h4>
+            <ul>
+              <li><b>(3 Charge) Burning Ground:</b> Creates damaging terrain in all adjacent squares that lasts for 3 rounds. Enemies entering take 1 permanent damage.</li>
+              <li><b>(2 Charge) Rift Assault:</b> Teleport to an empty square adjacent to an enemy (max 3 squares away). The user becomes <b>Dazed</b> for 2 turns.</li>
+              <li><b>(1 Charge) Stoke the Flames:</b> Grants a friendly piece within 4 squares <b>+2 Power</b> for 3 rounds.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+        
+      <h3 style="margin-top: 40px;">Specialist Abilities (Primary)</h3>
+      <p>Each specialist unit has a unique primary ability with a cooldown (CD).</p>
+      <ul>
+          <li><b>Arctic Trapper</b> (Set Snare) - Create a trap on an adjacent empty square. The first enemy to enter is <b>Stuck for 2 turns</b>. (CD: 4)</li>
+          <li><b>Ash Strider</b> (Scorched Retreat) - Move 1 square backward and create <code>BurningGround</code> on the square you left. (CD: 3)</li>
+          <li><b>Blazebound Beast</b> (Hunter's Rage) - Gain <b>+1 Power (attacking only)</b> for 2 rounds. (CD: 4)</li>
+          <li><b>Cinder Scout</b> (Kindle Armor) - Grants an adjacent ally <b>+1 Power (defending only)</b> for 2 rounds. (CD: 3)</li>
+          <li><b>Cryomancer</b> (Summon Ice Wisp) - Summons a Power 0 wisp to an empty square within 4 squares. (CD: 4)</li>
+          <li><b>Frostbite Stalker</b> (Hamstring) - An adjacent enemy cannot move diagonally for 1 round. (CD: 3)</li>
+          <li><b>Glacial Brute</b> (Frost Armor) - Gain <b>+2 Power (defending only)</b> for 2 rounds. (CD: 4)</li>
+          <li><b>Hoarfrost Mystic</b> (Frigid Path) - Creates a 1x3 line of <code>IcyGround</code>, claiming territory. The first enemy to enter is <code>Dazed</code>. (CD: 5)</li>
+          <li><b>Ice Weaver</b> (Glacial Wall) - Creates two impassable walls on adjacent empty squares. Lasts 3 turns. (CD: 6)</li>
+          <li><b>Magma Prowler</b> (Frenzied Dash) - Move 2 squares in a straight line to an empty square. Cannot capture. (CD: 3)</li>
+          <li><b>Magma Spitter</b> (Lava Glob) - Deals 1 permanent damage to an enemy with a <i>base power</i> of 1 or 2, within 4 squares. (CD: 10)</li>
+          <li><b>Obsidian Shaper</b> (Magma Shield) - Place a shield on an ally for 2 rounds. The next enemy to attack it takes 1 permanent damage. (CD: 5)</li>
+          <li><b>Rampaging Yeti</b> (Pummel) - Pushes an adjacent enemy back 1 square. Deals no damage. (CD: 3)</li>
+          <li><b>Rift Forger</b> (Unstable Ground) - Makes an empty square within 4 squares hazardous. The next piece to enter takes 1 permanent damage. (CD: 4)</li>
+          <li><b>Scorch Priest</b> (Mark of Cinder) - Marks an enemy within 2 squares, reducing its power by 1. Lasts 3 turns. (CD: 4)</li>
+          <li><b>Soul Freeze</b> (Chilling Aura) - Activates an aura that reduces the power of adjacent enemies by 1. Lasts 3 turns. (CD: 4)</li>
+      </ul>
+
+      <h3 style="margin-top: 40px;">Veteran Specialist Abilities (VET)</h3>
+      <p>Upon achieving Veteran status (Section 2.1), specialists gain one of the following permanent changes:</p>
+      
+      <div class="ability-split">
+        <div class="faction-abilities primal-snow">
+          <h4>Snow Faction Veteran Rewards (Active / Permanent)</h4>
+          <ul>
+            <li><b>Arctic Trapper:</b> <code>Distracting Roar</code> (Active). Reduces the effective power of an adjacent enemy by <b>1</b> for <b>1 full round</b>. (CD: 2)</li>
+            <li><b>Glacial Brute:</b> <code>Frost Stomp</code> (Active). Stuns any adjacent enemy unit, making it <b>Dazed for 1 turn</b>. (CD: 3)</li>
+            <li><b>Soul Freeze:</b> <code>Frostbite Curse</code> (Active). Targets a unit within 2 squares; if it has a Power Boost, the boost is removed and a <b>-1 Power debuff</b> is applied for 1 turn. (CD: 4)</li>
+            <li><b>Hoarfrost Mystic:</b> <code>Glacial Beacon</code> (Active). Targets an empty square within 3 squares; the next enemy to move onto it is <b>Dazed for 1 turn</b>. (CD: 4)</li>
+            <li><b>Ice Weaver:</b> <b>Permanent Upgrade: Glacial Fortress.</b> Primary ability now places <b>three (3)</b> walls instead of two.</li>
+            <li><b>Rampaging Yeti:</b> <code>Hardened Ice</code> (Active). Grants an adjacent ally <b>Steadfast</b> (Immune to all control effects) for <b>2 full rounds</b>. (CD: 5)</li>
+            <li><b>Frostbite Stalker:</b> <code>Icy Shift</code> (Active). Swap positions with <b>any unit</b> (friendly or enemy) within 2 squares. Both units are <b>Dazed for 1 turn</b>. (CD: 5)</li>
+            <li><b>Cryomancer:</b> <b>Permanent Upgrade: Wisp Enhancement.</b> Summoned Ice Wisp now has <b>1 Base Power</b>.</li>
+          </ul>
+        </div>
+        <div class="faction-abilities primal-ash">
+          <h4>Ash Faction Veteran Rewards (Active / Permanent)</h4>
+          <ul>
+            <li><b>Blazebound Beast:</b> <code>Blaze Lunge</code> (Active). Move up to 2 squares in a straight line to an empty square adjacent to an enemy unit (cannot capture). (CD: 4)</li>
+            <li><b>Cinder Scout:</b> <code>Cinder Surge</code> (Active). Removes all debuffs (Daze, Stuck, Hamstrung) from an adjacent friendly unit. (CD: 4)</li>
+            <li><b>Obsidian Shaper:</b> <code>Eruption Link</code> (Active). Grants an adjacent ally <b>Magma Shield</b> and <b>+2 Power</b> for 1 turn. (CD: 5)</li>
+            <li><b>Magma Prowler:</b> <b>Permanent Upgrade: Siphon Charge.</b> Sacrifices <b>1 permanent Power</b> to instantly reset the cooldown of <code>Frenzied Dash</code>. (No CD, uses ability slot)</li>
+            <li><b>Scorch Priest:</b> <code>Soulfire Burst</code> (Active). Detonates a nearby <b>Burning Ground</b> square, dealing <b>1 permanent damage</b> to all adjacent units (friendly and enemy). (CD: 6)</li>
+            <li><b>Ash Strider:</b> <code>Tactical Swap</code> (Active). Switch positions with a <b>friendly unit</b> within 2 squares. Both units are <b>Dazed for 1 turn</b>. (CD: 4)</li>
+            <li><b>Rift Forger:</b> <b>Permanent Upgrade: Volatile Forge.</b> Primary ability now places <b>two (2)</b> adjacent hazards instead of one.</li>
+            <li><b>Magma Spitter:</b> <code>Volatile Cinder</code> (Active). Deals <b>1 permanent damage</b> to an enemy within 3 squares that is currently <b>Marked by Cinder</b>. (CD: 4)</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    </main>
+  <div class="sticky-footer-btn">
+    <button class="back-btn" onclick="window.location.href='index.html'">⬅ Back to Menu</button>
+  </div>
 </body>
 </html>
