@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Mythic Territories - Main Menu</title>
+  <link rel="stylesheet" href="styles/menu.css">
+  <style>body{display:flex;justify-content:center;align-items:flex-start;min-height:100vh;background:url('images/menu-bg.png') center/cover fixed;font-family:Georgia,serif;padding:20px;overflow-y:auto;color:#f0f0f0;margin:0}</style>
+</head>
+<body class="primal-home">
+  <div class="game-title" id="main-title">MYTHIC TERRITORIES</div>
+  <div class="primal-menu-layout">
+    <div class="menu-shard snow-shard primal-snow">
+      <div class="team-selection"><div class="team-card" id="team-snow" style="pointer-events: none;"><img src="units/frost-lord.png" alt="Snow Team"><h3>Snow</h3></div></div>
+      <div class="main-options"><button id="rules-btn" class="menu-btn">Game Rules</button></div>
+    </div>
+
+    <div class="menu-shard ash-shard primal-ash">
+      <div class="team-selection"><div class="team-card" id="team-ash" style="pointer-events: none;"><img src="units/ash-tyrant.png" alt="Ash Team"><h3>Ash</h3></div></div>
+      <div class="main-options"><button id="notes-btn" class="menu-btn">Patch Notes</button></div>
+    </div>
+
+</div>
+
+  <div class="ui-container dark-glass-container" style="max-width:500px;margin-top:20px;width:100%">
+    <div class="menu-buttons">
+            <button class="menu-btn" id="localPlayBtn">Pass & Play</button>
+            <button class="menu-btn highlight-btn" id="multiplayerBtn">Play Multiplayer</button>
+    </div>
+  </div>
+
+  <div id="roomModal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Join or Create Room</h2>
+            <p>Enter a unique Room Code to play with a friend. If it doesn't exist, we'll create it!</p>
+            <input type="text" id="roomCodeInput" placeholder="e.g., BATTLE99" maxlength="12" autocomplete="off" spellcheck="false" />
+            <div class="modal-buttons-row">
+                <button class="menu-btn small-btn" id="joinRoomBtn">Join Room</button>
+                <button class="menu-btn small-btn cancel-btn" id="closeModalBtn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+  <script src="js/menu.js"></script>
+</body>
+</html>
