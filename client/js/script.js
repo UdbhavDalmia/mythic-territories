@@ -182,19 +182,20 @@ E.preloadImages(C.IMAGES, (imgs) => {
             isWaitingForServer = false;
             try { if (gameState) UI.stopTimer(); } catch (e) {}
 
-            // CRITICAL FIX: Preserve client-side timers across state updates
             const currentTimers = gameState ? gameState.timers : null;
 
             if (data.state) {
                 gameState = data.state;
-                if (currentTimers) gameState.timers = currentTimers; // Restore after full replace
+                // FIX: Only restore local if the server state didn't provide fresh timers
+                if (currentTimers && !data.state.timers) gameState.timers = currentTimers; 
                 attachImagesToState(); 
             } else if (data.diff) {
                 if (!gameState) { window.location.reload(); return; }
                 for (const k of Object.keys(data.diff)) {
                     gameState[k] = data.diff[k];
                 }
-                if (currentTimers && !data.diff.timers) gameState.timers = currentTimers; // Ensure safe diff
+                // FIX: Only restore local if the diff payload didn't explicitly update the timers
+                if (currentTimers && !data.diff.timers) gameState.timers = currentTimers; 
                 attachImagesToState(); 
             }
 
@@ -218,7 +219,11 @@ E.preloadImages(C.IMAGES, (imgs) => {
             }
         });
 
-        socket.on('error', (msg) => alert(msg));
+        // FIX: Unlock the UI if the server rejects an action
+        socket.on('error', (msg) => {
+            alert(msg);
+            isWaitingForServer = false;
+        });
         
         // Handle server-initiated room closure (e.g., opponent failed to reconnect)
         socket.on('roomClosed', (msg) => {
@@ -288,8 +293,8 @@ function updateControlButtons() {
         }
     });
 
-    // Hide the start buttons entirely for multiplayer once the game starts
-    if (!isLocal && gameState && gameState.gameStarted) {
+    // Hide the start buttons entirely for multiplayer once the game starts, UNLESS the game is over
+    if (!isLocal && gameState && gameState.gameStarted && !gameState.gameOver) { // FIX: Added gameOver check
         const desktopBtn = document.getElementById('startResetBtn');
         const mobileBtn = document.getElementById('startResetBtn-mobile');
         if (desktopBtn) desktopBtn.style.display = 'none';
@@ -628,6 +633,10 @@ function processServerEvents(events) {
             case 'HIDE_ASCENSION_POPUP': UI.hideAscensionPopup(); break;
             case 'GAME_OVER': UI.showVictoryScreen(event.winningTeam); break;
             case 'ANIMATION': playAnimation(event); break;
+            case 'RESET_GAME': 
+                try { UI.resetTimers(gameState); } catch(e) {}
+                try { Effects.initParticles(gameState); } catch(e) {}
+                break;
         }
     });
 }
@@ -751,9 +760,11 @@ function updateMobileDrawer(piece) {
     const descEl = document.getElementById('mobile-ability-description');
 
     // Gather ability entries from the piece FIRST so we can use them for descriptions
+    // Gather ability entries from the piece FIRST
     let abilities = [];
-    if (Array.isArray(piece.abilities) && piece.abilities.length > 0) abilities = piece.abilities;
-    else if (piece.ability) abilities = [piece.ability];
+    // FIX: Use the spread operator [...] to create a shallow copy so we don't mutate the core game state!
+    if (Array.isArray(piece.abilities) && piece.abilities.length > 0) abilities = [...piece.abilities]; 
+    else if (piece.ability) abilities = [{...piece.ability}];
     else if (piece.abilityName) abilities = [{ name: piece.abilityName, key: piece.abilityKey || piece.abilityKeyName }];
     
     // Check for veteran abilities that might not be packaged in the main array
@@ -855,12 +866,15 @@ window.sendAction = function(actionType, data) {
     if (isLocal) {
         processLocalAction(actionType, data);
     } else {
-        // CRITICAL FIX: Add SWITCH_TURN here so out-of-turn clicks are rejected locally before the UI locks up
-        if (gameState && (actionType === 'MOVE' || actionType === 'ABILITY' || actionType === 'HANDLE_CLICK' || actionType === 'SWITCH_TURN')) {
-            if (gameState.currentTurn !== myTeam) return; 
+        // NEW: Enforce the lock globally so players can't spam buttons during lag
+        if (isWaitingForServer && (actionType === 'MOVE' || actionType === 'ABILITY' || actionType === 'HANDLE_CLICK' || actionType === 'SWITCH_TURN')) {
+            return; 
         }
 
-        if (actionType === 'MOVE' || actionType === 'ABILITY' || actionType === 'HANDLE_CLICK' || actionType === 'SWITCH_TURN') {
+        if (gameState && (actionType === 'MOVE' || actionType === 'ABILITY' || actionType === 'HANDLE_CLICK' || actionType === 'SWITCH_TURN')) {
+            if (gameState.currentTurn !== myTeam) return; 
+            
+            // Apply the lock
             isWaitingForServer = true;
         }
                 

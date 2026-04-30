@@ -111,15 +111,30 @@ io.on('connection', (socket) => {
                 return;
             }
 
+            if (actionType === 'SYNC_TIMERS') {
+                if (data.timers) gs.timers = data.timers;
+                gs.events = []
+                emitStateUpdate(room);
+                return;
+            }
+
+            if (actionType === 'RESET_GAME') {
+                Logic.resetGame();
+                room.lastSentState = null;
+                emitStateUpdate(room);
+                return;
+            }
+
             if (!player || gs.currentTurn !== player.team) return;
 
             if (!gs.gameStarted) {
                 return socket.emit('error', 'Game has not started yet.');
             }
 
-            if (actionType === 'MOVE' && !coordsOk({ r: data.r, c: data.c })) return;
-            if (actionType === 'HANDLE_CLICK' && !coordsOk({ r: data.r, c: data.c })) return;
-            if (actionType === 'ABILITY' && data.target && !coordsOk(data.target)) return;
+            // FIX: Replace silent returns with explicit error emissions
+            if (actionType === 'MOVE' && !coordsOk({ r: data.r, c: data.c })) return socket.emit('error', 'Invalid move coordinates');
+            if (actionType === 'HANDLE_CLICK' && !coordsOk({ r: data.r, c: data.c })) return socket.emit('error', 'Invalid target coordinates');
+            if (actionType === 'ABILITY' && data.target && !coordsOk(data.target)) return socket.emit('error', 'Invalid ability target');
 
             gs.events = [];
             let turnEnded = false;
@@ -130,12 +145,6 @@ io.on('connection', (socket) => {
                 case 'SELECT_PIECE':
                     if (p && p.team === player.team) Logic.selectPiece(p); 
                     else Logic.deselectPiece();
-                    break;
-                case 'RESET_GAME':
-                    Logic.resetGame();
-                    break;
-                case 'SYNC_TIMERS': // NEW: Accept timer syncs from active clients
-                    if (data.timers) gs.timers = data.timers;
                     break;
                 case 'MOVE':
                     if (p && p.team === player.team) turnEnded = Logic.movePiece(p, data.r, data.c, data.isHighway);
@@ -188,6 +197,7 @@ io.on('connection', (socket) => {
             const { roomId, room, removed } = result;
             if (room.gameState.gameStarted) {
                 io.to(roomId).emit('playerLeft', { team: removed.team, playerCount: room.players.length });
+                room.gameState.events = [];
                 emitStateUpdate(room);
             }
             const timer = setTimeout(() => {
