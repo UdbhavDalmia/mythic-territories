@@ -28,7 +28,7 @@
 * { box-sizing: border-box; }
 
 body {
-  background: #0a0a0f url('../images/menu-bg.png') no-repeat center center fixed;
+  background: #0a0a0f;
   background-size: cover;
   color: #ddd;
   font-family: 'Exo 2', 'Montserrat', sans-serif;
