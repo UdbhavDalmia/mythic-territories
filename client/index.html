@@ -3,18 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Mythic Territories - Main Menu</title>
+  <title>Mythic Territories | Free Turn-Based Strategy Game</title>
+  <meta name="description" content="Play Mythic Territories, a free online turn-based strategy game. Command the elemental forces of Snow or Ash in multiplayer or local pass-and-play modes.">
+  <link rel="canonical" href="https://mythic-territories.xyz/">
+  <meta property="og:title" content="Mythic Territories">
+  <meta property="og:description" content="Command the elemental forces of Snow or Ash in this tactical turn-based strategy game.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://mythic-territories.xyz/">
   <link rel="stylesheet" href="styles/menu.css">
-  <!-- All page styling is moved to styles/menu.css for clarity and maintainability -->
 </head>
 <body class="primal-home">
-  <div class="game-title" id="main-title" style="opacity: 1; margin-bottom: 40px;">MYTHIC TERRITORIES</div>
+  <h1 class="game-title" id="main-title" style="opacity: 1; margin-bottom: 40px;">MYTHIC TERRITORIES</h1>
   
   <div class="primal-menu-layout">
     <div class="menu-shard snow-shard primal-snow">
       <div class="team-selection">
         <div class="team-card" id="team-snow" style="pointer-events: none;">
-          <img src="units/frost-lord.png" alt="Snow Team">
+          <img src="units/frost-lord.png" alt="Snow Team - Frost Lord">
           <h3>Snow</h3>
         </div>
       </div>
@@ -26,7 +31,7 @@
     <div class="menu-shard ash-shard primal-ash">
       <div class="team-selection">
         <div class="team-card" id="team-ash" style="pointer-events: none;">
-          <img src="units/ash-tyrant.png" alt="Ash Team">
+          <img src="units/ash-tyrant.png" alt="Ash Team - Ash Tyrant">
           <h3>Ash</h3>
         </div>
       </div>
@@ -43,7 +48,6 @@
     </div>
   </div>
 
-  <!-- Room Modal -->
   <div id="roomModal" class="modal hidden">
     <div class="modal-content">
       <h2>Join or Create Room</h2>
