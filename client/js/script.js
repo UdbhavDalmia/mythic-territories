@@ -16,7 +16,7 @@ if (!roomId && !isLocal) window.location.href = 'index.html';
 if (roomId) window.history.replaceState({}, '', `?room=${roomId}`);
 
 let gameState = null;
-let myTeam = null; 
+let myTeam = null;
 let canvas, ctx;
 let boardCanvas;
 let touchTimer;
@@ -55,7 +55,7 @@ function checkAITurn() {
             }
             aiWorker.terminate(); aiWorker = null;
             // After AI acts, re-render
-            try { E.updateBoardMap(gameState); } catch (e) {}
+            try { E.updateBoardMap(gameState); } catch (e) { }
             UI.renderBoard(gameState); UI.drawLabels(gameState);
             // If the AI's action ended its turn, check again (in case turns chain)
             setTimeout(checkAITurn, 0);
@@ -64,7 +64,7 @@ function checkAITurn() {
         aiWorker.postMessage({ gameState: structuredClone(gameState), aiConfig: {} });
     } catch (e) {
         console.warn('Failed to spawn AI worker:', e);
-        if (aiWorker) { try { aiWorker.terminate(); } catch (er) {} aiWorker = null; }
+        if (aiWorker) { try { aiWorker.terminate(); } catch (er) { } aiWorker = null; }
     }
 }
 
@@ -72,15 +72,15 @@ function checkAITurn() {
 // INITIALIZATION (Dual-Mode)
 // ============================================================================
 E.preloadImages(C.IMAGES, (imgs) => {
-    loadedImages = imgs; 
-    
+    loadedImages = imgs;
+
     if (isLocal) {
-        myTeam = 'snow'; 
+        myTeam = 'snow';
         Logic.initGameState({});
         Logic.initGame();
         gameState = Logic.getGameState();
         attachImagesToState();
-        
+
         setTimeout(() => {
             setupCanvas();
             requestAnimationFrame(animationLoop);
@@ -89,7 +89,7 @@ E.preloadImages(C.IMAGES, (imgs) => {
     } else {
         socket = io();
         // Mark the page as multiplayer so CSS can reveal multiplayer-only UI
-        try { document.body.classList.add('multiplayer'); } catch (e) {}
+        try { document.body.classList.add('multiplayer'); } catch (e) { }
         socket.on('connect', () => socket.emit('joinRoom', roomId));
 
         socket.on('init', (data) => {
@@ -110,7 +110,7 @@ E.preloadImages(C.IMAGES, (imgs) => {
             UI.showFlashMessage(`Joined room ${roomId} as Team ${myTeam.toUpperCase()}`, 'neutral', gameState);
 
             // Clear disconnect timer if joining mid-game (update both desktop and mobile)
-            try { clearInterval(disconnectInterval); } catch (e) {}
+            try { clearInterval(disconnectInterval); } catch (e) { }
             const timerEl = document.getElementById('disconnectTimerDisplay');
             const timerElMobile = document.getElementById('disconnectTimerDisplay-mobile');
             if (timerEl) timerEl.style.display = 'none';
@@ -124,7 +124,7 @@ E.preloadImages(C.IMAGES, (imgs) => {
             }
 
             if (gameState && gameState.gameStarted) {
-                try { UI.startTimer(gameState); } catch (e) {}
+                try { UI.startTimer(gameState); } catch (e) { }
                 updateControlButtons();
             }
 
@@ -135,14 +135,14 @@ E.preloadImages(C.IMAGES, (imgs) => {
             UI.showFlashMessage(`An opponent has joined as Team ${data.team.toUpperCase()}!`, 'neutral', gameState);
             updatePlayerCountUI(data.playerCount);
 
-            try { clearInterval(disconnectInterval); } catch (e) {}
+            try { clearInterval(disconnectInterval); } catch (e) { }
             const modal = document.getElementById('disconnectModal');
             if (modal) modal.style.display = 'none';
 
             if (gameState && gameState.gameStarted) {
                 UI.startTimer(gameState);
                 updateControlButtons();
-                
+
                 // NEW: Send your accurate timers to the server to sync the newly joined/reloaded player
                 socket.emit('gameAction', { roomId, actionType: 'SYNC_TIMERS', data: { timers: gameState.timers } });
             }
@@ -150,12 +150,12 @@ E.preloadImages(C.IMAGES, (imgs) => {
 
         socket.on('playerLeft', (data) => {
             if (isLocal) return; // FIX: Block in P&P mode
-            
+
             UI.showFlashMessage(`Player left the room.`, 'neutral', gameState);
             updatePlayerCountUI(data.playerCount);
 
             // Stop the game timers
-            try { UI.stopTimer(); } catch (e) {}
+            try { UI.stopTimer(); } catch (e) { }
 
             // Show disconnect modal
             const modal = document.getElementById('disconnectModal');
@@ -180,23 +180,23 @@ E.preloadImages(C.IMAGES, (imgs) => {
 
         socket.on('stateUpdate', (data) => {
             isWaitingForServer = false;
-            try { if (gameState) UI.stopTimer(); } catch (e) {}
+            try { if (gameState) UI.stopTimer(); } catch (e) { }
 
             const currentTimers = gameState ? gameState.timers : null;
 
             if (data.state) {
                 gameState = data.state;
                 // FIX: Only restore local if the server state didn't provide fresh timers
-                if (currentTimers && !data.state.timers) gameState.timers = currentTimers; 
-                attachImagesToState(); 
+                if (currentTimers && !data.state.timers) gameState.timers = currentTimers;
+                attachImagesToState();
             } else if (data.diff) {
                 if (!gameState) { window.location.reload(); return; }
                 for (const k of Object.keys(data.diff)) {
                     gameState[k] = data.diff[k];
                 }
                 // FIX: Only restore local if the diff payload didn't explicitly update the timers
-                if (currentTimers && !data.diff.timers) gameState.timers = currentTimers; 
-                attachImagesToState(); 
+                if (currentTimers && !data.diff.timers) gameState.timers = currentTimers;
+                attachImagesToState();
             }
 
             if (!isLocal && gameState.currentTurn !== myTeam) {
@@ -205,7 +205,7 @@ E.preloadImages(C.IMAGES, (imgs) => {
 
             if (data.events && data.events.length > 0) processServerEvents(data.events);
             if (!isLocal && gameState?.gameStarted) {
-                try { UI.startTimer(gameState); } catch (e) {}
+                try { UI.startTimer(gameState); } catch (e) { }
             }
             updateControlButtons();
             UI.renderBoard(gameState);
@@ -224,11 +224,11 @@ E.preloadImages(C.IMAGES, (imgs) => {
             alert(msg);
             isWaitingForServer = false;
         });
-        
+
         // Handle server-initiated room closure (e.g., opponent failed to reconnect)
         socket.on('roomClosed', (msg) => {
             if (isLocal) return; // FIX: Block in P&P mode
-            
+
             alert(msg);
             window.location.href = 'index.html';
         });
@@ -244,7 +244,7 @@ function attachImagesToState() {
         gameBackgroundSnow: loadedImages.gameBackgroundSnow,
         gameBackgroundAsh: loadedImages.gameBackgroundAsh
     };
-    gameState.playerTeam = myTeam; 
+    gameState.playerTeam = myTeam;
 
     const normalizeToSet = (val) => {
         if (val instanceof Set) return val;
@@ -272,7 +272,7 @@ function attachImagesToState() {
         }
     }
 
-    try { E.updateBoardMap(gameState); } catch (e) {}
+    try { E.updateBoardMap(gameState); } catch (e) { }
 }
 
 // Start / Reset helpers
@@ -286,7 +286,7 @@ function updateControlButtons() {
                 btn.style.display = 'none'; // Only host can start in MP
             } else {
                 // Force visibility for mobile and desktop
-                btn.style.display = id === 'startResetBtn-mobile' ? 'inline-block' : 'block'; 
+                btn.style.display = id === 'startResetBtn-mobile' ? 'inline-block' : 'block';
                 btn.style.visibility = 'visible';
                 btn.style.opacity = '1';
             }
@@ -302,7 +302,7 @@ function updateControlButtons() {
     }
 }
 
-window.handleStartReset = function() {
+window.handleStartReset = function () {
     if (!isLocal && myTeam !== 'snow') return;
 
     if (!gameState || !gameState.gameStarted) {
@@ -312,7 +312,7 @@ window.handleStartReset = function() {
 
         if (isLocal) {
             gameState.gameStarted = true;
-            try { UI.startTimer(gameState); } catch (e) {}
+            try { UI.startTimer(gameState); } catch (e) { }
             if (vsAI) setTimeout(checkAITurn, 0);
         } else {
             socket.emit('gameAction', { roomId, actionType: 'START_GAME', data: {} });
@@ -342,7 +342,7 @@ function setupCanvas() {
     const displayCanvas = document.getElementById('gameBoard');
     if (!displayCanvas) return;
     canvas = displayCanvas;
-    
+
     // CRITICAL FIX: Explicitly set the internal resolution of the canvas
     canvas.width = C.CANVAS_SIZE;
     canvas.height = C.CANVAS_SIZE;
@@ -350,12 +350,12 @@ function setupCanvas() {
 
     // Create offscreen canvases
     boardCanvas = document.createElement('canvas');
-    boardCanvas.width = C.CANVAS_SIZE; 
+    boardCanvas.width = C.CANVAS_SIZE;
     boardCanvas.height = C.CANVAS_SIZE;
     const boardCtx = boardCanvas.getContext('2d');
 
     const effectsCanvas = document.createElement('canvas');
-    effectsCanvas.width = C.CANVAS_SIZE; 
+    effectsCanvas.width = C.CANVAS_SIZE;
     effectsCanvas.height = C.CANVAS_SIZE;
     const effectsCtx = effectsCanvas.getContext('2d');
 
@@ -384,7 +384,7 @@ function setupCanvas() {
     const drawerPeek = document.getElementById('drawerPeek');
     // Use a global toggle so other code (and delegated listeners) can reliably toggle the drawer
     if (typeof window.toggleMobileDrawer !== 'function') {
-        window.toggleMobileDrawer = function() {
+        window.toggleMobileDrawer = function () {
             const drawer = document.getElementById('mobileDrawer');
             if (!drawer) return;
             drawer.classList.toggle('expanded');
@@ -409,19 +409,19 @@ function setupCanvas() {
             const x = (e.clientX - rect.left) * scaleX;
             const y = (e.clientY - rect.top) * scaleY;
             if (x < 0 || y < 0 || x > canvas.width || y > canvas.height) { piecePopup.style.display = 'none'; return; }
-            
+
             let col = Math.floor(x / C.CELL_SIZE);
             let row = Math.floor(y / C.CELL_SIZE);
-            
+
             // Account for rotated view for Ash in multiplayer
             if (!isLocal && myTeam === 'ash') {
                 col = C.COLS - 1 - col;
                 row = C.ROWS - 1 - row;
             }
-            
+
             const hoverPiece = C.getPieceAt(row, col, gameState.boardMap);
             if (!hoverPiece) { piecePopup.style.display = 'none'; return; }
-            
+
             try {
                 let infoHtml = UI.generatePieceInfoString(hoverPiece, gameState) || '';
                 infoHtml = infoHtml.replace(/stary/gi, '');
@@ -432,10 +432,10 @@ function setupCanvas() {
                 piecePopup.textContent = hoverPiece.name || '';
             }
             piecePopup.style.display = 'block';
-            
+
             const offsetX = 15;
             const offsetY = 15;
-            
+
             // CRITICAL FIX: Use pageX/pageY so scrolling doesn't detach the popup
             let finalLeft = e.pageX + offsetX;
             let finalTop = e.pageY + offsetY;
@@ -460,13 +460,13 @@ function setupCanvas() {
     // Improved Selection Handler for Mobile & Desktop
     function handleSelection(e) {
         if (!canvas || !gameState) return;
-        try { if (!isLocal && isWaitingForServer) return; } catch (er) {}
+        try { if (!isLocal && isWaitingForServer) return; } catch (er) { }
         // Prevent global click handler from also processing this event
-        try { if (e.stopPropagation) e.stopPropagation(); } catch (er) {}
+        try { if (e.stopPropagation) e.stopPropagation(); } catch (er) { }
 
         // Prevent selecting units before the game has started
         if (!gameState.gameStarted) {
-            try { UI.showFlashMessage('Start the game to select units', null, gameState); } catch (err) {}
+            try { UI.showFlashMessage('Start the game to select units', null, gameState); } catch (err) { }
             return;
         }
 
@@ -494,18 +494,18 @@ function setupCanvas() {
         }
 
         const clickedPiece = C.getPieceAt(row, col, gameState.boardMap);
-        const allowedSelectTeam = isLocal 
-            ? gameState.currentTurn 
+        const allowedSelectTeam = isLocal
+            ? gameState.currentTurn
             : (gameState.currentTurn === myTeam ? myTeam : null);
 
         if (allowedSelectTeam && clickedPiece && clickedPiece.team === allowedSelectTeam) {
             // Select
             window.sendAction('SELECT_PIECE', { pieceId: clickedPiece.id });
-            try { gameState.selectedPiece = clickedPiece; } catch (e) {}
+            try { gameState.selectedPiece = clickedPiece; } catch (e) { }
             try { gameState.validMoves = calculateValidMoves(clickedPiece); } catch (e) { gameState.validMoves = []; }
-            try { updateMobileDrawer(clickedPiece); } catch (e) {}
+            try { updateMobileDrawer(clickedPiece); } catch (e) { }
             // UI update
-            try { UI.drawLabels(gameState); UI.renderBoard(gameState); } catch (e) {}
+            try { UI.drawLabels(gameState); UI.renderBoard(gameState); } catch (e) { }
             return;
         }
 
@@ -516,7 +516,7 @@ function setupCanvas() {
                 executeMove(gameState.selectedPiece, row, col);
             }
             deselectPiece();
-            try { UI.drawLabels(gameState); UI.renderBoard(gameState); } catch (e) {}
+            try { UI.drawLabels(gameState); UI.renderBoard(gameState); } catch (e) { }
             return;
         }
 
@@ -530,15 +530,15 @@ function setupCanvas() {
     }
 
     function deselectPiece() {
-        try { window.sendAction('SELECT_PIECE', { pieceId: null }); } catch (e) {}
-        try { gameState.selectedPiece = null; } catch (e) {}
-        try { gameState.validMoves = []; } catch (e) {}
-        
+        try { window.sendAction('SELECT_PIECE', { pieceId: null }); } catch (e) { }
+        try { gameState.selectedPiece = null; } catch (e) { }
+        try { gameState.validMoves = []; } catch (e) { }
+
         // Reset the text when a piece is deselected
         const peekName = document.getElementById('peek-name');
         const peekDesc = document.getElementById('peek-desc');
         const miniLog = document.getElementById('miniLog');
-        
+
         if (peekName) peekName.textContent = 'Awaiting selection...';
         if (peekDesc) peekDesc.textContent = '';
         if (miniLog) miniLog.style.display = 'none';
@@ -547,7 +547,7 @@ function setupCanvas() {
         const nameEl = document.getElementById('mobile-ability-name');
         const descEl = document.getElementById('mobile-ability-description');
         const expandedHeader = document.querySelector('.unit-header-mobile');
-        
+
         if (expandedHeader) expandedHeader.innerHTML = '<div class="expanded-name">No Unit Selected</div><div class="expanded-ability">Select a unit to see its actions.</div>';
         if (nameEl) nameEl.textContent = 'No Unit Selected';
         if (descEl) descEl.innerHTML = 'Select a unit to see its actions.';
@@ -557,13 +557,13 @@ function setupCanvas() {
     }
     // Hook canvas-level click/touch to selection handler; stop propagation to avoid global handler
     if (canvas) {
-        canvas.addEventListener('click', (ev) => { try { handleSelection(ev); } catch (e) {} });
+        canvas.addEventListener('click', (ev) => { try { handleSelection(ev); } catch (e) { } });
         canvas.addEventListener('touchstart', (ev) => {
             // Prevent double-firing and page scroll
-            try { ev.preventDefault(); } catch (e) {}
+            try { ev.preventDefault(); } catch (e) { }
             const t = ev.touches && ev.touches[0];
             if (t) {
-                try { handleSelection(t); } catch (e) {}
+                try { handleSelection(t); } catch (e) { }
             }
         }, { passive: false });
     }
@@ -575,7 +575,7 @@ function setupCanvas() {
             // Do not show ghost previews before the game starts
             if (!gameState.gameStarted) return;
             // Prevent synthetic mouse events and page scroll while interacting with the board
-            try { e.preventDefault(); } catch (err) {}
+            try { e.preventDefault(); } catch (err) { }
             const touch = e.touches[0];
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
@@ -612,7 +612,7 @@ function setupCanvas() {
 function processServerEvents(events) {
     events.forEach(event => {
         switch (event.type) {
-            case 'FLASH': 
+            case 'FLASH':
                 UI.showFlashMessage(event.message, event.team, gameState);
                 break;
             case 'SHOW_ABILITY_PANEL':
@@ -620,22 +620,22 @@ function processServerEvents(events) {
                 if (pieceToShow) UI.showAbilityPanel(pieceToShow, gameState);
                 break;
             case 'HIDE_ABILITY_PANEL': UI.hideAbilityPanel(); break;
-            
+
             // CRITICAL FIX: Only show the popup to the triggering player
-            case 'SHOW_ASCENSION_POPUP': 
+            case 'SHOW_ASCENSION_POPUP':
                 if (isLocal || (gameState.pendingAscension && gameState.pendingAscension.team === myTeam)) {
-                    UI.showAscensionPopup(gameState); 
+                    UI.showAscensionPopup(gameState);
                 } else {
                     UI.showFlashMessage('Opponent is choosing an Ascension path...', 'neutral', gameState);
                 }
                 break;
-                
+
             case 'HIDE_ASCENSION_POPUP': UI.hideAscensionPopup(); break;
             case 'GAME_OVER': UI.showVictoryScreen(event.winningTeam); break;
             case 'ANIMATION': playAnimation(event); break;
-            case 'RESET_GAME': 
-                try { UI.resetTimers(gameState); } catch(e) {}
-                try { Effects.initParticles(gameState); } catch(e) {}
+            case 'RESET_GAME':
+                try { UI.resetTimers(gameState); } catch (e) { }
+                try { Effects.initParticles(gameState); } catch (e) { }
                 break;
         }
     });
@@ -661,7 +661,7 @@ function playAnimation(animData) {
         case 'FrigidPath': Effects.spawnFrigidPathEffect(animData.oldRow, animData.oldCol, animData.targetR, animData.targetC, gameState); break;
         case 'GlacialWall': Effects.spawnGlacialWallEffect(animData.r, animData.c, gameState); break;
         case 'WallShatter': Effects.spawnWallShatterEffect(animData.r, animData.c, gameState); break;
-        case 'ShatterCapture': Effects.triggerShatterCapture(animData.c * C.CELL_SIZE + C.CELL_SIZE/2, animData.r * C.CELL_SIZE + C.CELL_SIZE/2, animData.color); break;
+        case 'ShatterCapture': Effects.triggerShatterCapture(animData.c * C.CELL_SIZE + C.CELL_SIZE / 2, animData.r * C.CELL_SIZE + C.CELL_SIZE / 2, animData.color); break;
         case 'ShrineOverload': Effects.triggerShrineOverloadEffects(gameState); break;
         case 'UpdateShrine': Effects.updateShrineParticles(animData.level, gameState); break;
         case 'SiphonParticles':
@@ -698,7 +698,7 @@ function calculateValidMoves(piece) {
         // Shared utility returns rich move objects — use that when possible
         const utilMoves = E.getValidMoves ? E.getValidMoves(piece, gameState) : null;
         if (Array.isArray(utilMoves)) return utilMoves.map(m => ({ r: m.row ?? m.r, c: m.col ?? m.c, ...m }));
-    } catch (e) {}
+    } catch (e) { }
 
     // Fallback: simple adjacent empty squares
     const moves = [];
@@ -719,7 +719,7 @@ function updateMobileDrawer(piece) {
     if (!drawer || !piece) return;
 
     // Ensure local selection state is set for UI consistency
-    try { gameState.selectedPiece = piece; } catch (e) {}
+    try { gameState.selectedPiece = piece; } catch (e) { }
     try { gameState.validMoves = calculateValidMoves(piece); } catch (e) { gameState.validMoves = []; }
 
     drawer.classList.remove('hidden');
@@ -730,10 +730,10 @@ function updateMobileDrawer(piece) {
     const peekName = document.getElementById('peek-name');
     const peekDesc = document.getElementById('peek-desc');
     const miniLog = document.getElementById('miniLog');
-    
+
     const displayName = piece.name || (C.PIECE_TYPES && C.PIECE_TYPES[piece.key]?.name) || 'Unit';
     const power = typeof piece.power === 'number' ? piece.power : (piece.basePower || 0);
-    
+
     let abilityText = 'No Ability';
     if (piece.ability && piece.ability.name) {
         const cd = piece.ability.cooldown > 0 ? `${piece.ability.cooldown}T CD` : 'Ready';
@@ -763,19 +763,19 @@ function updateMobileDrawer(piece) {
     // Gather ability entries from the piece FIRST
     let abilities = [];
     // FIX: Use the spread operator [...] to create a shallow copy so we don't mutate the core game state!
-    if (Array.isArray(piece.abilities) && piece.abilities.length > 0) abilities = [...piece.abilities]; 
-    else if (piece.ability) abilities = [{...piece.ability}];
+    if (Array.isArray(piece.abilities) && piece.abilities.length > 0) abilities = [...piece.abilities];
+    else if (piece.ability) abilities = [{ ...piece.ability }];
     else if (piece.abilityName) abilities = [{ name: piece.abilityName, key: piece.abilityKey || piece.abilityKeyName }];
-    
+
     // Check for veteran abilities that might not be packaged in the main array
     if (piece.isVeteran && piece.secondaryAbilityKey) {
         const vetName = C.ABILITIES[piece.secondaryAbilityKey]?.name || 'Veteran Ability';
-        
+
         // CRITICAL FIX: Pass the cooldown property so the UI button visually disables
-        abilities.push({ 
-            name: vetName, 
+        abilities.push({
+            name: vetName,
             key: piece.secondaryAbilityKey,
-            cooldown: piece.secondaryAbilityCooldown 
+            cooldown: piece.secondaryAbilityCooldown
         });
     }
 
@@ -788,14 +788,14 @@ function updateMobileDrawer(piece) {
             const lineName = document.createElement('div'); lineName.className = 'expanded-name'; lineName.textContent = displayName;
             const linePower = document.createElement('div'); linePower.className = 'expanded-power'; linePower.textContent = `Power: ${power}`;
             const lineAbility = document.createElement('div'); lineAbility.className = 'expanded-ability'; lineAbility.textContent = abilityText;
-            
+
             // Build the specific ability description block
             const abilityDescriptions = abilities.map(a => {
                 const name = a.name || 'Action';
                 const desc = getAbilityDescription(a.key || a.abilityKey);
                 return `<span style="color:#ffcc00">${name}:</span> <span style="color:#ddd">${desc}</span>`;
             }).join('<br><br>');
-            
+
             const lineDesc = document.createElement('div');
             lineDesc.className = 'expanded-desc-text';
             lineDesc.style.fontSize = '13px';
@@ -862,22 +862,22 @@ function closeMobileDrawer() {
     // We strictly DO NOT remove 'peek' or add 'hidden' anymore
 }
 
-window.sendAction = function(actionType, data) {
+window.sendAction = function (actionType, data) {
     if (isLocal) {
         processLocalAction(actionType, data);
     } else {
         // NEW: Enforce the lock globally so players can't spam buttons during lag
         if (isWaitingForServer && (actionType === 'MOVE' || actionType === 'ABILITY' || actionType === 'HANDLE_CLICK' || actionType === 'SWITCH_TURN')) {
-            return; 
+            return;
         }
 
         if (gameState && (actionType === 'MOVE' || actionType === 'ABILITY' || actionType === 'HANDLE_CLICK' || actionType === 'SWITCH_TURN')) {
-            if (gameState.currentTurn !== myTeam) return; 
-            
+            if (gameState.currentTurn !== myTeam) return;
+
             // Apply the lock
             isWaitingForServer = true;
         }
-                
+
         socket.emit('gameAction', { roomId, actionType, data });
     }
 };
@@ -885,26 +885,26 @@ window.sendAction = function(actionType, data) {
 // Consolidate global click listener to ignore game board areas
 window.addEventListener('click', (e) => {
     if (!isLocal && isWaitingForServer) return;
-    
+
     // FIX: If the click is on the canvas, ignore it here. 
     // The specific canvas 'click' and 'touchstart' listeners already handle it.
     if (e.target === canvas) return;
 
     try {
         if (e.target && e.target.closest && e.target.closest('.ability-panel, .ui-container, button, .top-menu-btn, #left-column, #right-column, #mobile-top-bar, #disconnectModal, .mobile-drawer')) return;
-    } catch (err) {}
-    
+    } catch (err) { }
+
     // Deselect if clicking on empty UI background
     window.sendAction('SELECT_PIECE', { pieceId: null });
-    try { gameState.selectedPiece = null; gameState.validMoves = []; } catch (e) {}
+    try { gameState.selectedPiece = null; gameState.validMoves = []; } catch (e) { }
 });
 
 // Update canvas listeners to prevent event bubbling/duplication
 if (canvas) {
-    canvas.addEventListener('click', (ev) => { 
+    canvas.addEventListener('click', (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
-        try { handleSelection(ev); } catch (e) {} 
+        try { handleSelection(ev); } catch (e) { }
     }, { passive: false });
 
     canvas.addEventListener('touchstart', (ev) => {
@@ -912,17 +912,17 @@ if (canvas) {
         ev.stopPropagation();
         const t = ev.touches && ev.touches[0];
         if (t) {
-            try { handleSelection(t); } catch (e) {}
+            try { handleSelection(t); } catch (e) { }
         }
     }, { passive: false });
 }
 
-window.useAbility = function(abilityKey) {
+window.useAbility = function (abilityKey) {
     if (!gameState.selectedPiece) return;
     window.sendAction('ABILITY', { pieceId: gameState.selectedPiece.id, abilityKey, target: null });
 };
 
-window.endTurn = function() {
+window.endTurn = function () {
     window.sendAction('SWITCH_TURN', {});
 };
 
@@ -969,12 +969,12 @@ export function applyActionLogic(actionType, data, gs) {
             break;
         case 'RIFT_PULSE': turnEnded = Logic.executeRiftPulse(find(data.pieceId)); break;
         case 'DESPAWN': Logic.despawnPiece(find(data.pieceId)); turnEnded = true; break;
-        case 'TIMEOUT': 
-            Logic.endGame(data.team === 'snow' ? 'ash' : 'snow'); 
+        case 'TIMEOUT':
+            Logic.endGame(data.team === 'snow' ? 'ash' : 'snow');
             break;
     }
     // Ensure utilities depending on the 2D grid are accurate after logic changes
-    try { E.updateBoardMap(gs); } catch (e) {}
+    try { E.updateBoardMap(gs); } catch (e) { }
 
     if (turnEnded) {
         // If an ascension becomes ready, show the popup and DO NOT auto-switch turns.
@@ -989,7 +989,7 @@ export function applyActionLogic(actionType, data, gs) {
 function processLocalAction(actionType, data) {
     gameState.events = [];
     applyActionLogic(actionType, data, gameState);
-    try { E.updateBoardMap(gameState); } catch (e) {}
+    try { E.updateBoardMap(gameState); } catch (e) { }
     if (gameState.events && gameState.events.length > 0) processServerEvents(gameState.events);
     UI.renderBoard(gameState);
     UI.drawLabels(gameState);
@@ -1020,8 +1020,8 @@ function drawLeyLines(ctx, gs) {
             const y = r * C.CELL_SIZE;
 
             // Check neighbors (Right and Bottom) to draw borders
-            const neighbors = [{nr: r, nc: c+1, side: 'right'}, {nr: r+1, nc: c, side: 'bottom'}];
-            neighbors.forEach(({nr, nc, side}) => {
+            const neighbors = [{ nr: r, nc: c + 1, side: 'right' }, { nr: r + 1, nc: c, side: 'bottom' }];
+            neighbors.forEach(({ nr, nc, side }) => {
                 if (!C.inBounds(nr, nc)) return;
                 const nPos = `${nr},${nc}`;
                 const nOwner = (gs.snowTerritory && gs.snowTerritory.has(nPos)) ? 'snow' : ((gs.ashTerritory && gs.ashTerritory.has(nPos)) ? 'ash' : null);
@@ -1139,7 +1139,7 @@ function animationLoop() {
             ctx.restore();
         }
     } catch (e) { /* non-fatal */ }
-    
+
     const visualLoad = (
         (gameState.battleParticles?.length || 0) +
         (gameState.snowParticles?.length || 0) +
@@ -1214,8 +1214,8 @@ function animationLoop() {
 try {
     if (typeof menuBtn !== 'undefined' && menuBtn) {
         menuBtn.addEventListener('click', () => {
-            if (socket) try { socket.disconnect(); } catch (e) {}
+            if (socket) try { socket.disconnect(); } catch (e) { }
             window.location.href = 'index.html';
         });
     }
-} catch (e) {}
+} catch (e) { }

@@ -378,8 +378,8 @@ export const ABILITIES = {
       return (
         gs.markedPieces.some((m) => m.targetId === tp.id) ||
         PIECE_TYPES[tp.key]?.power <=
-          (gs.factionPassives.ash.ascension.lavaGlobPower ||
-            ABILITY_VALUES.LavaGlob.maxTargetPower)
+        (gs.factionPassives.ash.ascension.lavaGlobPower ||
+          ABILITY_VALUES.LavaGlob.maxTargetPower)
       );
     },
     effect: (p, t, gs) => {
@@ -615,7 +615,7 @@ export const ABILITIES = {
     range: 1,
     targetType: "special",
     specialTargeting: glacialWallTargeting,
-    effect: () => {}
+    effect: () => { }
   },
   GlacialBeacon: {
     name: "Glacial Beacon",
@@ -679,12 +679,12 @@ export const ABILITIES = {
     requiresTargeting: true,
     range: ABILITY_VALUES.IcyShift.range,
     targetType: "any",
-    effect: () => {}
+    effect: () => { }
   },
   SiphonCharge: {
     name: "Siphon Charge",
     requiresTargeting: false,
-    effect: () => {}
+    effect: () => { }
   },
   BlazeLunge: {
     name: "Blaze Lunge",
@@ -801,7 +801,7 @@ export const ABILITIES = {
     requiresTargeting: true,
     range: ABILITY_VALUES.TacticalSwapAsh.range,
     targetType: "friendly",
-    effect: () => {}
+    effect: () => { }
   },
   CinderSurge: {
     name: "Cinder Surge",

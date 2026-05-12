@@ -5,19 +5,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mythic Territories | Patch Notes & Updates</title>
-    <meta name="description" content="Read the latest patch notes and updates for Mythic Territories. Track balance changes, new features, multiplayer updates, and game versions.">
+    <meta name="description"
+        content="Read the latest patch notes and updates for Mythic Territories. Track balance changes, new features, multiplayer updates, and game versions.">
     <link rel="canonical" href="https://mythic-territories.xyz/notes.html">
     <style>
         body {
+            background-image: url('images/notes-bg.png');
+            background-repeat: no-repeat;
+            background-position: center;
             background-size: cover;
+            background-attachment: fixed;
             color: #f5f5ff;
-            font-family: "Georgia", serif;
+            font-family: "Exo 2", sans-serif;
             margin: 0;
             padding: 10px;
             box-sizing: border-box;
             scrollbar-width: none;
         }
-        body::-webkit-scrollbar { display: none; }
+
+        body::-webkit-scrollbar {
+            display: none;
+        }
     </style>
     <link rel="stylesheet" href="styles/notes.css">
 </head>
@@ -27,17 +35,36 @@
         <h1 class="notes-title">📜 Patch Notes</h1>
 
         <div class="notes-content">
-            <div class="note-card" data-version="2.2" data-date="TBD" data-tier="diamond">
+            <div class="note-card" data-version="2.3" data-date="2026-05-12" data-tier="silver">
+                <div class="note-header">
+                    <div class="note-version">Version 2.3</div>
+                    <div class="note-card-title">The Royal Primal Overhaul</div>
+                    <div class="note-date">Release Date: 12/05/2026</div>
+                </div>
+                <div class="note-detail">
+                    ✦ <b>Cinematic Menu Redesign:</b> New 3D perspective "Clash" layout for faction selection, creating
+                    an immersive arena feel.
+                    <br>✦ <b>Humanoid Leader Portraits:</b> High-fidelity humanoid forms for the Frost Lord and Ash
+                    Tyrant, replacing the generic unit cards.
+                    <br>✦ <b>Obsidian Void Aesthetics:</b> Complete visual overhaul of menu backgrounds and UI elements
+                    with the new Obsidian Void theme for a premium, darker look.
+                </div>
+            </div>
+            <div class="note-card" data-version="2.2" data-date="29/04/2026" data-tier="diamond">
                 <div class="note-header">
                     <div class="note-version">Version 2.2</div>
                     <div class="note-card-title">Multiplayer Added; AI Temporarily Removed</div>
                     <div class="note-date">Release Date: 29/04/2026</div>
                 </div>
                 <div class="note-detail">
-                    ✦ <b>Multiplayer (MP):</b> Full multiplayer support has been introduced — invite friends and battle online.
-                    <br>✦ <b>AI:</b> The single-player AI has been temporarily removed for a major rework to improve balance and strategic behavior. It will return in a future update.
-                    <br>✦ <b>Notes:</b> This is an early release of multiplayer features; expect follow-up patches to polish matchmaking and latency handling.
-                    <br>✦ <b>Mobile Menu:</b> Mobile menu fully redesigned and polished for a smoother, more intuitive on-device experience.
+                    ✦ <b>Multiplayer (MP):</b> Full multiplayer support has been introduced — invite friends and battle
+                    online.
+                    <br>✦ <b>AI:</b> The single-player AI has been temporarily removed for a major rework to improve
+                    balance and strategic behavior. It will return in a future update.
+                    <br>✦ <b>Notes:</b> This is an early release of multiplayer features; expect follow-up patches to
+                    polish matchmaking and latency handling.
+                    <br>✦ <b>Mobile Menu:</b> Mobile menu fully redesigned and polished for a smoother, more intuitive
+                    on-device experience.
                 </div>
             </div>
             <div class="note-card" data-version="2.1" data-date="12/04/2026" data-tier="gold">
@@ -47,10 +74,14 @@
                     <div class="note-date">Release Date: 12/04/2026</div>
                 </div>
                 <div class="note-detail">
-                    ✦ <b>Tether System:</b> Siphoners can form persistent Tethers to shift Power between units and perform targeted drains. Tethers generate Overload which must be managed.
-                    <br>✦ <b>Status Siphoning:</b> Tethered allies can have debuffs intercepted by their Siphoner (the Siphoner absorbs the debuff and gains Overload).
-                    <br>✦ <b>Venting:</b> Siphoners can vent accumulated Overload into Rifts (triggers the Abyssal Forge) or into the Overloaded Shrine (adds shrine charge).
-                    <br>✦ <b>Enhanced Ability Visuals:</b> Few major abilities now feature distinct animations, such as FrenziedDash, LavaGlob, and many more.
+                    ✦ <b>Tether System:</b> Siphoners can form persistent Tethers to shift Power between units and
+                    perform targeted drains. Tethers generate Overload which must be managed.
+                    <br>✦ <b>Status Siphoning:</b> Tethered allies can have debuffs intercepted by their Siphoner (the
+                    Siphoner absorbs the debuff and gains Overload).
+                    <br>✦ <b>Venting:</b> Siphoners can vent accumulated Overload into Rifts (triggers the Abyssal
+                    Forge) or into the Overloaded Shrine (adds shrine charge).
+                    <br>✦ <b>Enhanced Ability Visuals:</b> Few major abilities now feature distinct animations, such as
+                    FrenziedDash, LavaGlob, and many more.
                 </div>
             </div>
             <div class="note-card" data-version="2.0.0" data-date="2026-03-30" data-tier="diamond">
@@ -60,11 +91,18 @@
                     <div class="note-date">Release Date: 30/03/2026</div>
                 </div>
                 <div class="note-detail">
-                    ✦ <b>The Abyssal Forge:</b> Uncontested Conduit control now triggers the Forge, expanding Rift size or spawning <b>Elemental Cores</b> (Ruby, Topaz, Emerald, Sapphire) for permanent unit buffs.
-                    <br>✦ <b>The Void Snap:</b> Highly charged Conduits that remain contested for 3 turns will now collapse, triggering a <b>Void Snap</b> that permanently deletes those squares from the map.
-                    <br>✦ <b>Dynamic Ascension:</b> Sacrificing a trapped unit at the Shrine now offers unique <b>Ascension Paths</b> (Path A or Path B) based specifically on that unit's role, such as Shaper, Brawler, or Siphoner.
-                    <br>✦ <b>Veteran Promotion:</b> Specialist units that vanquish 2 enemies achieve <b>Veteran</b> status, unlocking new permanent passives or secondary abilities like <b>Glacial Fortress</b> or <b>Volatile Forge</b>.
-                    <br>✦ <b>Leader Ultimates:</b> Leaders now channel their Ultimates to generate charges. Once active, they emit a persistent <b>Aura</b>, though the Leader remains locked down while channeling.
+                    ✦ <b>The Abyssal Forge:</b> Uncontested Conduit control now triggers the Forge, expanding Rift size
+                    or spawning <b>Elemental Cores</b> (Ruby, Topaz, Emerald, Sapphire) for permanent unit buffs.
+                    <br>✦ <b>The Void Snap:</b> Highly charged Conduits that remain contested for 3 turns will now
+                    collapse, triggering a <b>Void Snap</b> that permanently deletes those squares from the map.
+                    <br>✦ <b>Dynamic Ascension:</b> Sacrificing a trapped unit at the Shrine now offers unique
+                    <b>Ascension Paths</b> (Path A or Path B) based specifically on that unit's role, such as Shaper,
+                    Brawler, or Siphoner.
+                    <br>✦ <b>Veteran Promotion:</b> Specialist units that vanquish 2 enemies achieve <b>Veteran</b>
+                    status, unlocking new permanent passives or secondary abilities like <b>Glacial Fortress</b> or
+                    <b>Volatile Forge</b>.
+                    <br>✦ <b>Leader Ultimates:</b> Leaders now channel their Ultimates to generate charges. Once active,
+                    they emit a persistent <b>Aura</b>, though the Leader remains locked down while channeling.
                 </div>
             </div>
             <div class="note-card" data-version="1.5.0" data-date="2025-11-12" data-tier="gold">
@@ -74,9 +112,13 @@
                     <div class="note-date">Release Date: 12/11/2025</div>
                 </div>
                 <div class="note-detail">
-                    This major update overhauls the core tactical gameplay and AI. Standard units are replaced by a new roster of unique specialists, each bringing new active abilities and strategic roles to the battlefield.
-                    <br>✦ <b>New Mechanic - Contested Conduit:</b> The Conduit Link no longer breaks when an enemy steps on a rift. Instead, it becomes "Contested," reducing the Anchor power boost from +2 to +1 until the enemy is removed.
-                 </div>
+                    This major update overhauls the core tactical gameplay and AI. Standard units are replaced by a new
+                    roster of unique specialists, each bringing new active abilities and strategic roles to the
+                    battlefield.
+                    <br>✦ <b>New Mechanic - Contested Conduit:</b> The Conduit Link no longer breaks when an enemy steps
+                    on a rift. Instead, it becomes "Contested," reducing the Anchor power boost from +2 to +1 until the
+                    enemy is removed.
+                </div>
             </div>
             <div class="note-card" data-version="1.4.1" data-date="2025-11-08" data-tier="bronze">
                 <div class="note-header">
@@ -86,11 +128,17 @@
                 </div>
                 <div class="note-detail">
                     This update introduces powerful new mechanics for leaders, factions, and the Shrine.
-                    <br>✦ <b>Leader Ultimates:</b> Leaders gain a one-time-use Ultimate: <code>King's Edict</code> (Frost Lord) and <code>Tyrant's Proclamation</code> (Ash Tyrant). A new visual flair shows when the ultimate is ready.
-                    <br>✦ <b>Shrine Rework - The Primal Sacrifice:</b> The Overloaded Shrine now "Traps" a unit. The owner can then choose to "Sacrifice" it (faction-wide +1 Power buff) or "Release" it (-1 perm power & Daze).
-                    <br>✦ <b>New Mechanic - Steal the Sacrifice:</b> While a unit is Trapped, an opponent can move onto the Shrine to "Steal" the sacrifice, claiming the buff for their team.
-                    <br>✦ <b>New Synergies:</b> <code>Ignition Point</code> (Mark of Cinder + Lava Glob) and <code>Conduit of Frost</code> (Chilling Aura + Glacial Wall) have been discovered.
-                 </div>
+                    <br>✦ <b>Leader Ultimates:</b> Leaders gain a one-time-use Ultimate: <code>King's Edict</code>
+                    (Frost Lord) and <code>Tyrant's Proclamation</code> (Ash Tyrant). A new visual flair shows when the
+                    ultimate is ready.
+                    <br>✦ <b>Shrine Rework - The Primal Sacrifice:</b> The Overloaded Shrine now "Traps" a unit. The
+                    owner can then choose to "Sacrifice" it (faction-wide +1 Power buff) or "Release" it (-1 perm power
+                    & Daze).
+                    <br>✦ <b>New Mechanic - Steal the Sacrifice:</b> While a unit is Trapped, an opponent can move onto
+                    the Shrine to "Steal" the sacrifice, claiming the buff for their team.
+                    <br>✦ <b>New Synergies:</b> <code>Ignition Point</code> (Mark of Cinder + Lava Glob) and
+                    <code>Conduit of Frost</code> (Chilling Aura + Glacial Wall) have been discovered.
+                </div>
             </div>
             <div class="note-card" data-version="1.4" data-date="2025-10-30" data-tier="gold">
                 <div class="note-header">
@@ -99,11 +147,19 @@
                     <div class="note-date">Release Date: 30/10/2025</div>
                 </div>
                 <div class="note-detail">
-                    The endless wars have sent tremors through the very foundations of reality, awakening the ultimate consciousness: The Architect. This is the unseen, primordial energy that forged the realms, and it has stirred to scrutinize the flawed, passionate creations that battle upon its surface.
-                    <br>✦ <b>New Game Mode - Challenge the Architect:</b> Face the maker of your world! Test your strategies against a formidable AI opponent designed to push your tactical skills to the limit.
-                    <br>✦ <b>Enhanced Battlefield Visuals:</b> Witness the clash of elements like never before! Major abilities and game states now feature significantly upgraded animations and particle effects for a more immersive and visually striking experience.
-                    <br>✦ <b>Gameplay & Balance Refinements:</b> Key adjustments have been made to abilities and mechanics for improved strategic depth and fairness, including changes to Glacial Step, Shrine Overload, Lava Glob, and Unstable Ground cooldowns. Mobile UI has been enhanced for better information display.
-                 </div>
+                    The endless wars have sent tremors through the very foundations of reality, awakening the ultimate
+                    consciousness: The Architect. This is the unseen, primordial energy that forged the realms, and it
+                    has stirred to scrutinize the flawed, passionate creations that battle upon its surface.
+                    <br>✦ <b>New Game Mode - Challenge the Architect:</b> Face the maker of your world! Test your
+                    strategies against a formidable AI opponent designed to push your tactical skills to the limit.
+                    <br>✦ <b>Enhanced Battlefield Visuals:</b> Witness the clash of elements like never before! Major
+                    abilities and game states now feature significantly upgraded animations and particle effects for a
+                    more immersive and visually striking experience.
+                    <br>✦ <b>Gameplay & Balance Refinements:</b> Key adjustments have been made to abilities and
+                    mechanics for improved strategic depth and fairness, including changes to Glacial Step, Shrine
+                    Overload, Lava Glob, and Unstable Ground cooldowns. Mobile UI has been enhanced for better
+                    information display.
+                </div>
             </div>
             <div class="note-card" data-version="1.3.1" data-date="2025-10-10" data-tier="bronze">
                 <div class="note-header">
@@ -112,10 +168,14 @@
                     <div class="note-date">Release Date: 10/10/2025</div>
                 </div>
                 <div class="note-detail">
-                    This patch refines the gameplay experience with UI improvements and key balance adjustments based on player feedback.
-                    <br>✦ <b>Mobile UI Overhaul:</b> The mobile layout has been re-ordered for a more intuitive flow, with various UI bugs fixed.
-                    <br>✦ <b>Shrine Stalemate:</b> Added a 'Stalemate' outcome if the Shrine's 'Energy Nova' destroys both leaders at once. <i>(Note: This was later changed in V4.0)</i>
-                    <br>✦ <b>Balance Change - Rift Assault:</b> This ability now inflicts 'Rift Shock' on the user, leaving them 'Dazed' for one turn to add more strategic counter-play.
+                    This patch refines the gameplay experience with UI improvements and key balance adjustments based on
+                    player feedback.
+                    <br>✦ <b>Mobile UI Overhaul:</b> The mobile layout has been re-ordered for a more intuitive flow,
+                    with various UI bugs fixed.
+                    <br>✦ <b>Shrine Stalemate:</b> Added a 'Stalemate' outcome if the Shrine's 'Energy Nova' destroys
+                    both leaders at once. <i>(Note: This was later changed in V4.0)</i>
+                    <br>✦ <b>Balance Change - Rift Assault:</b> This ability now inflicts 'Rift Shock' on the user,
+                    leaving them 'Dazed' for one turn to add more strategic counter-play.
                 </div>
             </div>
             <div class="note-card" data-version="1.3" data-date="2025-10-07" data-tier="gold">
@@ -125,13 +185,22 @@
                     <div class="note-date">Release Date: 07/10/2025</div>
                 </div>
                 <div class="note-detail">
-                    A total overhaul reshapes the Mythic Territories! Version 1.3 is our largest update yet, introducing a deep strategic evolution to the rift system, a completely remastered arsenal of warriors, and a fully responsive interface.
-                    <br>✦ <b>Total Visual Remaster:</b> Every warrior on the battlefield has been reborn with stunning, all-new high-quality artwork. Command a visually reimagined army and immerse yourself in the conflict like never before!
-                    <br>✦ <b>Play Anywhere Interface:</b> The game now fully supports all screen sizes, from mobile phones to desktops. The entire user interface has been redesigned for a seamless experience, no matter how you play.
-                    <br>✦ <b>New Mechanic - The Awakened Conduit:</b> The rifts are no longer passive zones of chance. By occupying both rifts, players can now form a Conduit Link, unlocking incredible new strategies:
+                    A total overhaul reshapes the Mythic Territories! Version 1.3 is our largest update yet, introducing
+                    a deep strategic evolution to the rift system, a completely remastered arsenal of warriors, and a
+                    fully responsive interface.
+                    <br>✦ <b>Total Visual Remaster:</b> Every warrior on the battlefield has been reborn with stunning,
+                    all-new high-quality artwork. Command a visually reimagined army and immerse yourself in the
+                    conflict like never before!
+                    <br>✦ <b>Play Anywhere Interface:</b> The game now fully supports all screen sizes, from mobile
+                    phones to desktops. The entire user interface has been redesigned for a seamless experience, no
+                    matter how you play.
+                    <br>✦ <b>New Mechanic - The Awakened Conduit:</b> The rifts are no longer passive zones of chance.
+                    By occupying both rifts, players can now form a Conduit Link, unlocking incredible new strategies:
                     <ul>
-                        <li><b>Conduit Highway:</b> Teleport friendly units across the map between the two linked rifts.</li>
-                        <li><b>Empowered Anchors:</b> The two pieces holding the rifts gain +2 Power and unique defensive or tactical abilities.</li>
+                        <li><b>Conduit Highway:</b> Teleport friendly units across the map between the two linked rifts.
+                        </li>
+                        <li><b>Empowered Anchors:</b> The two pieces holding the rifts gain +2 Power and unique
+                            defensive or tactical abilities.</li>
                     </ul>
                 </div>
             </div>
@@ -142,9 +211,14 @@
                     <div class="note-date">Release Date: 28/09/2025</div>
                 </div>
                 <div class="note-detail">
-                    A new era of warfare dawns! The very fabric of the battlefield has been warped by raw, untamed magic.
-                    <br>✦ Step into the chaos of the <b>Arcane Rifts</b>! Mysterious zones now pulse with unpredictable energy that evolves as the war wages on. Will you risk their grasp for a surge of power, or will your warriors be lost to the storm?
-                    <br>✦ The central <b>Shrine</b> is no longer a mere boon—it is a crucible of power that demands sacrifice. Spilled blood awakens the Shrine, and daring to step upon its Overloaded soil may infuse you with godlike power... or trigger a cataclysmic nova that will sunder all who stand near!
+                    A new era of warfare dawns! The very fabric of the battlefield has been warped by raw, untamed
+                    magic.
+                    <br>✦ Step into the chaos of the <b>Arcane Rifts</b>! Mysterious zones now pulse with unpredictable
+                    energy that evolves as the war wages on. Will you risk their grasp for a surge of power, or will
+                    your warriors be lost to the storm?
+                    <br>✦ The central <b>Shrine</b> is no longer a mere boon—it is a crucible of power that demands
+                    sacrifice. Spilled blood awakens the Shrine, and daring to step upon its Overloaded soil may infuse
+                    you with godlike power... or trigger a cataclysmic nova that will sunder all who stand near!
                     <br>✦ Also added an event log to keep track of major game events.
                 </div>
             </div>
@@ -155,9 +229,12 @@
                     <div class="note-date">Release Date: 22/9/2025</div>
                 </div>
                 <div class="note-detail">
-                    The winds of change sweep across the battlefield, bringing new challenges and a bold new look to the eternal conflict.
-                    <br>✦ The war is now a work of art! A stunning <b>visual theme update</b> enhances the battlefield, breathing new life into every clash.
-                    <br>✦ <b>Feel the pressure of eternity!</b> A new timer system for competitive play forces commanders to make split-second decisions where every moment counts.
+                    The winds of change sweep across the battlefield, bringing new challenges and a bold new look to the
+                    eternal conflict.
+                    <br>✦ The war is now a work of art! A stunning <b>visual theme update</b> enhances the battlefield,
+                    breathing new life into every clash.
+                    <br>✦ <b>Feel the pressure of eternity!</b> A new timer system for competitive play forces
+                    commanders to make split-second decisions where every moment counts.
                 </div>
             </div>
             <div class="note-card" data-version="1.0" data-date="2025-09-21" data-tier="gold">
@@ -167,12 +244,14 @@
                     <div class="note-date">Release Date: 21/9/2025</div>
                 </div>
                 <div class="note-detail">
-                    The saga begins! The gates to the Mythic Territories have been thrown open, unleashing the foundational conflict between the elemental forces of Snow and Ash.
-                    <br>✦ The core of the eternal war is forged! Take command of <b>mythical armies</b> and clash for dominion over a realm where the very lands shift with the tides of battle.
+                    The saga begins! The gates to the Mythic Territories have been thrown open, unleashing the
+                    foundational conflict between the elemental forces of Snow and Ash.
+                    <br>✦ The core of the eternal war is forged! Take command of <b>mythical armies</b> and clash for
+                    dominion over a realm where the very lands shift with the tides of battle.
                 </div>
             </div>
         </div>
-        </div>
+    </div>
     <div class="sticky-footer-btn">
         <button class="back-btn" onclick="window.location.href='index.html'">⬅ Back to Menu</button>
     </div>

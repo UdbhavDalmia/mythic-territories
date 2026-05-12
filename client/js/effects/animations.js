@@ -218,7 +218,7 @@ export function drawGlacialWallAnimations(ctx, gameState) {
       anim.ticks++;
       // draw a simple translucent rectangle representing the wall
       ctx.fillStyle = `rgba(180, 230, 255, ${Math.min(0.6, anim.ticks / 40)})`;
-      ctx.fillRect(anim.x - C.CELL_SIZE*0.5, anim.y - C.CELL_SIZE/2, C.CELL_SIZE, C.CELL_SIZE);
+      ctx.fillRect(anim.x - C.CELL_SIZE * 0.5, anim.y - C.CELL_SIZE / 2, C.CELL_SIZE, C.CELL_SIZE);
       if (anim.ticks > 60) gameState.wallAnimations.splice(i, 1);
       continue;
     }
@@ -324,7 +324,7 @@ export function drawTrapTriggerAnimations(ctx, gameState) {
     }
 
     if (anim.shattering) {
-      for (let k = anim.shards.length - 1; k >= 0; k--) { const s = anim.shards[k]; s.x += s.vx; s.y += s.vy; s.vy += 0.4; s.rot += s.vrot; s.alpha -= 0.05; if (s.alpha <= 0) { anim.shards.splice(k, 1); continue; } ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.rot); ctx.fillStyle = `rgba(150, 240, 255, ${s.alpha})`; ctx.fillRect(-s.size/2, -s.size/2, s.size, s.size); ctx.restore(); }
+      for (let k = anim.shards.length - 1; k >= 0; k--) { const s = anim.shards[k]; s.x += s.vx; s.y += s.vy; s.vy += 0.4; s.rot += s.vrot; s.alpha -= 0.05; if (s.alpha <= 0) { anim.shards.splice(k, 1); continue; } ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.rot); ctx.fillStyle = `rgba(150, 240, 255, ${s.alpha})`; ctx.fillRect(-s.size / 2, -s.size / 2, s.size, s.size); ctx.restore(); }
       if (anim.shards.length === 0) gameState.trapTriggers.splice(i, 1);
     } else {
       const progress = Math.min(anim.ticks / 15, 1);
@@ -369,7 +369,7 @@ export function drawFrigidPathAnimations(ctx, gameState) {
       ctx.lineCap = 'round'; ctx.strokeStyle = `rgba(150, 220, 255, ${fade * 0.7})`; ctx.lineWidth = 8 * fade; ctx.beginPath(); ctx.moveTo(anim.startX, anim.startY); ctx.lineTo(anim.targetX, anim.targetY); ctx.stroke();
       const spreadDist = (C.CELL_SIZE * 1.2) * anim.spreadProgress;
       // lighter fill rectangle with less shadow work
-      ctx.fillStyle = `rgba(120, 210, 255, ${fade * 0.45})`; ctx.fillRect(anim.targetX - spreadDist, anim.targetY - C.CELL_SIZE/2, spreadDist * 2, C.CELL_SIZE);
+      ctx.fillStyle = `rgba(120, 210, 255, ${fade * 0.45})`; ctx.fillRect(anim.targetX - spreadDist, anim.targetY - C.CELL_SIZE / 2, spreadDist * 2, C.CELL_SIZE);
       if (anim.spreadProgress < 1 && anim.ticks % 3 === 0) {
         // fewer, slower particles
         if (anim.particles.length < 40) {
@@ -379,7 +379,7 @@ export function drawFrigidPathAnimations(ctx, gameState) {
         if (anim.ticks === 13) { gameState.shockwaves = gameState.shockwaves || []; gameState.shockwaves.push({ x: anim.targetX, y: anim.targetY, radius: 20, life: 1, color: '0, 255, 255' }); }
       }
     }
-    for (let k = anim.particles.length - 1; k >= 0; k--) { const p = anim.particles[k]; p.x += p.vx; p.y += p.vy; p.vx *= 0.92; p.vy *= 0.92; p.alpha -= 0.05; if (p.alpha <= 0) { anim.particles.splice(k, 1); continue; } ctx.fillStyle = `rgba(200, 255, 255, ${p.alpha})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); }
+    for (let k = anim.particles.length - 1; k >= 0; k--) { const p = anim.particles[k]; p.x += p.vx; p.y += p.vy; p.vx *= 0.92; p.vy *= 0.92; p.alpha -= 0.05; if (p.alpha <= 0) { anim.particles.splice(k, 1); continue; } ctx.fillStyle = `rgba(200, 255, 255, ${p.alpha})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill(); }
     if (anim.ticks >= anim.maxTicks && anim.particles.length === 0) gameState.iceBeamAnimations.splice(i, 1);
   }
 }
@@ -406,7 +406,7 @@ export function drawLavaGlobAnimations(ctx, gameState) {
         ctx.save(); ctx.translate(anim.x, anim.y); ctx.rotate(anim.ticks * 0.2); ctx.fillStyle = '#222222'; ctx.strokeStyle = '#FF4500'; ctx.lineWidth = 3; ctx.shadowColor = '#FF0000'; ctx.shadowBlur = 15; ctx.beginPath(); ctx.moveTo(-8, -10); ctx.lineTo(6, -12); ctx.lineTo(12, 0); ctx.lineTo(8, 10); ctx.lineTo(-6, 12); ctx.lineTo(-12, 2); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
       } else {
         // light representation in low detail
-        ctx.save(); ctx.translate(anim.x, anim.y); ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI*2); ctx.fill(); ctx.restore();
+        ctx.save(); ctx.translate(anim.x, anim.y); ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fill(); ctx.restore();
       }
       if (anim.ticks >= anim.maxTicks) {
         anim.impacted = true;
@@ -415,7 +415,7 @@ export function drawLavaGlobAnimations(ctx, gameState) {
         gameState.shockwaves = gameState.shockwaves || []; gameState.shockwaves.push({ x: anim.targetX, y: anim.targetY, radius: 15, life: 1, color: '255, 69, 0' });
       }
     } else {
-      for (let k = anim.shards.length - 1; k >= 0; k--) { const s = anim.shards[k]; s.x += s.vx; s.y += s.vy; s.vy += 0.4; s.rot += s.vrot; s.alpha -= 0.03; if (s.alpha <= 0) { anim.shards.splice(k, 1); continue; } ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.rot); ctx.fillStyle = `rgba(30, 30, 30, ${s.alpha})`; ctx.beginPath(); ctx.moveTo(0, -s.size); ctx.lineTo(s.size/2, s.size); ctx.lineTo(-s.size/2, s.size); ctx.fill(); ctx.restore(); }
+      for (let k = anim.shards.length - 1; k >= 0; k--) { const s = anim.shards[k]; s.x += s.vx; s.y += s.vy; s.vy += 0.4; s.rot += s.vrot; s.alpha -= 0.03; if (s.alpha <= 0) { anim.shards.splice(k, 1); continue; } ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.rot); ctx.fillStyle = `rgba(30, 30, 30, ${s.alpha})`; ctx.beginPath(); ctx.moveTo(0, -s.size); ctx.lineTo(s.size / 2, s.size); ctx.lineTo(-s.size / 2, s.size); ctx.fill(); ctx.restore(); }
       for (let k = anim.splatters.length - 1; k >= 0; k--) { const splat = anim.splatters[k]; splat.x += splat.vx; splat.y += splat.vy; splat.vx *= 0.85; splat.vy *= 0.85; splat.size += 0.2; splat.alpha -= 0.02; if (splat.alpha <= 0) { anim.splatters.splice(k, 1); continue; } ctx.fillStyle = `rgba(255, 69, 0, ${splat.alpha})`; ctx.shadowColor = '#FF0000'; ctx.shadowBlur = 10 * splat.alpha; ctx.beginPath(); ctx.arc(splat.x, splat.y, splat.size, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0; }
       if (anim.shards.length === 0 && anim.splatters.length === 0) { gameState.lavaAnimations.splice(i, 1); }
     }
@@ -433,75 +433,75 @@ export function spawnScorchedRetreatEffect(piece, oldRow, oldCol, newRow, newCol
 export function drawScorchedRetreatAnimations(ctx, gameState, images) {
   if (!gameState.retreatAnimations) return;
   for (let i = gameState.retreatAnimations.length - 1; i >= 0; i--) {
-    const anim = gameState.retreatAnimations[i]; 
+    const anim = gameState.retreatAnimations[i];
     anim.progress += 0.05;
-    
-    const jumpHeight = 40; 
-    const currentX = anim.x + (anim.targetX - anim.x) * anim.progress; 
-    const arcY = Math.sin(anim.progress * Math.PI) * jumpHeight; 
+
+    const jumpHeight = 40;
+    const currentX = anim.x + (anim.targetX - anim.x) * anim.progress;
+    const arcY = Math.sin(anim.progress * Math.PI) * jumpHeight;
     const currentY = anim.y + (anim.targetY - anim.y) * anim.progress - arcY;
-    
-    if (anim.progress < 1 && anim.ghosts.length < 4 && anim.progress * 10 % 2 < 0.1) { 
-        anim.ghosts.push({ x: currentX, y: currentY, alpha: 0.6 }); 
+
+    if (anim.progress < 1 && anim.ghosts.length < 4 && anim.progress * 10 % 2 < 0.1) {
+      anim.ghosts.push({ x: currentX, y: currentY, alpha: 0.6 });
     }
-    
-    anim.ghosts.forEach((g, idx) => { 
-      g.alpha -= 0.02; 
-      if (g.alpha > 0) { 
-        ctx.save(); 
+
+    anim.ghosts.forEach((g, idx) => {
+      g.alpha -= 0.02;
+      if (g.alpha > 0) {
+        ctx.save();
         ctx.globalAlpha = g.alpha * 0.6; // Simpler, faster alpha instead of heavy filter
-        
+
         // FIX: Use .key instead of .type, and CELL_SIZE instead of undefined PIECE_SIZE
-        const img = images[anim.piece.key]; 
-        if (img) ctx.drawImage(img, g.x - C.CELL_SIZE/2, g.y - C.CELL_SIZE/2, C.CELL_SIZE, C.CELL_SIZE); 
-        ctx.restore(); 
-      } 
+        const img = images[anim.piece.key];
+        if (img) ctx.drawImage(img, g.x - C.CELL_SIZE / 2, g.y - C.CELL_SIZE / 2, C.CELL_SIZE, C.CELL_SIZE);
+        ctx.restore();
+      }
     });
-    
-    if (anim.progress < 1) { 
-        for (let j = 0; j < 3; j++) { 
-            const angle = (anim.progress * 10) + (j * Math.PI * 0.6); 
-            anim.particles.push({ x: currentX + Math.cos(angle) * 15, y: currentY + Math.sin(angle) * 15, vx: (Math.random() - 0.5) * 2, vy: Math.random() * 2, alpha: 1, size: Math.random() * 3 + 1 }); 
-        } 
+
+    if (anim.progress < 1) {
+      for (let j = 0; j < 3; j++) {
+        const angle = (anim.progress * 10) + (j * Math.PI * 0.6);
+        anim.particles.push({ x: currentX + Math.cos(angle) * 15, y: currentY + Math.sin(angle) * 15, vx: (Math.random() - 0.5) * 2, vy: Math.random() * 2, alpha: 1, size: Math.random() * 3 + 1 });
+      }
     }
-    
-    anim.particles.forEach((p, pIdx) => { 
-        p.x += p.vx; p.y += p.vy; p.alpha -= 0.03; 
-        if (p.alpha > 0) { 
-            ctx.fillStyle = `rgba(255, 120, 0, ${p.alpha})`; 
-            ctx.shadowColor = 'orange'; 
-            ctx.shadowBlur = gameState.lowDetail ? 0 : 5; // Disable shadows on low-detail
-            ctx.beginPath(); 
-            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); 
-            ctx.fill(); 
-        } else { 
-            anim.particles.splice(pIdx, 1); 
-        } 
+
+    anim.particles.forEach((p, pIdx) => {
+      p.x += p.vx; p.y += p.vy; p.alpha -= 0.03;
+      if (p.alpha > 0) {
+        ctx.fillStyle = `rgba(255, 120, 0, ${p.alpha})`;
+        ctx.shadowColor = 'orange';
+        ctx.shadowBlur = gameState.lowDetail ? 0 : 5; // Disable shadows on low-detail
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        anim.particles.splice(pIdx, 1);
+      }
     });
-    
-    if (anim.progress >= 1) { 
-        anim.piece.isRetreating = false; 
-        if (anim.ghosts.every(g => g.alpha <= 0) && anim.particles.length === 0) { 
-            gameState.retreatAnimations.splice(i, 1); 
-        } 
+
+    if (anim.progress >= 1) {
+      anim.piece.isRetreating = false;
+      if (anim.ghosts.every(g => g.alpha <= 0) && anim.particles.length === 0) {
+        gameState.retreatAnimations.splice(i, 1);
+      }
     }
   }
 }
 export function spawnPummelKnockbackEffect(piece, attackerRow, attackerCol, oldRow, oldCol, newRow, newCol, gameState) {
-    gameState.knockbackAnimations = gameState.knockbackAnimations || [];
-    piece.isAnimating = true; // Tell the UI to hide the static piece
+  gameState.knockbackAnimations = gameState.knockbackAnimations || [];
+  piece.isAnimating = true; // Tell the UI to hide the static piece
 
-    const startX = oldCol * C.CELL_SIZE + C.CELL_SIZE / 2;
-    const startY = oldRow * C.CELL_SIZE + C.CELL_SIZE / 2;
-    const targetX = newCol * C.CELL_SIZE + C.CELL_SIZE / 2;
-    const targetY = newRow * C.CELL_SIZE + C.CELL_SIZE / 2;
+  const startX = oldCol * C.CELL_SIZE + C.CELL_SIZE / 2;
+  const startY = oldRow * C.CELL_SIZE + C.CELL_SIZE / 2;
+  const targetX = newCol * C.CELL_SIZE + C.CELL_SIZE / 2;
+  const targetY = newRow * C.CELL_SIZE + C.CELL_SIZE / 2;
 
-    // Spawn a massive shockwave exactly between the Yeti's fist and the target
-    const impactX = (attackerCol * C.CELL_SIZE + C.CELL_SIZE / 2 + startX) / 2;
-    const impactY = (attackerRow * C.CELL_SIZE + C.CELL_SIZE / 2 + startY) / 2;
+  // Spawn a massive shockwave exactly between the Yeti's fist and the target
+  const impactX = (attackerCol * C.CELL_SIZE + C.CELL_SIZE / 2 + startX) / 2;
+  const impactY = (attackerRow * C.CELL_SIZE + C.CELL_SIZE / 2 + startY) / 2;
 
-    gameState.shockwaves = gameState.shockwaves || [];
-    gameState.shockwaves.push({ x: impactX, y: impactY, radius: 25, life: 1, color: '255, 255, 255' });
+  gameState.shockwaves = gameState.shockwaves || [];
+  gameState.shockwaves.push({ x: impactX, y: impactY, radius: 25, life: 1, color: '255, 255, 255' });
 
   gameState.knockbackAnimations.push({
     piece,
@@ -517,49 +517,49 @@ export function spawnPummelKnockbackEffect(piece, attackerRow, attackerCol, oldR
 }
 
 export function drawPummelKnockbackAnimations(ctx, gameState) {
-    if (!gameState.knockbackAnimations) return;
+  if (!gameState.knockbackAnimations) return;
 
-    for (let i = gameState.knockbackAnimations.length - 1; i >= 0; i--) {
-        const anim = gameState.knockbackAnimations[i];
-        anim.progress += 0.1; // Fast push! (10 frames)
+  for (let i = gameState.knockbackAnimations.length - 1; i >= 0; i--) {
+    const anim = gameState.knockbackAnimations[i];
+    anim.progress += 0.1; // Fast push! (10 frames)
 
-        const currentX = anim.x + (anim.targetX - anim.x) * anim.progress;
-        const currentY = anim.y + (anim.targetY - anim.y) * anim.progress;
+    const currentX = anim.x + (anim.targetX - anim.x) * anim.progress;
+    const currentY = anim.y + (anim.targetY - anim.y) * anim.progress;
 
-        // 1. Spawn friction dust trailing from their feet
-        if (anim.progress < 1) {
-            anim.dust.push({
-                x: currentX + (Math.random() - 0.5) * 20,
-                y: currentY + C.CELL_SIZE / 3, // Ground level
-                vx: (anim.x - anim.targetX) * 0.05 + (Math.random() - 0.5) * 2, // Blow dust backward
-                vy: (anim.y - anim.targetY) * 0.05 + (Math.random() - 0.5) * 2,
-                alpha: 1,
-                size: Math.random() * 5 + 2
-            });
-        }
+    // 1. Spawn friction dust trailing from their feet
+    if (anim.progress < 1) {
+      anim.dust.push({
+        x: currentX + (Math.random() - 0.5) * 20,
+        y: currentY + C.CELL_SIZE / 3, // Ground level
+        vx: (anim.x - anim.targetX) * 0.05 + (Math.random() - 0.5) * 2, // Blow dust backward
+        vy: (anim.y - anim.targetY) * 0.05 + (Math.random() - 0.5) * 2,
+        alpha: 1,
+        size: Math.random() * 5 + 2
+      });
+    }
 
-        // 2. Draw the dust
-        anim.dust.forEach((d, dIdx) => {
-            d.x += d.vx; d.y += d.vy; d.alpha -= 0.05;
-            if (d.alpha > 0) {
-                ctx.fillStyle = `rgba(200, 200, 200, ${d.alpha})`;
-                ctx.beginPath(); ctx.arc(d.x, d.y, d.size, 0, Math.PI * 2); ctx.fill();
-            } else {
-                anim.dust.splice(dIdx, 1);
-            }
-        });
+    // 2. Draw the dust
+    anim.dust.forEach((d, dIdx) => {
+      d.x += d.vx; d.y += d.vy; d.alpha -= 0.05;
+      if (d.alpha > 0) {
+        ctx.fillStyle = `rgba(200, 200, 200, ${d.alpha})`;
+        ctx.beginPath(); ctx.arc(d.x, d.y, d.size, 0, Math.PI * 2); ctx.fill();
+      } else {
+        anim.dust.splice(dIdx, 1);
+      }
+    });
 
     // 3. Draw the sliding piece (with a helpless tilt!)
     // Draw the piece both while it's sliding (progress < 1) and continue drawing it at
     // the final location after impact until the dust clears. This prevents a brief
     // disappearance where the UI hides the static piece during the animation.
     if (anim.progress < 1) {
-    // Find the image source safely. Use stored pieceKey as a fallback because
-    // we may null out `anim.piece` during the impact cleanup while dust lingers.
-    const imgKey = (anim.piece && anim.piece.key) || anim.pieceKey;
-    // Depending on how your images are stored globally:
-    const img = imgKey && (document.getElementById(imgKey) || (gameState.images && gameState.images[imgKey]));
-  if (img) {
+      // Find the image source safely. Use stored pieceKey as a fallback because
+      // we may null out `anim.piece` during the impact cleanup while dust lingers.
+      const imgKey = (anim.piece && anim.piece.key) || anim.pieceKey;
+      // Depending on how your images are stored globally:
+      const img = imgKey && (document.getElementById(imgKey) || (gameState.images && gameState.images[imgKey]));
+      if (img) {
         ctx.save();
         ctx.translate(currentX, currentY);
         // Tilt away from the direction of travel
@@ -571,9 +571,9 @@ export function drawPummelKnockbackAnimations(ctx, gameState) {
       }
     } else {
       // Impact phase: still draw the piece at the final location while dust/particles exist
-  const imgKey = (anim.piece && anim.piece.key) || anim.pieceKey;
-  const img = imgKey && (document.getElementById(imgKey) || (gameState.images && gameState.images[imgKey]));
-  if (img) {
+      const imgKey = (anim.piece && anim.piece.key) || anim.pieceKey;
+      const img = imgKey && (document.getElementById(imgKey) || (gameState.images && gameState.images[imgKey]));
+      if (img) {
         ctx.save();
         ctx.translate(anim.targetX, anim.targetY);
         ctx.drawImage(img, -C.CELL_SIZE / 2, -C.CELL_SIZE / 2, C.CELL_SIZE, C.CELL_SIZE);
@@ -591,52 +591,52 @@ export function drawPummelKnockbackAnimations(ctx, gameState) {
         anim.piece = null; // Unlink the piece so we don't modify it again
       }
     }
-   }
+  }
 }
 
 export function spawnVentEffect(row, col, team, gameState) {
-    gameState.ventAnimations = gameState.ventAnimations || [];
-    const targetX = col * C.CELL_SIZE + C.CELL_SIZE / 2;
-    const targetY = row * C.CELL_SIZE + C.CELL_SIZE / 2;
+  gameState.ventAnimations = gameState.ventAnimations || [];
+  const targetX = col * C.CELL_SIZE + C.CELL_SIZE / 2;
+  const targetY = row * C.CELL_SIZE + C.CELL_SIZE / 2;
 
-    gameState.ventAnimations.push({
-        x: targetX,
-        y: targetY,
-        ticks: 0,
-        color: team === 'snow' ? '0, 204, 255' : '255, 80, 20',
-        particles: []
-    });
+  gameState.ventAnimations.push({
+    x: targetX,
+    y: targetY,
+    ticks: 0,
+    color: team === 'snow' ? '0, 204, 255' : '255, 80, 20',
+    particles: []
+  });
 }
 
 export function drawVentAnimations(ctx, gameState) {
-    if (!gameState.ventAnimations) return;
-    for (let i = gameState.ventAnimations.length - 1; i >= 0; i--) {
-        const anim = gameState.ventAnimations[i];
-        anim.ticks++;
-        
-        // Energy Pillar
-        const alpha = Math.max(0, 1 - anim.ticks / 30);
-        ctx.fillStyle = `rgba(${anim.color}, ${alpha * 0.5})`;
-        ctx.fillRect(anim.x - 10, anim.y - (anim.ticks * 5), 20, anim.ticks * 5);
-        
-        // Rising Sparks
-        if (anim.ticks < 20) {
-            anim.particles.push({
-                x: anim.x + (Math.random() - 0.5) * 30,
-                y: anim.y,
-                vy: -Math.random() * 8 - 2,
-                life: 1.0
-            });
-        }
+  if (!gameState.ventAnimations) return;
+  for (let i = gameState.ventAnimations.length - 1; i >= 0; i--) {
+    const anim = gameState.ventAnimations[i];
+    anim.ticks++;
 
-        anim.particles.forEach((p, idx) => {
-            p.y += p.vy; p.life -= 0.04;
-            if (p.life > 0) {
-                ctx.fillStyle = `rgba(${anim.color}, ${p.life})`;
-                ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI * 2); ctx.fill();
-            } else { anim.particles.splice(idx, 1); }
-        });
+    // Energy Pillar
+    const alpha = Math.max(0, 1 - anim.ticks / 30);
+    ctx.fillStyle = `rgba(${anim.color}, ${alpha * 0.5})`;
+    ctx.fillRect(anim.x - 10, anim.y - (anim.ticks * 5), 20, anim.ticks * 5);
 
-        if (anim.ticks > 30 && anim.particles.length === 0) gameState.ventAnimations.splice(i, 1);
+    // Rising Sparks
+    if (anim.ticks < 20) {
+      anim.particles.push({
+        x: anim.x + (Math.random() - 0.5) * 30,
+        y: anim.y,
+        vy: -Math.random() * 8 - 2,
+        life: 1.0
+      });
     }
+
+    anim.particles.forEach((p, idx) => {
+      p.y += p.vy; p.life -= 0.04;
+      if (p.life > 0) {
+        ctx.fillStyle = `rgba(${anim.color}, ${p.life})`;
+        ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI * 2); ctx.fill();
+      } else { anim.particles.splice(idx, 1); }
+    });
+
+    if (anim.ticks > 30 && anim.particles.length === 0) gameState.ventAnimations.splice(i, 1);
+  }
 }

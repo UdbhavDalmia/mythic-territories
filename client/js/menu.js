@@ -33,21 +33,60 @@ document.addEventListener('DOMContentLoaded', () => {
     joinRoomBtn?.addEventListener('click', connectToRoom);
     roomCodeInput?.addEventListener('keypress', e => { if (e.key === 'Enter') connectToRoom(); });
 
-    // Scramble title (respects prefers-reduced-motion)
-    (function scrambleTitle() {
-        const el = $('main-title');
-        if (!el) return;
-        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { el.style.opacity = '1'; return; }
-        const finalTitle = (el.textContent || 'MYTHIC TERRITORIES').toUpperCase().trim();
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()_+{}|:<>?';
-        const duration = 30, interval = 50; let frame = 0;
-        el.style.opacity = '1';
-        const tick = () => {
-            if (frame > duration) { el.textContent = finalTitle; return; }
-            const resolved = Math.floor(finalTitle.length * (frame / duration));
-            el.textContent = finalTitle.split('').map((ch, i) => i < resolved ? ch : (ch === ' ' ? ' ' : chars[(Math.random() * chars.length) | 0])).join('');
-            frame++; setTimeout(tick, interval);
+    // --- Lightweight Particle System ---
+    const canvas = $('background-effects-canvas');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        let width, height;
+
+        const resize = () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
         };
-        setTimeout(tick, 300);
-    })();
+        window.addEventListener('resize', resize);
+        resize();
+
+        class Particle {
+            constructor(x, y, type) {
+                this.x = x; this.y = y; this.type = type;
+                this.size = type === 'snow' ? (Math.random() * 2 + 1) * 1.3 : (Math.random() * 2 + 0.5) * 1.3;
+                this.speedX = (Math.random() - 0.5) * 0.8;
+                this.speedY = type === 'snow' ? Math.random() * 0.5 + 0.2 : (Math.random() * -0.8 - 0.2);
+                this.life = 1.0;
+                this.decay = Math.random() * 0.02 + 0.015;
+            }
+            update() {
+                this.x += this.speedX; this.y += this.speedY;
+                this.life -= this.decay;
+            }
+            draw() {
+                const alpha = this.life;
+                ctx.fillStyle = this.type === 'snow' ? `rgba(0, 119, 255, ${alpha})` : `rgba(255, 46, 0, ${alpha})`;
+                ctx.beginPath();
+                if (this.type === 'snow') ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                else ctx.rect(this.x, this.y, this.size, this.size);
+                ctx.fill();
+            }
+        }
+
+        const spawn = (x, y, count = 1) => {
+            const type = x < width / 2 ? 'snow' : 'ash';
+            for (let i = 0; i < count; i++) particles.push(new Particle(x, y, type));
+        };
+
+        window.addEventListener('mousemove', e => { if (Math.random() > 0.6) spawn(e.clientX, e.clientY); });
+        window.addEventListener('click', e => spawn(e.clientX, e.clientY, 10));
+
+        const animate = () => {
+            ctx.clearRect(0, 0, width, height);
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw();
+                if (particles[i].life <= 0) { particles.splice(i, 1); i--; }
+            }
+            requestAnimationFrame(animate);
+        };
+        animate();
+    }
 });

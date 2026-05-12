@@ -102,7 +102,7 @@ function evaluateBoardHazards(gameState, aiTeam, opponentTeam, aiConfig) {
             }
         }
         hazardScore += nearbyEnemies * 75;
-        if (C.SHAPES.shrineArea.some(([r,c]) => r === ground.row && c === ground.col)) {
+        if (C.SHAPES.shrineArea.some(([r, c]) => r === ground.row && c === ground.col)) {
             hazardScore += 100;
         }
     }
@@ -115,7 +115,7 @@ function evaluateBoardHazards(gameState, aiTeam, opponentTeam, aiConfig) {
             }
         }
         hazardScore += nearbyEnemies * 100;
-        if (C.SHAPES.shrineArea.some(([r,c]) => r === trap.row && c === trap.col)) {
+        if (C.SHAPES.shrineArea.some(([r, c]) => r === trap.row && c === trap.col)) {
             hazardScore += 150;
         }
     }
@@ -303,17 +303,17 @@ function evaluatePieceSafety(gameState, aiTeam, opponentTeam, aiConfig) {
 // Evaluates piece positioning on the board (center control, deep territory).
 function evaluatePositionalValue(gameState, aiTeam, opponentTeam, aiConfig) {
     let score = 0;
-    const centerSquares = [[4,4],[4,5],[5,4],[5,5],[3,4],[3,5],[6,4],[6,5],[4,3],[5,3],[4,6],[5,6]];
+    const centerSquares = [[4, 4], [4, 5], [5, 4], [5, 5], [3, 4], [3, 5], [6, 4], [6, 5], [4, 3], [5, 3], [4, 6], [5, 6]];
     const riftCells = C.SHAPES.riftAreas.flatMap(r => r.cells);
 
     gameState.pieces.forEach(p => {
         const valueModifier = (C.PIECE_VALUES[p.key] || 100) / 500;
         let positionBonus = 0;
 
-        if (centerSquares.some(([r,c]) => r === p.row && c === p.col)) positionBonus += 150;
-        else if (centerSquares.some(([r,c]) => Math.max(Math.abs(r-p.row), Math.abs(c-p.col)) <= 1)) positionBonus += 50;
+        if (centerSquares.some(([r, c]) => r === p.row && c === p.col)) positionBonus += 150;
+        else if (centerSquares.some(([r, c]) => Math.max(Math.abs(r - p.row), Math.abs(c - p.col)) <= 1)) positionBonus += 50;
 
-        if (riftCells.some(([r,c]) => r === p.row && c === p.col)) positionBonus += 100;
+        if (riftCells.some(([r, c]) => r === p.row && c === p.col)) positionBonus += 100;
 
         if (p.team === aiTeam) score += positionBonus * valueModifier;
         else score -= positionBonus * valueModifier;
@@ -343,8 +343,8 @@ function evaluateShrine(gameState, aiTeam, opponentTeam, aiConfig) {
         }
     }
 
-    const aiControl = C.SHAPES.shrineArea.filter(([r,c]) => C.getPieceAt(r,c,gameState.boardMap)?.team === aiTeam).length;
-    const oppControl = C.SHAPES.shrineArea.filter(([r,c]) => C.getPieceAt(r,c,gameState.boardMap)?.team === opponentTeam).length;
+    const aiControl = C.SHAPES.shrineArea.filter(([r, c]) => C.getPieceAt(r, c, gameState.boardMap)?.team === aiTeam).length;
+    const oppControl = C.SHAPES.shrineArea.filter(([r, c]) => C.getPieceAt(r, c, gameState.boardMap)?.team === opponentTeam).length;
     score += (aiControl - oppControl) * 200;
 
     return score;
@@ -414,8 +414,8 @@ function getOrderedActions(gameState, team) {
                 if (isUltimate && p.hasUsedUltimate) {
                     // skip used ultimate
                 } else if (p.ability.key === 'Siphon') {
-                    const onRift = C.SHAPES.riftAreas.some(rift => rift.cells.some(([rr,cc]) => rr === p.row && cc === p.col));
-                    const onShrine = C.SHAPES.shrineArea.some(([rr,cc]) => rr === p.row && cc === p.col);
+                    const onRift = C.SHAPES.riftAreas.some(rift => rift.cells.some(([rr, cc]) => rr === p.row && cc === p.col));
+                    const onShrine = C.SHAPES.shrineArea.some(([rr, cc]) => rr === p.row && cc === p.col);
                     const canGain = (p.charges || 0) < (p.ability.maxCharges || 3);
                     if ((onRift || onShrine) && canGain) {
                         possibleActions.push({ type: 'ability', piece: p, abilityKey: 'Siphon', target: null });
@@ -585,7 +585,7 @@ function scoreActionHeuristically(action, gameState, aiTeam) {
             score += 700;
         } else if (abilityKey === 'KingsEdict' || abilityKey === 'TyrantsProclamation') {
             score += 1000;
-    } else if (abilityKey === 'MarkOfCinder' || abilityKey === 'LavaGlob') {
+        } else if (abilityKey === 'MarkOfCinder' || abilityKey === 'LavaGlob') {
             if (targetPiece) {
                 score += 800 + (C.PIECE_VALUES[targetPiece.key] || 0) * 2;
                 if (targetPiece.key.includes('Lord') || targetPiece.key.includes('Tyrant')) score += 5000;

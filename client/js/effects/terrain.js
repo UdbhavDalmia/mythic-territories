@@ -56,8 +56,8 @@ export function drawBurningGroundBlock(ctx, row, col, cellSize, duration, maxDur
   ctx.lineJoin = 'round';
   ctx.shadowColor = '#FF4500';
   ctx.shadowBlur = 15 * progress * pulse;
-  
-  let seedIndex = 50; 
+
+  let seedIndex = 50;
   for (let i = 0; i < 4; i++) {
     ctx.beginPath();
     let cx = x + (getSeededRandom(row, col, seedIndex++) * cellSize);
@@ -72,8 +72,8 @@ export function drawBurningGroundBlock(ctx, row, col, cellSize, duration, maxDur
       cy = Math.max(y + 2, Math.min(y + cellSize - 2, cy));
       ctx.lineTo(cx, cy);
     }
-    
-    const green = Math.floor((100 + 100 * pulse) * progress); 
+
+    const green = Math.floor((100 + 100 * pulse) * progress);
     ctx.strokeStyle = `rgba(255, ${green}, 0, ${0.8 * progress})`;
     ctx.lineWidth = 3 * progress; // Cracks literally "fill in" and get thinner
     ctx.stroke();
@@ -81,11 +81,11 @@ export function drawBurningGroundBlock(ctx, row, col, cellSize, duration, maxDur
   ctx.shadowBlur = 0;
 
   // 3. Smoldering Coals (Dark geometric rocks floating on the magma)
-  for(let i = 0; i < 5; i++) {
+  for (let i = 0; i < 5; i++) {
     const coalX = x + (getSeededRandom(row, col, seedIndex++) * cellSize);
     const coalY = y + (getSeededRandom(row, col, seedIndex++) * cellSize);
     const coalSize = (getSeededRandom(row, col, seedIndex++) * 8) + 4;
-    
+
     ctx.fillStyle = `rgba(15, 10, 10, ${0.95 * progress})`;
     ctx.beginPath();
     ctx.moveTo(coalX, coalY - coalSize);
@@ -108,13 +108,13 @@ export function drawGlacialWallBlock(ctx, row, col, cellSize, gameState, duratio
   let minRow = row, maxRow = row;
   if (gameState && gameState.glacialWalls) {
     const visited = new Set();
-    const stack = [{r: row, c: col}];
+    const stack = [{ r: row, c: col }];
     visited.add(`${row},${col}`);
     while (stack.length) {
       const curr = stack.pop();
       minRow = Math.min(minRow, curr.r);
       maxRow = Math.max(maxRow, curr.r);
-      const neighbors = [ {r: curr.r-1, c: curr.c}, {r: curr.r+1, c: curr.c}, {r: curr.r, c: curr.c-1}, {r: curr.r, c: curr.c+1} ];
+      const neighbors = [{ r: curr.r - 1, c: curr.c }, { r: curr.r + 1, c: curr.c }, { r: curr.r, c: curr.c - 1 }, { r: curr.r, c: curr.c + 1 }];
       neighbors.forEach(n => {
         const key = `${n.r},${n.c}`;
         if (!visited.has(key) && hasNeighbor(n.r, n.c)) { visited.add(key); stack.push(n); }
@@ -132,7 +132,7 @@ export function drawGlacialWallBlock(ctx, row, col, cellSize, gameState, duratio
   ctx.fillStyle = gradient;
   ctx.fillRect(x, y, cellSize, cellSize);
 
-  function getSeededRandom(r, c, index) { let seed = ((r+1)*1000)+((c+1)*100)+index; let val = Math.sin(seed)*10000; return val - Math.floor(val); }
+  function getSeededRandom(r, c, index) { let seed = ((r + 1) * 1000) + ((c + 1) * 100) + index; let val = Math.sin(seed) * 10000; return val - Math.floor(val); }
 
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; ctx.lineWidth = 1.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   const age = 3 - duration; const numCracks = 4 + (age * 6);

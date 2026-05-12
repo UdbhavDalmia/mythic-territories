@@ -1,10 +1,12 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Play Mythic Territories | Multiplayer Battle</title>
-  <meta name="description" content="Battle online in Mythic Territories. Use tactical positioning, elemental abilities, and the Tether system to defeat your opponent and capture the Shrine.">
+  <meta name="description"
+    content="Battle online in Mythic Territories. Use tactical positioning, elemental abilities, and the Tether system to defeat your opponent and capture the Shrine.">
   <link rel="canonical" href="https://mythic-territories.xyz/game.html">
   <meta property="og:title" content="Play Mythic Territories">
   <meta property="og:description" content="Join the elemental war. Play Mythic Territories online now.">
@@ -12,6 +14,7 @@
   <meta property="og:url" content="https://mythic-territories.xyz/game.html">
   <link rel="stylesheet" href="styles/game.css">
 </head>
+
 <body>
   <div id="ascensionScreen" class="ascension-overlay" style="display:none">
     <div class="ascension-content dark-glass-container">
@@ -49,7 +52,8 @@
             <h3 id="ability-name"></h3>
             <p id="ability-description"></p>
             <div id="charge-container" style="display:none">Charges: <span id="charge-count">0/3</span></div>
-            <div id="ability-cooldown-container" style="display:none">Cooldown: <span id="ability-cooldown"></span> turns</div>
+            <div id="ability-cooldown-container" style="display:none">Cooldown: <span id="ability-cooldown"></span>
+              turns</div>
             <button id="abilityBtn">Use Ability</button>
             <button id="siphonBtn">Siphon</button>
             <button id="sacrificeBtn" style="display:none" class="unleash-btn">Sacrifice</button>
@@ -67,7 +71,8 @@
               <button id="ultimateUse2Btn" class="unleash-btn">Use 2 Charges</button>
               <button id="ultimateUse3Btn" class="unleash-btn">Use 3 Charges</button>
             </div>
-            <button id="ultimateDeactivateBtn" style="display:none" class="unleash-btn stop-channeling-btn">Deactivate Aura (Free)</button>
+            <button id="ultimateDeactivateBtn" style="display:none" class="unleash-btn stop-channeling-btn">Deactivate
+              Aura (Free)</button>
           </div>
         </div>
       </div>
@@ -86,7 +91,8 @@
         </div>
         <div id="roomStatusOverlay" style="padding: 10px;">
           <div id="playerCountDisplay" style="font-weight: bold; color: white; padding: 5px;">Players: 1/2</div>
-          <div id="disconnectTimerDisplay" style="display: none; background-color: #ff4444; color: white; font-weight: bold; padding: 10px; border-radius: 5px; text-align: center; margin: 10px 0;">
+          <div id="disconnectTimerDisplay"
+            style="display: none; background-color: #ff4444; color: white; font-weight: bold; padding: 10px; border-radius: 5px; text-align: center; margin: 10px 0;">
             Opponent disconnected. Closing in 60s
           </div>
         </div>
@@ -121,10 +127,13 @@
         </div>
       </div>
     </div>
-    <div id="disconnectModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; justify-content:center; align-items:center;">
-      <div style="background:rgba(10,5,5,0.9); border:1px solid #888; border-radius:0; padding:20px; text-align:center; color:#f0f0f0; font-family:'Exo 2', sans-serif;">
+    <div id="disconnectModal"
+      style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; justify-content:center; align-items:center;">
+      <div
+        style="background:rgba(10,5,5,0.9); border:1px solid #888; border-radius:0; padding:20px; text-align:center; color:#f0f0f0; font-family:'Exo 2', sans-serif;">
         <div id="disconnectMessage">Opponent disconnected. Closing in 60s</div>
-        <button id="mainMenuBtn" style="display:none; margin-top:20px;" onclick="window.location.href='index.html'">Go to Main Menu</button>
+        <button id="mainMenuBtn" style="display:none; margin-top:20px;" onclick="window.location.href='index.html'">Go
+          to Main Menu</button>
       </div>
     </div>
     <div id="victoryScreen">
@@ -141,4 +150,5 @@
     <script src="js/script.js" type="module"></script>
   </div>
 </body>
+
 </html>

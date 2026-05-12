@@ -11,40 +11,37 @@
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://mythic-territories.xyz/">
   <link rel="stylesheet" href="styles/menu.css">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@700&family=Exo+2:wght@400;600;700&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
 </head>
 <body class="primal-home">
-  <h1 class="game-title" id="main-title" style="opacity: 1; margin-bottom: 40px;">MYTHIC TERRITORIES</h1>
+  <h1 class="game-title" id="main-title">MYTHIC TERRITORIES</h1>
   
-  <div class="primal-menu-layout">
-    <div class="menu-shard snow-shard primal-snow">
-      <div class="team-selection">
-        <div class="team-card" id="team-snow" style="pointer-events: none;">
-          <img src="units/frost-lord.png" alt="Snow Team - Frost Lord">
-          <h3>Snow</h3>
-        </div>
+  <div class="clash-container">
+    <div class="menu-shard snow-clash primal-snow" id="team-snow">
+      <div class="leader-portrait">
+        <img src="images/leaders/snow_leader_clash.png" alt="Frost Lord">
       </div>
-      <div class="main-options">
-        <button id="rules-btn" class="menu-btn">Game Rules</button>
+      <div class="faction-details">
+        <h2>FROST LORD</h2>
+        <button id="rules-btn" class="menu-btn">Rules</button>
       </div>
     </div>
 
-    <div class="menu-shard ash-shard primal-ash">
-      <div class="team-selection">
-        <div class="team-card" id="team-ash" style="pointer-events: none;">
-          <img src="units/ash-tyrant.png" alt="Ash Team - Ash Tyrant">
-          <h3>Ash</h3>
-        </div>
+    <div class="menu-shard ash-clash primal-ash" id="team-ash">
+      <div class="leader-portrait">
+        <img src="images/leaders/ash_leader_clash.png" alt="Ash Tyrant">
       </div>
-      <div class="main-options">
-        <button id="notes-btn" class="menu-btn">Patch Notes</button>
+      <div class="faction-details">
+        <h2>ASH TYRANT</h2>
+        <button id="notes-btn" class="menu-btn">Notes</button>
       </div>
     </div>
   </div>
 
-  <div class="ui-container dark-glass-container" style="max-width:500px; width:100%">
-    <div class="menu-buttons">
-      <button class="menu-btn" id="localPlayBtn">Pass & Play</button>
-      <button class="menu-btn highlight-btn" id="multiplayerBtn">Play Multiplayer</button>
+  <div class="play-nexus">
+    <div class="nexus-glass">
+      <button class="menu-btn play-btn" id="localPlayBtn">Pass & Play</button>
+      <button class="menu-btn play-btn highlight-btn" id="multiplayerBtn">Enter Multiplayer</button>
     </div>
   </div>
 
@@ -60,6 +57,7 @@
     </div>
   </div>
 
+  <canvas id="background-effects-canvas"></canvas>
   <script src="js/menu.js"></script>
 </body>
 </html>

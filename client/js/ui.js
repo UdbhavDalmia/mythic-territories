@@ -82,7 +82,7 @@ const formatTime = seconds => {
 };
 
 // Move this to the top of the file to persist across state changes
-let globalTimerInterval = null; 
+let globalTimerInterval = null;
 
 export function startTimer(gameState) {
   if (globalTimerInterval) return; // Prevent multiple intervals
@@ -90,16 +90,16 @@ export function startTimer(gameState) {
   globalTimerInterval = setInterval(() => {
     if (gameState.gameOver || !gameState.gameStarted) return;
     const currentTeam = gameState.currentTurn || 'snow';
-    
+
     // Ensure timers object exists
     if (!gameState.timers) gameState.timers = { snow: 600, ash: 600 };
-    
+
     if (gameState.timers[currentTeam] > 0) {
       gameState.timers[currentTeam] -= 1;
       updateTimerDisplay(gameState);
     } else {
       window.sendAction('TIMEOUT', { team: currentTeam });
-      stopTimer(); 
+      stopTimer();
     }
   }, 1000);
 }
@@ -113,8 +113,8 @@ export function stopTimer() {
 
 export function resetTimers(gameState) {
   // CRITICAL FIX: Use the exposed stopTimer method to clear the global interval
-  stopTimer(); 
-  
+  stopTimer();
+
   gameState.timers = gameState.timers || {};
   gameState.timers.snow = gameState.timers.ash = 10 * 60;
   updateTimerDisplay(gameState);
@@ -248,35 +248,35 @@ export function drawAbilityHighlights(gameState) {
   }
 
   if (currentState === GameState.TETHER_TARGETING) {
-      const { siphoner, mode, allyTarget } = gameState.abilityContext;
-      const onRift = C.SHAPES.riftAreas.some(r => r.cells.some(([rr, cc]) => rr === siphoner.row && cc === siphoner.col));
-      const maxRange = onRift ? 4 : 3;
+    const { siphoner, mode, allyTarget } = gameState.abilityContext;
+    const onRift = C.SHAPES.riftAreas.some(r => r.cells.some(([rr, cc]) => rr === siphoner.row && cc === siphoner.col));
+    const maxRange = onRift ? 4 : 3;
 
-      for (let r = 0; r < C.ROWS; r++) {
-          for (let c = 0; c < C.COLS; c++) {
-              const distance = Math.max(Math.abs(siphoner.row - r), Math.abs(siphoner.col - c));
-              if (distance > maxRange) continue;
-              
-              const targetPiece = C.getPieceAt(r, c, gameState.boardMap);
-              let isValid = false;
+    for (let r = 0; r < C.ROWS; r++) {
+      for (let c = 0; c < C.COLS; c++) {
+        const distance = Math.max(Math.abs(siphoner.row - r), Math.abs(siphoner.col - c));
+        if (distance > maxRange) continue;
 
-              if (mode === 'resonance') {
-                  if (!allyTarget) isValid = targetPiece && targetPiece.team === siphoner.team && targetPiece.id !== siphoner.id;
-                  else isValid = targetPiece && targetPiece.team !== siphoner.team && (targetPiece.power || 0) > 0;
-              } else if (mode === 'benevolent' || mode === 'parasitic') {
-                  if (mode === 'parasitic') isValid = targetPiece && targetPiece.team === siphoner.team && (targetPiece.power || 0) > 0;
-                  else isValid = targetPiece && targetPiece.team === siphoner.team;
-              } else if (mode === 'hostile') {
-                  isValid = targetPiece && targetPiece.team !== siphoner.team && (targetPiece.power || 0) > 0;
-              }
+        const targetPiece = C.getPieceAt(r, c, gameState.boardMap);
+        let isValid = false;
 
-              if (isValid) {
-                  ctx.fillStyle = 'rgba(0,255,0,0.4)';
-                  ctx.fillRect(c * C.CELL_SIZE, r * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
-              }
-          }
+        if (mode === 'resonance') {
+          if (!allyTarget) isValid = targetPiece && targetPiece.team === siphoner.team && targetPiece.id !== siphoner.id;
+          else isValid = targetPiece && targetPiece.team !== siphoner.team && (targetPiece.power || 0) > 0;
+        } else if (mode === 'benevolent' || mode === 'parasitic') {
+          if (mode === 'parasitic') isValid = targetPiece && targetPiece.team === siphoner.team && (targetPiece.power || 0) > 0;
+          else isValid = targetPiece && targetPiece.team === siphoner.team;
+        } else if (mode === 'hostile') {
+          isValid = targetPiece && targetPiece.team !== siphoner.team && (targetPiece.power || 0) > 0;
+        }
+
+        if (isValid) {
+          ctx.fillStyle = 'rgba(0,255,0,0.4)';
+          ctx.fillRect(c * C.CELL_SIZE, r * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
+        }
       }
-      return;
+    }
+    return;
   }
 
   if (!piece || (currentState !== GameState.ABILITY_TARGETING && currentState !== GameState.WALL_PLACEMENT_FIRST)) return;
@@ -312,7 +312,7 @@ export function drawAbilityHighlights(gameState) {
 }
 
 function drawFlashEffects(gameState) {
-  if(!gameState.flashEffects) return;
+  if (!gameState.flashEffects) return;
   for (let i = gameState.flashEffects.length - 1; i >= 0; i--) {
     const e = gameState.flashEffects[i];
     e.life -= 0.04;
@@ -524,18 +524,18 @@ export function placePieces(pieces, gameState) {
       ctx.save();
       if (p.isFading) ctx.globalAlpha = p.fadeAlpha;
       const yOffset = p === gameState.selectedPiece ? Math.sin(time * 2.5) * 2 : 0;
-      
+
       // CRITICAL FIX: Counter-rotate pieces for Ash
       if (gameState.playerTeam === 'ash') {
-          ctx.translate(p.col * C.CELL_SIZE + C.CELL_SIZE / 2, p.row * C.CELL_SIZE + yOffset + C.CELL_SIZE / 2);
-          ctx.rotate(Math.PI);
-          if (!(p.isDashing && (p.key === 'ashMagmaProwler' || p.key.includes('MagmaProwler')))) {
-              ctx.drawImage(img, -C.CELL_SIZE / 2, -C.CELL_SIZE / 2, C.CELL_SIZE, C.CELL_SIZE);
-          }
+        ctx.translate(p.col * C.CELL_SIZE + C.CELL_SIZE / 2, p.row * C.CELL_SIZE + yOffset + C.CELL_SIZE / 2);
+        ctx.rotate(Math.PI);
+        if (!(p.isDashing && (p.key === 'ashMagmaProwler' || p.key.includes('MagmaProwler')))) {
+          ctx.drawImage(img, -C.CELL_SIZE / 2, -C.CELL_SIZE / 2, C.CELL_SIZE, C.CELL_SIZE);
+        }
       } else {
-          if (!(p.isDashing && (p.key === 'ashMagmaProwler' || p.key.includes('MagmaProwler')))) {
-              ctx.drawImage(img, p.col * C.CELL_SIZE, p.row * C.CELL_SIZE + yOffset, C.CELL_SIZE, C.CELL_SIZE);
-          }
+        if (!(p.isDashing && (p.key === 'ashMagmaProwler' || p.key.includes('MagmaProwler')))) {
+          ctx.drawImage(img, p.col * C.CELL_SIZE, p.row * C.CELL_SIZE + yOffset, C.CELL_SIZE, C.CELL_SIZE);
+        }
       }
       ctx.restore();
     }
@@ -555,49 +555,49 @@ export function placePieces(pieces, gameState) {
           const pad = Math.max(2, Math.floor(C.CELL_SIZE * 0.02));
           const bx = p.col * C.CELL_SIZE + C.CELL_SIZE - badgeSize - pad;
           const by = p.row * C.CELL_SIZE + pad;
-          
+
           // CRITICAL FIX: Counter-rotate badges for Ash
           if (gameState.playerTeam === 'ash') {
-              ctx.save();
-              ctx.translate(bx + badgeSize / 2, by + badgeSize / 2);
-              ctx.rotate(Math.PI);
-              ctx.drawImage(badge, -badgeSize / 2, -badgeSize / 2, badgeSize, badgeSize);
-              ctx.restore();
+            ctx.save();
+            ctx.translate(bx + badgeSize / 2, by + badgeSize / 2);
+            ctx.rotate(Math.PI);
+            ctx.drawImage(badge, -badgeSize / 2, -badgeSize / 2, badgeSize, badgeSize);
+            ctx.restore();
           } else {
-              ctx.drawImage(badge, bx, by, badgeSize, badgeSize);
+            ctx.drawImage(badge, bx, by, badgeSize, badgeSize);
           }
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     try {
       if ((p.overloadPoints || 0) > 0) {
         const overlaySize = Math.floor(C.CELL_SIZE * 0.22);
         const ox = p.col * C.CELL_SIZE + 4;
         const oy = p.row * C.CELL_SIZE + 4;
-        ctx.save(); 
-        ctx.beginPath(); 
-        ctx.fillStyle = p.team === 'snow' ? 'rgba(0,204,255,0.95)' : 'rgba(255,80,20,0.95)'; 
-        ctx.shadowColor = ctx.fillStyle; 
-        ctx.shadowBlur = 6; 
-        ctx.arc(ox + overlaySize / 2, oy + overlaySize / 2, overlaySize / 2, 0, Math.PI * 2); 
-        ctx.fill(); 
-        ctx.fillStyle = '#ffffff'; 
-        ctx.font = `${Math.max(10, Math.floor(overlaySize * 0.9))}px sans-serif`; 
-        ctx.textAlign = 'center'; 
-        ctx.textBaseline = 'middle'; 
-        
+        ctx.save();
+        ctx.beginPath();
+        ctx.fillStyle = p.team === 'snow' ? 'rgba(0,204,255,0.95)' : 'rgba(255,80,20,0.95)';
+        ctx.shadowColor = ctx.fillStyle;
+        ctx.shadowBlur = 6;
+        ctx.arc(ox + overlaySize / 2, oy + overlaySize / 2, overlaySize / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `${Math.max(10, Math.floor(overlaySize * 0.9))}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
         // CRITICAL FIX: Counter-rotate text for Ash
         if (gameState.playerTeam === 'ash') {
-            ctx.translate(ox + overlaySize / 2, oy + overlaySize / 2);
-            ctx.rotate(Math.PI);
-            ctx.fillText(String(p.overloadPoints), 0, 1);
+          ctx.translate(ox + overlaySize / 2, oy + overlaySize / 2);
+          ctx.rotate(Math.PI);
+          ctx.fillText(String(p.overloadPoints), 0, 1);
         } else {
-            ctx.fillText(String(p.overloadPoints), ox + overlaySize / 2, oy + overlaySize / 2 + 1); 
+          ctx.fillText(String(p.overloadPoints), ox + overlaySize / 2, oy + overlaySize / 2 + 1);
         }
         ctx.restore();
       }
-    } catch (e) {}
+    } catch (e) { }
 
     if (p.isAnchor) {
       const auraRadius = C.CELL_SIZE * 0.4 + Math.sin(time * 4) * 3;
@@ -639,18 +639,18 @@ export function drawPiece(p, targetCtx, gameState) {
       drawCtx.save();
       if (p.isFading) drawCtx.globalAlpha = p.fadeAlpha;
       const yOffset = p === gameState.selectedPiece ? Math.sin(time * 2.5) * 2 : 0;
-      
+
       // CRITICAL FIX: Counter-rotate pieces for Ash
       if (gameState.playerTeam === 'ash') {
-          drawCtx.translate(p.col * C.CELL_SIZE + C.CELL_SIZE / 2, p.row * C.CELL_SIZE + yOffset + C.CELL_SIZE / 2);
-          drawCtx.rotate(Math.PI);
-          if (!(p.isDashing && (p.key === 'ashMagmaProwler' || p.key.includes('MagmaProwler')))) {
-              drawCtx.drawImage(img, -C.CELL_SIZE / 2, -C.CELL_SIZE / 2, C.CELL_SIZE, C.CELL_SIZE);
-          }
+        drawCtx.translate(p.col * C.CELL_SIZE + C.CELL_SIZE / 2, p.row * C.CELL_SIZE + yOffset + C.CELL_SIZE / 2);
+        drawCtx.rotate(Math.PI);
+        if (!(p.isDashing && (p.key === 'ashMagmaProwler' || p.key.includes('MagmaProwler')))) {
+          drawCtx.drawImage(img, -C.CELL_SIZE / 2, -C.CELL_SIZE / 2, C.CELL_SIZE, C.CELL_SIZE);
+        }
       } else {
-          if (!(p.isDashing && (p.key === 'ashMagmaProwler' || p.key.includes('MagmaProwler')))) {
-              drawCtx.drawImage(img, p.col * C.CELL_SIZE, p.row * C.CELL_SIZE + yOffset, C.CELL_SIZE, C.CELL_SIZE);
-          }
+        if (!(p.isDashing && (p.key === 'ashMagmaProwler' || p.key.includes('MagmaProwler')))) {
+          drawCtx.drawImage(img, p.col * C.CELL_SIZE, p.row * C.CELL_SIZE + yOffset, C.CELL_SIZE, C.CELL_SIZE);
+        }
       }
       drawCtx.restore();
     }
@@ -670,49 +670,49 @@ export function drawPiece(p, targetCtx, gameState) {
           const pad = Math.max(2, Math.floor(C.CELL_SIZE * 0.02));
           const bx = p.col * C.CELL_SIZE + C.CELL_SIZE - badgeSize - pad;
           const by = p.row * C.CELL_SIZE + pad;
-          
+
           // CRITICAL FIX: Counter-rotate badges for Ash
           if (gameState.playerTeam === 'ash') {
-              drawCtx.save();
-              drawCtx.translate(bx + badgeSize / 2, by + badgeSize / 2);
-              drawCtx.rotate(Math.PI);
-              drawCtx.drawImage(badge, -badgeSize / 2, -badgeSize / 2, badgeSize, badgeSize);
-              drawCtx.restore();
+            drawCtx.save();
+            drawCtx.translate(bx + badgeSize / 2, by + badgeSize / 2);
+            drawCtx.rotate(Math.PI);
+            drawCtx.drawImage(badge, -badgeSize / 2, -badgeSize / 2, badgeSize, badgeSize);
+            drawCtx.restore();
           } else {
-              drawCtx.drawImage(badge, bx, by, badgeSize, badgeSize);
+            drawCtx.drawImage(badge, bx, by, badgeSize, badgeSize);
           }
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     try {
       if ((p.overloadPoints || 0) > 0) {
         const overlaySize = Math.floor(C.CELL_SIZE * 0.22);
         const ox = p.col * C.CELL_SIZE + 4;
         const oy = p.row * C.CELL_SIZE + 4;
-        drawCtx.save(); 
-        drawCtx.beginPath(); 
-        drawCtx.fillStyle = p.team === 'snow' ? 'rgba(0,204,255,0.95)' : 'rgba(255,80,20,0.95)'; 
-        drawCtx.shadowColor = drawCtx.fillStyle; 
-        drawCtx.shadowBlur = 6; 
-        drawCtx.arc(ox + overlaySize / 2, oy + overlaySize / 2, overlaySize / 2, 0, Math.PI * 2); 
-        drawCtx.fill(); 
-        drawCtx.fillStyle = '#ffffff'; 
-        drawCtx.font = `${Math.max(10, Math.floor(overlaySize * 0.9))}px sans-serif`; 
-        drawCtx.textAlign = 'center'; 
-        drawCtx.textBaseline = 'middle'; 
-        
+        drawCtx.save();
+        drawCtx.beginPath();
+        drawCtx.fillStyle = p.team === 'snow' ? 'rgba(0,204,255,0.95)' : 'rgba(255,80,20,0.95)';
+        drawCtx.shadowColor = drawCtx.fillStyle;
+        drawCtx.shadowBlur = 6;
+        drawCtx.arc(ox + overlaySize / 2, oy + overlaySize / 2, overlaySize / 2, 0, Math.PI * 2);
+        drawCtx.fill();
+        drawCtx.fillStyle = '#ffffff';
+        drawCtx.font = `${Math.max(10, Math.floor(overlaySize * 0.9))}px sans-serif`;
+        drawCtx.textAlign = 'center';
+        drawCtx.textBaseline = 'middle';
+
         // CRITICAL FIX: Counter-rotate text for Ash
         if (gameState.playerTeam === 'ash') {
-            drawCtx.translate(ox + overlaySize / 2, oy + overlaySize / 2);
-            drawCtx.rotate(Math.PI);
-            drawCtx.fillText(String(p.overloadPoints), 0, 1);
+          drawCtx.translate(ox + overlaySize / 2, oy + overlaySize / 2);
+          drawCtx.rotate(Math.PI);
+          drawCtx.fillText(String(p.overloadPoints), 0, 1);
         } else {
-            drawCtx.fillText(String(p.overloadPoints), ox + overlaySize / 2, oy + overlaySize / 2 + 1); 
+          drawCtx.fillText(String(p.overloadPoints), ox + overlaySize / 2, oy + overlaySize / 2 + 1);
         }
         drawCtx.restore();
       }
-    } catch (e) {}
+    } catch (e) { }
 
     if (p.isAnchor) {
       const auraRadius = C.CELL_SIZE * 0.4 + Math.sin(time * 4) * 3;
@@ -736,25 +736,25 @@ export function drawPiece(p, targetCtx, gameState) {
     p.powerBoosted = (gameState.temporaryBoosts || []).some(b => b.pieceId === p.id && b.amount > 0) || p.shrineBoost > 0 || p.anchorBoost > 0;
     p.isChilled = (gameState.debuffs || []).some(d => d.pieceId === p.id && d.amount > 0) || (gameState.markedPieces || []).some(m => m.targetId === p.id);
     drawStatusIcons(drawCtx, p, p.col * C.CELL_SIZE + C.CELL_SIZE / 2, p.row * C.CELL_SIZE + C.CELL_SIZE / 2);
-  } catch (err) {}
+  } catch (err) { }
 }
 
 export function renderBoard(gameState) {
   boardCtx.clearRect(0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
   const bgKey = gameState.playerTeam === 'snow' ? 'gameBackgroundSnow' : 'gameBackgroundAsh';
   const backgroundImg = gameState.boardImgs?.[bgKey];
-  
+
   // CRITICAL FIX: Counter-rotate background for Ash so it appears right-side up
   if (backgroundImg?.complete) {
-      if (gameState.playerTeam === 'ash') {
-          boardCtx.save();
-          boardCtx.translate(C.CANVAS_SIZE / 2, C.CANVAS_SIZE / 2);
-          boardCtx.rotate(Math.PI);
-          boardCtx.drawImage(backgroundImg, -C.CANVAS_SIZE / 2, -C.CANVAS_SIZE / 2, C.CANVAS_SIZE, C.CANVAS_SIZE);
-          boardCtx.restore();
-      } else {
-          boardCtx.drawImage(backgroundImg, 0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
-      }
+    if (gameState.playerTeam === 'ash') {
+      boardCtx.save();
+      boardCtx.translate(C.CANVAS_SIZE / 2, C.CANVAS_SIZE / 2);
+      boardCtx.rotate(Math.PI);
+      boardCtx.drawImage(backgroundImg, -C.CANVAS_SIZE / 2, -C.CANVAS_SIZE / 2, C.CANVAS_SIZE, C.CANVAS_SIZE);
+      boardCtx.restore();
+    } else {
+      boardCtx.drawImage(backgroundImg, 0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
+    }
   }
 
   if (gameState.voidSquares && gameState.voidSquares.length > 0) {
@@ -921,13 +921,13 @@ export function resetMobileAbilityBar() {
   const descEl = $('mobile-ability-description');
   if (nameEl) nameEl.textContent = 'No Unit Selected';
   if (descEl) descEl.innerHTML = 'Select a unit to see its actions.';
-  
+
   let i = 1;
   let btn = $(`action-btn-${i}`);
   while (btn) {
-      btn.textContent = ''; btn.onclick = null; btn.style.display = 'none';
-      i++;
-      btn = $(`action-btn-${i}`);
+    btn.textContent = ''; btn.onclick = null; btn.style.display = 'none';
+    i++;
+    btn = $(`action-btn-${i}`);
   }
   removeMobileOverflow();
 }
@@ -960,7 +960,7 @@ export function showAbilityPanel(piece, gameState) {
   if (mobileDesc) mobileDesc.innerHTML = infoString;
 
   let mobileBtnIndex = 1;
-  const MAX_VISIBLE = 3; 
+  const MAX_VISIBLE = 3;
   _mobileOverflowMenu = [];
   const addMobileBtn = (text, onClick, disabled = false) => {
     if (mobileBtnIndex > MAX_VISIBLE) {
@@ -970,13 +970,13 @@ export function showAbilityPanel(piece, gameState) {
     }
     let btn = $(`action-btn-${mobileBtnIndex}`);
     if (!btn) {
-       const btn1 = $('action-btn-1');
-       if (btn1 && btn1.parentNode) {
-           btn = document.createElement('button');
-           btn.id = `action-btn-${mobileBtnIndex}`;
-           btn.className = btn1.className;
-           btn1.parentNode.appendChild(btn);
-       } else return;
+      const btn1 = $('action-btn-1');
+      if (btn1 && btn1.parentNode) {
+        btn = document.createElement('button');
+        btn.id = `action-btn-${mobileBtnIndex}`;
+        btn.className = btn1.className;
+        btn1.parentNode.appendChild(btn);
+      } else return;
     }
     btn.textContent = text;
     btn.onclick = onClick;
@@ -1029,8 +1029,8 @@ export function showAbilityPanel(piece, gameState) {
     } else if (!isSiphoner && hasActiveAbility) {
       abilityBtn.textContent = piece.ability.name;
       abilityBtn.disabled = piece.ability.cooldown > 0;
-  addMobileBtn(abilityBtn.textContent, () => window.sendAction('ABILITY', { pieceId: piece.id, abilityKey: piece.ability?.key }), piece.ability.cooldown > 0);
-  abilityBtn.onclick = () => window.sendAction('ABILITY', { pieceId: piece.id, abilityKey: piece.ability?.key });
+      addMobileBtn(abilityBtn.textContent, () => window.sendAction('ABILITY', { pieceId: piece.id, abilityKey: piece.ability?.key }), piece.ability.cooldown > 0);
+      abilityBtn.onclick = () => window.sendAction('ABILITY', { pieceId: piece.id, abilityKey: piece.ability?.key });
     }
   }
 
@@ -1040,7 +1040,7 @@ export function showAbilityPanel(piece, gameState) {
   if (isSiphoner) {
     const onRift = C.SHAPES.riftAreas.some(r => r.cells.some(([rr, cc]) => rr === piece.row && cc === piece.col));
     const maxRange = onRift ? 4 : 3;
-    
+
     let hasAlly = false, hasEnemy = false;
     let hasAllyWithPower = false, hasEnemyWithPower = false;
     gameState.pieces.forEach(p => {
@@ -1055,18 +1055,18 @@ export function showAbilityPanel(piece, gameState) {
       }
     });
 
-    const canVent = (piece.overloadPoints > 0) && (onRift || C.SHAPES.shrineArea.some(([r,c]) => r === piece.row && c === piece.col));
+    const canVent = (piece.overloadPoints > 0) && (onRift || C.SHAPES.shrineArea.some(([r, c]) => r === piece.row && c === piece.col));
 
     if (canVent) {
-        if (abilityBtn) {
-            abilityBtn.style.display = 'block';
-            abilityBtn.textContent = 'Vent Overload';
-            abilityBtn.disabled = false;
-            abilityBtn.onclick = () => window.sendAction('VENT_OVERLOAD', { pieceId: piece.id });
-        }
-        addMobileBtn('Vent Overload', () => window.sendAction('VENT_OVERLOAD', { pieceId: piece.id }));
+      if (abilityBtn) {
+        abilityBtn.style.display = 'block';
+        abilityBtn.textContent = 'Vent Overload';
+        abilityBtn.disabled = false;
+        abilityBtn.onclick = () => window.sendAction('VENT_OVERLOAD', { pieceId: piece.id });
+      }
+      addMobileBtn('Vent Overload', () => window.sendAction('VENT_OVERLOAD', { pieceId: piece.id }));
     } else {
-        if (abilityBtn) abilityBtn.style.display = 'none';
+      if (abilityBtn) abilityBtn.style.display = 'none';
     }
 
     const tethers = [
@@ -1076,30 +1076,30 @@ export function showAbilityPanel(piece, gameState) {
       { mode: 'resonance', name: 'Resonance Weave', valid: hasAlly && hasEnemyWithPower }
     ];
 
-    [siphonBtn, btn1, btn2, unleash3Btn].forEach(b => { if(b) b.style.display = 'none'; });
-    
-    if (unleashAbilities) {
-        unleashAbilities.querySelectorAll('[data-dynamic-tether="true"]').forEach(btn => btn.remove());
-    }
-    
-    tethers.forEach(t => {
-        if (t.valid) {
-            const tetherBtn = document.createElement('button');
-            const templateBtn = document.getElementById('abilityBtn');
-            tetherBtn.className = templateBtn ? (templateBtn.className + ' unleash-btn action-btn').trim() : 'unleash-btn action-btn';
-            tetherBtn.setAttribute('data-dynamic-tether', 'true');
-            tetherBtn.style.marginTop = '5px';
-            tetherBtn.textContent = t.name;
-            tetherBtn.onclick = () => window.sendAction('START_TETHER', { pieceId: piece.id, mode: t.mode });
-            
-            if (unleashAbilities) {
-              tetherBtn.style.display = 'block';
-              tetherBtn.style.margin = '6px 0';
-              unleashAbilities.appendChild(tetherBtn);
-            }
+    [siphonBtn, btn1, btn2, unleash3Btn].forEach(b => { if (b) b.style.display = 'none'; });
 
-            addMobileBtn(t.name, () => window.sendAction('START_TETHER', { pieceId: piece.id, mode: t.mode }));
+    if (unleashAbilities) {
+      unleashAbilities.querySelectorAll('[data-dynamic-tether="true"]').forEach(btn => btn.remove());
+    }
+
+    tethers.forEach(t => {
+      if (t.valid) {
+        const tetherBtn = document.createElement('button');
+        const templateBtn = document.getElementById('abilityBtn');
+        tetherBtn.className = templateBtn ? (templateBtn.className + ' unleash-btn action-btn').trim() : 'unleash-btn action-btn';
+        tetherBtn.setAttribute('data-dynamic-tether', 'true');
+        tetherBtn.style.marginTop = '5px';
+        tetherBtn.textContent = t.name;
+        tetherBtn.onclick = () => window.sendAction('START_TETHER', { pieceId: piece.id, mode: t.mode });
+
+        if (unleashAbilities) {
+          tetherBtn.style.display = 'block';
+          tetherBtn.style.margin = '6px 0';
+          unleashAbilities.appendChild(tetherBtn);
         }
+
+        addMobileBtn(t.name, () => window.sendAction('START_TETHER', { pieceId: piece.id, mode: t.mode }));
+      }
     });
   } else {
     if (siphonBtn) siphonBtn.style.display = 'none';
@@ -1127,16 +1127,16 @@ export function showAbilityPanel(piece, gameState) {
   if (riftPulseBtn) {
     riftPulseBtn.style.display = piece.canRiftPulse ? 'block' : 'none';
     if (piece.canRiftPulse) {
-        riftPulseBtn.onclick = () => window.sendAction('RIFT_PULSE', { pieceId: piece.id });
-        addMobileBtn('Rift Pulse', () => window.sendAction('RIFT_PULSE', { pieceId: piece.id }));
+      riftPulseBtn.onclick = () => window.sendAction('RIFT_PULSE', { pieceId: piece.id });
+      addMobileBtn('Rift Pulse', () => window.sendAction('RIFT_PULSE', { pieceId: piece.id }));
     }
   }
 
   if (despawnBtn) {
     despawnBtn.style.display = piece.key === 'snowIceWisp' ? 'block' : 'none';
     if (piece.key === 'snowIceWisp') {
-        despawnBtn.onclick = () => window.sendAction('DESPAWN', { pieceId: piece.id });
-        addMobileBtn('Despawn', () => window.sendAction('DESPAWN', { pieceId: piece.id }));
+      despawnBtn.onclick = () => window.sendAction('DESPAWN', { pieceId: piece.id });
+      addMobileBtn('Despawn', () => window.sendAction('DESPAWN', { pieceId: piece.id }));
     }
   }
 
@@ -1161,7 +1161,7 @@ export function showAbilityPanel(piece, gameState) {
         moreBtn.disabled = false;
       }
     }
-  } catch (e) {}
+  } catch (e) { }
 }
 
 export function drawElementalCores(gameState) {

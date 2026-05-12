@@ -230,8 +230,7 @@ export function executeAbility(
     targetPiece.dazedFor = C.ABILITY_VALUES[abilityKey].duration;
     piece.secondaryAbilityCooldown = C.ABILITY_VALUES[abilityKey].cooldown;
     flash(
-      `${C.PIECE_TYPES[piece.key].name} swaps with ${
-        C.PIECE_TYPES[targetPiece.key].name
+      `${C.PIECE_TYPES[piece.key].name} swaps with ${C.PIECE_TYPES[targetPiece.key].name
       }!`,
       piece.team,
       gameStateLocal
@@ -280,33 +279,33 @@ export function executeAbility(
 
     // Execute standard or special effects
     if (abilityKey === "Siphon") {
-        const success = handleSiphon(piece);
-        if (!success) {
-            if (!isAiTurn) deselectPiece();
-            return false; // Invalid siphon context
-        }
+      const success = handleSiphon(piece);
+      if (!success) {
+        if (!isAiTurn) deselectPiece();
+        return false; // Invalid siphon context
+      }
     } else if (abilityKey === "Pummel" && targetPiece) {
-        const tgtOldR = targetPiece.row, tgtOldC = targetPiece.col;
-        ability.effect(piece, target, gameStateLocal, createPiece);
-        if (targetPiece.row !== tgtOldR || targetPiece.col !== tgtOldC) {
-            emit(gameStateLocal, { type: "ANIMATION", name: "PummelKnockback", targetPieceId: targetPiece.id, attackerR: oldRow, attackerC: oldCol, oldRow: tgtOldR, oldCol: tgtOldC, newRow: targetPiece.row, newCol: targetPiece.col });
-        }
+      const tgtOldR = targetPiece.row, tgtOldC = targetPiece.col;
+      ability.effect(piece, target, gameStateLocal, createPiece);
+      if (targetPiece.row !== tgtOldR || targetPiece.col !== tgtOldC) {
+        emit(gameStateLocal, { type: "ANIMATION", name: "PummelKnockback", targetPieceId: targetPiece.id, attackerR: oldRow, attackerC: oldCol, oldRow: tgtOldR, oldCol: tgtOldC, newRow: targetPiece.row, newCol: targetPiece.col });
+      }
     } else if (ability.effect) {
-        ability.effect(piece, target, gameStateLocal, createPiece);
+      ability.effect(piece, target, gameStateLocal, createPiece);
     }
 
     // Attach specific animations
     if (abilityKey === "FrenziedDash") {
-        emit(gameStateLocal, { type: "ANIMATION", name: "FrenziedDash", pieceId: piece.id, oldRow, oldCol, targetR: target.r, targetC: target.c });
+      emit(gameStateLocal, { type: "ANIMATION", name: "FrenziedDash", pieceId: piece.id, oldRow, oldCol, targetR: target.r, targetC: target.c });
     } else if (abilityKey === "SummonIceWisp") {
-        const newWisp = gameStateLocal.pieces[gameStateLocal.pieces.length - 1];
-        emit(gameStateLocal, { type: "ANIMATION", name: "SummonWisp", r: target.r, c: target.c, wispId: newWisp.id });
+      const newWisp = gameStateLocal.pieces[gameStateLocal.pieces.length - 1];
+      emit(gameStateLocal, { type: "ANIMATION", name: "SummonWisp", r: target.r, c: target.c, wispId: newWisp.id });
     } else if (abilityKey === "LavaGlob") {
-        emit(gameStateLocal, { type: "ANIMATION", name: "LavaGlob", oldRow, oldCol, targetR: target.r, targetC: target.c });
+      emit(gameStateLocal, { type: "ANIMATION", name: "LavaGlob", oldRow, oldCol, targetR: target.r, targetC: target.c });
     } else if (abilityKey === "SetSnare") {
-        emit(gameStateLocal, { type: "ANIMATION", name: "TrapDeployment", oldRow, oldCol, targetR: target.r, targetC: target.c });
+      emit(gameStateLocal, { type: "ANIMATION", name: "TrapDeployment", oldRow, oldCol, targetR: target.r, targetC: target.c });
     } else if (abilityKey === "FrigidPath") {
-        emit(gameStateLocal, { type: "ANIMATION", name: "FrigidPath", oldRow, oldCol, targetR: target.r, targetC: target.c });
+      emit(gameStateLocal, { type: "ANIMATION", name: "FrigidPath", oldRow, oldCol, targetR: target.r, targetC: target.c });
     }
   }
 
@@ -989,8 +988,7 @@ export function handleTether(
       mode: "benevolent"
     });
     flash(
-      `${C.PIECE_TYPES[siphoner.key].name} forms a Benevolent Link with ${
-        C.PIECE_TYPES[allyPiece.key].name
+      `${C.PIECE_TYPES[siphoner.key].name} forms a Benevolent Link with ${C.PIECE_TYPES[allyPiece.key].name
       }.`,
       siphoner.team,
       gameState
@@ -1015,8 +1013,7 @@ export function handleTether(
       mode: "hostile"
     });
     flash(
-      `${C.PIECE_TYPES[siphoner.key].name} drains ${
-        C.PIECE_TYPES[enemyPiece.key].name
+      `${C.PIECE_TYPES[siphoner.key].name} drains ${C.PIECE_TYPES[enemyPiece.key].name
       }.`,
       siphoner.team,
       gameState
@@ -1041,8 +1038,7 @@ export function handleTether(
       mode: "parasitic"
     });
     flash(
-      `${C.PIECE_TYPES[siphoner.key].name} parasitically siphons from ${
-        C.PIECE_TYPES[allyPiece.key].name
+      `${C.PIECE_TYPES[siphoner.key].name} parasitically siphons from ${C.PIECE_TYPES[allyPiece.key].name
       }.`,
       siphoner.team,
       gameState
@@ -1071,8 +1067,7 @@ export function handleTether(
       mode: "resonance"
     });
     flash(
-      `${C.PIECE_TYPES[siphoner.key].name} weaves a Resonance Link between ${
-        C.PIECE_TYPES[allyPiece.key].name
+      `${C.PIECE_TYPES[siphoner.key].name} weaves a Resonance Link between ${C.PIECE_TYPES[allyPiece.key].name
       } and ${C.PIECE_TYPES[enemyPiece.key].name}.`,
       siphoner.team,
       gameState
@@ -1102,8 +1097,7 @@ export function handleTether(
     });
     gameState.pieces = gameState.pieces.filter((p) => p.id !== siphoner.id);
     flash(
-      `${
-        C.PIECE_TYPES[siphoner.key].name
+      `${C.PIECE_TYPES[siphoner.key].name
       } overloads and is destroyed by feedback!`,
       siphoner.team,
       gameState
@@ -1135,8 +1129,7 @@ export function ventOverload(siphoner) {
   if (onRift) {
     triggerAbyssalForge(gameState);
     flash(
-      `${
-        C.PIECE_TYPES[siphoner.key].name
+      `${C.PIECE_TYPES[siphoner.key].name
       } vents Overload into the Rift, triggering the Abyssal Forge!`,
       siphoner.team,
       gameState
@@ -1263,7 +1256,7 @@ function handleShrineCapture(piece, defender) {
 
 export function checkAscensionReady() {
   if (!gameState || !gameState.pendingAscension) return false;
-  
+
   // Return true ONLY if an ascension is pending and hasn't been chosen yet
   const isChosen = gameState.factionPassives[gameState.pendingAscension.team].ascension.isChosen;
   return !isChosen;
@@ -1399,8 +1392,7 @@ function applySacrificeBuff(team, gs) {
       });
   });
   flash(
-    `The ${
-      team === "snow" ? "Snow" : "Ash"
+    `The ${team === "snow" ? "Snow" : "Ash"
     } faction is empowered by ${buffKey}!`,
     team,
     gs
@@ -1457,7 +1449,7 @@ export function updateConduitLink() {
       piecesOnBR.some((p) => p.team !== linkTeam);
     const boost =
       gameState.conduitIsContested &&
-      !gameState.factionPassives[linkTeam].ascension.RiftReinforcement
+        !gameState.factionPassives[linkTeam].ascension.RiftReinforcement
         ? 1
         : 2;
 
@@ -1910,7 +1902,7 @@ function endOfTurnUpkeep() {
 export function switchTurn() {
   endOfTurnUpkeep();
   processAbyssalForgeTurn();
-  
+
   if (gameState.conduitLinkActive && !gameState.conduitIsContested) {
     const progress = gameState.conduitOverchargeProgress[gameState.conduitTeam];
     if (++progress.turnsUncontested === C.CONDUIT_OVERCHARGE_TIER2_TURNS) {
@@ -1926,9 +1918,9 @@ export function switchTurn() {
   gameState.currentTurn = nextTurn;
   if (nextTurn === "snow") gameState.turnCount++;
   checkTerritoryThresholds(gameState);
-  
+
   // CRITICAL FIX: Clear active selections so UI doesn't "ghost" during the opponent's turn
-  deselectPiece(); 
+  deselectPiece();
 }
 
 export function endGame(winningTeam) {
@@ -1941,7 +1933,7 @@ export function resetGame() {
   initGame();
   try {
     resetShrine(gameState);
-  } catch (e) {}
+  } catch (e) { }
   emit(gameState, { type: "RESET_GAME" });
 }
 
@@ -2051,8 +2043,7 @@ export function initGame() {
     gameState.debuffs.push(debuff);
     siphoner.overloadPoints = (siphoner.overloadPoints || 0) + 1;
     flash(
-      `${C.PIECE_TYPES[siphoner.key].name} absorbs a debuff intended for ${
-        C.PIECE_TYPES[targetPiece.key].name
+      `${C.PIECE_TYPES[siphoner.key].name} absorbs a debuff intended for ${C.PIECE_TYPES[targetPiece.key].name
       } and gains Overload.`,
       siphoner.team,
       gameState
@@ -2080,8 +2071,7 @@ export function initGame() {
       siphoner.tethers = [];
       gameState.pieces = gameState.pieces.filter((p) => p.id !== siphoner.id);
       flash(
-        `${
-          C.PIECE_TYPES[siphoner.key].name
+        `${C.PIECE_TYPES[siphoner.key].name
         } reaches critical Overload and is destroyed by feedback!`,
         siphoner.team,
         gameState

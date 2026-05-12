@@ -14,12 +14,12 @@ export function joinRoom(roomId, socketId) {
         clearTimeout(disconnectTimers.get(roomId));
         disconnectTimers.delete(roomId);
     }
-    
+
     if (!room) {
-        const initialState = {}; 
+        const initialState = {};
         Logic.initGameState(initialState);
         Logic.initGame();
-        
+
         room = {
             id: roomId,
             gameState: Logic.getGameState(),
@@ -27,15 +27,15 @@ export function joinRoom(roomId, socketId) {
         };
         rooms.set(roomId, room);
         return { success: true, room, team: 'snow', isNew: true, playerCount: 1 };
-    } 
-    
+    }
+
     if (room.players.length < 2) {
         const hasSnow = room.players.some(p => p.team === 'snow');
         const assignedTeam = hasSnow ? 'ash' : 'snow';
         room.players.push({ id: socketId, team: assignedTeam });
         return { success: true, room, team: assignedTeam, isNew: false, playerCount: room.players.length };
     }
-    
+
     return { success: false, error: 'Room is already full.' };
 }
 

@@ -64,16 +64,16 @@ io.on('connection', (socket) => {
         socket.join(roomId);
         const initState = serializeState(result.room.gameState);
         result.room.lastSentState = JSON.parse(JSON.stringify(initState));
-        socket.emit('init', { 
-            state: initState, 
+        socket.emit('init', {
+            state: initState,
             team: result.team,
-            playerCount: result.playerCount 
+            playerCount: result.playerCount
         });
 
         if (!result.isNew) {
-            socket.to(roomId).emit('playerJoined', { 
-                team: result.team, 
-                playerCount: result.playerCount 
+            socket.to(roomId).emit('playerJoined', {
+                team: result.team,
+                playerCount: result.playerCount
             });
         }
     });
@@ -143,7 +143,7 @@ io.on('connection', (socket) => {
 
             switch (actionType) {
                 case 'SELECT_PIECE':
-                    if (p && p.team === player.team) Logic.selectPiece(p); 
+                    if (p && p.team === player.team) Logic.selectPiece(p);
                     else Logic.deselectPiece();
                     break;
                 case 'MOVE':
@@ -155,16 +155,16 @@ io.on('connection', (socket) => {
                         else turnEnded = Logic.activateAbility(p, data.abilityKey || 0);
                     }
                     break;
-                case 'HANDLE_CLICK': 
-                    turnEnded = Logic.handleAbilityClick(data.r, data.c); 
+                case 'HANDLE_CLICK':
+                    turnEnded = Logic.handleAbilityClick(data.r, data.c);
                     break;
                 case 'SWITCH_TURN': turnEnded = true; break;
                 case 'ASCENSION_CHOICE': turnEnded = Logic.executeAscensionChoice(data.choice); break;
                 case 'CANCEL_ASCENSION': Logic.cancelAscensionChoice(); break;
-                
+
                 // CRITICAL FIX: Added missing START_TETHER and secured VENT_OVERLOAD
-                case 'VENT_OVERLOAD': 
-                    if (p && p.team === player.team) turnEnded = Logic.ventOverload(p); 
+                case 'VENT_OVERLOAD':
+                    if (p && p.team === player.team) turnEnded = Logic.ventOverload(p);
                     break;
                 case 'START_TETHER':
                     if (p && p.team === player.team) {
@@ -178,8 +178,8 @@ io.on('connection', (socket) => {
                 case 'RELEASE': if (p && p.team === player.team) turnEnded = Logic.executeRelease(p); break;
                 case 'RIFT_PULSE': if (p && p.team === player.team) turnEnded = Logic.executeRiftPulse(p); break;
                 case 'DESPAWN': if (p && p.team === player.team) { Logic.despawnPiece(p); turnEnded = true; } break;
-                case 'TIMEOUT': 
-                    Logic.endGame(data.team === 'snow' ? 'ash' : 'snow'); 
+                case 'TIMEOUT':
+                    Logic.endGame(data.team === 'snow' ? 'ash' : 'snow');
                     break;
             }
 
