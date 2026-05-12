@@ -4,7 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mythic Territories – Patch Notes</title>
+    <title>Mythic Territories | Patch Notes & Updates</title>
+    <meta name="description" content="Read the latest patch notes and updates for Mythic Territories. Track balance changes, new features, multiplayer updates, and game versions.">
+    <link rel="canonical" href="https://mythic-territories.xyz/notes.html">
     <style>
         body {
             background-size: cover;
@@ -175,32 +177,29 @@
         <button class="back-btn" onclick="window.location.href='index.html'">⬅ Back to Menu</button>
     </div>
     <script>
-        // Auto-sort notes: newest release first
         const notesContainer = document.querySelector(".notes-content");
         const cards = Array.from(notesContainer.children);
 
         cards.sort((a, b) => {
-            // Treat TBD as the newest date
             const dateAStr = a.dataset.date;
             const dateBStr = b.dataset.date;
 
             if (dateAStr === 'TBD' && dateBStr === 'TBD') {
-                 // If both are TBD, sort by version number
                 const versionA = a.dataset.version.split('.').map(Number);
                 const versionB = b.dataset.version.split('.').map(Number);
                 for (let i = 0; i < Math.max(versionA.length, versionB.length); i++) {
                     const vA = versionA[i] || 0;
                     const vB = versionB[i] || 0;
-                    if (vA !== vB) return vB - vA; // Sort descending
+                    if (vA !== vB) return vB - vA;
                 }
                 return 0;
             }
-            if (dateAStr === 'TBD') return -1; // A is newer
-            if (dateBStr === 'TBD') return 1;  // B is newer
+            if (dateAStr === 'TBD') return -1;
+            if (dateBStr === 'TBD') return 1;
 
             const dateA = new Date(dateAStr);
             const dateB = new Date(dateBStr);
-            return dateB - dateA; // Sort descending
+            return dateB - dateA;
         });
 
         cards.forEach(card => notesContainer.appendChild(card));
