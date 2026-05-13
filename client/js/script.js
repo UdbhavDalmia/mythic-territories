@@ -464,12 +464,6 @@ function setupCanvas() {
         // Prevent global click handler from also processing this event
         try { if (e.stopPropagation) e.stopPropagation(); } catch (er) { }
 
-        // Prevent selecting units before the game has started
-        if (!gameState.gameStarted) {
-            try { UI.showFlashMessage('Start the game to select units', null, gameState); } catch (err) { }
-            return;
-        }
-
         const rect = canvas.getBoundingClientRect();
         const scaleX = canvas.width / rect.width;
         const scaleY = canvas.height / rect.height;
@@ -484,6 +478,15 @@ function setupCanvas() {
         if (!isLocal && myTeam === 'ash') {
             col = C.COLS - 1 - col;
             row = C.ROWS - 1 - row;
+        }
+
+        // Prevent selecting units before the game has started
+        if (!gameState.gameStarted) {
+            const clickedPiece = C.getPieceAt(row, col, gameState.boardMap);
+            if (clickedPiece) {
+                try { UI.showFlashMessage('Start the game to select units', null, gameState); } catch (err) { }
+            }
+            return;
         }
 
         // If we're in an ability targeting mode, delegate to the existing handler
@@ -600,6 +603,11 @@ function setupCanvas() {
         }, { passive: false });
 
         canvas.addEventListener('touchend', (e) => {
+            clearTimeout(touchTimer);
+            clearGhost();
+        });
+
+        canvas.addEventListener('touchcancel', (e) => {
             clearTimeout(touchTimer);
             clearGhost();
         });

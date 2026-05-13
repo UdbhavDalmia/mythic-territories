@@ -223,7 +223,7 @@ body.primal-rules {
   padding: 18px 22px;
   max-width: 920px;
   width: 100%;
-  margin: 20px auto 100px;
+  margin: 20px auto 160px;
   /* MODIFIED: Ensures space for sticky footer */
   animation: fadeIn 0.5s;
   position: relative;

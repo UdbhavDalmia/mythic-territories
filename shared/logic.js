@@ -74,6 +74,78 @@ export function checkSpecialTerrains(p, r, c, gs) {
   }
 }
 
+// Internal helper for state normalization
+function ensureSets(gs) {
+  if (Array.isArray(gs.snowTerritory)) gs.snowTerritory = new Set(gs.snowTerritory);
+  if (Array.isArray(gs.ashTerritory)) gs.ashTerritory = new Set(gs.ashTerritory);
+}
+
+// Reverts power changes from a single tether object
+function revertTetherPower(t, gs) {
+  const siphoner = gs.pieces.find((p) => p.id === t.siphonerId);
+  const ally = t.allyId !== null ? gs.pieces.find((p) => p.id === t.allyId) : null;
+  const enemy = t.enemyId !== null ? gs.pieces.find((p) => p.id === t.enemyId) : null;
+
+  if (t.mode === "benevolent" && siphoner) {
+    siphoner.power += 1;
+    if (ally) ally.power = Math.max(0, ally.power - 1);
+  } else if (t.mode === "hostile" && siphoner) {
+    siphoner.power = Math.max(0, siphoner.power - 1);
+    if (enemy) enemy.power += 1;
+  } else if (t.mode === "parasitic" && siphoner) {
+    siphoner.power = Math.max(0, siphoner.power - 1);
+    if (ally) ally.power += 1;
+  } else if (t.mode === "resonance") {
+    if (ally) ally.power = Math.max(0, ally.power - 1);
+    if (enemy) enemy.power += 1;
+  }
+}
+
+// Unified handler for unit destruction (reverts tethers, triggers passives)
+export function handlePieceCapture(capturedPiece, attacker, gs) {
+  if (!capturedPiece) return;
+
+  // 1. Revert tethers involving this piece
+  // If piece was the siphoner
+  if (Array.isArray(capturedPiece.tethers) && capturedPiece.tethers.length > 0) {
+    capturedPiece.tethers.forEach((t) => revertTetherPower(t, gs));
+    capturedPiece.tethers = [];
+  }
+  // If piece was the target of any other siphoner
+  gs.pieces.forEach((p) => {
+    if (Array.isArray(p.tethers)) {
+      p.tethers = p.tethers.filter((t) => {
+        if (t.allyId === capturedPiece.id || t.enemyId === capturedPiece.id) {
+          revertTetherPower(t, gs);
+          return false;
+        }
+        return true;
+      });
+    }
+  });
+
+  // 2. Martyrdom / Vengeance
+  if (
+    gs.factionPassives[capturedPiece.team]?.ascension?.Martyrdom &&
+    attacker &&
+    !attacker.isSteadfast
+  ) {
+    attacker.isDazed = true;
+    attacker.dazedFor = 2;
+  }
+  if (gs.factionPassives[capturedPiece.team]?.ascension?.Vengeance && attacker) {
+    gs.markedPieces.push({ targetId: attacker.id, duration: 2 });
+  }
+
+  // 3. Remove piece
+  gs.pieces = gs.pieces.filter((p) => p.id !== capturedPiece.id);
+
+  // 4. End game if leader
+  if (capturedPiece.key.includes("Lord") || capturedPiece.key.includes("Tyrant")) {
+    endGame(attacker ? attacker.team : (capturedPiece.team === "snow" ? "ash" : "snow"));
+  }
+}
+
 // ============================================================================
 // ABILITY ACTIVATION & EXECUTION
 // ============================================================================
@@ -176,6 +248,7 @@ export function activateAbility(piece, unleashCostOrKey = 0) {
   if (!ability.requiresTargeting)
     return executeAbility(piece, null, abilityKeyToUse, gameState);
 
+  ensureSets(gameState);
   gameState.abilityContext = { piece, abilityKey: abilityKeyToUse };
   setCurrentState(GameState.ABILITY_TARGETING);
   flash(`Select a target for ${ability.name}.`, piece.team, gameState);
@@ -211,6 +284,8 @@ export function executeAbility(
     return false;
   }
   if (ability.isUltimate) return false;
+
+  ensureSets(gameStateLocal);
 
   if (abilityKey === "IcyShift" || abilityKey === "TacticalSwapAsh") {
     if (!target) return false;
@@ -582,6 +657,8 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
     piece.team !== gameState.currentTurn
   )
     return false;
+
+  ensureSets(gameState);
   const validMoves = getValidMoves(piece, gameState);
   const move = validMoves.find(
     (m) => m.row === targetRow && m.col === targetCol
@@ -653,42 +730,7 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
         color
       });
 
-      // FIX: Revert tethered power changes before the unit is removed from play
-      if (Array.isArray(defender.tethers) && defender.tethers.length > 0) {
-        defender.tethers.forEach((t) => {
-          const ally =
-            t.allyId !== null
-              ? gameState.pieces.find((p) => p.id === t.allyId)
-              : null;
-          const enemy =
-            t.enemyId !== null
-              ? gameState.pieces.find((p) => p.id === t.enemyId)
-              : null;
-          if (t.mode === "benevolent" && ally)
-            ally.power = Math.max(0, ally.power - 1);
-          else if (t.mode === "hostile" && enemy)
-            enemy.power = (enemy.power || 0) + 1;
-          else if (t.mode === "parasitic" && ally)
-            ally.power = (ally.power || 0) + 1;
-          else if (t.mode === "resonance") {
-            if (ally) ally.power = Math.max(0, ally.power - 1);
-            if (enemy) enemy.power = (enemy.power || 0) + 1;
-          }
-        });
-      }
-
-      if (
-        gameState.factionPassives[defender.team].ascension.Martyrdom &&
-        !piece.isSteadfast
-      ) {
-        piece.isDazed = true;
-        piece.dazedFor = 2;
-      }
-      if (gameState.factionPassives[defender.team].ascension.Vengeance) {
-        gameState.markedPieces.push({ targetId: piece.id, duration: 2 });
-      }
-
-      gameState.pieces = gameState.pieces.filter((p) => p.id !== defender.id);
+      handlePieceCapture(defender, piece, gameState);
 
       if (gameState.factionPassives[piece.team].ascension.HitAndRun)
         piece.isEntrenched = true;
@@ -705,9 +747,6 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
         piece.isTrapped = true;
         gameState.trappedPiece = piece.id;
       }
-
-      if (defender.key.includes("Tyrant") || defender.key.includes("Lord"))
-        endGame(piece.team);
     } else {
       return false;
     }
@@ -817,7 +856,7 @@ export function createPiece(r, c, key, team) {
 
 export function despawnPiece(piece) {
   if (!piece || piece.key !== "snowIceWisp") return;
-  gameState.pieces = gameState.pieces.filter((p) => p.id !== piece.id);
+  handlePieceCapture(piece, null, gameState);
   flash("The Ice Wisp dissipates.", "snow", gameState);
   deselectPiece();
   updateBoardMap(gameState);
@@ -1211,21 +1250,7 @@ export function checkTetherSnaps(gs) {
         snap = true;
 
       if (snap) {
-        // FIX: Restore power levels before snapping
-        if (t.mode === "benevolent") {
-          siphoner.power += 1;
-          if (ally) ally.power = Math.max(0, ally.power - 1);
-        } else if (t.mode === "hostile") {
-          siphoner.power = Math.max(0, siphoner.power - 1);
-          if (enemy) enemy.power += 1;
-        } else if (t.mode === "parasitic") {
-          siphoner.power = Math.max(0, siphoner.power - 1);
-          if (ally) ally.power += 1;
-        } else if (t.mode === "resonance") {
-          if (ally) ally.power = Math.max(0, ally.power - 1);
-          if (enemy) enemy.power += 1;
-        }
-
+        revertTetherPower(t, gs);
         siphoner.tethers.splice(i, 1);
         flash(
           `A tether from ${C.PIECE_TYPES[siphoner.key].name} snapped!`,
@@ -1320,9 +1345,8 @@ export function executeAscensionChoice(choice) {
   const { team, sacrificedPieceId } = gameState.pendingAscension;
   const result = _executeAscensionLogic(gameState, choice);
   if (result) {
-    gameState.pieces = gameState.pieces.filter(
-      (p) => p.id !== sacrificedPieceId
-    );
+    const p = gameState.pieces.find(x => x.id === sacrificedPieceId);
+    handlePieceCapture(p, null, gameState);
     resetShrine(gameState);
     flash(
       `The ${team.toUpperCase()} faction gains Ascension!`,
