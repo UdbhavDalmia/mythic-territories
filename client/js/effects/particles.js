@@ -50,6 +50,7 @@ export function drawParticles(ctx, gameState) {
 
   const drawSet = (arr, color, territory) => {
     arr = arr || [];
+    const entries = (territory && territory.size > 0) ? Array.from(territory) : [];
     // When low-detail is active, sample fewer particles to reduce draw work
     if (low && arr.length > 0) {
       for (let i = 0; i < arr.length; i += 3) {
@@ -61,11 +62,10 @@ export function drawParticles(ctx, gameState) {
         // territory fallback handled below
         if (!territory || !territory.has || !territory.has(currentTerritory)) {
           let r, c;
-          if (!territory || territory.size === 0) {
+          if (entries.length === 0) {
             r = Math.floor(Math.random() * C.ROWS);
             c = Math.floor(Math.random() * C.COLS);
           } else {
-            const entries = Array.from(territory);
             const entry = entries[Math.floor(Math.random() * entries.length)];
             if (typeof entry === 'string') {
               const parts = entry.split(',').map(Number);
@@ -110,12 +110,11 @@ export function drawParticles(ctx, gameState) {
       // If territory is missing or doesn't contain the current cell, pick a fallback location
       if (!territory || !territory.has || !territory.has(currentTerritory)) {
         let r, c;
-        if (!territory || territory.size === 0) {
+        if (entries.length === 0) {
           // No territory yet: random cell
           r = Math.floor(Math.random() * C.ROWS);
           c = Math.floor(Math.random() * C.COLS);
         } else {
-          const entries = Array.from(territory);
           const entry = entries[Math.floor(Math.random() * entries.length)];
           if (typeof entry === 'string') {
             const parts = entry.split(',').map(Number);
@@ -228,15 +227,16 @@ export function drawShockwaves(ctx, gameState) {
 
 // Keep small helper spawners in particles core
 export function initParticles(gameState) {
-  const createSet = (count, territory, team) =>
-    Array.from({ length: count }, () => {
+  const createSet = (count, territory, team) => {
+    const entries = (territory && territory.size > 0) ? Array.from(territory) : [];
+    return Array.from({ length: count }, () => {
       // If territory is empty, fall back to random board positions to avoid undefined split()
       let r, c;
-      if (!territory || territory.size === 0) {
+      if (entries.length === 0) {
         r = Math.floor(Math.random() * C.ROWS);
         c = Math.floor(Math.random() * C.COLS);
       } else {
-        const entry = Array.from(territory)[Math.floor(Math.random() * territory.size)];
+        const entry = entries[Math.floor(Math.random() * entries.length)];
         if (typeof entry === 'string') {
           [r, c] = entry.split(',').map(Number);
         } else if (Array.isArray(entry)) {
@@ -258,9 +258,10 @@ export function initParticles(gameState) {
         team
       };
     });
+  };
 
-  gameState.snowParticles = createSet(125, gameState.snowTerritory, 'snow');
-  gameState.ashParticles = createSet(125, gameState.ashTerritory, 'ash');
+  gameState.snowParticles = createSet(35, gameState.snowTerritory, 'snow');
+  gameState.ashParticles = createSet(35, gameState.ashTerritory, 'ash');
   gameState.battleParticles = [];
 }
 

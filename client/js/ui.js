@@ -16,6 +16,15 @@ import {
 
 let boardCtx;
 let ctx;
+let offCanvas = null;
+
+// ── Territory rendering cache ────────────────────────────────────────────────
+// The per-cell distance-field is expensive. We cache the rendered ImageData and
+// only rebuild it when the territory sets or trails actually change.
+let _terrCacheCanvas = null;      // cached offscreen canvas with fluid fill
+let _terrCacheKey    = '';        // serialized key of last rendered state
+let _terrFrameSkip   = 0;        // allow a max of 1 rebuild every N frames
+const TERR_SKIP_FRAMES = 2;       // rebuild at most every 3rd frame (≈20fps)
 
 const badgeImgs = {
   ice: Array.from({ length: 8 }, (_, i) => {
@@ -150,7 +159,7 @@ export function showFlashMessage(message, type = 'neutral', gameState) {
   if (gameState.flashTimeout) clearTimeout(gameState.flashTimeout);
   gameState.flashTimeout = setTimeout(() => { flashEl.className = ''; }, 1000);
 
-  if (type !== 'error' && type !== 'neutral') updateMessageLog(message, type, gameState);
+  if (type !== 'error') updateMessageLog(message, type, gameState);
 }
 
 export function clearMessageLog() {
@@ -238,7 +247,7 @@ export function drawAbilityHighlights(gameState) {
       for (let c = firstCol - 1; c <= firstCol + 1; c++) {
         if (r < 0 || r >= C.ROWS || c < 0 || c >= C.COLS) continue;
         if (r === firstRow && c === firstCol) continue;
-        if (!C.getPieceAt(r, c, gameState.boardMap)) {
+        if (!C.getPieceAt(r, c, gameState.pieces)) {
           ctx.fillStyle = 'rgba(0,255,0,0.4)';
           ctx.fillRect(c * C.CELL_SIZE, r * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
         }
@@ -257,7 +266,7 @@ export function drawAbilityHighlights(gameState) {
         const distance = Math.max(Math.abs(siphoner.row - r), Math.abs(siphoner.col - c));
         if (distance > maxRange) continue;
 
-        const targetPiece = C.getPieceAt(r, c, gameState.boardMap);
+        const targetPiece = C.getPieceAt(r, c, gameState.pieces);
         let isValid = false;
 
         if (mode === 'resonance') {
@@ -294,7 +303,7 @@ export function drawAbilityHighlights(gameState) {
       if (ability.specialTargeting) {
         isValid = ability.specialTargeting(piece, { r, c }, gameState);
       } else {
-        const targetPiece = C.getPieceAt(r, c, gameState.boardMap);
+        const targetPiece = C.getPieceAt(r, c, gameState.pieces);
         switch (ability.targetType) {
           case 'enemy': isValid = targetPiece && targetPiece.team !== piece.team && !targetPiece.hasDefensiveWard; break;
           case 'friendly': isValid = targetPiece && targetPiece.team === piece.team; break;
@@ -322,25 +331,159 @@ function drawFlashEffects(gameState) {
   }
 }
 
+export function calculateDynamicTerritoryAreas(gameState) {
+  if (!gameState) return { snow: 0, ash: 0 };
+
+  const N = 6; // 6x6 = 36 subdivision points per cell (3600 total points for 10x10)
+  const totalSubcells = 10 * 10 * N * N;
+
+  let snowCoveredCount = 0;
+  let ashCoveredCount = 0;
+
+  const radius = 1.0;
+
+  const snowSet = gameState.snowTerritory || new Set();
+  const ashSet = gameState.ashTerritory || new Set();
+  const trails = gameState.territoryTrails || [];
+
+  // Group trails by cell coordinate for highly-optimized O(1) proximity queries
+  const trailsByCell = {};
+  for (let r = 0; r < 10; r++) {
+    for (let c = 0; c < 10; c++) {
+      trailsByCell[`${r},${c}`] = [];
+    }
+  }
+
+  trails.forEach(t => {
+    const minR = Math.max(0, Math.floor(t.row - 1.0));
+    const maxR = Math.min(9, Math.ceil(t.row + 1.0));
+    const minC = Math.max(0, Math.floor(t.col - 1.0));
+    const maxC = Math.min(9, Math.ceil(t.col + 1.0));
+
+    for (let gr = minR; gr <= maxR; gr++) {
+      for (let gc = minC; gc <= maxC; gc++) {
+        trailsByCell[`${gr},${gc}`].push(t);
+      }
+    }
+  });
+
+  for (let r = 0; r < 10; r++) {
+    for (let c = 0; c < 10; c++) {
+      const pos = `${r},${c}`;
+      const isSnow = snowSet.has(pos);
+      const isAsh = ashSet.has(pos);
+
+      const cellTrails = trailsByCell[pos] || [];
+      const nearbySnowBases = [];
+      const nearbyAshBases = [];
+
+      // Pre-filter nearby base cells to minimize loop iterations
+      for (let nr = Math.max(0, r - 1); nr <= Math.min(9, r + 1); nr++) {
+        for (let nc = Math.max(0, c - 1); nc <= Math.min(9, c + 1); nc++) {
+          const npos = `${nr},${nc}`;
+          if (snowSet.has(npos)) {
+            nearbySnowBases.push({ cx: nc + 0.5, cy: nr + 0.5 });
+          }
+          if (ashSet.has(npos)) {
+            nearbyAshBases.push({ cx: nc + 0.5, cy: nr + 0.5 });
+          }
+        }
+      }
+
+      for (let sr = 0; sr < N; sr++) {
+        const y = r + (sr + 0.5) / N;
+        for (let sc = 0; sc < N; sc++) {
+          const x = c + (sc + 0.5) / N;
+
+          // 1. Evaluate Snow coverage (clipped to exclude Ash cells)
+          if (!isAsh) {
+            let isCovered = false;
+            for (let k = 0; k < nearbySnowBases.length; k++) {
+              const base = nearbySnowBases[k];
+              if (Math.hypot(x - base.cx, y - base.cy) <= radius) {
+                isCovered = true;
+                break;
+              }
+            }
+            if (!isCovered) {
+              for (let k = 0; k < cellTrails.length; k++) {
+                const trail = cellTrails[k];
+                if (trail.team === 'snow') {
+                  if (Math.hypot(x - (trail.col + 0.5), y - (trail.row + 0.5)) <= radius) {
+                    isCovered = true;
+                    break;
+                  }
+                }
+              }
+            }
+            if (isCovered) {
+              snowCoveredCount++;
+              continue; // A point cannot belong to both territories simultaneously
+            }
+          }
+
+          // 2. Evaluate Ash coverage (clipped to exclude Snow cells)
+          if (!isSnow) {
+            let isCovered = false;
+            for (let k = 0; k < nearbyAshBases.length; k++) {
+              const base = nearbyAshBases[k];
+              if (Math.hypot(x - base.cx, y - base.cy) <= radius) {
+                isCovered = true;
+                break;
+              }
+            }
+            if (!isCovered) {
+              for (let k = 0; k < cellTrails.length; k++) {
+                const trail = cellTrails[k];
+                if (trail.team === 'ash') {
+                  if (Math.hypot(x - (trail.col + 0.5), y - (trail.row + 0.5)) <= radius) {
+                    isCovered = true;
+                    break;
+                  }
+                }
+              }
+            }
+            if (isCovered) {
+              ashCoveredCount++;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Count the total area occupied out of the 100 cell spaces
+  const snowArea = (snowCoveredCount / totalSubcells) * 100;
+  const ashArea = (ashCoveredCount / totalSubcells) * 100;
+
+  return {
+    snow: parseFloat(snowArea.toFixed(1)),
+    ash: parseFloat(ashArea.toFixed(1))
+  };
+}
+
 export function drawLabels(gameState) {
   const snowLabel = $('snowLabel');
   const ashLabel = $('ashLabel');
   const turnLabel = $('turnLabel');
-  if (snowLabel) snowLabel.textContent = `Snow: ${gameState.snowTerritory.size}`;
-  if (ashLabel) ashLabel.textContent = `Ash: ${gameState.ashTerritory.size}`;
+  
+  const areas = calculateDynamicTerritoryAreas(gameState);
+
+  if (snowLabel) snowLabel.textContent = `Snow: ${areas.snow}`;
+  if (ashLabel) ashLabel.textContent = `Ash: ${areas.ash}`;
   if (turnLabel) {
     turnLabel.textContent = `TURN ${gameState.turnCount}: ${(gameState.currentTurn || '').toUpperCase()}`;
     turnLabel.className = 'label turn ' + (gameState.currentTurn || '');
   }
 
-  // For Ash player, swap the labels since the board is rotated 180 degrees
+  // Swap labels visually for Ash player's rotated perspective
   if (gameState.playerTeam === 'ash') {
     if (snowLabel) {
-      snowLabel.textContent = `Ash: ${gameState.ashTerritory.size}`;
+      snowLabel.textContent = `Ash: ${areas.ash}`;
       snowLabel.className = 'label ash';
     }
     if (ashLabel) {
-      ashLabel.textContent = `Snow: ${gameState.snowTerritory.size}`;
+      ashLabel.textContent = `Snow: ${areas.snow}`;
       ashLabel.className = 'label snow';
     }
   } else {
@@ -377,62 +520,59 @@ export function drawSelection(gameState) {
   if (currentState === GameState.ASCENSION_CHOICE) return;
 
   if (gameState.selectedPiece && !isState(GameState.ABILITY_TARGETING) && !isState(GameState.TETHER_TARGETING)) {
-    ctx.strokeStyle = 'yellow';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(
-      gameState.selectedPiece.col * C.CELL_SIZE + 2,
-      gameState.selectedPiece.row * C.CELL_SIZE + 2,
-      C.CELL_SIZE - 4,
-      C.CELL_SIZE - 4
-    );
+    const p = gameState.selectedPiece;
+    const cx = p.col * C.CELL_SIZE + C.CELL_SIZE / 2;
+    const cy = p.row * C.CELL_SIZE + C.CELL_SIZE / 2;
+    const time = performance.now() * 0.003;
 
-    getValidMoves(gameState.selectedPiece, gameState).forEach(m => {
-      ctx.fillStyle = (m.isHighway || m.isIcyHighway) ? 'cyan' : (m.isAcrobatJump ? 'magenta' : 'lime');
-      ctx.beginPath();
-      ctx.arc(
-        m.col * C.CELL_SIZE + C.CELL_SIZE / 2,
-        m.row * C.CELL_SIZE + C.CELL_SIZE / 2,
-        C.CELL_SIZE * 0.1,
-        0,
-        Math.PI * 2
-      );
-      ctx.fill();
-    });
+    ctx.save();
+    // Soft glowing base ring
+    ctx.strokeStyle = p.team === 'snow' ? 'rgba(0, 191, 255, 0.85)' : 'rgba(255, 69, 0, 0.85)';
+    ctx.lineWidth = 3.5;
+    ctx.shadowColor = ctx.strokeStyle;
+    ctx.shadowBlur = 12 + Math.sin(time * 3) * 4;
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, C.CELL_SIZE * 0.38, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Rotating dash indicators
+    ctx.setLineDash([8, 12]);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, C.CELL_SIZE * 0.43, time, time + Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    // Draw the continuous glowing movement radius circle of 0.9 units!
+    ctx.save();
+    const moveRadiusPx = 0.9 * C.CELL_SIZE;
+    const pulseRadius = moveRadiusPx + Math.sin(performance.now() * 0.005) * 3;
+
+    ctx.strokeStyle = p.team === 'snow' ? 'rgba(0, 220, 255, 0.75)' : 'rgba(255, 90, 30, 0.75)';
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = ctx.strokeStyle;
+    ctx.shadowBlur = 10;
+
+    // Soft filled movement area
+    ctx.fillStyle = p.team === 'snow' ? 'rgba(0, 180, 255, 0.06)' : 'rgba(255, 70, 0, 0.06)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, pulseRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Fine dashed outer orbit
+    ctx.setLineDash([4, 6]);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, pulseRadius + 6, -time * 0.5, -time * 0.5 + Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
   }
 }
 
 function drawTerritoryBorders(team, gameState) {
-  const territorySet = team === 'snow' ? gameState.snowTerritory : gameState.ashTerritory;
-  const color = team === 'snow' ? 'rgb(150,200,255)' : 'rgb(255,100,80)';
-  boardCtx.strokeStyle = color;
-  boardCtx.lineWidth = 3;
-  const pulse = 0.7 + 0.3 * Math.sin(performance.now() * 0.005);
-
-  territorySet.forEach(pos => {
-    const [r, c] = pos.split(',').map(Number);
-    const x = c * C.CELL_SIZE;
-    const y = r * C.CELL_SIZE;
-    const captureTurn = gameState.territoryCaptureTurn[pos] || 0;
-    boardCtx.shadowColor = color;
-    boardCtx.shadowBlur = (gameState.turnCount - captureTurn < 2) ? 8 * pulse : 0;
-
-    const borders = [
-      !territorySet.has(`${r - 1},${c}`),
-      !territorySet.has(`${r},${c + 1}`),
-      !territorySet.has(`${r + 1},${c}`),
-      !territorySet.has(`${r},${c - 1}`)
-    ];
-
-    const offset = boardCtx.lineWidth / 2;
-    boardCtx.beginPath();
-    if (borders[0]) { boardCtx.moveTo(x + offset, y); boardCtx.lineTo(x + C.CELL_SIZE - offset, y); }
-    if (borders[1]) { boardCtx.moveTo(x + C.CELL_SIZE, y + offset); boardCtx.lineTo(x + C.CELL_SIZE, y + C.CELL_SIZE - offset); }
-    if (borders[2]) { boardCtx.moveTo(x + C.CELL_SIZE - offset, y + C.CELL_SIZE); boardCtx.lineTo(x + offset, y + C.CELL_SIZE); }
-    if (borders[3]) { boardCtx.moveTo(x, y + C.CELL_SIZE - offset); boardCtx.lineTo(x, y + offset); }
-    boardCtx.stroke();
-  });
-
-  boardCtx.shadowBlur = 0;
+  // Neutralized to remove hard territory border lines completely
 }
 
 export function generatePieceInfoString(piece, gameState) {
@@ -441,7 +581,39 @@ export function generatePieceInfoString(piece, gameState) {
   const effectivePower = getEffectivePower(piece, gameState, null, null);
 
   let info = `<b>${typeInfo.name || 'Unit'}</b> (${piece.team?.charAt(0).toUpperCase() + piece.team?.slice(1)})<br>`;
-  info += `Power: ${effectivePower} (Base: ${typeInfo.power || 0})<br>`;
+
+  // === RPG Stat Bar ===
+  const hp = typeof piece.currentHp === 'number' ? piece.currentHp : (piece.maxHp || effectivePower);
+  const maxHp = piece.maxHp || hp;
+  const hpPct = maxHp > 0 ? Math.round((hp / maxHp) * 100) : 100;
+  const hpColor = hpPct > 60 ? '#44dd88' : hpPct > 30 ? '#ffcc44' : '#ff4444';
+  info += `<div style="margin:3px 0 4px;">`;
+  info += `<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;"><span>HP</span><span style="color:${hpColor}">${hp}/${maxHp}</span></div>`;
+  info += `<div style="height:5px;background:rgba(255,255,255,0.12);border-radius:3px;"><div style="width:${hpPct}%;height:100%;background:${hpColor};border-radius:3px;transition:width 0.3s;"></div></div>`;
+  info += `</div>`;
+
+  if (!piece.isVeteran && maxHp > 0) {
+    const dmgDealt = piece.damageDealt || 0;
+    const vetPct = Math.min(100, Math.round((dmgDealt / maxHp) * 100));
+    info += `<div style="margin:3px 0 4px;">`;
+    info += `<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;color:#aaccff"><span>Veteran Progress</span><span>${dmgDealt}/${maxHp}</span></div>`;
+    info += `<div style="height:4px;background:rgba(255,255,255,0.12);border-radius:2px;"><div style="width:${vetPct}%;height:100%;background:#00aaff;border-radius:2px;transition:width 0.3s;box-shadow:0 0 4px #00aaff;"></div></div>`;
+    info += `</div>`;
+  } else if (piece.isVeteran) {
+    info += `<div style="font-size:11px;color:#00aaff;font-weight:bold;text-shadow:0 0 4px #00aaff;margin-bottom:4px;">★ VETERAN</div>`;
+  }
+
+  // 5-stat line (only if piece has the new stats)
+  if (typeof piece.strength === 'number') {
+    info += `<div style="font-size:11px;color:#aac;margin-bottom:4px;">`;
+    info += `<span title="Strength">⚔${piece.strength}</span> `;
+    info += `<span title="Defense">🛡${piece.def}</span> `;
+    info += `<span title="Range">🎯${piece.range}</span> `;
+    info += `<span title="Agility">💨${piece.agility}</span>`;
+    info += `</div>`;
+  } else {
+    info += `Power: ${effectivePower} (Base: ${typeInfo.power || 0})<br>`;
+  }
 
   const boosts = [];
   if (piece.shrineBoost > 0) boosts.push(`Shrine (+${piece.shrineBoost})`);
@@ -520,7 +692,7 @@ export function placePieces(pieces, gameState) {
     if (p.isAnimating) return;
 
     const img = (gameState.images || {})[p.key];
-    if (img?.complete) {
+    if (img && img.complete !== false) {
       ctx.save();
       if (p.isFading) ctx.globalAlpha = p.fadeAlpha;
       const yOffset = p === gameState.selectedPiece ? Math.sin(time * 2.5) * 2 : 0;
@@ -627,6 +799,222 @@ export function placePieces(pieces, gameState) {
   renderEffects(ctx);
 }
 
+// ============================================================================
+// PREMIUM 2D ANIMATION ENGINE
+// ============================================================================
+const visualStates = new Map();
+
+export function clearVisualStates() {
+  visualStates.clear();
+}
+
+export function getPieceVisualState(p) {
+  let vis = visualStates.get(p.id);
+  const targetX = p.col * C.CELL_SIZE;
+  const targetY = p.row * C.CELL_SIZE;
+  if (!vis) {
+    vis = {
+      id: p.id,
+      x: targetX,
+      y: targetY,
+      scale: 1.0,
+      rotation: 0,
+      offsetX: 0,
+      offsetY: 0,
+      lungeDx: 0,
+      lungeDy: 0,
+      lungeProgress: 1.0, // 1.0 = inactive/finished
+      pulseProgress: 1.0, // 1.0 = inactive/finished
+      opacity: 1.0,
+      isDead: false,
+      deathProgress: 0.0,
+      team: p.team,
+      key: p.key
+    };
+    visualStates.set(p.id, vis);
+  }
+  return vis;
+}
+
+export function updateVisualStates(gameState, deltaTime = 16.67) {
+  if (!gameState || !gameState.pieces) return;
+
+  const currentIds = new Set(gameState.pieces.map(p => p.id));
+
+  // 1. Process active and dying animation states
+  for (const [id, vis] of visualStates.entries()) {
+    const p = gameState.pieces.find(piece => piece.id === id);
+
+    if (!p) {
+      // The unit was captured/removed from the board: Trigger smooth death fade + shard spray
+      if (!vis.isDead) {
+        vis.isDead = true;
+        vis.deathProgress = 0.0;
+
+        const color = vis.team === 'ash' ? '255,100,80' : '150,200,255';
+        const startX = vis.x + C.CELL_SIZE / 2;
+        const startY = vis.y + C.CELL_SIZE / 2;
+
+        // Spawn 15-20 premium faction-themed drift particles
+        for (let i = 0; i < 18; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = Math.random() * 3.5 + 1.2;
+          gameState.battleParticles.push({
+            x: startX,
+            y: startY,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - (Math.random() * 1.5 + 0.5), // Float upwards
+            alpha: 1.0,
+            radius: Math.random() * 3 + 1.5,
+            color
+          });
+        }
+      }
+
+      vis.deathProgress += 0.05 * (deltaTime / 16.67); // 20 frames transition
+      if (vis.deathProgress >= 1.0) {
+        visualStates.delete(id);
+        continue;
+      }
+
+      vis.y -= 1.2 * (deltaTime / 16.67); // Drift upward
+      vis.scale = 1.0 - vis.deathProgress;
+      vis.opacity = 1.0 - vis.deathProgress;
+      continue;
+    }
+
+    vis.team = p.team;
+
+    // 2. Position Lerp & Hop bobbing math
+    const targetX = p.col * C.CELL_SIZE;
+    const targetY = p.row * C.CELL_SIZE;
+
+    const dx = targetX - vis.x;
+    const dy = targetY - vis.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist > 1.2) {
+      // Frame-independent exponential decay to eliminate lag
+      const factor = 1.0 - Math.exp(-0.015 * deltaTime);
+      vis.x += dx * factor;
+      vis.y += dy * factor;
+
+      // Bob scale up & down in mid-flight
+      const lift = Math.sin(Math.min(1.0, dist / (C.CELL_SIZE * 1.5)) * Math.PI) * 0.14;
+      vis.scale = 1.0 + lift;
+      vis.rotation = Math.sin(Math.min(1.0, dist / (C.CELL_SIZE * 1.5)) * Math.PI * 2) * 0.06;
+    } else {
+      vis.x = targetX;
+      vis.y = targetY;
+      vis.rotation = 0;
+
+      // Springy squash-and-stretch landing recovery
+      if (vis.scale > 1.0) {
+        vis.scale -= 0.018 * (deltaTime / 16.67);
+        if (vis.scale < 1.0) vis.scale = 1.0;
+      } else if (vis.scale < 1.0) {
+        vis.scale += 0.018 * (deltaTime / 16.67);
+        if (vis.scale > 1.0) vis.scale = 1.0;
+      }
+    }
+
+    // 3. Combat Lunge with spring-damping recoil
+    if (vis.lungeProgress < 1.0) {
+      vis.lungeProgress += 0.08 * (deltaTime / 16.67); // Snappy lunge execution
+      if (vis.lungeProgress >= 1.0) {
+        vis.lungeProgress = 1.0;
+        vis.offsetX = 0;
+        vis.offsetY = 0;
+      } else {
+        if (vis.lungeProgress < 0.25) {
+          // Linear rapid charge forward
+          const pNorm = vis.lungeProgress / 0.25;
+          vis.offsetX = vis.lungeDx * pNorm;
+          vis.offsetY = vis.lungeDy * pNorm;
+        } else {
+          // Spring back with decaying cosine wave
+          const pNorm = (vis.lungeProgress - 0.25) / 0.75;
+          const spring = Math.cos(pNorm * Math.PI * 2.5) * Math.exp(-pNorm * 3.8);
+          vis.offsetX = vis.lungeDx * spring;
+          vis.offsetY = vis.lungeDy * spring;
+        }
+      }
+    }
+
+    // 4. Spellcast / Ranged Pulsation
+    if (vis.pulseProgress < 1.0) {
+      vis.pulseProgress += 0.06 * (deltaTime / 16.67);
+      if (vis.pulseProgress >= 1.0) {
+        vis.pulseProgress = 1.0;
+        vis.scale = 1.0;
+        vis.rotation = 0;
+      } else {
+        vis.scale = 1.0 + Math.sin(vis.pulseProgress * Math.PI) * 0.24;
+        vis.rotation = Math.sin(vis.pulseProgress * Math.PI * 2) * 0.12;
+      }
+    }
+  }
+}
+
+export function triggerLunge(pieceId, targetR, targetC) {
+  const vis = visualStates.get(pieceId);
+  if (!vis) return;
+
+  const targetX = targetC * C.CELL_SIZE;
+  const targetY = targetR * C.CELL_SIZE;
+  const dx = targetX - vis.x;
+  const dy = targetY - vis.y;
+  const dist = Math.hypot(dx, dy);
+
+  if (dist > 0) {
+    // Attack lunges 40% of the distance to the defender
+    vis.lungeDx = (dx / dist) * C.CELL_SIZE * 0.40;
+    vis.lungeDy = (dy / dist) * C.CELL_SIZE * 0.40;
+    vis.lungeProgress = 0.0;
+  }
+}
+
+export function triggerPulse(pieceId) {
+  const vis = visualStates.get(pieceId);
+  if (vis) vis.pulseProgress = 0.0;
+}
+
+// Global screenshake parameters
+let shakeIntensity = 0;
+let shakeDuration = 0;
+
+export function triggerScreenshake(intensity, duration = 150) {
+  shakeIntensity = intensity;
+  shakeDuration = duration;
+}
+
+/**
+ * Immediately starts the visual death dissolve on a piece without waiting
+ * for it to be removed from gameState.pieces. Useful for triggering on
+ * lethal-hit captures before the state mutation propagates.
+ */
+export function triggerPieceDissolve(piece) {
+  if (!piece) return;
+  const vis = visualStates.get(piece.id) || getPieceVisualState(piece);
+  if (vis && !vis.isDead) {
+    vis.isDead = true;
+    vis.deathProgress = 0.0;
+  }
+}
+
+export function applyScreenshake(drawCtx) {
+  if (shakeDuration > 0) {
+    shakeDuration -= 16.67;
+    const intensity = (shakeDuration / 150) * shakeIntensity;
+    const dx = (Math.random() - 0.5) * intensity;
+    const dy = (Math.random() - 0.5) * intensity;
+    drawCtx.translate(dx, dy);
+  } else {
+    shakeIntensity = 0;
+    shakeDuration = 0;
+  }
+}
+
 export function drawPiece(p, targetCtx, gameState) {
   const drawCtx = targetCtx || ctx;
   if (!p || !drawCtx) return;
@@ -635,25 +1023,70 @@ export function drawPiece(p, targetCtx, gameState) {
     if (p.isPhasing || p.isSummoning || p.isAnimating) return;
 
     const img = (gameState.images || {})[p.key];
-    if (img?.complete) {
+    if (img && img.complete !== false) {
+      const vis = getPieceVisualState(p);
       drawCtx.save();
-      if (p.isFading) drawCtx.globalAlpha = p.fadeAlpha;
-      const yOffset = p === gameState.selectedPiece ? Math.sin(time * 2.5) * 2 : 0;
+      
+      let alpha = vis.opacity;
+      if (p.isFading) alpha *= p.fadeAlpha;
+      drawCtx.globalAlpha = alpha;
 
-      // CRITICAL FIX: Counter-rotate pieces for Ash
-      if (gameState.playerTeam === 'ash') {
-        drawCtx.translate(p.col * C.CELL_SIZE + C.CELL_SIZE / 2, p.row * C.CELL_SIZE + yOffset + C.CELL_SIZE / 2);
-        drawCtx.rotate(Math.PI);
-        if (!(p.isDashing && (p.key === 'ashMagmaProwler' || p.key.includes('MagmaProwler')))) {
-          drawCtx.drawImage(img, -C.CELL_SIZE / 2, -C.CELL_SIZE / 2, C.CELL_SIZE, C.CELL_SIZE);
+      const yOffset = p === gameState.selectedPiece ? Math.sin(time * 2.5) * 2 : 0;
+      const cx = vis.x + C.CELL_SIZE / 2 + vis.offsetX;
+      const cy = vis.y + yOffset + C.CELL_SIZE / 2 + vis.offsetY;
+
+      // Define local helpers to draw slashes in local coordinate space
+      const drawSlashLocal = () => {
+        if (vis.lungeProgress < 0.6) {
+          // If team is Ash, lunge vector is inverted visually since board view is flipped 180 deg
+          const f = (gameState.playerTeam === 'ash') ? -1 : 1;
+          const attackAngle = Math.atan2(vis.lungeDy * f, vis.lungeDx * f);
+          const arcRadius = C.CELL_SIZE * 0.65;
+          const slashProgress = vis.lungeProgress / 0.6;
+          
+          drawCtx.save();
+          drawCtx.beginPath();
+          drawCtx.strokeStyle = p.team === 'snow' ? 'rgba(100, 220, 255, 0.9)' : 'rgba(255, 110, 40, 0.9)';
+          drawCtx.lineWidth = Math.max(3.5, 7.5 * (1 - slashProgress));
+          drawCtx.shadowColor = drawCtx.strokeStyle;
+          drawCtx.shadowBlur = 10;
+          
+          const startSweep = attackAngle - Math.PI / 3.5 + (slashProgress * Math.PI * 2 / 3.5);
+          const endSweep = startSweep + Math.PI / 3;
+          
+          drawCtx.arc(0, 0, arcRadius, startSweep, endSweep);
+          drawCtx.stroke();
+          drawCtx.restore();
         }
-      } else {
-        if (!(p.isDashing && (p.key === 'ashMagmaProwler' || p.key.includes('MagmaProwler')))) {
-          drawCtx.drawImage(img, p.col * C.CELL_SIZE, p.row * C.CELL_SIZE + yOffset, C.CELL_SIZE, C.CELL_SIZE);
-        }
+      };
+
+      // Determine if piece is a leader and calculate its size
+      const isLeader = p.key.includes('Lord') || p.key.includes('Tyrant');
+      const drawSize = isLeader ? C.CELL_SIZE * 1.4 : C.CELL_SIZE;
+      
+      // Calculate horizontal flip (Y-axis rotation) to face the center of the board
+      const centerX = 5 * C.CELL_SIZE;
+      // If piece is on the left (cx < centerX), it should face right (scale 1 or -1 depending on sprite default).
+      // Assuming sprites look somewhat neutral/forward, flipping them creates the illusion of facing center.
+      const flipX = cx > centerX ? -1 : 1;
+
+      // Keep them standing straight (no Z-rotation unless it's a specific visual effect like dashing)
+      const pieceRotation = vis.rotation; // Usually 0
+
+      drawCtx.translate(cx, cy);
+      drawCtx.rotate(pieceRotation);
+      // Apply flipX for facing center, combined with the piece's normal scale
+      drawCtx.scale(vis.scale * flipX, vis.scale);
+      
+      if (!(p.isDashing && (p.key === 'ashMagmaProwler' || p.key.includes('MagmaProwler')))) {
+        drawCtx.drawImage(img, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
       }
+      
+      drawSlashLocal();
       drawCtx.restore();
     }
+
+    const vis = getPieceVisualState(p);
 
     try {
       const teamBadgeKey = p.team === 'snow' ? 'ice' : (p.team === 'ash' ? 'ash' : null);
@@ -668,8 +1101,8 @@ export function drawPiece(p, targetCtx, gameState) {
           const scale = (idx === 0) ? baseScaleZero : Math.min(maxScale, baseScale + perTier * (idx - 1));
           const badgeSize = Math.floor(C.CELL_SIZE * scale);
           const pad = Math.max(2, Math.floor(C.CELL_SIZE * 0.02));
-          const bx = p.col * C.CELL_SIZE + C.CELL_SIZE - badgeSize - pad;
-          const by = p.row * C.CELL_SIZE + pad;
+          const bx = vis.x + C.CELL_SIZE - badgeSize - pad + vis.offsetX;
+          const by = vis.y + pad + vis.offsetY;
 
           // CRITICAL FIX: Counter-rotate badges for Ash
           if (gameState.playerTeam === 'ash') {
@@ -688,8 +1121,8 @@ export function drawPiece(p, targetCtx, gameState) {
     try {
       if ((p.overloadPoints || 0) > 0) {
         const overlaySize = Math.floor(C.CELL_SIZE * 0.22);
-        const ox = p.col * C.CELL_SIZE + 4;
-        const oy = p.row * C.CELL_SIZE + 4;
+        const ox = vis.x + 4 + vis.offsetX;
+        const oy = vis.y + 4 + vis.offsetY;
         drawCtx.save();
         drawCtx.beginPath();
         drawCtx.fillStyle = p.team === 'snow' ? 'rgba(0,204,255,0.95)' : 'rgba(255,80,20,0.95)';
@@ -719,7 +1152,7 @@ export function drawPiece(p, targetCtx, gameState) {
       drawCtx.strokeStyle = p.team === 'snow' ? 'rgba(100,200,255,0.5)' : 'rgba(255,100,80,0.5)';
       drawCtx.lineWidth = 4 + Math.sin(time * 4) * 1.5;
       drawCtx.beginPath();
-      drawCtx.arc(p.col * C.CELL_SIZE + C.CELL_SIZE / 2, p.row * C.CELL_SIZE + C.CELL_SIZE / 2, auraRadius, 0, 2 * Math.PI);
+      drawCtx.arc(vis.x + C.CELL_SIZE / 2 + vis.offsetX, vis.y + C.CELL_SIZE / 2 + vis.offsetY, auraRadius, 0, 2 * Math.PI);
       drawCtx.stroke();
     }
 
@@ -727,7 +1160,7 @@ export function drawPiece(p, targetCtx, gameState) {
       drawCtx.strokeStyle = `rgba(200,200,255,${0.7 + 0.3 * Math.sin(performance.now() * 0.008)})`;
       drawCtx.lineWidth = 3;
       drawCtx.beginPath();
-      drawCtx.arc(p.col * C.CELL_SIZE + C.CELL_SIZE / 2, p.row * C.CELL_SIZE + C.CELL_SIZE / 2, C.CELL_SIZE * 0.4, 0, 2 * Math.PI);
+      drawCtx.arc(vis.x + C.CELL_SIZE / 2 + vis.offsetX, vis.y + C.CELL_SIZE / 2 + vis.offsetY, C.CELL_SIZE * 0.4, 0, 2 * Math.PI);
       drawCtx.stroke();
     }
 
@@ -735,8 +1168,38 @@ export function drawPiece(p, targetCtx, gameState) {
 
     p.powerBoosted = (gameState.temporaryBoosts || []).some(b => b.pieceId === p.id && b.amount > 0) || p.shrineBoost > 0 || p.anchorBoost > 0;
     p.isChilled = (gameState.debuffs || []).some(d => d.pieceId === p.id && d.amount > 0) || (gameState.markedPieces || []).some(m => m.targetId === p.id);
-    drawStatusIcons(drawCtx, p, p.col * C.CELL_SIZE + C.CELL_SIZE / 2, p.row * C.CELL_SIZE + C.CELL_SIZE / 2);
+    drawStatusIcons(drawCtx, p, vis.x + C.CELL_SIZE / 2 + vis.offsetX, vis.y + C.CELL_SIZE / 2 + vis.offsetY);
   } catch (err) { }
+}
+
+export function drawDyingPieces(targetCtx, gameState) {
+  const drawCtx = targetCtx || ctx;
+  if (!drawCtx) return;
+  for (const vis of visualStates.values()) {
+    if (vis.isDead) {
+      const img = (gameState.images || {})[vis.key];
+      if (img && img.complete !== false) {
+        drawCtx.save();
+        drawCtx.globalAlpha = vis.opacity;
+
+        const cx = vis.x + C.CELL_SIZE / 2 + vis.offsetX;
+        const cy = vis.y + C.CELL_SIZE / 2 + vis.offsetY;
+
+        if (gameState.playerTeam === 'ash') {
+          drawCtx.translate(cx, cy);
+          drawCtx.rotate(Math.PI + vis.rotation);
+          drawCtx.scale(vis.scale, vis.scale);
+          drawCtx.drawImage(img, -C.CELL_SIZE / 2, -C.CELL_SIZE / 2, C.CELL_SIZE, C.CELL_SIZE);
+        } else {
+          drawCtx.translate(cx, cy);
+          drawCtx.rotate(vis.rotation);
+          drawCtx.scale(vis.scale, vis.scale);
+          drawCtx.drawImage(img, -C.CELL_SIZE / 2, -C.CELL_SIZE / 2, C.CELL_SIZE, C.CELL_SIZE);
+        }
+        drawCtx.restore();
+      }
+    }
+  }
 }
 
 export function renderBoard(gameState) {
@@ -744,26 +1207,29 @@ export function renderBoard(gameState) {
   const bgKey = gameState.playerTeam === 'snow' ? 'gameBackgroundSnow' : 'gameBackgroundAsh';
   const backgroundImg = gameState.boardImgs?.[bgKey];
 
-  // CRITICAL FIX: Counter-rotate background for Ash so it appears right-side up
   if (backgroundImg?.complete) {
-    if (gameState.playerTeam === 'ash') {
-      boardCtx.save();
-      boardCtx.translate(C.CANVAS_SIZE / 2, C.CANVAS_SIZE / 2);
-      boardCtx.rotate(Math.PI);
-      boardCtx.drawImage(backgroundImg, -C.CANVAS_SIZE / 2, -C.CANVAS_SIZE / 2, C.CANVAS_SIZE, C.CANVAS_SIZE);
-      boardCtx.restore();
+    boardCtx.drawImage(backgroundImg, 0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
+  } else {
+    // Fallback premium dark radial gradient
+    const bgGrad = boardCtx.createRadialGradient(
+      C.CANVAS_SIZE / 2, C.CANVAS_SIZE / 2, 50,
+      C.CANVAS_SIZE / 2, C.CANVAS_SIZE / 2, C.CANVAS_SIZE * 0.75
+    );
+    if (gameState.playerTeam === 'snow') {
+      bgGrad.addColorStop(0, '#0a1226');
+      bgGrad.addColorStop(1, '#020308');
     } else {
-      boardCtx.drawImage(backgroundImg, 0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
+      bgGrad.addColorStop(0, '#220c04');
+      bgGrad.addColorStop(1, '#060201');
     }
+    boardCtx.fillStyle = bgGrad;
+    boardCtx.fillRect(0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
   }
 
   if (gameState.voidSquares && gameState.voidSquares.length > 0) {
     boardCtx.fillStyle = '#05000a';
     gameState.voidSquares.forEach(v => {
       boardCtx.fillRect(v.col * C.CELL_SIZE, v.row * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
-      boardCtx.strokeStyle = '#1a002a';
-      boardCtx.lineWidth = 2;
-      boardCtx.strokeRect(v.col * C.CELL_SIZE, v.row * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
     });
   }
 
@@ -774,19 +1240,32 @@ export function renderBoard(gameState) {
   let riftPulse = 0;
   if (gameState.conduit?.consecutiveTurnsHeld >= 2) riftPulse = Math.sin(performance.now() * 0.005) * 0.3;
 
-  gameState.dynamicRifts.forEach(rift => {
-    rift.cells.forEach(([r, c]) => {
-      if (!gameState.voidSquares.some(v => v.row === r && v.col === c)) {
-        boardCtx.fillStyle = riftColor;
-        boardCtx.globalAlpha = 0.5 + Math.max(0, riftPulse);
-        boardCtx.fillRect(c * C.CELL_SIZE, r * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
-        boardCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-        boardCtx.lineWidth = 1;
-        boardCtx.strokeRect(c * C.CELL_SIZE, r * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
-      }
-    });
+  // Render pulsing glow rings around the corner rifts on the background image
+  const riftRadius = C.CELL_SIZE * 1.35;
+  const riftCenters = [
+    [1.5 * C.CELL_SIZE, 1.5 * C.CELL_SIZE],
+    [8.5 * C.CELL_SIZE, 8.5 * C.CELL_SIZE]
+  ];
+
+  riftCenters.forEach(([rx, ry]) => {
+    boardCtx.save();
+    boardCtx.strokeStyle = riftColor === C.RIFT_COLORS.VOID ? 'rgba(148, 0, 211, 0.25)' : riftColor;
+    boardCtx.lineWidth = 3.5;
+    // Removed expensive shadowBlur for performance
+    
+    boardCtx.beginPath();
+    boardCtx.arc(rx, ry, riftRadius, 0, Math.PI * 2);
+    boardCtx.stroke();
+    
+    if (riftColor !== C.RIFT_COLORS.VOID) {
+      boardCtx.setLineDash([6, 15]);
+      boardCtx.lineWidth = 2;
+      boardCtx.beginPath();
+      boardCtx.arc(rx, ry, riftRadius + 8, performance.now() * 0.001, performance.now() * 0.001 + Math.PI * 2);
+      boardCtx.stroke();
+    }
+    boardCtx.restore();
   });
-  boardCtx.globalAlpha = 1.0;
 
   if (gameState.conduitLinkActive && gameState.dynamicRifts && gameState.dynamicRifts.length >= 2) {
     const [rift1, rift2] = gameState.dynamicRifts;
@@ -803,31 +1282,140 @@ export function renderBoard(gameState) {
     boardCtx.stroke();
   }
 
-  for (let r = 0; r < C.ROWS; r++) {
-    for (let c = 0; c < C.COLS; c++) {
-      const pos = `${r},${c}`;
-      boardCtx.fillStyle = gameState.snowTerritory.has(pos) ? 'rgba(100,150,255,0.25)' : gameState.ashTerritory.has(pos) ? 'rgba(255,100,80,0.25)' : 'transparent';
-      boardCtx.fillRect(c * C.CELL_SIZE, r * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
-      boardCtx.strokeStyle = 'rgba(255,255,255,0.2)';
-      boardCtx.strokeRect(c * C.CELL_SIZE, r * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
+  if (gameState.spikeRains && gameState.spikeRains.length > 0) {
+    gameState.spikeRains.forEach(s => {
+      boardCtx.save();
+      const cx = s.c * C.CELL_SIZE + C.CELL_SIZE / 2;
+      const cy = s.r * C.CELL_SIZE + C.CELL_SIZE / 2;
+      const centerX = s.c * C.CELL_SIZE + C.CELL_SIZE / 2;
+      const centerY = s.r * C.CELL_SIZE + C.CELL_SIZE / 2;
+      const rPx = s.radius * C.CELL_SIZE;
+      
+      boardCtx.globalCompositeOperation = 'lighter';
+      boardCtx.fillStyle = s.team === 'snow' ? 'rgba(0,200,255,0.12)' : 'rgba(255,100,50,0.12)';
+      boardCtx.beginPath();
+      boardCtx.arc(centerX, centerY, rPx, 0, Math.PI * 2);
+      boardCtx.fill();
+      
+      boardCtx.strokeStyle = s.team === 'snow' ? 'rgba(0,255,255,0.7)' : 'rgba(255,100,50,0.7)';
+      boardCtx.lineWidth = 2;
+      boardCtx.setLineDash([4, 6]);
+      boardCtx.beginPath();
+      boardCtx.arc(centerX, centerY, rPx, performance.now() * 0.002, performance.now() * 0.002 + Math.PI * 2);
+      boardCtx.stroke();
+      
+      boardCtx.restore();
+    });
+  }
+
+  // ── TERRITORY RENDERING (CACHED CELL-BASED) ────────────────────────────────
+  // Build a cheap serialised key from the two territory Sets and trail count.
+  // Only re-run the pixel loop when something actually changed.
+  const snowSet  = gameState.snowTerritory  || new Set();
+  const ashSet   = gameState.ashTerritory   || new Set();
+  const trailLen = (gameState.territoryTrails || []).length;
+  let hash = trailLen;
+  snowSet.forEach(v => { hash += v.charCodeAt(0) * 10 + v.charCodeAt(2); });
+  ashSet.forEach(v => { hash -= v.charCodeAt(0) * 10 + v.charCodeAt(2); });
+  const newKey   = snowSet.size + '/' + ashSet.size + '/' + hash;
+
+  _terrFrameSkip++;
+  const needRebuild = (newKey !== _terrCacheKey) || !_terrCacheCanvas;
+
+  if (needRebuild && _terrFrameSkip >= TERR_SKIP_FRAMES) {
+    _terrFrameSkip = 0;
+    _terrCacheKey  = newKey;
+
+    // ── Cell-based fill: iterate the 10×10 grid and paint cells directly ──
+    // This is O(100) instead of O(10000) per frame and looks equally good.
+    if (!_terrCacheCanvas) {
+      _terrCacheCanvas = document.createElement('canvas');
+      _terrCacheCanvas.width  = C.CANVAS_SIZE;
+      _terrCacheCanvas.height = C.CANVAS_SIZE;
+    }
+    const tCtx = _terrCacheCanvas.getContext('2d');
+    tCtx.clearRect(0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
+
+    const CS = C.CELL_SIZE;
+
+    // Paint territory trails as smaller glowing dots
+    if (gameState.territoryTrails) {
+      if (!window._gradCache) window._gradCache = {};
+      
+      gameState.territoryTrails.forEach(t => {
+        const cx = t.col * CS + CS / 2;
+        const cy = t.row * CS + CS / 2;
+        const rPx = Math.max(0.1, (t.radius || 0.6)) * CS;
+        const rPxRound = Math.round(rPx);
+        
+        const cacheKey = `${t.team}-${rPxRound}`;
+        if (!window._gradCache[cacheKey]) {
+          const tempCanvas = document.createElement('canvas');
+          const d = rPxRound * 2;
+          tempCanvas.width = d;
+          tempCanvas.height = d;
+          const tempCtx = tempCanvas.getContext('2d');
+          const g = tempCtx.createRadialGradient(rPxRound, rPxRound, 0, rPxRound, rPxRound, rPxRound);
+          if (t.team === 'snow') {
+            // Darker colors as requested, with 1.0 opacity center so it overwrites instead of mixing
+            g.addColorStop(0, 'rgba(20, 80, 200, 1.0)');
+            g.addColorStop(0.5, 'rgba(20, 80, 200, 0.8)');
+            g.addColorStop(1, 'rgba(10, 50, 150, 0.0)');
+          } else {
+            g.addColorStop(0, 'rgba(200, 40, 10, 1.0)');
+            g.addColorStop(0.5, 'rgba(200, 40, 10, 0.8)');
+            g.addColorStop(1, 'rgba(120, 15, 0, 0.0)');
+          }
+          tempCtx.fillStyle = g;
+          tempCtx.beginPath();
+          tempCtx.arc(rPxRound, rPxRound, rPxRound, 0, Math.PI * 2);
+          tempCtx.fill();
+          window._gradCache[cacheKey] = tempCanvas;
+        }
+        
+        tCtx.globalCompositeOperation = 'source-over';
+        tCtx.drawImage(window._gradCache[cacheKey], cx - rPxRound, cy - rPxRound);
+      });
     }
   }
 
-  drawTerritoryBorders('snow', gameState);
-  drawTerritoryBorders('ash', gameState);
-
-  const shrineX = 4 * C.CELL_SIZE;
-  const shrineY = 4 * C.CELL_SIZE;
-  if (gameState.shrineIsOverloaded) {
-    boardCtx.fillStyle = `rgba(255,0,0,${0.4 + 0.2 * Math.sin(performance.now() * 0.01)})`;
-    boardCtx.fillRect(shrineX, shrineY, C.CELL_SIZE * 2, C.CELL_SIZE * 2);
-  } else if (gameState.shrineChargeLevel > 0) {
-    boardCtx.fillStyle = `rgba(148,0,211,${0.2 + 0.1 * Math.sin(performance.now() * 0.005)})`;
-    boardCtx.fillRect(shrineX, shrineY, C.CELL_SIZE * 2, C.CELL_SIZE * 2);
+  // Blit the cached territory canvas onto the board
+  if (_terrCacheCanvas) {
+    boardCtx.save();
+    boardCtx.globalAlpha = 0.6; // Apply transparency to the entire flattened territory layer
+    boardCtx.globalCompositeOperation = 'source-over';
+    boardCtx.drawImage(_terrCacheCanvas, 0, 0);
+    boardCtx.restore();
   }
-  boardCtx.strokeStyle = 'gold';
-  boardCtx.lineWidth = 3;
-  boardCtx.strokeRect(shrineX, shrineY, C.CELL_SIZE * 2, C.CELL_SIZE * 2);
+
+  // End of renderBoard
+
+
+
+
+  const shrineCx = 5 * C.CELL_SIZE;
+  const shrineCy = 5 * C.CELL_SIZE;
+  const shrineRadius = C.CELL_SIZE * 1.0;
+
+  boardCtx.save();
+  if (gameState.shrineIsOverloaded) {
+    boardCtx.strokeStyle = `rgba(255, 30, 30, ${0.7 + 0.3 * Math.sin(performance.now() * 0.01)})`;
+    boardCtx.lineWidth = 4;
+    boardCtx.shadowColor = 'red';
+    boardCtx.shadowBlur = 15;
+  } else if (gameState.shrineChargeLevel > 0) {
+    boardCtx.strokeStyle = `rgba(186, 85, 211, ${0.7 + 0.3 * Math.sin(performance.now() * 0.005)})`;
+    boardCtx.lineWidth = 4;
+    boardCtx.shadowColor = 'mediumpurple';
+    boardCtx.shadowBlur = 12;
+  } else {
+    boardCtx.strokeStyle = 'rgba(218, 165, 32, 0.45)';
+    boardCtx.lineWidth = 2.5;
+  }
+  boardCtx.beginPath();
+  boardCtx.arc(shrineCx, shrineCy, shrineRadius, 0, Math.PI * 2);
+  boardCtx.stroke();
+  boardCtx.restore();
 
   if (gameState.unstableGrounds) {
     gameState.unstableGrounds.forEach(g => {
@@ -1035,7 +1623,7 @@ export function showAbilityPanel(piece, gameState) {
   }
 
   const hasActiveVetAb = piece.isVeteran && piece.secondaryAbilityKey && !C.PIECE_TYPES[piece.key]?.veteranAbility?.isPassive;
-  if (unleashAbilities) unleashAbilities.style.display = (isSiphoner || hasActiveVetAb) ? 'flex' : 'none';
+  if (unleashAbilities) unleashAbilities.style.display = (isSiphoner || hasActiveVetAb) ? 'block' : 'none';
 
   if (isSiphoner) {
     const onRift = C.SHAPES.riftAreas.some(r => r.cells.some(([rr, cc]) => rr === piece.row && cc === piece.col));

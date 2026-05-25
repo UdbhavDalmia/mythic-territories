@@ -117,14 +117,16 @@ export const ABILITY_VALUES = {
   WispEnhancement: { powerBoost: 1 },
   GlacialFortress: { cooldown: 8, duration: 3 },
   VolatileForge: { places: 2 },
-  MagmaAnchor: { powerBoost: 1 }
+  MagmaAnchor: { powerBoost: 1 },
+  SpikeRain: { cooldown: 11, duration: 5, range: 2.5, radius: 2, damage: 2, heal: 1 },
+  HelpFromAbove: { cooldown: 10, radius: 1.5, strengthBoost: 1 }
 };
 
 /* ==========================================================================
    SECTION 4: ENGINE HELPERS & TARGETING LOGIC
    Pure functions used heavily by abilities to validate board state.
    ========================================================================== */
-export const getPieceAt = (r, c, boardMap) => boardMap?.[r]?.[c] || null;
+export const getPieceAt = (r, c, pieces) => pieces ? pieces.find(p => Math.hypot(p.col - c, p.row - r) < 0.5) || null : null;
 export const inBounds = (r, c) => r >= 0 && r < ROWS && c >= 0 && c < COLS;
 
 export function applyDebuff(gs, debuff) {
@@ -139,7 +141,7 @@ const glacialWallTargeting = (p, t, gs) => {
   if (!inBounds(t.r, t.c)) return false;
   return (
     Math.max(Math.abs(p.row - t.r), Math.abs(p.col - t.c)) === 1 &&
-    !getPieceAt(t.r, t.c, gs.boardMap) &&
+    !getPieceAt(t.r, t.c, gs.pieces) &&
     !(gs.voidSquares || []).some((v) => v.row === t.r && v.col === t.c) &&
     !(gs.glacialWalls || []).some((w) => w.row === t.r && w.col === t.c)
   );
@@ -169,7 +171,7 @@ const unstableGroundEffect = (p, t, gs) => {
       c2 = t.c + dc;
     if (
       inBounds(r2, c2) &&
-      !getPieceAt(r2, c2, gs.boardMap) &&
+      !getPieceAt(r2, c2, gs.pieces) &&
       !gs.unstableGrounds.some((g) => g.row === r2 && g.col === c2) &&
       !gs.glacialWalls.some((w) => w.row === r2 && w.col === c2) &&
       !(gs.voidSquares || []).some((v) => v.row === r2 && v.col === c2)
@@ -191,6 +193,26 @@ const unstableGroundEffect = (p, t, gs) => {
    the state-mutation effects applied when an ability is triggered.
    ========================================================================== */
 export const ABILITIES = {
+  SpikeRain: {
+    name: "Spike Rain",
+    cooldown: ABILITY_VALUES.SpikeRain.cooldown,
+    range: ABILITY_VALUES.SpikeRain.range,
+    targetType: "any",
+    requiresTargeting: true,
+    effect: (p, t, gs) => {
+      if (!gs.spikeRains) gs.spikeRains = [];
+      gs.spikeRains.push({
+        creatorId: p.id,
+        team: p.team,
+        r: t.r,
+        c: t.c,
+        duration: ABILITY_VALUES.SpikeRain.duration,
+        radius: ABILITY_VALUES.SpikeRain.radius,
+        damage: ABILITY_VALUES.SpikeRain.damage,
+        heal: ABILITY_VALUES.SpikeRain.heal
+      });
+    }
+  },
   ChillingAura: {
     name: "Chilling Aura",
     cooldown: ABILITY_VALUES.ChillingAura.cooldown,
@@ -209,7 +231,7 @@ export const ABILITIES = {
     specialTargeting: (p, t, gs) => {
       const dr = t.r - p.row,
         dc = t.c - p.col;
-      if (getPieceAt(t.r, t.c, gs.boardMap)) return false;
+      if (getPieceAt(t.r, t.c, gs.pieces)) return false;
       const isRampage =
         p.key === TEAM_PIECES.ash.Warrior &&
         gs.factionPassives.ash.ascension.Rampage;
@@ -217,7 +239,7 @@ export const ABILITIES = {
         (Math.abs(dr) === 2 && dc === 0) ||
         (Math.abs(dc) === 2 && dr === 0)
       ) {
-        const midP = getPieceAt(p.row + dr / 2, p.col + dc / 2, gs.boardMap);
+        const midP = getPieceAt(p.row + dr / 2, p.col + dc / 2, gs.pieces);
         return (
           (isRampage ? !midP || midP.team === p.team : !midP) &&
           !gs.glacialWalls.some(
@@ -251,7 +273,7 @@ export const ABILITIES = {
       ].forEach((target) => {
         if (
           inBounds(target.r, target.c) &&
-          !getPieceAt(target.r, target.c, gs.boardMap) &&
+          !getPieceAt(target.r, target.c, gs.pieces) &&
           !gs.glacialWalls.some(
             (w) => w.row === target.r && w.col === target.c
           ) &&
@@ -310,7 +332,7 @@ export const ABILITIES = {
     canBeBlocked: true,
     requiresTargeting: true,
     effect: (p, t, gs) => {
-      const tp = getPieceAt(t.r, t.c, gs.boardMap);
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
       if (tp)
         applyDebuff(gs, {
           pieceId: tp.id,
@@ -355,7 +377,7 @@ export const ABILITIES = {
     canBeBlocked: false,
     requiresTargeting: true,
     effect: (p, t, gs) => {
-      const tp = getPieceAt(t.r, t.c, gs.boardMap);
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
       if (tp)
         gs.temporaryBoosts.push({
           pieceId: tp.id,
@@ -373,7 +395,7 @@ export const ABILITIES = {
     canBeBlocked: true,
     requiresTargeting: true,
     specialTargeting: (p, t, gs) => {
-      const tp = getPieceAt(t.r, t.c, gs.boardMap);
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
       if (!tp || tp.team === p.team) return false;
       return (
         gs.markedPieces.some((m) => m.targetId === tp.id) ||
@@ -383,8 +405,12 @@ export const ABILITIES = {
       );
     },
     effect: (p, t, gs) => {
-      const tp = getPieceAt(t.r, t.c, gs.boardMap);
-      if (tp) tp.power = Math.max(0, tp.power - ABILITY_VALUES.LavaGlob.damage);
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
+      if (tp) {
+        const dmg = ABILITY_VALUES.LavaGlob.damage;
+        tp.power = Math.max(0, tp.power - dmg);
+        if (typeof tp.currentHp === "number") tp.currentHp = Math.max(0, tp.currentHp - dmg);
+      }
     }
   },
   MagmaShield: {
@@ -395,7 +421,7 @@ export const ABILITIES = {
     canBeBlocked: false,
     requiresTargeting: true,
     effect: (p, t, gs) => {
-      const tp = getPieceAt(t.r, t.c, gs.boardMap);
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
       if (tp && !gs.shields.some((s) => s.pieceId === tp.id))
         gs.shields.push({
           pieceId: tp.id,
@@ -411,10 +437,13 @@ export const ABILITIES = {
     canBeBlocked: true,
     requiresTargeting: true,
     effect: (p, t, gs) => {
-      const tp = getPieceAt(t.r, t.c, gs.boardMap);
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
       if (!tp) return;
-      if (p.isElementalHarmony)
-        tp.power = Math.max(0, tp.power - ABILITY_VALUES.LavaGlob.damage);
+      if (p.isElementalHarmony) {
+        const dmg = ABILITY_VALUES.LavaGlob.damage;
+        tp.power = Math.max(0, tp.power - dmg);
+        if (typeof tp.currentHp === "number") tp.currentHp = Math.max(0, tp.currentHp - dmg);
+      }
       gs.markedPieces.push({
         targetId: tp.id,
         duration: ABILITY_VALUES.MarkOfCinder.duration
@@ -429,7 +458,7 @@ export const ABILITIES = {
     canBeBlocked: true,
     requiresTargeting: true,
     effect: (p, t, gs) => {
-      const tp = getPieceAt(t.r, t.c, gs.boardMap);
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
       if (!tp) return;
       const pushR = t.r + (t.r - p.row) * 2,
         pushC = t.c + (t.c - p.col) * 2,
@@ -437,7 +466,7 @@ export const ABILITIES = {
         stepC = t.c + (t.c - p.col);
       const isValid = (r, c) =>
         inBounds(r, c) &&
-        !getPieceAt(r, c, gs.boardMap) &&
+        !getPieceAt(r, c, gs.pieces) &&
         !gs.glacialWalls.some((w) => w.row === r && w.col === c) &&
         !(gs.voidSquares || []).some((v) => v.row === r && v.col === c);
       let finalR = tp.row,
@@ -448,13 +477,13 @@ export const ABILITIES = {
       } else if (isValid(stepR, stepC)) {
         finalR = stepR;
         finalC = stepC;
-        const blocker = getPieceAt(pushR, pushC, gs.boardMap);
+        const blocker = getPieceAt(pushR, pushC, gs.pieces);
         if (blocker && !blocker.isSteadfast) {
           blocker.isDazed = true;
           blocker.dazedFor = 2;
         }
       } else {
-        const blocker = getPieceAt(stepR, stepC, gs.boardMap);
+        const blocker = getPieceAt(stepR, stepC, gs.pieces);
         if (blocker && !blocker.isSteadfast) {
           blocker.isDazed = true;
           blocker.dazedFor = 2;
@@ -486,7 +515,7 @@ export const ABILITIES = {
       return (
         t.r === p.row + backDir &&
         Math.abs(t.c - p.col) <= 1 &&
-        !getPieceAt(t.r, t.c, gs.boardMap) &&
+        !getPieceAt(t.r, t.c, gs.pieces) &&
         !gs.glacialWalls.some((w) => w.row === t.r && w.col === t.c)
       );
     },
@@ -582,7 +611,7 @@ export const ABILITIES = {
     targetType: "enemy",
     canBeBlocked: true,
     effect: (p, t, gs) => {
-      const tp = getPieceAt(t.r, t.c, gs.boardMap);
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
       if (tp) {
         tp.isDazed = true;
         tp.dazedFor = ABILITY_VALUES.FrostStomp.duration * 2;
@@ -596,7 +625,7 @@ export const ABILITIES = {
     range: 1,
     targetType: "friendly",
     effect: (p, t, gs) => {
-      const tp = getPieceAt(t.r, t.c, gs.boardMap);
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
       if (tp) {
         tp.isSteadfast = true;
         applyDebuff(gs, {
@@ -639,7 +668,7 @@ export const ABILITIES = {
     targetType: "any",
     canBeBlocked: true,
     effect: (p, t, gs) => {
-      const tp = getPieceAt(t.r, t.c, gs.boardMap);
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
       if (!tp) return;
       const bIdx = gs.temporaryBoosts.findIndex(
         (b) => b.pieceId === tp.id && b.amount > 0
@@ -663,7 +692,7 @@ export const ABILITIES = {
     targetType: "enemy",
     canBeBlocked: true,
     effect: (p, t, gs) => {
-      const tp = getPieceAt(t.r, t.c, gs.boardMap);
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
       if (tp)
         applyDebuff(gs, {
           pieceId: tp.id,
@@ -693,11 +722,11 @@ export const ABILITIES = {
     range: ABILITY_VALUES.BlazeLunge.range,
     targetType: "special",
     specialTargeting: (p, t, gs) => {
-      if (getPieceAt(t.r, t.c, gs.boardMap)) return false;
+      if (getPieceAt(t.r, t.c, gs.pieces)) return false;
       for (let dr = -1; dr <= 1; dr++)
         for (let dc = -1; dc <= 1; dc++) {
           if (dr === 0 && dc === 0) continue;
-          const adj = getPieceAt(t.r + dr, t.c + dc, gs.boardMap);
+          const adj = getPieceAt(t.r + dr, t.c + dc, gs.pieces);
           if (adj && adj.team !== p.team) return true;
         }
       return false;
@@ -718,7 +747,7 @@ export const ABILITIES = {
     range: ABILITY_VALUES.EruptionLink.range,
     targetType: "friendly",
     effect: (p, t, gs) => {
-      const tp = getPieceAt(t.r, t.c, gs.boardMap);
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
       if (!tp) return;
       if (!gs.shields.some((s) => s.pieceId === tp.id))
         gs.shields.push({
@@ -754,7 +783,7 @@ export const ABILITIES = {
         ABILITY_VALUES.VolatileCinder.range
       )
         return false;
-      const tp = getPieceAt(t.r, t.c, gs.boardMap);
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
       return (
         tp &&
         tp.team !== p.team &&
@@ -762,9 +791,12 @@ export const ABILITIES = {
       );
     },
     effect: (p, t, gs) => {
-      const tp = getPieceAt(t.r, t.c, gs.boardMap);
-      if (tp)
-        tp.power = Math.max(0, tp.power - ABILITY_VALUES.VolatileCinder.damage);
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
+      if (tp) {
+        const dmg = ABILITY_VALUES.VolatileCinder.damage;
+        tp.power = Math.max(0, tp.power - dmg);
+        if (typeof tp.currentHp === "number") tp.currentHp = Math.max(0, tp.currentHp - dmg);
+      }
     }
   },
   SoulfireBurst: {
@@ -783,14 +815,14 @@ export const ABILITIES = {
     effect: (p, t, gs) => {
       const gr = gs.unstableGrounds.find((g) => g.row === t.r && g.col === t.c);
       if (!gr) return;
+      const dmg = ABILITY_VALUES.SoulfireBurst.damage;
       for (let dr = -1; dr <= 1; dr++)
         for (let dc = -1; dc <= 1; dc++) {
-          const tp = getPieceAt(t.r + dr, t.c + dc, gs.boardMap);
-          if (tp)
-            tp.power = Math.max(
-              0,
-              tp.power - ABILITY_VALUES.SoulfireBurst.damage
-            );
+          const tp = getPieceAt(t.r + dr, t.c + dc, gs.pieces);
+          if (tp) {
+            tp.power = Math.max(0, tp.power - dmg);
+            if (typeof tp.currentHp === "number") tp.currentHp = Math.max(0, tp.currentHp - dmg);
+          }
         }
       gs.unstableGrounds = gs.unstableGrounds.filter((g) => g !== gr);
     }
@@ -810,7 +842,7 @@ export const ABILITIES = {
     range: 1,
     targetType: "friendly",
     effect: (p, t, gs) => {
-      const tp = getPieceAt(t.r, t.c, gs.boardMap);
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
       if (tp) {
         tp.isDazed = false;
         tp.dazedFor = 0;
@@ -833,6 +865,7 @@ export const PIECE_TYPES = {
   ashAshStrider: {
     name: "Ash Strider",
     power: 1,
+    stats: { hp: 6, def: 1, strength: 2, range: 1, agility: 4, control: 0.1 },
     ability: { name: "Scorched Retreat", key: "ScorchedRetreat" },
     veteranAbility: {
       key: "TacticalSwapAsh",
@@ -841,12 +874,14 @@ export const PIECE_TYPES = {
   },
   ashAshTyrant: {
     name: "Ash Tyrant",
-    power: 4,
+    power: 5,
+    stats: { hp: 12, def: 3, strength: 5, range: 2, agility: 2, control: 0.1 },
     ability: { name: "Tyrant's Proclamation", key: "TyrantsProclamation" }
   },
   ashBlazeboundBeast: {
     name: "Blazebound Beast",
-    power: 2,
+    power: 3,
+    stats: { hp: 10, def: 3, strength: 3, range: 1, agility: 3, control: 0.1 },
     ability: { name: "Hunter's Rage", key: "HuntersRage" },
     veteranAbility: {
       key: "BlazeLunge",
@@ -855,7 +890,8 @@ export const PIECE_TYPES = {
   },
   ashCinderScout: {
     name: "Cinder Scout",
-    power: 1,
+    power: 2,
+    stats: { hp: 6, def: 1, strength: 2, range: 1, agility: 4, control: 0.1 },
     ability: { name: "Kindle Armor", key: "KindleArmor" },
     veteranAbility: {
       key: "CinderSurge",
@@ -864,13 +900,15 @@ export const PIECE_TYPES = {
   },
   ashMagmaProwler: {
     name: "Magma Prowler",
-    power: 2,
+    power: 3,
+    stats: { hp: 8, def: 2, strength: 3, range: 1, agility: 3, control: 0.1 },
     ability: { name: "Frenzied Dash", key: "FrenziedDash" },
     veteranAbility: { key: "SiphonCharge", isPermanentUpgrade: true }
   },
   ashMagmaSpitter: {
     name: "Magma Spitter",
-    power: 3,
+    power: 5,
+    stats: { hp: 6, def: 0, strength: 5, range: 4, agility: 2, control: 0.1 },
     ability: { name: "Lava Glob", key: "LavaGlob" },
     veteranAbility: {
       key: "VolatileCinder",
@@ -879,7 +917,8 @@ export const PIECE_TYPES = {
   },
   ashObsidianShaper: {
     name: "Obsidian Shaper",
-    power: 1,
+    power: 2,
+    stats: { hp: 7, def: 1, strength: 2, range: 2, agility: 2, control: 0.1 },
     ability: { name: "Magma Shield", key: "MagmaShield" },
     veteranAbility: {
       key: "EruptionLink",
@@ -888,7 +927,8 @@ export const PIECE_TYPES = {
   },
   ashRiftForger: {
     name: "Rift Forger",
-    power: 1,
+    power: 2,
+    stats: { hp: 7, def: 1, strength: 2, range: 2, agility: 2, control: 0.1 },
     ability: { name: "Unstable Ground", key: "UnstableGround" },
     veteranAbility: {
       key: "VolatileForge",
@@ -899,11 +939,13 @@ export const PIECE_TYPES = {
   ashRiftWarden: {
     name: "Rift Warden",
     power: 3,
+    stats: { hp: 8, def: 2, strength: 3, range: 3, agility: 2, control: 0.1 },
     ability: { name: "Void Tether", key: "Siphon" }
   },
   ashScorchPriest: {
     name: "Scorch Priest",
     power: 2,
+    stats: { hp: 7, def: 1, strength: 2, range: 2, agility: 2, control: 0.1 },
     ability: { name: "Mark of Cinder", key: "MarkOfCinder" },
     veteranAbility: {
       key: "SoulfireBurst",
@@ -912,7 +954,8 @@ export const PIECE_TYPES = {
   },
   snowArcticTrapper: {
     name: "Arctic Trapper",
-    power: 1,
+    power: 2,
+    stats: { hp: 6, def: 1, strength: 2, range: 1, agility: 4, control: 0.1 },
     ability: { name: "Set Snare", key: "SetSnare" },
     veteranAbility: {
       key: "DistractingRoar",
@@ -921,7 +964,8 @@ export const PIECE_TYPES = {
   },
   snowCryomancer: {
     name: "Cryomancer",
-    power: 3,
+    power: 5,
+    stats: { hp: 6, def: 0, strength: 5, range: 4, agility: 2, control: 0.1 },
     ability: { name: "Summon Ice Wisp", key: "SummonIceWisp" },
     veteranAbility: {
       key: "WispEnhancement",
@@ -931,7 +975,8 @@ export const PIECE_TYPES = {
   },
   snowFrostbiteStalker: {
     name: "Frostbite Stalker",
-    power: 1,
+    power: 2,
+    stats: { hp: 6, def: 1, strength: 2, range: 1, agility: 4, control: 0.1 },
     ability: { name: "Hamstring", key: "Hamstring" },
     veteranAbility: {
       key: "IcyShift",
@@ -940,12 +985,19 @@ export const PIECE_TYPES = {
   },
   snowFrostLord: {
     name: "Frost Lord",
-    power: 4,
-    ability: { name: "King's Edict", key: "KingsEdict" }
+    power: 5,
+    stats: { hp: 12, def: 3, strength: 5, range: 1.5, agility: 2, control: 1.3 },
+    ability: { name: "Spike Rain", key: "SpikeRain" },
+    veteranAbility: {
+      key: "HelpFromAbove",
+      cooldown: ABILITY_VALUES.HelpFromAbove.cooldown,
+      isPassive: true
+    }
   },
   snowGlacialBrute: {
     name: "Glacial Brute",
-    power: 2,
+    power: 3,
+    stats: { hp: 10, def: 3, strength: 3, range: 1, agility: 3, control: 0.1 },
     ability: { name: "Frost Armor", key: "FrostArmor" },
     veteranAbility: {
       key: "FrostStomp",
@@ -954,7 +1006,8 @@ export const PIECE_TYPES = {
   },
   snowHoarfrostMystic: {
     name: "Hoarfrost Mystic",
-    power: 1,
+    power: 2,
+    stats: { hp: 7, def: 1, strength: 2, range: 2, agility: 2, control: 0.1 },
     ability: { name: "Frigid Path", key: "FrigidPath" },
     veteranAbility: {
       key: "GlacialBeacon",
@@ -963,7 +1016,8 @@ export const PIECE_TYPES = {
   },
   snowIceWeaver: {
     name: "Ice Weaver",
-    power: 1,
+    power: 2,
+    stats: { hp: 7, def: 1, strength: 2, range: 2, agility: 2, control: 0.1 },
     ability: { name: "Glacial Wall", key: "GlacialWall" },
     veteranAbility: {
       key: "GlacialFortress",
@@ -971,10 +1025,15 @@ export const PIECE_TYPES = {
       isPassive: true
     }
   },
-  snowIceWisp: { name: "Ice Wisp", power: 0 },
+  snowIceWisp: {
+    name: "Ice Wisp",
+    power: 0,
+    stats: { hp: 2, def: 0, strength: 0, range: 1, agility: 2, control: 0.1 }
+  },
   snowRampagingYeti: {
     name: "Rampaging Yeti",
-    power: 2,
+    power: 3,
+    stats: { hp: 10, def: 3, strength: 3, range: 1, agility: 3, control: 0.1 },
     ability: { name: "Pummel", key: "Pummel" },
     veteranAbility: {
       key: "HardenedIce",
@@ -984,6 +1043,7 @@ export const PIECE_TYPES = {
   snowSoulFreeze: {
     name: "Soul Freeze",
     power: 2,
+    stats: { hp: 8, def: 2, strength: 3, range: 3, agility: 2, control: 0.1 },
     ability: { name: "Chilling Aura", key: "ChillingAura" },
     veteranAbility: {
       key: "FrostbiteCurse",
@@ -993,6 +1053,7 @@ export const PIECE_TYPES = {
   snowVoidChanter: {
     name: "Void Chanter",
     power: 3,
+    stats: { hp: 8, def: 2, strength: 3, range: 3, agility: 2, control: 0.1 },
     ability: { name: "Void Tether", key: "Siphon" }
   }
 };

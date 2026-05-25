@@ -313,6 +313,9 @@ window.handleStartReset = function () {
         if (isLocal) {
             gameState.gameStarted = true;
             try { UI.startTimer(gameState); } catch (e) { }
+            updateControlButtons();
+            UI.renderBoard(gameState);
+            UI.drawLabels(gameState);
             if (vsAI) setTimeout(checkAITurn, 0);
         } else {
             socket.emit('gameAction', { roomId, actionType: 'START_GAME', data: {} });
@@ -322,6 +325,7 @@ window.handleStartReset = function () {
             try {
                 Logic.resetGame();
                 gameState = Logic.getGameState();
+                try { UI.clearMessageLog(); } catch (e) {}
                 attachImagesToState();
                 Effects.initParticles(gameState);
                 UI.resetTimers(gameState);
@@ -401,7 +405,7 @@ function setupCanvas() {
 
     // ====== UPDATE: Fix Piece Hover Popup Position & Tracking ======
     if (canvas && piecePopup) {
-        canvas.addEventListener('mousemove', (e) => {
+    canvas.addEventListener('mousemove', (e) => {
             if (!gameState) { piecePopup.style.display = 'none'; return; }
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
@@ -419,7 +423,7 @@ function setupCanvas() {
                 row = C.ROWS - 1 - row;
             }
 
-            const hoverPiece = C.getPieceAt(row, col, gameState.boardMap);
+            const hoverPiece = C.getPieceAt(row, col, gameState.pieces);
             if (!hoverPiece) { piecePopup.style.display = 'none'; return; }
 
             try {
@@ -427,6 +431,34 @@ function setupCanvas() {
                 infoHtml = infoHtml.replace(/stary/gi, '');
                 infoHtml = infoHtml.replace(/★|\*/g, '');
                 infoHtml = infoHtml.replace(/\n{2,}/g, '\n').trim();
+
+                // === TACTICAL PREDICTOR ===
+                // Show predicted damage when hovering an enemy while a friendly is selected
+                const sel = gameState.selectedPiece;
+                if (
+                    sel &&
+                    sel.team !== hoverPiece.team &&
+                    typeof E.previewDamage === 'function'
+                ) {
+                    try {
+                        const preview = E.previewDamage(sel, hoverPiece, gameState);
+                        const hpNow = typeof hoverPiece.currentHp === 'number' ? hoverPiece.currentHp : (hoverPiece.maxHp || '?');
+                        const hpMax = hoverPiece.maxHp || hpNow;
+                        let predHtml = `<div id="tacticalPredictor">`;
+                        predHtml += `<div>⚔ ${C.PIECE_TYPES[sel.key]?.name || sel.key} → ${C.PIECE_TYPES[hoverPiece.key]?.name || hoverPiece.key}</div>`;
+                        predHtml += `<div>HP: ${hpNow}/${hpMax} &nbsp;|&nbsp; `;
+                        predHtml += `DMG: <span class="pred-dmg">-${preview.dmg}</span></div>`;
+                        if (preview.isFatal) {
+                            predHtml += `<div class="pred-fatal">☠ LETHAL STRIKE</div>`;
+                        } else {
+                            const hpAfter = Math.max(0, hpNow - preview.dmg);
+                            predHtml += `<div>Remaining HP: <span class="pred-chip">${hpAfter}</span></div>`;
+                        }
+                        predHtml += `</div>`;
+                        infoHtml += predHtml;
+                    } catch (predErr) { /* non-fatal */ }
+                }
+
                 piecePopup.innerHTML = infoHtml;
             } catch (e) {
                 piecePopup.textContent = hoverPiece.name || '';
@@ -455,6 +487,7 @@ function setupCanvas() {
             piecePopup.style.top = finalTop + 'px';
         });
         canvas.addEventListener('mouseleave', () => { piecePopup.style.display = 'none'; });
+
     }
 
     // Improved Selection Handler for Mobile & Desktop
@@ -474,15 +507,19 @@ function setupCanvas() {
 
         let col = Math.floor(x / C.CELL_SIZE);
         let row = Math.floor(y / C.CELL_SIZE);
+        let decimalCol = x / C.CELL_SIZE;
+        let decimalRow = y / C.CELL_SIZE;
         // Account for rotated view for Ash in multiplayer
         if (!isLocal && myTeam === 'ash') {
             col = C.COLS - 1 - col;
             row = C.ROWS - 1 - row;
+            decimalCol = C.COLS - decimalCol;
+            decimalRow = C.ROWS - decimalRow;
         }
 
         // Prevent selecting units before the game has started
         if (!gameState.gameStarted) {
-            const clickedPiece = C.getPieceAt(row, col, gameState.boardMap);
+            const clickedPiece = C.getPieceAt(row, col, gameState.pieces);
             if (clickedPiece) {
                 try { UI.showFlashMessage('Start the game to select units', null, gameState); } catch (err) { }
             }
@@ -496,7 +533,7 @@ function setupCanvas() {
             return;
         }
 
-        const clickedPiece = C.getPieceAt(row, col, gameState.boardMap);
+        const clickedPiece = C.getPieceAt(row, col, gameState.pieces);
         const allowedSelectTeam = isLocal
             ? gameState.currentTurn
             : (gameState.currentTurn === myTeam ? myTeam : null);
@@ -514,13 +551,31 @@ function setupCanvas() {
 
         // If no piece clicked but a piece is selected, check for move
         if (gameState.selectedPiece) {
-            const move = (gameState.validMoves || []).find(m => (m.r === row || m.row === row) && (m.c === col || m.col === col));
-            if (move) {
-                executeMove(gameState.selectedPiece, row, col);
+            const dx = decimalCol - gameState.selectedPiece.col;
+            const dy = decimalRow - gameState.selectedPiece.row;
+            const dist = Math.hypot(dx, dy);
+            const agility = gameState.selectedPiece.agility || 2;
+
+            if (clickedPiece && clickedPiece.team === allowedSelectTeam) {
+                // Clicked another of our own pieces: switch selection directly!
+                window.sendAction('SELECT_PIECE', { pieceId: clickedPiece.id });
+                try { gameState.selectedPiece = clickedPiece; } catch (e) { }
+                try { gameState.validMoves = []; } catch (e) { }
+                try { updateMobileDrawer(clickedPiece); } catch (e) { }
+                try { UI.drawLabels(gameState); UI.renderBoard(gameState); } catch (e) { }
+                return;
+            } else if (dist <= agility) {
+                const targetRow = clickedPiece ? clickedPiece.row : decimalRow;
+                const targetCol = clickedPiece ? clickedPiece.col : decimalCol;
+                executeMove(gameState.selectedPiece, targetRow, targetCol);
+                deselectPiece();
+                try { UI.drawLabels(gameState); UI.renderBoard(gameState); } catch (e) { }
+                return;
+            } else {
+                deselectPiece();
+                try { UI.drawLabels(gameState); UI.renderBoard(gameState); } catch (e) { }
+                return;
             }
-            deselectPiece();
-            try { UI.drawLabels(gameState); UI.renderBoard(gameState); } catch (e) { }
-            return;
         }
 
         // Otherwise ensure nothing is selected
@@ -596,7 +651,7 @@ function setupCanvas() {
 
             clearTimeout(touchTimer);
             touchTimer = setTimeout(() => {
-                const piece = C.getPieceAt(row, col, gameState.boardMap);
+                const piece = C.getPieceAt(row, col, gameState.pieces);
                 if (piece) setGhost(piece);
                 if (window.navigator.vibrate) window.navigator.vibrate(20);
             }, LONG_PRESS_DURATION);
@@ -644,6 +699,8 @@ function processServerEvents(events) {
             case 'RESET_GAME':
                 try { UI.resetTimers(gameState); } catch (e) { }
                 try { Effects.initParticles(gameState); } catch (e) { }
+                try { UI.clearVisualStates(); } catch (e) { }
+                try { UI.clearMessageLog(); } catch (e) { }
                 break;
         }
     });
@@ -715,7 +772,7 @@ function calculateValidMoves(piece) {
             if (dr === 0 && dc === 0) continue;
             const nr = piece.row + dr;
             const nc = piece.col + dc;
-            if (C.inBounds(nr, nc) && !C.getPieceAt(nr, nc, gameState.boardMap)) moves.push({ r: nr, c: nc });
+            if (C.inBounds(nr, nc) && !C.getPieceAt(nr, nc, gameState.pieces)) moves.push({ r: nr, c: nc });
         }
     }
     return moves;
@@ -948,16 +1005,36 @@ export function applyActionLogic(actionType, data, gs) {
             break;
         case 'MOVE':
             const mp = find(data.pieceId);
-            if (mp) turnEnded = Logic.movePiece(mp, data.r, data.c, data.isHighway);
+            if (mp) {
+                // Trigger lunge & screenshake if this move is a capture attack
+                const defender = C.getPieceAt(data.r, data.c, gs.pieces);
+                if (defender && defender.team !== mp.team) {
+                    try {
+                        UI.triggerLunge(mp.id, data.r, data.c);
+                        UI.triggerScreenshake(10, 150);
+                        // Trigger dissolve early if the hit will be lethal
+                        const preview = E.previewDamage(mp, defender, gs);
+                        if (preview.isFatal) {
+                            UI.triggerPieceDissolve(defender);
+                            UI.triggerScreenshake(18, 220);
+                        }
+                    } catch (e) {}
+                }
+                turnEnded = Logic.movePiece(mp, data.r, data.c, data.isHighway);
+            }
             break;
+
         case 'ABILITY':
             const cp = find(data.pieceId);
             if (cp) {
-                // FIX: Only execute if a target coordinate is explicitly provided
+                // Target-based ability casting triggers pulse & impact shake
                 if (data.target) {
+                    try {
+                        UI.triggerPulse(cp.id);
+                        UI.triggerScreenshake(14, 200);
+                    } catch (e) {}
                     turnEnded = Logic.executeAbility(cp, data.target, data.abilityKey, gs);
                 } else {
-                    // Otherwise, activate it (which safely enters targeting mode)
                     turnEnded = Logic.activateAbility(cp, data.abilityKey || data.unleashCostOrKey || 0);
                 }
             }
@@ -966,7 +1043,16 @@ export function applyActionLogic(actionType, data, gs) {
         case 'SWITCH_TURN': turnEnded = true; break;
         case 'ASCENSION_CHOICE': turnEnded = Logic.executeAscensionChoice(data.choice); break;
         case 'CANCEL_ASCENSION': Logic.cancelAscensionChoice(); break;
-        case 'VENT_OVERLOAD': turnEnded = Logic.ventOverload(find(data.pieceId)); break;
+        case 'VENT_OVERLOAD':
+            const vp = find(data.pieceId);
+            if (vp) {
+                try {
+                    UI.triggerPulse(vp.id);
+                    UI.triggerScreenshake(16, 220);
+                } catch (e) {}
+            }
+            turnEnded = Logic.ventOverload(vp);
+            break;
         case 'SACRIFICE': turnEnded = Logic.executeSacrifice(find(data.pieceId)); break;
         case 'RELEASE': turnEnded = Logic.executeRelease(find(data.pieceId)); break;
         case 'START_TETHER':
@@ -975,7 +1061,16 @@ export function applyActionLogic(actionType, data, gs) {
             Logic.setCurrentState(Logic.GameState.TETHER_TARGETING);
             Logic.emit(gs, { type: 'FLASH', message: `Select target for ${data.mode}`, team: tp.team });
             break;
-        case 'RIFT_PULSE': turnEnded = Logic.executeRiftPulse(find(data.pieceId)); break;
+        case 'RIFT_PULSE':
+            const rp = find(data.pieceId);
+            if (rp) {
+                try {
+                    UI.triggerPulse(rp.id);
+                    UI.triggerScreenshake(12, 180);
+                } catch (e) {}
+            }
+            turnEnded = Logic.executeRiftPulse(rp);
+            break;
         case 'DESPAWN': Logic.despawnPiece(find(data.pieceId)); turnEnded = true; break;
         case 'TIMEOUT':
             Logic.endGame(data.team === 'snow' ? 'ash' : 'snow');
@@ -1010,56 +1105,7 @@ function processLocalAction(actionType, data) {
 // ============================================================================
 // Draw faction ley-lines (borders between captured territory)
 function drawLeyLines(ctx, gs) {
-    ctx.save();
-    ctx.lineWidth = 4;
-    ctx.lineCap = 'round';
-
-    if (!gs) { ctx.restore(); return; }
-
-    // Loop through board tiles
-    for (let r = 0; r < C.ROWS; r++) {
-        for (let c = 0; c < C.COLS; c++) {
-            const pos = `${r},${c}`;
-            const owner = (gs.snowTerritory && gs.snowTerritory.has(pos)) ? 'snow' : ((gs.ashTerritory && gs.ashTerritory.has(pos)) ? 'ash' : null);
-            if (!owner) continue;
-
-            // Define the tile boundaries
-            const x = c * C.CELL_SIZE;
-            const y = r * C.CELL_SIZE;
-
-            // Check neighbors (Right and Bottom) to draw borders
-            const neighbors = [{ nr: r, nc: c + 1, side: 'right' }, { nr: r + 1, nc: c, side: 'bottom' }];
-            neighbors.forEach(({ nr, nc, side }) => {
-                if (!C.inBounds(nr, nc)) return;
-                const nPos = `${nr},${nc}`;
-                const nOwner = (gs.snowTerritory && gs.snowTerritory.has(nPos)) ? 'snow' : ((gs.ashTerritory && gs.ashTerritory.has(nPos)) ? 'ash' : null);
-
-                // Draw line if owners are different (Faction Border)
-                if (owner !== nOwner) {
-                    ctx.beginPath();
-                    const color = owner === 'snow' ? '#00BFFF' : '#FF4500';
-                    ctx.strokeStyle = color;
-                    ctx.shadowBlur = 10;
-                    ctx.shadowColor = color;
-
-                    // Add a small margin so lines don't touch tile corners
-                    const pad = Math.max(6, Math.floor(C.CELL_SIZE * 0.06));
-                    if (side === 'right') {
-                        ctx.moveTo(x + C.CELL_SIZE, y + pad);
-                        ctx.lineTo(x + C.CELL_SIZE, y + C.CELL_SIZE - pad);
-                    } else {
-                        ctx.moveTo(x + pad, y + C.CELL_SIZE);
-                        ctx.lineTo(x + C.CELL_SIZE - pad, y + C.CELL_SIZE);
-                    }
-                    ctx.stroke();
-                }
-            });
-        }
-    }
-
-    // Reset shadow for performance
-    ctx.shadowBlur = 0;
-    ctx.restore();
+    // Disabled at user request to remove borders connecting the territory
 }
 // Draw a subtle ghost overlay showing a unit's possible moves / threat area
 function drawGhostOverlay(ctx, gs) {
@@ -1080,20 +1126,21 @@ function drawGhostOverlay(ctx, gs) {
 
     moves.forEach(m => {
         if (!C.inBounds(m.row, m.col)) return;
-        const x = m.col * C.CELL_SIZE;
-        const y = m.row * C.CELL_SIZE;
-        // Draw rounded rect — approximate with a filled rect and a stroked border
-        ctx.fillRect(x + 4, y + 4, C.CELL_SIZE - 8, C.CELL_SIZE - 8);
-        ctx.strokeRect(x + 4, y + 4, C.CELL_SIZE - 8, C.CELL_SIZE - 8);
+        const cx = m.col * C.CELL_SIZE + C.CELL_SIZE / 2;
+        const cy = m.row * C.CELL_SIZE + C.CELL_SIZE / 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, C.CELL_SIZE / 2.3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
     });
 
     // Also highlight the piece's current tile with a stronger ring
-    const px = piece.col * C.CELL_SIZE;
-    const py = piece.row * C.CELL_SIZE;
+    const cpx = piece.col * C.CELL_SIZE + C.CELL_SIZE / 2;
+    const cpy = piece.row * C.CELL_SIZE + C.CELL_SIZE / 2;
     ctx.beginPath();
     ctx.strokeStyle = stroke;
     ctx.lineWidth = 3;
-    ctx.rect(px + 6, py + 6, C.CELL_SIZE - 12, C.CELL_SIZE - 12);
+    ctx.arc(cpx, cpy, C.CELL_SIZE / 2.1, 0, Math.PI * 2);
     ctx.stroke();
 
     ctx.restore();
@@ -1110,9 +1157,24 @@ function clearGhost() {
     delete gameState.ghostPieceId;
     delete gameState.ghostMoves;
 }
-function animationLoop() {
+let lastAnimTime = performance.now();
+function animationLoop(time) {
+    if (!time) time = performance.now();
+    let dt = time - lastAnimTime;
+    if (dt > 100) dt = 16.67; // Cap dt to prevent massive jumps if tab is inactive
+    lastAnimTime = time;
+
     if (!gameState) { requestAnimationFrame(animationLoop); return; }
+    
+    // Update the visual states of all active and dying pieces
+    try { UI.updateVisualStates(gameState, dt); } catch (e) { }
+
     ctx.clearRect(0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
+    
+    // Save state to apply global impact screenshake
+    ctx.save();
+    try { UI.applyScreenshake(ctx); } catch (e) { }
+
     let didTransform = false;
     if (gameState.playerTeam === 'ash') {
         ctx.save();
@@ -1128,22 +1190,55 @@ function animationLoop() {
     try { drawLeyLines(ctx, gameState); } catch (e) { /* non-fatal */ }
     // Draw ghost overlay (from long-press peek) above ley-lines but under particles/pieces
     try { drawGhostOverlay(ctx, gameState); } catch (e) { /* non-fatal */ }
-    // Draw valid-move highlights for the currently selected piece (mobile drawer / quick-preview)
+    // Draw valid-move highlights for the currently selected piece as a premium glowing range circle
     try {
-        if (gameState && gameState.validMoves && gameState.selectedPiece) {
+        if (gameState && gameState.selectedPiece) {
+            const piece = gameState.selectedPiece;
+            const moveRadius = E.getPieceMoveRadius(piece);
+            const vis = UI.getPieceVisualState(piece);
+            const cx = vis.x + C.CELL_SIZE / 2 + (vis.offsetX || 0) + (vis.lungeDx || 0);
+            const cy = vis.y + C.CELL_SIZE / 2 + (vis.offsetY || 0) + (vis.lungeDy || 0);
+            const color = piece.team === 'snow' ? '#00BFFF' : '#FF4500';
+            const radiusPx = moveRadius * C.CELL_SIZE;
+
             ctx.save();
-            ctx.globalAlpha = 0.4;
-            const team = gameState.selectedPiece.team || gameState.playerTeam || 'snow';
-            ctx.fillStyle = team === 'snow' ? '#00BFFF' : '#FF4500';
-            for (const move of gameState.validMoves) {
-                const rr = move.r ?? move.row ?? 0;
-                const cc = move.c ?? move.col ?? 0;
-                const cx = cc * C.CELL_SIZE + C.CELL_SIZE / 2;
-                const cy = rr * C.CELL_SIZE + C.CELL_SIZE / 2;
-                ctx.beginPath();
-                ctx.arc(cx, cy, C.CELL_SIZE / 4, 0, Math.PI * 2);
-                ctx.fill();
+            ctx.globalCompositeOperation = 'lighter';
+            
+            // 1. Soft glowing fill
+            const fillGrad = ctx.createRadialGradient(cx, cy, radiusPx * 0.4, cx, cy, radiusPx);
+            if (piece.team === 'snow') {
+                fillGrad.addColorStop(0, 'rgba(0, 191, 255, 0.08)');
+                fillGrad.addColorStop(0.8, 'rgba(0, 191, 255, 0.03)');
+                fillGrad.addColorStop(1, 'rgba(0, 191, 255, 0.0)');
+            } else {
+                fillGrad.addColorStop(0, 'rgba(255, 69, 0, 0.08)');
+                fillGrad.addColorStop(0.8, 'rgba(255, 69, 0, 0.03)');
+                fillGrad.addColorStop(1, 'rgba(255, 69, 0, 0.0)');
             }
+            ctx.beginPath();
+            ctx.arc(cx, cy, radiusPx, 0, Math.PI * 2);
+            ctx.fillStyle = fillGrad;
+            ctx.fill();
+
+            // 2. Neon stroke with breathing shadow blur
+            const pulse = 10 + Math.sin(Date.now() / 250) * 4; // breathing shadow
+            ctx.strokeStyle = piece.team === 'snow' ? 'rgba(0, 191, 255, 0.85)' : 'rgba(255, 69, 0, 0.85)';
+            ctx.lineWidth = 3.5;
+            ctx.shadowColor = color;
+            ctx.shadowBlur = pulse;
+            ctx.beginPath();
+            ctx.arc(cx, cy, radiusPx, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // 3. Draw a subtle dashed ring slightly outside to add strategic grid-free visual depth!
+            ctx.strokeStyle = piece.team === 'snow' ? 'rgba(0, 191, 255, 0.35)' : 'rgba(255, 69, 0, 0.35)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([6, 8]);
+            ctx.shadowBlur = 0;
+            ctx.beginPath();
+            ctx.arc(cx, cy, radiusPx + 6, 0, Math.PI * 2);
+            ctx.stroke();
+            
             ctx.restore();
         }
     } catch (e) { /* non-fatal */ }
@@ -1181,6 +1276,9 @@ function animationLoop() {
         });
     }
 
+    // Draw dying pieces (captured pieces performing dissolve animation)
+    try { UI.drawDyingPieces(ctx, gameState); } catch (e) { }
+
     // FIX: Draw ALL dynamic animations (Many were missing here)
     if (Effects.drawFrenziedDashAnimations) Effects.drawFrenziedDashAnimations(gameState);
     if (Effects.drawSummonWispAnimations) Effects.drawSummonWispAnimations(gameState);
@@ -1202,6 +1300,9 @@ function animationLoop() {
     }
     // Restore the transform if one was applied
     if (didTransform) ctx.restore();
+
+    // Restore the global screenshake save
+    ctx.restore();
 
     // Sync mobile timers directly from gameState object to bypass ui.js missing the IDs
     if (gameState && gameState.timers) {
@@ -1227,3 +1328,33 @@ try {
         });
     }
 } catch (e) { }
+
+// ============================================================================
+// RESPONSIVE SCALING (Fit to Laptop Screen)
+// ============================================================================
+function scaleGame() {
+    const wrapper = document.getElementById('game-wrapper');
+    if (!wrapper) return;
+    
+    // Ignore mobile view scaling which is handled by CSS media queries
+    if (window.innerWidth <= 1024) {
+        wrapper.style.transform = 'none';
+        return;
+    }
+    
+    const baseWidth = 1460;
+    const baseHeight = 1020;
+    const padding = 20;
+    
+    const winWidth = window.innerWidth - padding;
+    const winHeight = window.innerHeight - padding;
+    
+    let scale = Math.min(winWidth / baseWidth, winHeight / baseHeight);
+    if (scale > 1) scale = 1; 
+    
+    wrapper.style.transform = `scale(${scale})`;
+}
+
+window.addEventListener('resize', scaleGame);
+window.addEventListener('DOMContentLoaded', scaleGame);
+scaleGame();

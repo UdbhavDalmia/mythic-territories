@@ -1,5 +1,5 @@
 import * as C from "./constants.js";
-import { updateBoardMap, isCaptureSuccessful, getValidMoves } from "./utils.js";
+import { updateBoardMap, isCaptureSuccessful, getValidMoves, dealDamage, previewDamage, getPieceMoveRadius } from "./utils.js";
 import { executeAscensionChoice as _executeAscensionLogic } from "./ascension.js";
 
 let gameState = {};
@@ -78,6 +78,7 @@ export function checkSpecialTerrains(p, r, c, gs) {
 function ensureSets(gs) {
   if (Array.isArray(gs.snowTerritory)) gs.snowTerritory = new Set(gs.snowTerritory);
   if (Array.isArray(gs.ashTerritory)) gs.ashTerritory = new Set(gs.ashTerritory);
+  if (!gs.territoryTrails) gs.territoryTrails = [];
 }
 
 // Reverts power changes from a single tether object
@@ -144,6 +145,8 @@ export function handlePieceCapture(capturedPiece, attacker, gs) {
   if (capturedPiece.key.includes("Lord") || capturedPiece.key.includes("Tyrant")) {
     endGame(attacker ? attacker.team : (capturedPiece.team === "snow" ? "ash" : "snow"));
   }
+  
+  flash(`${C.PIECE_TYPES[capturedPiece.key]?.name || 'Unit'} was captured!`, attacker ? attacker.team : 'neutral', gs);
 }
 
 // ============================================================================
@@ -292,7 +295,7 @@ export function executeAbility(
     const targetPiece = C.getPieceAt(
       target.r,
       target.c,
-      gameStateLocal.boardMap
+      gameStateLocal.pieces
     );
     if (!targetPiece) return false;
     const pieceRow = piece.row,
@@ -322,7 +325,7 @@ export function executeAbility(
     c: p.col
   }));
 
-  const targetPiece = target ? C.getPieceAt(target.r, target.c, gameStateLocal.boardMap) : null;
+  const targetPiece = target ? C.getPieceAt(target.r, target.c, gameStateLocal.pieces) : null;
   let blocked = false;
 
   // 1. DEFENSIVE CHECKS
@@ -431,7 +434,7 @@ export function handleAbilityClick(row, col) {
 
   if (isState(GameState.TETHER_TARGETING)) {
     const { siphoner, mode, allyTarget } = gameState.abilityContext;
-    const targetPiece = C.getPieceAt(row, col, gameState.boardMap);
+    const targetPiece = C.getPieceAt(row, col, gameState.pieces);
 
     if (mode === "resonance") {
       if (!allyTarget) {
@@ -498,7 +501,7 @@ export function handleAbilityClick(row, col) {
 
 function handleGlacialWall(row, col) {
   const piece = gameState.selectedPiece;
-  const targetPiece = C.getPieceAt(row, col, gameState.boardMap);
+  const targetPiece = C.getPieceAt(row, col, gameState.pieces);
   const isVeteranFortress = piece.ability?.isVeteranFortress;
 
   if (isState(GameState.WALL_PLACEMENT_FIRST)) {
@@ -574,7 +577,7 @@ function handleGlacialWall(row, col) {
               r3 < C.ROWS &&
               c3 >= 0 &&
               c3 < C.COLS &&
-              !C.getPieceAt(r3, c3, gameState.boardMap) &&
+              !C.getPieceAt(r3, c3, gameState.pieces) &&
               !gameState.glacialWalls.some(
                 (w) => w.row === r3 && w.col === c3
               ) &&
@@ -613,7 +616,7 @@ function handleGlacialWall(row, col) {
 function isTargetValid(piece, target, ability, gameStateLocal) {
   if (!target) return !ability?.requiresTargeting;
   const { r, c } = target;
-  const targetPiece = C.getPieceAt(r, c, gameStateLocal.boardMap);
+  const targetPiece = C.getPieceAt(r, c, gameStateLocal.pieces);
   const distance = Math.max(Math.abs(piece.row - r), Math.abs(piece.col - c));
   if (ability.range > 0 && distance > ability.range) return false;
   if (targetPiece?.hasDefensiveWard && ability.canBeBlocked) return false;
@@ -659,14 +662,26 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
     return false;
 
   ensureSets(gameState);
-  const validMoves = getValidMoves(piece, gameState);
-  const move = validMoves.find(
-    (m) => m.row === targetRow && m.col === targetCol
-  );
-  if (!move && !isHighwayMove) return false;
 
-  const isActualHighway =
-    isHighwayMove || (move && (move.isHighway || move.isIcyHighway));
+  const startRow = piece.row;
+  const startCol = piece.col;
+
+  // 1. Exact grid check for defender
+  const defender = C.getPieceAt(targetRow, targetCol, gameState.pieces);
+
+  let finalTargetCol = targetCol;
+  let finalTargetRow = targetRow;
+
+  if (defender && defender.team !== piece.team) {
+    finalTargetCol = defender.col;
+    finalTargetRow = defender.row;
+  }
+
+  // Assign back to targetRow/targetCol so all subsequent logic behaves perfectly!
+  targetRow = finalTargetRow;
+  targetCol = finalTargetCol;
+
+  const isActualHighway = isHighwayMove;
   let addedBoost = false;
 
   const actionTaken = () => {
@@ -687,9 +702,8 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
     addedBoost = true;
   }
 
-  const defender = C.getPieceAt(targetRow, targetCol, gameState.boardMap);
   const isMovingToShrine = C.SHAPES.shrineArea.some(
-    ([r, c]) => r === targetRow && c === targetCol
+    ([r, c]) => Math.hypot(c - targetCol, r - targetRow) <= 0.5
   );
 
   if (isMovingToShrine && gameState.shrineIsOverloaded) {
@@ -735,7 +749,10 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
       if (gameState.factionPassives[piece.team].ascension.HitAndRun)
         piece.isEntrenched = true;
 
-      if (!piece.isVeteran && ++piece.vanquishes >= 2) promoteToVeteran(piece);
+      if (piece.readyForVeteranPromotion) {
+        piece.readyForVeteranPromotion = false;
+        promoteToVeteran(piece);
+      }
       if (isMovingToShrine) handleShrineCapture(piece, defender);
 
       updatePiecePosition(piece, targetRow, targetCol);
@@ -750,7 +767,10 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
     } else {
       return false;
     }
-  } else updatePiecePosition(piece, targetRow, targetCol);
+  } else {
+    updatePiecePosition(piece, targetRow, targetCol);
+    flash(`${C.PIECE_TYPES[piece.key]?.name || 'Unit'} moved.`, piece.team, gameState);
+  }
 
   checkSpecialTerrains(piece, targetRow, targetCol, gameState);
   consumeCore(piece, targetRow, targetCol, gameState);
@@ -759,16 +779,86 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
   return true;
 }
 
+function paintTerritoryPath(piece, startRow, startCol, endRow, endCol, gameState) {
+  if (!gameState.territoryTrails) {
+    gameState.territoryTrails = [];
+  }
+  
+  const dist = Math.hypot(endCol - startCol, endRow - startRow);
+  // Full movement radius for initial placement, thin control path for movement trails
+  const radius = piece ? (dist === 0 ? getPieceMoveRadius(piece) : (piece.control || 0.5)) : 1;
+  const team = piece ? piece.team : 'snow';
+  const steps = dist === 0 ? 0 : Math.max(1, Math.ceil(dist / 0.5)); // Step size based on 0.5 to ensure continuous cell coverage without gaps
+  const newPoints = [];
+  
+  for (let i = 0; i <= steps; i++) {
+    const t = steps === 0 ? 0 : i / steps;
+    const r = startRow + (endRow - startRow) * t;
+    const c = startCol + (endCol - startCol) * t;
+    
+    const isRedundant = gameState.territoryTrails.some(oldT => 
+      oldT.team === team && Math.hypot(oldT.col - c, oldT.row - r) < 0.2 && oldT.radius >= radius
+    );
+    
+    if (!isRedundant) {
+      newPoints.push({
+        row: r,
+        col: c,
+        radius: radius,
+        team: team,
+        time: Date.now()
+      });
+    }
+    
+    // Paint grid cells for complete system synchronization!
+    const minR = Math.max(0, Math.floor(r - radius));
+    const maxR = Math.min(9, Math.ceil(r + radius));
+    const minC = Math.max(0, Math.floor(c - radius));
+    const maxC = Math.min(9, Math.ceil(c + radius));
+    
+    for (let gr = minR; gr <= maxR; gr++) {
+      for (let gc = minC; gc <= maxC; gc++) {
+        // Correct mathematical cell-center-to-cell-center distance
+        const distToPiece = Math.hypot(gr - r, gc - c);
+        if (distToPiece <= radius) {
+          const pos = `${gr},${gc}`;
+          if (team === 'snow') {
+            gameState.snowTerritory.add(pos);
+            gameState.ashTerritory.delete(pos);
+          } else {
+            gameState.ashTerritory.add(pos);
+            gameState.snowTerritory.delete(pos);
+          }
+          gameState.territoryCaptureTurn[pos] = gameState.turnCount;
+        }
+      }
+    }
+  }
+
+  // Prune overlapping same-team and other-team trail circles for incredible performance!
+  gameState.territoryTrails = gameState.territoryTrails.filter(oldT => {
+    if (oldT.team !== team) {
+      return !newPoints.some(np => Math.hypot(oldT.col - np.col, oldT.row - np.row) <= radius);
+    } else {
+      return !newPoints.some(np => Math.hypot(oldT.col - np.col, oldT.row - np.row) <= radius * 0.5);
+    }
+  });
+
+  // Push new points to trails AFTER pruning so they don't self-prune
+  gameState.territoryTrails.push(...newPoints);
+  
+  // Hard cap to prevent runaway array growth causing massive network and render lag
+  if (gameState.territoryTrails.length > 1500) {
+    gameState.territoryTrails = gameState.territoryTrails.slice(-1500);
+  }
+}
+
 function updatePiecePosition(p, r, c) {
+  const startR = p.row;
+  const startC = p.col;
   p.row = r;
   p.col = c;
-  (p.team === "snow" ? gameState.snowTerritory : gameState.ashTerritory).add(
-    `${r},${c}`
-  );
-  (p.team === "snow" ? gameState.ashTerritory : gameState.snowTerritory).delete(
-    `${r},${c}`
-  );
-  gameState.territoryCaptureTurn[`${r},${c}`] = gameState.turnCount;
+  paintTerritoryPath(p, startR, startC, r, c, gameState);
 }
 
 // ============================================================================
@@ -795,6 +885,7 @@ export function deselectPiece() {
 
 export function createPiece(r, c, key, team) {
   const properties = C.PIECE_TYPES[key] || {};
+  const stats = properties.stats || { hp: 5, def: 1, strength: 2, range: 1, agility: 2 };
   let ability;
   if (properties.ability?.name) {
     const abilityKey = properties.ability.key || properties.ability.name;
@@ -813,13 +904,21 @@ export function createPiece(r, c, key, team) {
   const veteranAbility = properties.veteranAbility || {};
   const piece = {
     id: gameState.pieceIdCounter++,
+    team,
     row: r,
     col: c,
     key,
-    team,
-    power: properties.power,
-    boosts: properties.boosts || {},
+    power: properties.power ?? stats.strength,
+    maxHp: stats.hp,
+    currentHp: stats.hp,
+    def: stats.def,
+    strength: stats.strength,
+    range: stats.range,
+    agility: stats.agility,
+    control: stats.control || 0.1,
     ability,
+    veteranAbility: { ...veteranAbility },
+    boosts: properties.boosts || {},
     shrineBoost: 0,
     anchorBoost: 0,
     isPhasing: false,
@@ -853,6 +952,7 @@ export function createPiece(r, c, key, team) {
   }
   return piece;
 }
+
 
 export function despawnPiece(piece) {
   if (!piece || piece.key !== "snowIceWisp") return;
@@ -1512,7 +1612,7 @@ export function executeRiftPulse(piece) {
       const adjacentPiece = C.getPieceAt(
         piece.row + dr,
         piece.col + dc,
-        gameState.boardMap
+        gameState.pieces
       );
       if (!adjacentPiece) continue;
       if (!adjacentPiece.isSteadfast) {
@@ -1527,7 +1627,7 @@ export function executeRiftPulse(piece) {
         newRow < C.ROWS &&
         newCol >= 0 &&
         newCol < C.COLS &&
-        !C.getPieceAt(newRow, newCol, gameState.boardMap) &&
+        !C.getPieceAt(newRow, newCol, gameState.pieces) &&
         !gameState.glacialWalls.some(
           (w) => w.row === newRow && w.col === newCol
         )
@@ -1641,7 +1741,7 @@ function executeVoidSnap(gs) {
       const posStr = `${r},${c}`;
       gs.snowTerritory.delete(posStr);
       gs.ashTerritory.delete(posStr);
-      const pieceOnVoid = C.getPieceAt(r, c, gs.boardMap);
+      const pieceOnVoid = C.getPieceAt(r, c, gs.pieces);
       if (pieceOnVoid)
         gs.pieces = gs.pieces.filter((p) => p.id !== pieceOnVoid.id);
     });
@@ -1682,7 +1782,7 @@ function triggerAbyssalForge(gs) {
         const nStr = `${nr},${nc}`;
         if (
           !currentRiftCells.has(nStr) &&
-          !C.getPieceAt(nr, nc, gs.boardMap) &&
+          !C.getPieceAt(nr, nc, gs.pieces) &&
           !gs.glacialWalls.some((w) => w.row === nr && w.col === nc) &&
           !gs.voidSquares.some((v) => v.row === nr && v.col === nc) &&
           !gs.elementalCores.some((ec) => ec.row === nr && ec.col === nc)
@@ -1921,6 +2021,31 @@ function endOfTurnUpkeep() {
     t.duration -= 0.5;
     return t.duration > 0;
   });
+  if (gameState.spikeRains) {
+    gameState.spikeRains = gameState.spikeRains.filter((s) => {
+      s.duration -= 0.5;
+      if (s.duration > 0) {
+        const creator = gameState.pieces.find(c => c.id === s.creatorId) || { id: 'spike', team: s.team };
+        gameState.pieces.forEach(p => {
+          const dist = Math.hypot(p.row - s.r, p.col - s.c);
+          if (dist <= s.radius) {
+            if (p.team !== s.team) {
+              const prevHp = p.currentHp;
+              p.currentHp = Math.max(0, p.currentHp - s.damage);
+              if (creator.id !== 'spike') {
+                creator.damageDealt = (creator.damageDealt || 0) + (prevHp - p.currentHp);
+                if (!creator.isVeteran && creator.damageDealt >= (creator.maxHp || 5)) creator.readyForVeteranPromotion = true;
+              }
+              if (p.currentHp <= 0) handlePieceCapture(p, creator, gameState);
+            } else {
+              p.currentHp = Math.min(p.maxHp || 5, p.currentHp + s.heal);
+            }
+          }
+        });
+      }
+      return s.duration > 0;
+    });
+  }
 }
 
 export function switchTurn() {
@@ -1986,6 +2111,8 @@ export function initGame() {
   else gameState.snowTerritory.clear();
   if (!gameState.ashTerritory) gameState.ashTerritory = new Set();
   else gameState.ashTerritory.clear();
+  gameState.territoryTrails = [];
+  gameState.gameStarted = false;
   gameState.shrineChargeLevel = 0;
   gameState.shrineIsOverloaded = false;
   gameState.trappedPiece = null;
@@ -2124,11 +2251,11 @@ export function initGame() {
       createPiece(r, c, C.TEAM_PIECES.ash[pieceType], "ash")
     )
   );
-  gameState.pieces.forEach((p) =>
-    (p.team === "snow" ? gameState.snowTerritory : gameState.ashTerritory).add(
-      `${p.row},${p.col}`
-    )
-  );
+  // Base territories are seeded entirely by the pieces' starting positions
+
+  gameState.pieces.forEach((p) => {
+    paintTerritoryPath(p, p.row, p.col, p.row, p.col, gameState);
+  });
 
   emit(gameState, { type: "INIT_BOARD" });
   updateBoardMap(gameState);
