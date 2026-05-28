@@ -603,13 +603,21 @@ export function generatePieceInfoString(piece, gameState) {
     info += `<div style="font-size:11px;color:#00aaff;font-weight:bold;text-shadow:0 0 4px #00aaff;margin-bottom:4px;">★ VETERAN</div>`;
   }
 
-  // 5-stat line (only if piece has the new stats)
-  if (typeof piece.strength === 'number') {
-    info += `<div style="font-size:11px;color:#aac;margin-bottom:4px;">`;
-    info += `<span title="Strength">⚔${piece.strength}</span> `;
-    info += `<span title="Defense">🛡${piece.def}</span> `;
-    info += `<span title="Range">🎯${piece.range}</span> `;
-    info += `<span title="Agility">💨${piece.agility}</span>`;
+  // 5-stat line
+  const s = piece.stats || C.PIECE_TYPES[piece.key]?.stats;
+  if (s || typeof piece.strength === 'number') {
+    const curHp = typeof piece.currentHp === 'number' ? piece.currentHp : (s?.hp || 5);
+    const maxHp = s?.hp || 5;
+    const str = Math.round(piece.strength ?? s?.str ?? piece.power ?? 0);
+    const def = Math.round(piece.def ?? s?.def ?? 0);
+    const rng = Number((piece.range ?? s?.rng ?? 1).toFixed(1));
+    const agi = Number((piece.agility ?? s?.agi ?? 2).toFixed(1));
+    
+    info += `<div style="font-size:11px;color:#aac;margin-bottom:4px;display:flex;gap:6px;flex-wrap:wrap;">`;
+    info += `<span title="Strength">⚔${str}</span>`;
+    info += `<span title="Defense">🛡${def}</span>`;
+    info += `<span title="Range">🎯${rng}</span>`;
+    info += `<span title="Agility">💨${agi}</span>`;
     info += `</div>`;
   } else {
     info += `Power: ${effectivePower} (Base: ${typeInfo.power || 0})<br>`;
@@ -644,27 +652,46 @@ export function generatePieceInfoString(piece, gameState) {
   if (piece.hasPriestsWard) statuses.push("Priest's Ward");
   if (statuses.length > 0) info += `<i>${statuses.join(', ')}</i><br>`;
 
-  if (piece.key.includes('Lord') || piece.key.includes('Tyrant')) {
-    if (piece.isChannelingUltimate) info += `Ultimate: Channeling (${piece.ultimateCharges} Charges)`;
-    else if (piece.isUltimateActive) info += `Ultimate: Active (${piece.ultimateDurationLeft} turns left)`;
-    else if (gameState.turnCount <= C.ULTIMATE_MIN_TURN) info += `Ultimate: Locked (T${C.ULTIMATE_MIN_TURN + 1})`;
-    else info += `Ultimate: Ready (${piece.ultimateCharges} Charges)`;
-  } else if (piece.ability?.key) {
-    if (C.ABILITIES[piece.ability.key]?.isUltimate) info += `Ultimate: ${piece.ability.name} (${piece.hasUsedUltimate ? 'Used' : 'Ready'})`;
-    else if (piece.ability.key === 'Siphon') info += `Ability: ${piece.ability.name}`;
-    else info += `Ability: ${piece.ability.name} (${piece.ability.cooldown > 0 ? 'CD: ' + piece.ability.cooldown : 'Ready'})`;
-  }
-
   if ((piece.overloadPoints || 0) > 0) {
     info += `<br><span class="overload-text">Overload: ${piece.overloadPoints}</span>`;
   }
 
-  if (piece.isVeteran && piece.secondaryAbilityKey) {
-    const vetAb = C.ABILITIES[piece.secondaryAbilityKey] || C.PIECE_TYPES[piece.key]?.veteranAbility;
-    if (vetAb) info += `<br>Veteran Ability: ${vetAb.name} (${piece.secondaryAbilityCooldown > 0 ? `CD: ${piece.secondaryAbilityCooldown}` : 'Ready'})`;
+  // Active ability line
+  if (piece.ability?.key && piece.ability.key !== 'Siphon') {
+    const cdText = (piece.ability.cooldown || 0) > 0 ? `CD: ${piece.ability.cooldown}` : 'Ready';
+    info += `<div style="margin-top:5px;font-size:11px;"><span style="color:#88ccff">Active:</span> ${piece.ability.name} (${cdText})</div>`;
+  }
+
+  // Passive ability line
+  const passiveInfo = getPassiveAbilityInfo(piece);
+  if (passiveInfo) {
+    info += `<div style="margin-top:3px;font-size:11px;"><span style="color:#aaffaa">Passive:</span> ${passiveInfo}</div>`;
   }
 
   return info;
+}
+
+function getPassiveAbilityInfo(piece) {
+  const key = piece.key;
+  if (key === 'snowFrostLord') {
+    const cd = piece.helpFromAboveCooldown || 0;
+    const active = piece.hasHelpFromAboveActive ? ' [ACTIVE]' : '';
+    if (cd > 0) return `Help From Above — CD: ${cd} turns${active}`;
+    return `Help From Above — Ready${active}`;
+  }
+  if (key === 'ashAshTyrant') {
+    const cd = piece.deathMeteorCooldown || 0;
+    if (cd > 0) return `Death Meteor — CD: ${cd} turns`;
+    return `Death Meteor — Ready`;
+  }
+  if (key === 'snowSoulLinker') {
+    const hasFateLink = false; // shown elsewhere
+    return `Cold Snap — Heals 2 HP when linked enemy dies`;
+  }
+  if (key === 'ashCinderHarvester') {
+    return `Combustion — 50% chance to deal 1 dmg when Magma Grip expires`;
+  }
+  return null;
 }
 
 export function hideAbilityPanel() {
@@ -1078,6 +1105,32 @@ export function drawPiece(p, targetCtx, gameState) {
       // Apply flipX for facing center, combined with the piece's normal scale
       drawCtx.scale(vis.scale * flipX, vis.scale);
       
+      // Procedural "shine" aura for power-ups
+      let hasAura = false;
+      if (p.isVeteran) hasAura = true;
+      if (p.hasHelpFromAbove) hasAura = true;
+      if (gameState.temporaryBoosts && gameState.temporaryBoosts.some(b => b.pieceId === p.id)) hasAura = true;
+      // Also shine if the piece is the conduit owner or trapped in shrine overload?
+      if (gameState.conduit && gameState.conduit.owner === p.team && gameState.conduit.ownerId === p.id) hasAura = true;
+      
+      if (hasAura) {
+        drawCtx.save();
+        const auraPulse = 0.5 + 0.5 * Math.sin(time * 3);
+        const auraRadius = drawSize / 2 + 5 + 8 * auraPulse;
+        const auraColorStr = p.team === 'snow' ? '100, 220, 255' : '255, 110, 40';
+        
+        const grad = drawCtx.createRadialGradient(0, 0, drawSize / 4, 0, 0, auraRadius);
+        grad.addColorStop(0, `rgba(${auraColorStr}, ${0.4 + 0.2 * auraPulse})`);
+        grad.addColorStop(1, `rgba(${auraColorStr}, 0)`);
+        
+        drawCtx.globalCompositeOperation = 'lighter';
+        drawCtx.fillStyle = grad;
+        drawCtx.beginPath();
+        drawCtx.arc(0, 0, auraRadius, 0, Math.PI * 2);
+        drawCtx.fill();
+        drawCtx.restore();
+      }
+
       if (!(p.isDashing && (p.key === 'ashMagmaProwler' || p.key.includes('MagmaProwler')))) {
         drawCtx.drawImage(img, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
       }
@@ -1116,6 +1169,64 @@ export function drawPiece(p, targetCtx, gameState) {
           }
         }
       }
+    } catch (e) { }
+
+    try {
+      // Procedural HP Bar
+      const maxHp = C.PIECE_TYPES[p.key]?.stats?.hp || 5;
+      const curHp = typeof p.currentHp === 'number' ? p.currentHp : maxHp;
+      const hpPct = Math.max(0, Math.min(1, curHp / maxHp));
+      const barW = C.CELL_SIZE * 0.7;
+      const barH = 5;
+      const barX = vis.x + (C.CELL_SIZE - barW) / 2 + vis.offsetX;
+      const barY = vis.y + C.CELL_SIZE - barH - 4 + vis.offsetY;
+      
+      drawCtx.save();
+      if (gameState.playerTeam === 'ash') {
+        drawCtx.translate(barX + barW / 2, barY + barH / 2);
+        drawCtx.rotate(Math.PI);
+        drawCtx.translate(-(barX + barW / 2), -(barY + barH / 2));
+      }
+      drawCtx.fillStyle = 'rgba(0,0,0,0.7)';
+      drawCtx.fillRect(barX, barY, barW, barH);
+      let hpColor = '#00ff00';
+      if (hpPct <= 0.25) hpColor = '#ff0000';
+      else if (hpPct <= 0.5) hpColor = '#ffff00';
+      drawCtx.fillStyle = hpColor;
+      drawCtx.fillRect(barX, barY, barW * hpPct, barH);
+      drawCtx.restore();
+
+      // Procedural Defense Badge
+      const defVal = p.def || C.PIECE_TYPES[p.key]?.stats?.def || 0;
+      const defSize = C.CELL_SIZE * 0.22;
+      const defX = vis.x + 4 + vis.offsetX; // Top left
+      const defY = vis.y + 4 + vis.offsetY;
+      
+      drawCtx.save();
+      if (gameState.playerTeam === 'ash') {
+        drawCtx.translate(defX + defSize / 2, defY + defSize / 2);
+        drawCtx.rotate(Math.PI);
+        drawCtx.translate(-(defX + defSize / 2), -(defY + defSize / 2));
+      }
+      drawCtx.beginPath();
+      drawCtx.moveTo(defX + defSize / 2, defY);
+      drawCtx.lineTo(defX + defSize, defY + defSize * 0.3);
+      drawCtx.lineTo(defX + defSize * 0.8, defY + defSize);
+      drawCtx.lineTo(defX + defSize * 0.2, defY + defSize);
+      drawCtx.lineTo(defX, defY + defSize * 0.3);
+      drawCtx.closePath();
+      drawCtx.fillStyle = 'rgba(70, 130, 180, 0.9)'; // Steel blue shield
+      drawCtx.fill();
+      drawCtx.lineWidth = 1.5;
+      drawCtx.strokeStyle = '#ffffff';
+      drawCtx.stroke();
+      
+      drawCtx.fillStyle = '#ffffff';
+      drawCtx.font = `bold ${Math.floor(defSize * 0.6)}px sans-serif`;
+      drawCtx.textAlign = 'center';
+      drawCtx.textBaseline = 'middle';
+      drawCtx.fillText(String(defVal), defX + defSize / 2, defY + defSize / 2 + 1);
+      drawCtx.restore();
     } catch (e) { }
 
     try {
@@ -1305,6 +1416,36 @@ export function renderBoard(gameState) {
       boardCtx.stroke();
       
       boardCtx.restore();
+    });
+  }
+
+  if (gameState.movePulses) {
+    gameState.movePulses = gameState.movePulses.filter(pulse => {
+      pulse.life -= 0.015; // Fade over ~60 frames
+      if (pulse.life <= 0) return false;
+      
+      boardCtx.save();
+      const color = pulse.team === 'snow' ? '0, 200, 255' : '255, 100, 50';
+      const steps = Math.max(1, Math.hypot(pulse.targetCol - pulse.startCol, pulse.targetRow - pulse.startRow));
+      
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const r = pulse.startRow + (pulse.targetRow - pulse.startRow) * t;
+        const c = pulse.startCol + (pulse.targetCol - pulse.startCol) * t;
+        const x = c * C.CELL_SIZE;
+        const y = r * C.CELL_SIZE;
+        
+        // Origin dark, Target flash, intermediate flicker
+        let opacity = 0;
+        if (i === 0) opacity = pulse.life * 0.3; // Origin dark
+        else if (i === steps) opacity = pulse.life * 0.8; // Target flash
+        else opacity = pulse.life * 0.4 * (0.5 + 0.5 * Math.sin(performance.now() * 0.01 + i)); // Intermediate flicker
+        
+        boardCtx.fillStyle = `rgba(${color}, ${opacity})`;
+        boardCtx.fillRect(x, y, C.CELL_SIZE, C.CELL_SIZE);
+      }
+      boardCtx.restore();
+      return true;
     });
   }
 
@@ -1526,14 +1667,13 @@ export function showAbilityPanel(piece, gameState) {
 
   const abilityBtn = $('abilityBtn');
   const siphonBtn = $('siphonBtn');
-  const unleashAbilities = $('unleash-abilities');
-  const unleash3Btn = $('unleash3Btn');
-  const btn1 = $('unleash1Btn');
-  const btn2 = $('unleash2Btn');
   const riftPulseBtn = $('riftPulseBtn');
   const despawnBtn = $('despawnBtn');
   const sacrificeBtn = $('sacrificeBtn');
   const releaseBtn = $('releaseBtn');
+
+  // Clean up dynamic tether buttons from previous render
+  panel.querySelectorAll('[data-dynamic-tether="true"]').forEach(btn => btn.remove());
 
   resetMobileAbilityBar();
   if (!piece || gameState.gameOver) { panel.style.display = 'none'; return; }
@@ -1598,32 +1738,18 @@ export function showAbilityPanel(piece, gameState) {
 
   const isLeader = piece.key.includes('Lord') || piece.key.includes('Tyrant');
   const isSiphoner = piece.ability?.key === 'Siphon';
-  const hasActiveAbility = piece.ability && piece.ability.name;
+  const hasActiveAbility = piece.ability && piece.ability.name && piece.ability.key !== 'Siphon';
 
   if (abilityBtn) {
-    abilityBtn.style.display = (isLeader || (!isSiphoner && hasActiveAbility)) ? 'block' : 'none';
-    if (isLeader) {
-      if (piece.isChannelingUltimate) {
-        abilityBtn.textContent = 'Unleash Ultimate';
-        abilityBtn.disabled = piece.ultimateCharges === 0;
-        addMobileBtn(abilityBtn.textContent, () => window.sendAction('ABILITY', { pieceId: piece.id }), piece.ultimateCharges === 0);
-        abilityBtn.onclick = () => window.sendAction('ABILITY', { pieceId: piece.id });
-      } else {
-        abilityBtn.textContent = 'Start Channeling';
-        abilityBtn.disabled = gameState.turnCount <= C.ULTIMATE_MIN_TURN;
-        addMobileBtn(abilityBtn.textContent, () => window.sendAction('ABILITY', { pieceId: piece.id }), gameState.turnCount <= C.ULTIMATE_MIN_TURN);
-        abilityBtn.onclick = () => window.sendAction('ABILITY', { pieceId: piece.id });
-      }
-    } else if (!isSiphoner && hasActiveAbility) {
+    const onCooldown = (piece.ability?.cooldown || 0) > 0;
+    abilityBtn.style.display = hasActiveAbility ? 'block' : 'none';
+    if (hasActiveAbility) {
       abilityBtn.textContent = piece.ability.name;
-      abilityBtn.disabled = piece.ability.cooldown > 0;
-      addMobileBtn(abilityBtn.textContent, () => window.sendAction('ABILITY', { pieceId: piece.id, abilityKey: piece.ability?.key }), piece.ability.cooldown > 0);
+      abilityBtn.disabled = onCooldown;
+      addMobileBtn(piece.ability.name, () => window.sendAction('ABILITY', { pieceId: piece.id, abilityKey: piece.ability?.key }), onCooldown);
       abilityBtn.onclick = () => window.sendAction('ABILITY', { pieceId: piece.id, abilityKey: piece.ability?.key });
     }
   }
-
-  const hasActiveVetAb = piece.isVeteran && piece.secondaryAbilityKey && !C.PIECE_TYPES[piece.key]?.veteranAbility?.isPassive;
-  if (unleashAbilities) unleashAbilities.style.display = (isSiphoner || hasActiveVetAb) ? 'block' : 'none';
 
   if (isSiphoner) {
     const onRift = C.SHAPES.riftAreas.some(r => r.cells.some(([rr, cc]) => rr === piece.row && cc === piece.col));
@@ -1664,52 +1790,26 @@ export function showAbilityPanel(piece, gameState) {
       { mode: 'resonance', name: 'Resonance Weave', valid: hasAlly && hasEnemyWithPower }
     ];
 
-    [siphonBtn, btn1, btn2, unleash3Btn].forEach(b => { if (b) b.style.display = 'none'; });
-
-    if (unleashAbilities) {
-      unleashAbilities.querySelectorAll('[data-dynamic-tether="true"]').forEach(btn => btn.remove());
-    }
+    if (siphonBtn) siphonBtn.style.display = 'none';
 
     tethers.forEach(t => {
       if (t.valid) {
         const tetherBtn = document.createElement('button');
         const templateBtn = document.getElementById('abilityBtn');
-        tetherBtn.className = templateBtn ? (templateBtn.className + ' unleash-btn action-btn').trim() : 'unleash-btn action-btn';
+        tetherBtn.className = templateBtn ? (templateBtn.className + ' action-btn').trim() : 'action-btn';
         tetherBtn.setAttribute('data-dynamic-tether', 'true');
         tetherBtn.style.marginTop = '5px';
         tetherBtn.textContent = t.name;
         tetherBtn.onclick = () => window.sendAction('START_TETHER', { pieceId: piece.id, mode: t.mode });
-
-        if (unleashAbilities) {
-          tetherBtn.style.display = 'block';
-          tetherBtn.style.margin = '6px 0';
-          unleashAbilities.appendChild(tetherBtn);
-        }
-
+        tetherBtn.style.display = 'block';
+        tetherBtn.style.margin = '6px 0';
+        const panel = $('ability-info-panel');
+        if (panel) panel.appendChild(tetherBtn);
         addMobileBtn(t.name, () => window.sendAction('START_TETHER', { pieceId: piece.id, mode: t.mode }));
       }
     });
   } else {
     if (siphonBtn) siphonBtn.style.display = 'none';
-    if (btn1) btn1.style.display = 'none';
-    if (btn2) btn2.style.display = 'none';
-
-    if (piece.isVeteran && piece.secondaryAbilityKey) {
-      const vetAb = C.PIECE_TYPES[piece.key]?.veteranAbility;
-      if (!vetAb?.isPassive) {
-        if (unleash3Btn) {
-          unleash3Btn.style.display = 'block';
-          unleash3Btn.textContent = C.ABILITIES[piece.secondaryAbilityKey]?.name || 'Veteran Ability';
-          unleash3Btn.disabled = piece.secondaryAbilityCooldown > 0;
-          unleash3Btn.onclick = () => window.sendAction('ABILITY', { pieceId: piece.id, abilityKey: piece.secondaryAbilityKey });
-          addMobileBtn(unleash3Btn.textContent, () => window.sendAction('ABILITY', { pieceId: piece.id, abilityKey: piece.secondaryAbilityKey }), piece.secondaryAbilityCooldown > 0);
-        }
-      } else {
-        if (unleash3Btn) unleash3Btn.style.display = 'none';
-      }
-    } else {
-      if (unleash3Btn) unleash3Btn.style.display = 'none';
-    }
   }
 
   if (riftPulseBtn) {

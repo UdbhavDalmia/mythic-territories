@@ -138,10 +138,32 @@ export function handlePieceCapture(capturedPiece, attacker, gs) {
     gs.markedPieces.push({ targetId: attacker.id, duration: 2 });
   }
 
-  // 3. Remove piece
+  // 3. Cold Snap: if this piece was a FateLink target, heal the Soul Linker
+  if (gs.fateLinks) {
+    const link = gs.fateLinks.find(fl => fl.targetId === capturedPiece.id);
+    if (link) {
+      const soulLinker = gs.pieces.find(p => p.id === link.sourceId);
+      if (soulLinker) {
+        const maxHp = soulLinker.maxHp || C.PIECE_TYPES[soulLinker.key]?.stats?.hp || 8;
+        const missingHp = maxHp - soulLinker.currentHp;
+        if (missingHp >= 2) {
+          soulLinker.currentHp = Math.min(maxHp, soulLinker.currentHp + 2);
+          flash(`Cold Snap! Soul Linker healed for 2 HP.`, soulLinker.team, gs);
+        } else {
+          // At full HP or missing 1 — crystallise into Frost Shield
+          gs.shields = gs.shields || [];
+          gs.shields.push({ pieceId: soulLinker.id, duration: 999, name: 'FrostShield' });
+          flash(`Cold Snap! Frost Shield formed on Soul Linker.`, soulLinker.team, gs);
+        }
+      }
+      gs.fateLinks = gs.fateLinks.filter(fl => fl.targetId !== capturedPiece.id);
+    }
+  }
+
+  // 4. Remove piece
   gs.pieces = gs.pieces.filter((p) => p.id !== capturedPiece.id);
 
-  // 4. End game if leader
+  // 5. End game if leader
   if (capturedPiece.key.includes("Lord") || capturedPiece.key.includes("Tyrant")) {
     endGame(attacker ? attacker.team : (capturedPiece.team === "snow" ? "ash" : "snow"));
   }
@@ -164,53 +186,6 @@ export function activateAbility(piece, unleashCostOrKey = 0) {
   }
   let abilityKeyToUse;
 
-  if (isLeader(piece)) {
-    if (piece.isUltimateActive) {
-      flash(`Ultimate is already active.`, piece.team, gameState);
-      return false;
-    }
-    if (piece.ultimateCharges > 0) {
-      const abilityKey = piece.ability.key;
-      const ability = C.ABILITIES[abilityKey];
-      const duration = (piece.ultimateCharges || 0) * 2;
-      piece.ultimateCharges = 0;
-      piece.isChannelingUltimate = false;
-      piece.isDazed = false;
-      piece.dazedFor = 0;
-      piece.isUltimateActive = true;
-      piece.ultimateDurationLeft = duration;
-      piece.hasUsedUltimate = true;
-      if (ability.effect) ability.effect(piece, null, gameState);
-      flash(
-        `${C.PIECE_TYPES[piece.key].name} unleashes the Ultimate Aura!`,
-        piece.team,
-        gameState
-      );
-      emit(gameState, { type: "HIDE_ABILITY_PANEL" });
-      return true;
-    } else if (piece.isChannelingUltimate) {
-      flash("Ultimate needs charges before use.", piece.team, gameState);
-      return false;
-    } else {
-      if (gameState.turnCount <= C.ULTIMATE_MIN_TURN) {
-        flash(
-          `Ultimate locked until Turn ${C.ULTIMATE_MIN_TURN + 1}.`,
-          piece.team,
-          gameState
-        );
-        return false;
-      }
-      piece.isChannelingUltimate = true;
-      flash(
-        `${C.PIECE_TYPES[piece.key].name} begins Channeling.`,
-        piece.team,
-        gameState
-      );
-      emit(gameState, { type: "HIDE_ABILITY_PANEL" });
-      return true;
-    }
-  }
-
   if (typeof unleashCostOrKey === "string" && C.ABILITIES[unleashCostOrKey]) {
     const isSecondary = piece.secondaryAbilityKey === unleashCostOrKey;
     if (isSecondary) {
@@ -224,17 +199,13 @@ export function activateAbility(piece, unleashCostOrKey = 0) {
   } else if (
     piece.ability &&
     piece.ability.key &&
-    (piece.ability.cooldown <= 0 || C.ABILITIES[piece.ability.key]?.isUltimate)
+    piece.ability.cooldown <= 0
   ) {
     abilityKeyToUse = piece.ability.key;
   } else return false;
 
   const ability = C.ABILITIES[abilityKeyToUse];
   if (!ability) return false;
-  if (ability.isUltimate && piece.hasUsedUltimate) {
-    flash("Ultimate ability has already been used.", piece.team, gameState);
-    return false;
-  }
 
   emit(gameState, { type: "HIDE_ABILITY_PANEL" });
 
@@ -286,8 +257,6 @@ export function executeAbility(
     }
     return false;
   }
-  if (ability.isUltimate) return false;
-
   ensureSets(gameStateLocal);
 
   if (abilityKey === "IcyShift" || abilityKey === "TacticalSwapAsh") {
@@ -402,10 +371,8 @@ export function executeAbility(
 
   // 4. APPLY COOLDOWNS & CONSUME CHARGES
   if (piece.ability?.key === abilityKey) {
-    if (!ability.isUltimate) {
-      const baseCd = ability.cooldown || 0;
-      piece.ability.cooldown = baseCd > 0 ? Math.max(1, baseCd - (piece.cooldownReduction || 0)) : 0;
-    }
+    const baseCd = ability.cooldown || 0;
+    piece.ability.cooldown = baseCd > 0 ? Math.max(1, baseCd - (piece.cooldownReduction || 0)) : 0;
   } else if (piece.secondaryAbilityKey === abilityKey) {
     const baseCd = ability.cooldown || 0;
     piece.secondaryAbilityCooldown = baseCd > 0 ? Math.max(1, baseCd - (piece.cooldownReduction || 0)) : 0;
@@ -651,7 +618,6 @@ function isTargetValid(piece, target, ability, gameStateLocal) {
 export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
   if (!gameState.gameStarted) return false;
   if (
-    piece.isChannelingUltimate ||
     gameState.gameOver ||
     !piece ||
     piece.isDazed ||
@@ -765,30 +731,33 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
         gameState.trappedPiece = piece.id;
       }
     } else {
-      return false;
+      if (piece.readyForVeteranPromotion) {
+        piece.readyForVeteranPromotion = false;
+        promoteToVeteran(piece);
+      }
+      flash(`${C.PIECE_TYPES[piece.key]?.name || 'Unit'} attacked but ${C.PIECE_TYPES[defender.key]?.name || 'Defender'} survived!`, piece.team, gameState);
     }
   } else {
+    if (!gameState.movePulses) gameState.movePulses = [];
+    gameState.movePulses.push({ startRow, startCol, targetRow, targetCol, team: piece.team, life: 1.0 });
     updatePiecePosition(piece, targetRow, targetCol);
     flash(`${C.PIECE_TYPES[piece.key]?.name || 'Unit'} moved.`, piece.team, gameState);
   }
 
-  checkSpecialTerrains(piece, targetRow, targetCol, gameState);
-  consumeCore(piece, targetRow, targetCol, gameState);
+  checkSpecialTerrains(piece, piece.row, piece.col, gameState);
+  consumeCore(piece, piece.row, piece.col, gameState);
   checkTetherSnaps(gameState);
   actionTaken();
   return true;
 }
 
 function paintTerritoryPath(piece, startRow, startCol, endRow, endCol, gameState) {
-  if (!gameState.territoryTrails) {
-    gameState.territoryTrails = [];
-  }
+  if (!gameState.territoryTrails) gameState.territoryTrails = [];
   
   const dist = Math.hypot(endCol - startCol, endRow - startRow);
-  // Full movement radius for initial placement, thin control path for movement trails
   const radius = piece ? (dist === 0 ? getPieceMoveRadius(piece) : (piece.control || 0.5)) : 1;
   const team = piece ? piece.team : 'snow';
-  const steps = dist === 0 ? 0 : Math.max(1, Math.ceil(dist / 0.5)); // Step size based on 0.5 to ensure continuous cell coverage without gaps
+  const steps = dist === 0 ? 0 : Math.max(1, Math.ceil(dist / 0.5));
   const newPoints = [];
   
   for (let i = 0; i <= steps; i++) {
@@ -810,7 +779,6 @@ function paintTerritoryPath(piece, startRow, startCol, endRow, endCol, gameState
       });
     }
     
-    // Paint grid cells for complete system synchronization!
     const minR = Math.max(0, Math.floor(r - radius));
     const maxR = Math.min(9, Math.ceil(r + radius));
     const minC = Math.max(0, Math.floor(c - radius));
@@ -818,7 +786,6 @@ function paintTerritoryPath(piece, startRow, startCol, endRow, endCol, gameState
     
     for (let gr = minR; gr <= maxR; gr++) {
       for (let gc = minC; gc <= maxC; gc++) {
-        // Correct mathematical cell-center-to-cell-center distance
         const distToPiece = Math.hypot(gr - r, gc - c);
         if (distToPiece <= radius) {
           const pos = `${gr},${gc}`;
@@ -923,7 +890,6 @@ export function createPiece(r, c, key, team) {
     anchorBoost: 0,
     isPhasing: false,
     isTrapped: false,
-    hasUsedUltimate: false,
     isSteadfast: false,
     hasPriestsWard: false,
     isRampaging: false,
@@ -936,11 +902,6 @@ export function createPiece(r, c, key, team) {
     secondaryAbilityCooldown: 0,
     isVeteranWispEnhancement: false,
     isVeteranSiphonCharge: false,
-    ultimateCharges: 0,
-    isChannelingUltimate: false,
-    isUltimateActive: false,
-    ultimateDurationLeft: 0,
-    ultimateChargeTurns: 0,
     ability: { ...ability },
     canRiftPulse: false,
     hasUsedRiftPulse: false
@@ -1001,34 +962,7 @@ export function promoteToVeteran(piece) {
   return true;
 }
 
-export function deactivateUltimate(piece) {
-  if (!piece || !piece.isUltimateActive) return false;
-  piece.isUltimateActive = false;
-  piece.ultimateDurationLeft = 0;
-  flash(
-    `${C.PIECE_TYPES[piece.key].name} deactivates the Ultimate Aura.`,
-    piece.team,
-    gameState
-  );
-  deselectPiece();
-  return true;
-}
-
-export function handleUltimateChanneling(piece) {
-  if (piece.isChannelingUltimate) {
-    piece.isDazed = true;
-    piece.dazedFor = 999;
-    piece.ultimateChargeTurns++;
-    if (piece.ultimateChargeTurns % 2 === 0) {
-      piece.ultimateCharges++;
-      flash(
-        `${C.PIECE_TYPES[piece.key].name} generates an Ultimate Charge!`,
-        piece.team,
-        gameState
-      );
-    }
-  }
-}
+// (Ultimate functions removed — leaders use standard ability system)
 
 // ============================================================================
 // SIPHONER, TETHER & OVERLOAD LOGIC
@@ -1950,8 +1884,6 @@ function startOfTurnUpkeep(team) {
     }
     if (p.team === team) {
       p.isEntrenched = false;
-      if (p.key.includes("Lord") || p.key.includes("Tyrant"))
-        handleUltimateChanneling(p);
     }
   });
 }
@@ -1964,11 +1896,9 @@ function endOfTurnUpkeep() {
       if (p.stuck > 0) p.stuck--;
       if (p.overloadBoost?.duration > 0) p.overloadBoost.duration--;
       if (p.dazedFor > 0) p.dazedFor--;
-      if (p.isUltimateActive && --p.ultimateDurationLeft <= 0) {
-        p.isUltimateActive = false;
-        flash(`${C.PIECE_TYPES[p.key].name}'s Aura fades.`, p.team, gameState);
-      }
-      if (p.secondaryAbilityCooldown > 0) p.secondaryAbilityCooldown--;
+      if (p.deathMeteorCooldown > 0) p.deathMeteorCooldown--;
+      if (p.helpFromAboveCooldown > 0) p.helpFromAboveCooldown--;
+      if (p.helpFromAboveCooldown <= 0) p.hasHelpFromAboveActive = false;
       if (p.ability && p.ability.cooldown > 0) p.ability.cooldown--;
       if (p.ability && p.ability.active && p.ability.duration > 0) {
         p.ability.duration--;
@@ -1980,8 +1910,7 @@ function endOfTurnUpkeep() {
   // Synchronize boolean state to the numeric duration for all pieces. This avoids
   // cases where UI/logic disagree about whether a piece is dazed after a turn flip.
   gameState.pieces.forEach((p) => {
-    if (!p.isChannelingUltimate)
-      p.isDazed = (p.dazedFor && p.dazedFor > 0) || false;
+    p.isDazed = (p.dazedFor && p.dazedFor > 0) || false;
   });
 
   const aliveIds = new Set(gameState.pieces.map((p) => p.id));
@@ -2045,6 +1974,88 @@ function endOfTurnUpkeep() {
       }
       return s.duration > 0;
     });
+  }
+
+  if (gameState.reignOfFires) {
+    gameState.reignOfFires = gameState.reignOfFires.filter((r) => {
+      r.duration -= 0.5;
+      return r.duration > 0;
+    });
+  }
+
+  if (gameState.frostfallBlessings) {
+    gameState.frostfallBlessings = gameState.frostfallBlessings.filter((s) => {
+      s.duration -= 0.5;
+      if (s.duration > 0) {
+        const creator = gameState.pieces.find(c => c.id === s.creatorId) || { id: 'frost', team: s.team };
+        gameState.pieces.forEach(p => {
+          const dist = Math.hypot(p.row - s.r, p.col - s.c);
+          if (dist <= s.radius) {
+            if (p.team !== s.team) {
+              const prevHp = p.currentHp;
+              p.currentHp = Math.max(0, p.currentHp - s.damage);
+              if (creator.id !== 'frost') {
+                creator.damageDealt = (creator.damageDealt || 0) + (prevHp - p.currentHp);
+                if (!creator.isVeteran && creator.damageDealt >= (creator.maxHp || 5)) creator.readyForVeteranPromotion = true;
+              }
+              if (p.currentHp <= 0) handlePieceCapture(p, creator, gameState);
+            } else {
+              p.currentHp = Math.min(p.maxHp || 5, p.currentHp + s.heal);
+            }
+          }
+        });
+      }
+      return s.duration > 0;
+    });
+  }
+
+  if (gameState.fateLinks) {
+    gameState.fateLinks = gameState.fateLinks.filter((fl) => {
+      fl.duration -= 0.5;
+      return fl.duration > 0;
+    });
+  }
+
+  if (gameState.magmaGrips) {
+    gameState.magmaGrips = gameState.magmaGrips.filter((mg) => {
+      mg.duration -= 0.5;
+      if (mg.duration <= 0) {
+        // Combustion passive: revert stats, then 50% chance to shatter for 1 damage
+        const target = gameState.pieces.find(p => p.id === mg.targetId);
+        const harvester = gameState.pieces.find(p => p.id === mg.harvesterId);
+        // Revert stat steal
+        if (target) {
+          target.def = (target.def || 0) + (mg.defStolen || 0);
+          target.agility = (target.agility || 1) + (mg.agiStolen || 0);
+        }
+        if (harvester) {
+          harvester.def = Math.max(0, (harvester.def || 0) - (mg.defStolen || 0));
+          harvester.agility = Math.max(0.1, (harvester.agility || 1) - (mg.agiStolen || 0));
+        }
+        // 50% Combustion shatter
+        if (target && Math.random() < 0.5) {
+          target.currentHp = Math.max(0, target.currentHp - 1);
+          flash(`Combustion! ${C.PIECE_TYPES[target.key]?.name || 'Unit'} shatters for 1 damage!`, 'ash', gameState);
+          if (target.currentHp <= 0) {
+            handlePieceCapture(target, harvester, gameState);
+          }
+        }
+        return false; // expire
+      }
+      return true;
+    });
+  }
+
+  // Process any ability-triggered deaths queued this turn (e.g. ReignOfFire)
+  if (gameState.pendingCaptures && gameState.pendingCaptures.length > 0) {
+    gameState.pendingCaptures.forEach(({ capturedId, attackerId }) => {
+      const captured = gameState.pieces.find(p => p.id === capturedId);
+      const attacker = gameState.pieces.find(p => p.id === attackerId);
+      if (captured && captured.currentHp <= 0) {
+        handlePieceCapture(captured, attacker, gameState);
+      }
+    });
+    gameState.pendingCaptures = [];
   }
 }
 

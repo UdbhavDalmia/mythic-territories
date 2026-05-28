@@ -32,7 +32,7 @@ export const IMAGES = {
   ashMagmaSpitter: "units/magma-spitter.png",
   ashObsidianShaper: "units/obsidian-shaper.png",
   ashRiftForger: "units/rift-forger.png",
-  ashRiftWarden: "units/rift-warden.png",
+  ashCinderHarvester: "units/rift-warden.png",
   ashScorchPriest: "units/scorch-priest.png",
   gameBackgroundAsh: "images/bg-game2.png",
   gameBackgroundSnow: "images/bg-game.png",
@@ -46,7 +46,7 @@ export const IMAGES = {
   snowIceWisp: "units/wisp.png",
   snowRampagingYeti: "units/yeti.png",
   snowSoulFreeze: "units/soul-freeze.png",
-  snowVoidChanter: "units/void-chanter.png"
+  snowSoulLinker: "units/void-chanter.png"
 };
 
 /* ==========================================================================
@@ -119,7 +119,11 @@ export const ABILITY_VALUES = {
   VolatileForge: { places: 2 },
   MagmaAnchor: { powerBoost: 1 },
   SpikeRain: { cooldown: 11, duration: 5, range: 2.5, radius: 2, damage: 2, heal: 1 },
-  HelpFromAbove: { cooldown: 10, radius: 1.5, strengthBoost: 1 }
+  HelpFromAbove: { cooldown: 10, radius: 1.5, strengthBoost: 1 },
+  FateLink: { cooldown: 7, range: 3, duration: 4 },
+  MagmaGrip: { cooldown: 7, range: 3, duration: 4 },
+  ReignOfFire: { cooldown: 11, duration: 3, range: 2.5, radius: 2, damage: 2, allyDamage: 1, strengthBoost: 2 },
+  FrostfallBlessing: { cooldown: 11, duration: 5, range: 2.5, radius: 2, damage: 2, heal: 1 }
 };
 
 /* ==========================================================================
@@ -848,14 +852,131 @@ export const ABILITIES = {
         tp.dazedFor = 0;
         tp.stuck = 0;
         gs.debuffs = gs.debuffs.filter(
-          (d) =>
-            d.pieceId !== tp.id ||
-            (d.name !== "Hamstrung" && d.name !== "FrostbiteCurse")
+          (d) => (d.name !== "FrostArmor" && d.name !== "KindleArmor")
         );
       }
     }
+  },
+  FateLink: {
+    name: "Fate Link",
+    cooldown: ABILITY_VALUES.FateLink.cooldown,
+    requiresTargeting: true,
+    range: ABILITY_VALUES.FateLink.range,
+    targetType: "special", // Needs to target both friendly and enemy. The UI usually picks target one by one. We'll set it to "any" and handle it.
+    specialTargeting: (p, t, gs) => {
+      // For simplicity in targeting, let's say it targets an enemy and automatically binds the closest ally (or itself)? 
+      // "Magically binds a friendly unit to an enemy unit"
+      // If the UI only supports one click, we can target an enemy, and bind the caster to it.
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
+      return tp && tp.team !== p.team;
+    },
+    effect: (p, t, gs) => {
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
+      if (tp) {
+        gs.fateLinks = gs.fateLinks || [];
+        gs.fateLinks.push({
+          sourceId: p.id,
+          targetId: tp.id,
+          duration: ABILITY_VALUES.FateLink.duration
+        });
+      }
+    }
+  },
+  MagmaGrip: {
+    name: "Magma Grip",
+    cooldown: ABILITY_VALUES.MagmaGrip.cooldown,
+    requiresTargeting: true,
+    range: ABILITY_VALUES.MagmaGrip.range,
+    targetType: "enemy",
+    canBeBlocked: true,
+    effect: (p, t, gs) => {
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
+      if (tp) {
+        const defSteal = 1;
+        const agiSteal = 0.4;
+        gs.magmaGrips = gs.magmaGrips || [];
+        gs.magmaGrips.push({
+          harvesterId: p.id,
+          targetId: tp.id,
+          duration: ABILITY_VALUES.MagmaGrip.duration,
+          defStolen: defSteal,
+          agiStolen: agiSteal
+        });
+        // Immediately steal stats
+        tp.def = Math.max(0, (tp.def || 0) - defSteal);
+        tp.agility = Math.max(0.1, (tp.agility || 1) - agiSteal);
+        p.def = (p.def || 0) + defSteal;
+        p.agility = (p.agility || 1) + agiSteal;
+      }
+    }
+  },
+  ReignOfFire: {
+    name: "Reign of Fire",
+    cooldown: ABILITY_VALUES.ReignOfFire.cooldown,
+    requiresTargeting: true,
+    range: ABILITY_VALUES.ReignOfFire.range,
+    targetType: "empty", // AoE targets an area
+    effect: (p, t, gs) => {
+      const dmg = ABILITY_VALUES.ReignOfFire.damage;
+      const allyDmg = ABILITY_VALUES.ReignOfFire.allyDamage;
+      const radius = ABILITY_VALUES.ReignOfFire.radius;
+      const strBoost = ABILITY_VALUES.ReignOfFire.strengthBoost;
+      const duration = ABILITY_VALUES.ReignOfFire.duration;
+      
+      const toRemove = [];
+      gs.pieces.forEach(target => {
+        const dist = Math.hypot(target.row - t.r, target.col - t.c);
+        if (dist <= radius) {
+          if (target.team !== p.team) {
+            target.currentHp = Math.max(0, (target.currentHp || target.stats?.hp || 5) - dmg);
+            if (target.currentHp <= 0) toRemove.push({ piece: target });
+          } else if (target.id !== p.id) {
+            target.currentHp = Math.max(0, (target.currentHp || target.stats?.hp || 5) - allyDmg);
+            if (target.currentHp <= 0) {
+              toRemove.push({ piece: target });
+            } else {
+              gs.temporaryBoosts.push({
+                pieceId: target.id,
+                amount: strBoost,
+                duration: duration,
+                name: "ReignOfFireRage"
+              });
+            }
+          }
+        }
+      });
+      // Handle deaths AFTER iterating to avoid mutating array during loop
+      toRemove.forEach(({ piece }) => {
+        // Import not available here; use gs.pendingCaptures array processed in logic.js
+        gs.pendingCaptures = gs.pendingCaptures || [];
+        gs.pendingCaptures.push({ capturedId: piece.id, attackerId: p.id });
+      });
+      gs.reignOfFires = gs.reignOfFires || [];
+      gs.reignOfFires.push({ r: t.r, c: t.c, duration: duration, radius: radius });
+    }
+  },
+  FrostfallBlessing: {
+    name: "Frostfall Blessing",
+    cooldown: ABILITY_VALUES.FrostfallBlessing.cooldown,
+    requiresTargeting: true,
+    range: ABILITY_VALUES.FrostfallBlessing.range,
+    targetType: "empty",
+    effect: (p, t, gs) => {
+      if (!gs.frostfallBlessings) gs.frostfallBlessings = [];
+      gs.frostfallBlessings.push({
+        creatorId: p.id,
+        team: p.team,
+        r: t.r,
+        c: t.c,
+        duration: ABILITY_VALUES.FrostfallBlessing.duration,
+        radius: ABILITY_VALUES.FrostfallBlessing.radius,
+        damage: ABILITY_VALUES.FrostfallBlessing.damage,
+        heal: ABILITY_VALUES.FrostfallBlessing.heal
+      });
+    }
   }
-};
+  }
+;
 
 /* ==========================================================================
    SECTION 6: UNIT & FACTION REGISTRY
@@ -875,8 +996,9 @@ export const PIECE_TYPES = {
   ashAshTyrant: {
     name: "Ash Tyrant",
     power: 5,
-    stats: { hp: 12, def: 3, strength: 5, range: 2, agility: 2, control: 0.1 },
-    ability: { name: "Tyrant's Proclamation", key: "TyrantsProclamation" }
+    stats: { hp: 12, def: 3, strength: 5, range: 1.5, agility: 1.8, control: 1.3 },
+    ability: { name: "Reign of Fire", key: "ReignOfFire" },
+    veteranAbility: null
   },
   ashBlazeboundBeast: {
     name: "Blazebound Beast",
@@ -936,11 +1058,12 @@ export const PIECE_TYPES = {
       isPassive: true
     }
   },
-  ashRiftWarden: {
-    name: "Rift Warden",
+  ashCinderHarvester: {
+    name: "Cinder Harvester",
     power: 3,
-    stats: { hp: 8, def: 2, strength: 3, range: 3, agility: 2, control: 0.1 },
-    ability: { name: "Void Tether", key: "Siphon" }
+    stats: { hp: 8, def: 2, strength: 3, range: 2, agility: 1.8, control: 0.8 },
+    ability: { name: "Magma Grip", key: "MagmaGrip" },
+    veteranAbility: null
   },
   ashScorchPriest: {
     name: "Scorch Priest",
@@ -986,13 +1109,9 @@ export const PIECE_TYPES = {
   snowFrostLord: {
     name: "Frost Lord",
     power: 5,
-    stats: { hp: 12, def: 3, strength: 5, range: 1.5, agility: 2, control: 1.3 },
-    ability: { name: "Spike Rain", key: "SpikeRain" },
-    veteranAbility: {
-      key: "HelpFromAbove",
-      cooldown: ABILITY_VALUES.HelpFromAbove.cooldown,
-      isPassive: true
-    }
+    stats: { hp: 12, def: 3, strength: 5, range: 1.5, agility: 1.8, control: 1.3 },
+    ability: { name: "Frostfall Blessing", key: "FrostfallBlessing" },
+    veteranAbility: null
   },
   snowGlacialBrute: {
     name: "Glacial Brute",
@@ -1050,11 +1169,12 @@ export const PIECE_TYPES = {
       cooldown: ABILITY_VALUES.FrostbiteCurse.cooldown
     }
   },
-  snowVoidChanter: {
-    name: "Void Chanter",
+  snowSoulLinker: {
+    name: "Soul Linker",
     power: 3,
-    stats: { hp: 8, def: 2, strength: 3, range: 3, agility: 2, control: 0.1 },
-    ability: { name: "Void Tether", key: "Siphon" }
+    stats: { hp: 8, def: 2, strength: 3, range: 2, agility: 1.8, control: 0.8 },
+    ability: { name: "Fate Link", key: "FateLink" },
+    veteranAbility: null
   }
 };
 
@@ -1067,7 +1187,7 @@ export const PIECE_VALUES = {
   ashMagmaSpitter: 500,
   ashObsidianShaper: 250,
   ashRiftForger: 250,
-  ashRiftWarden: 700,
+  ashCinderHarvester: 700,
   ashScorchPriest: 450,
   snowArcticTrapper: 150,
   snowCryomancer: 500,
@@ -1079,7 +1199,7 @@ export const PIECE_VALUES = {
   snowIceWisp: 50,
   snowRampagingYeti: 300,
   snowSoulFreeze: 450,
-  snowVoidChanter: 700
+  snowSoulLinker: 700
 };
 
 export const TEAM_PIECES = {
@@ -1089,7 +1209,7 @@ export const TEAM_PIECES = {
     Mystic: "ashObsidianShaper",
     Priest: "ashScorchPriest",
     Shaper: "ashRiftForger",
-    Siphoner: "ashRiftWarden",
+    Siphoner: "ashCinderHarvester",
     Skirmisher: "ashAshStrider",
     Striker: "ashCinderScout",
     Tyrant: "ashAshTyrant",
@@ -1101,7 +1221,7 @@ export const TEAM_PIECES = {
     Mystic: "snowHoarfrostMystic",
     Priest: "snowSoulFreeze",
     Shaper: "snowIceWeaver",
-    Siphoner: "snowVoidChanter",
+    Siphoner: "snowSoulLinker",
     Skirmisher: "snowArcticTrapper",
     Striker: "snowFrostbiteStalker",
     Tyrant: "snowFrostLord",

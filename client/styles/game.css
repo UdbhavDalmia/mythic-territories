@@ -431,10 +431,9 @@ button:disabled {
 #piecePopup {
    position: fixed;
    display: none;
-   /* Glassmorphism */
-   background: rgba(10, 10, 20, 0.55);
-   backdrop-filter: blur(16px) saturate(170%);
-   -webkit-backdrop-filter: blur(16px) saturate(170%);
+   /* Manual Frosted Glass Visuals */
+   background: linear-gradient(135deg, rgba(35, 40, 55, 0.85) 0%, rgba(10, 15, 25, 0.95) 100%),
+               url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
    border: 1px solid rgba(102, 170, 255, 0.4);
    color: #f0f0f0;
    padding: 12px 16px;
@@ -762,10 +761,9 @@ body.multiplayer #roomStatusOverlay {
       left: 0;
       width: 100%;
       height: auto;
-      /* Glassmorphism */
-      background: rgba(10, 10, 20, 0.55);
-      backdrop-filter: blur(16px) saturate(170%);
-      -webkit-backdrop-filter: blur(16px) saturate(170%);
+      /* Manual Frosted Glass Visuals */
+      background: linear-gradient(135deg, rgba(35, 40, 55, 0.85) 0%, rgba(10, 15, 25, 0.95) 100%),
+                  url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
       border-top: 1px solid rgba(255, 255, 255, 0.1);
       box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.05);
       z-index: 10000;

@@ -264,20 +264,76 @@ export function dealDamage(attacker, defender, gameState) {
 
   let actualDmg = Math.min(defender.currentHp, dmg);
   
-  if (actualDmg >= defender.currentHp && defender.isVeteran && C.PIECE_TYPES[defender.key]?.veteranAbility?.key === "HelpFromAbove") {
-    if ((defender.secondaryAbilityCooldown || 0) <= 0) {
-      actualDmg = defender.currentHp - 1; // Leave at 1 HP
-      defender.secondaryAbilityCooldown = C.ABILITY_VALUES.HelpFromAbove?.cooldown || 10;
-      // Note: You might want to trigger a flash message here in the UI, but utils should stay pure.
+  // Passives triggering on Lethal Strike
+  if (actualDmg >= defender.currentHp) {
+    if (C.PIECE_TYPES[defender.key]?.veteranAbility?.key === "HelpFromAbove" || C.PIECE_TYPES[defender.key]?.ability?.key === "HelpFromAbove") {
+      // Frost Lord passive: survives on 1 HP, grants ally aura
+      if ((defender.helpFromAboveCooldown || 0) <= 0) {
+        actualDmg = defender.currentHp - 1;
+        defender.helpFromAboveCooldown = C.ABILITY_VALUES.HelpFromAbove?.cooldown || 15;
+        defender.hasHelpFromAboveActive = true;
+        // Grant +1 Strength to all allies within 1.5 tiles for 5 turns
+        const radius = C.ABILITY_VALUES.HelpFromAbove?.radius || 1.5;
+        gameState.pieces.forEach(ally => {
+          if (ally.team === defender.team && ally.id !== defender.id) {
+            const dist = Math.hypot(ally.row - defender.row, ally.col - defender.col);
+            if (dist <= radius) {
+              gameState.temporaryBoosts.push({
+                pieceId: ally.id,
+                amount: C.ABILITY_VALUES.HelpFromAbove?.strengthBoost || 1,
+                duration: 5,
+                name: "HelpFromAboveAura"
+              });
+            }
+          }
+        });
+      }
+    } else if (defender.key === "ashAshTyrant") {
+      // Death Meteor passive: survives on 1 HP, triggers explosion
+      if ((defender.deathMeteorCooldown || 0) <= 0) {
+        actualDmg = defender.currentHp - 1;
+        defender.deathMeteorCooldown = 15;
+        // Explosion: 4 dmg to enemies, 2 dmg to allies within radius 2
+        gameState.pieces.forEach(p => {
+          const dist = Math.hypot(p.row - defender.row, p.col - defender.col);
+          if (dist <= 2 && p.id !== defender.id) {
+            if (p.team !== defender.team) {
+              p.currentHp = Math.max(0, (p.currentHp || p.stats?.hp || 5) - 4);
+            } else {
+              p.currentHp = Math.max(0, (p.currentHp || p.stats?.hp || 5) - 2);
+            }
+          }
+        });
+        gameState.deathMeteors = gameState.deathMeteors || [];
+        gameState.deathMeteors.push({ r: defender.row, c: defender.col });
+      }
     }
   }
   
+  // Check if defender has Magma Shield (blocks 1 damage)
+  const shieldIdx = (gameState.shields || []).findIndex(s => s.pieceId === defender.id);
+  if (shieldIdx !== -1 && actualDmg > 0) {
+    actualDmg = Math.max(0, actualDmg - 1);
+    gameState.shields.splice(shieldIdx, 1); // consume the shield
+  }
+
   defender.currentHp = Math.max(0, defender.currentHp - actualDmg);
+
+  // Fate Link: When the friendly (source) takes damage, mirror to the bound enemy
+  if (gameState.fateLinks && actualDmg > 0) {
+    gameState.fateLinks.forEach(fl => {
+      if (fl.sourceId === defender.id) {
+        const boundEnemy = gameState.pieces.find(p => p.id === fl.targetId);
+        if (boundEnemy) {
+          boundEnemy.currentHp = Math.max(0, boundEnemy.currentHp - actualDmg);
+          // Note: if boundEnemy.currentHp <= 0, handlePieceCapture will fire
+          // from isCaptureSuccessful’s caller and Cold Snap will trigger there.
+        }
+      }
+    });
+  }
   
   attacker.damageDealt = (attacker.damageDealt || 0) + actualDmg;
-  if (!attacker.isVeteran && attacker.damageDealt >= (attacker.maxHp || 5)) {
-    attacker.readyForVeteranPromotion = true;
-  }
 
   return dmg;
 }
