@@ -272,38 +272,45 @@ export function dealDamage(attacker, defender, gameState) {
         actualDmg = defender.currentHp - 1;
         defender.helpFromAboveCooldown = C.ABILITY_VALUES.HelpFromAbove?.cooldown || 15;
         defender.hasHelpFromAboveActive = true;
+        // Bug 1.2 fix: Track active duration (5 turns) separately from 15-turn cooldown
+        defender.helpFromAboveActiveTurns = C.ABILITY_VALUES.HelpFromAbove?.activeDuration || 5;
         // Grant +1 Strength to all allies within 1.5 tiles for 5 turns
         const radius = C.ABILITY_VALUES.HelpFromAbove?.radius || 1.5;
-        gameState.pieces.forEach(ally => {
-          if (ally.team === defender.team && ally.id !== defender.id) {
-            const dist = Math.hypot(ally.row - defender.row, ally.col - defender.col);
-            if (dist <= radius) {
-              gameState.temporaryBoosts.push({
-                pieceId: ally.id,
-                amount: C.ABILITY_VALUES.HelpFromAbove?.strengthBoost || 1,
-                duration: 5,
-                name: "HelpFromAboveAura"
-              });
+        if (gameState.pieces) {
+          gameState.pieces.forEach(ally => {
+            if (ally.team === defender.team && ally.id !== defender.id) {
+              const dist = Math.hypot(ally.row - defender.row, ally.col - defender.col);
+              if (dist <= radius) {
+                if (!gameState.temporaryBoosts) gameState.temporaryBoosts = [];
+                gameState.temporaryBoosts.push({
+                  pieceId: ally.id,
+                  amount: C.ABILITY_VALUES.HelpFromAbove?.strengthBoost || 1,
+                  duration: 5,
+                  name: "HelpFromAboveAura"
+                });
+              }
             }
-          }
-        });
+          });
+        }
       }
     } else if (defender.key === "ashAshTyrant") {
-      // Death Meteor passive: survives on 1 HP, triggers explosion
+      // Bug 1.3 fix: Death Meteor passive executes on any lethal strike including AoE
       if ((defender.deathMeteorCooldown || 0) <= 0) {
         actualDmg = defender.currentHp - 1;
         defender.deathMeteorCooldown = 15;
         // Explosion: 4 dmg to enemies, 2 dmg to allies within radius 2
-        gameState.pieces.forEach(p => {
-          const dist = Math.hypot(p.row - defender.row, p.col - defender.col);
-          if (dist <= 2 && p.id !== defender.id) {
-            if (p.team !== defender.team) {
-              p.currentHp = Math.max(0, (p.currentHp || p.stats?.hp || 5) - 4);
-            } else {
-              p.currentHp = Math.max(0, (p.currentHp || p.stats?.hp || 5) - 2);
+        if (gameState.pieces) {
+          gameState.pieces.forEach(p => {
+            const dist = Math.hypot(p.row - defender.row, p.col - defender.col);
+            if (dist <= 2 && p.id !== defender.id) {
+              if (p.team !== defender.team) {
+                p.currentHp = Math.max(0, (p.currentHp || p.stats?.hp || 5) - 4);
+              } else {
+                p.currentHp = Math.max(0, (p.currentHp || p.stats?.hp || 5) - 2);
+              }
             }
-          }
-        });
+          });
+        }
         gameState.deathMeteors = gameState.deathMeteors || [];
         gameState.deathMeteors.push({ r: defender.row, c: defender.col });
       }
@@ -327,7 +334,7 @@ export function dealDamage(attacker, defender, gameState) {
         if (boundEnemy) {
           boundEnemy.currentHp = Math.max(0, boundEnemy.currentHp - actualDmg);
           // Note: if boundEnemy.currentHp <= 0, handlePieceCapture will fire
-          // from isCaptureSuccessful’s caller and Cold Snap will trigger there.
+          // from isCaptureSuccessful's caller and Cold Snap will trigger there.
         }
       }
     });
@@ -336,6 +343,70 @@ export function dealDamage(attacker, defender, gameState) {
   attacker.damageDealt = (attacker.damageDealt || 0) + actualDmg;
 
   return dmg;
+}
+
+/**
+ * Bug 1.1 & 1.3 fix: Checks and applies lethal-strike passives (HelpFromAbove, Death Meteor)
+ * before an AoE source removes a piece. Returns true if the passive intercepted the kill.
+ * Call this in AoE upkeep loops instead of directly invoking handlePieceCapture when HP <= 0.
+ */
+export function applyAoeLethalPassives(piece, gameState) {
+  if (!piece || typeof piece.currentHp !== "number" || piece.currentHp > 0) return false;
+
+  // Frost Lord – Help From Above
+  if (
+    C.PIECE_TYPES[piece.key]?.veteranAbility?.key === "HelpFromAbove" ||
+    C.PIECE_TYPES[piece.key]?.ability?.key === "HelpFromAbove"
+  ) {
+    if ((piece.helpFromAboveCooldown || 0) <= 0) {
+      piece.currentHp = 1;
+      piece.helpFromAboveCooldown = C.ABILITY_VALUES.HelpFromAbove?.cooldown || 15;
+      piece.hasHelpFromAboveActive = true;
+      piece.helpFromAboveActiveTurns = C.ABILITY_VALUES.HelpFromAbove?.activeDuration || 5;
+      const radius = C.ABILITY_VALUES.HelpFromAbove?.radius || 1.5;
+      if (gameState.pieces && gameState.temporaryBoosts) {
+        gameState.pieces.forEach(ally => {
+          if (ally.team === piece.team && ally.id !== piece.id) {
+            const dist = Math.hypot(ally.row - piece.row, ally.col - piece.col);
+            if (dist <= radius) {
+              gameState.temporaryBoosts.push({
+                pieceId: ally.id,
+                amount: C.ABILITY_VALUES.HelpFromAbove?.strengthBoost || 1,
+                duration: 5,
+                name: "HelpFromAboveAura"
+              });
+            }
+          }
+        });
+      }
+      return true; // intercept: do NOT capture
+    }
+  }
+
+  // Ash Tyrant – Death Meteor
+  if (piece.key === "ashAshTyrant") {
+    if ((piece.deathMeteorCooldown || 0) <= 0) {
+      piece.currentHp = 1;
+      piece.deathMeteorCooldown = 15;
+      if (gameState.pieces) {
+        gameState.pieces.forEach(p => {
+          const dist = Math.hypot(p.row - piece.row, p.col - piece.col);
+          if (dist <= 2 && p.id !== piece.id) {
+            if (p.team !== piece.team) {
+              p.currentHp = Math.max(0, (p.currentHp || 5) - 4);
+            } else {
+              p.currentHp = Math.max(0, (p.currentHp || 5) - 2);
+            }
+          }
+        });
+      }
+      gameState.deathMeteors = gameState.deathMeteors || [];
+      gameState.deathMeteors.push({ r: piece.row, c: piece.col });
+      return true; // intercept: do NOT capture
+    }
+  }
+
+  return false;
 }
 
 /* ==========================================================================

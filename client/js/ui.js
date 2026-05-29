@@ -1189,11 +1189,41 @@ export function drawPiece(p, targetCtx, gameState) {
       }
       drawCtx.fillStyle = 'rgba(0,0,0,0.7)';
       drawCtx.fillRect(barX, barY, barW, barH);
+      // Bug 2.1 fix: White HP bar when Help From Above shield is active
       let hpColor = '#00ff00';
-      if (hpPct <= 0.25) hpColor = '#ff0000';
-      else if (hpPct <= 0.5) hpColor = '#ffff00';
+      if (p.hasHelpFromAboveActive) {
+        hpColor = '#ffffff';
+      } else if (hpPct <= 0.25) {
+        hpColor = '#ff0000';
+      } else if (hpPct <= 0.5) {
+        hpColor = '#ffff00';
+      }
       drawCtx.fillStyle = hpColor;
+      if (p.hasHelpFromAboveActive) {
+        // Add glow effect on white bar
+        drawCtx.shadowColor = '#aaeeff';
+        drawCtx.shadowBlur = 8;
+      }
       drawCtx.fillRect(barX, barY, barW * hpPct, barH);
+      drawCtx.shadowBlur = 0;
+
+      // Bug 2.1 fix: Cyan status gem next to HP bar to show HelpFromAbove readiness
+      if (p.key === 'snowFrostLord') {
+        const gemR = barH * 1.0;
+        const gemX = barX + barW + gemR + 2;
+        const gemY = barY + barH / 2;
+        const isReady = (p.helpFromAboveCooldown || 0) <= 0;
+        const gemColor = isReady ? '#00eeff' : 'rgba(0,150,180,0.5)';
+        drawCtx.beginPath();
+        drawCtx.arc(gemX, gemY, gemR, 0, Math.PI * 2);
+        drawCtx.fillStyle = gemColor;
+        if (isReady) {
+          drawCtx.shadowColor = '#00eeff';
+          drawCtx.shadowBlur = 8 + 4 * Math.sin(performance.now() * 0.006);
+        }
+        drawCtx.fill();
+        drawCtx.shadowBlur = 0;
+      }
       drawCtx.restore();
 
       // Procedural Defense Badge
@@ -1273,6 +1303,48 @@ export function drawPiece(p, targetCtx, gameState) {
       drawCtx.beginPath();
       drawCtx.arc(vis.x + C.CELL_SIZE / 2 + vis.offsetX, vis.y + C.CELL_SIZE / 2 + vis.offsetY, C.CELL_SIZE * 0.4, 0, 2 * Math.PI);
       drawCtx.stroke();
+    }
+
+    // Bug 2.1 fix: Protective runic ring of ice around Frost Lord during active shield
+    if (p.key === 'snowFrostLord' && p.hasHelpFromAboveActive) {
+      const pulseFactor = 0.5 + 0.5 * Math.sin(performance.now() * 0.004);
+      const ringRadius = C.CELL_SIZE * 0.48 + pulseFactor * 4;
+      const pcx = vis.x + C.CELL_SIZE / 2 + vis.offsetX;
+      const pcy = vis.y + C.CELL_SIZE / 2 + vis.offsetY;
+      drawCtx.save();
+      // Outer runic ring
+      drawCtx.strokeStyle = `rgba(0, 230, 255, ${0.6 + 0.4 * pulseFactor})`;
+      drawCtx.lineWidth = 3;
+      drawCtx.shadowColor = '#00eeff';
+      drawCtx.shadowBlur = 14;
+      drawCtx.setLineDash([6, 5]);
+      drawCtx.lineDashOffset = -performance.now() * 0.05;
+      drawCtx.beginPath();
+      drawCtx.arc(pcx, pcy, ringRadius, 0, Math.PI * 2);
+      drawCtx.stroke();
+      // Inner solid ring
+      drawCtx.setLineDash([]);
+      drawCtx.lineWidth = 1.5;
+      drawCtx.strokeStyle = `rgba(180, 255, 255, ${0.5 + 0.3 * pulseFactor})`;
+      drawCtx.beginPath();
+      drawCtx.arc(pcx, pcy, ringRadius * 0.78, 0, Math.PI * 2);
+      drawCtx.stroke();
+      // Draw runic spikes (6 points)
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2 + performance.now() * 0.001;
+        const sx = pcx + Math.cos(angle) * ringRadius * 0.78;
+        const sy = pcy + Math.sin(angle) * ringRadius * 0.78;
+        const ex = pcx + Math.cos(angle) * ringRadius * 1.1;
+        const ey = pcy + Math.sin(angle) * ringRadius * 1.1;
+        drawCtx.beginPath();
+        drawCtx.moveTo(sx, sy);
+        drawCtx.lineTo(ex, ey);
+        drawCtx.strokeStyle = 'rgba(0, 255, 255, 0.9)';
+        drawCtx.lineWidth = 2;
+        drawCtx.shadowBlur = 6;
+        drawCtx.stroke();
+      }
+      drawCtx.restore();
     }
 
     drawSiphonRunes(p, gameState);
@@ -1605,6 +1677,94 @@ export function renderBoard(gameState) {
   drawElementalCores(gameState);
   drawTethers(gameState);
   drawFlashEffects(gameState);
+
+  // Bug 2.3 fix: Render scorched-earth overlays left by Death Meteor blasts
+  if (gameState.deathMeteors && gameState.deathMeteors.length > 0) {
+    gameState.deathMeteors.forEach(m => {
+      const radius = 2; // matches the explosion radius
+      for (let dr = -radius; dr <= radius; dr++) {
+        for (let dc = -radius; dc <= radius; dc++) {
+          const dist = Math.hypot(dr, dc);
+          if (dist > radius) continue;
+          const tr = m.r + dr, tc = m.c + dc;
+          if (tr < 0 || tr >= 10 || tc < 0 || tc >= 10) continue;
+          const alpha = Math.max(0.15, 0.55 - dist * 0.12);
+          // Scorched dark char pattern
+          boardCtx.save();
+          boardCtx.fillStyle = `rgba(20,8,0,${alpha})`;
+          boardCtx.fillRect(tc * C.CELL_SIZE, tr * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
+          // Add crackling ember accent
+          boardCtx.strokeStyle = `rgba(180,50,0,${alpha * 0.7})`;
+          boardCtx.lineWidth = 1.5;
+          const cx = tc * C.CELL_SIZE + C.CELL_SIZE / 2;
+          const cy = tr * C.CELL_SIZE + C.CELL_SIZE / 2;
+          for (let si = 0; si < 3; si++) {
+            const ang = (si / 3) * Math.PI * 2 + (tc * 1.3 + tr * 0.7);
+            boardCtx.beginPath();
+            boardCtx.moveTo(cx + Math.cos(ang) * 4, cy + Math.sin(ang) * 4);
+            boardCtx.lineTo(cx + Math.cos(ang) * C.CELL_SIZE * 0.28, cy + Math.sin(ang) * C.CELL_SIZE * 0.28);
+            boardCtx.stroke();
+          }
+          boardCtx.restore();
+        }
+      }
+    });
+  }
+
+  // Bug 2.2 fix: FateLink VFX - runic snowflake under linked units + frost overlay on bound enemy
+  if (gameState.fateLinks && gameState.fateLinks.length > 0 && gameState.pieces) {
+    gameState.fateLinks.forEach(fl => {
+      const source = gameState.pieces.find(p => p.id === fl.sourceId);
+      const target = gameState.pieces.find(p => p.id === fl.targetId);
+      if (!source || !target) return;
+
+      const t = performance.now() * 0.003;
+
+      // Draw runic snowflake beneath both source and target
+      [source, target].forEach(p => {
+        const cx = p.col * C.CELL_SIZE + C.CELL_SIZE / 2;
+        const cy = p.row * C.CELL_SIZE + C.CELL_SIZE / 2;
+        boardCtx.save();
+        boardCtx.globalAlpha = 0.75 + 0.2 * Math.sin(t * 2);
+        boardCtx.strokeStyle = '#88ddff';
+        boardCtx.shadowColor = '#00ccff';
+        boardCtx.shadowBlur = 10;
+        boardCtx.lineWidth = 1.8;
+        // 6-pointed snowflake
+        for (let i = 0; i < 6; i++) {
+          const angle = (i / 6) * Math.PI * 2 + t * 0.5;
+          const arm = C.CELL_SIZE * 0.32;
+          boardCtx.beginPath();
+          boardCtx.moveTo(cx, cy);
+          boardCtx.lineTo(cx + Math.cos(angle) * arm, cy + Math.sin(angle) * arm);
+          // Barbs
+          const bx = cx + Math.cos(angle) * arm * 0.55;
+          const by = cy + Math.sin(angle) * arm * 0.55;
+          const bArm = arm * 0.22;
+          boardCtx.moveTo(bx + Math.cos(angle + Math.PI / 4) * bArm, by + Math.sin(angle + Math.PI / 4) * bArm);
+          boardCtx.lineTo(bx, by);
+          boardCtx.lineTo(bx + Math.cos(angle - Math.PI / 4) * bArm, by + Math.sin(angle - Math.PI / 4) * bArm);
+          boardCtx.stroke();
+        }
+        boardCtx.restore();
+      });
+
+      // Heavy frost overlay on the bound enemy
+      boardCtx.save();
+      boardCtx.globalAlpha = 0.38 + 0.15 * Math.sin(t);
+      boardCtx.fillStyle = 'rgba(160, 230, 255, 0.45)';
+      boardCtx.shadowColor = '#00ccff';
+      boardCtx.shadowBlur = 16;
+      const ex = target.col * C.CELL_SIZE;
+      const ey = target.row * C.CELL_SIZE;
+      boardCtx.fillRect(ex, ey, C.CELL_SIZE, C.CELL_SIZE);
+      // Frost crystal border
+      boardCtx.strokeStyle = 'rgba(100, 200, 255, 0.85)';
+      boardCtx.lineWidth = 2;
+      boardCtx.strokeRect(ex + 2, ey + 2, C.CELL_SIZE - 4, C.CELL_SIZE - 4);
+      boardCtx.restore();
+    });
+  }
 }
 
 export function drawTethers(gameState) {

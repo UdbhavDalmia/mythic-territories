@@ -1,5 +1,5 @@
 import * as C from "./constants.js";
-import { updateBoardMap, isCaptureSuccessful, getValidMoves, dealDamage, previewDamage, getPieceMoveRadius } from "./utils.js";
+import { updateBoardMap, isCaptureSuccessful, getValidMoves, dealDamage, previewDamage, getPieceMoveRadius, applyAoeLethalPassives } from "./utils.js";
 import { executeAscensionChoice as _executeAscensionLogic } from "./ascension.js";
 
 let gameState = {};
@@ -1337,8 +1337,9 @@ export function executeSacrifice(piece) {
     ashAshStrider: "Skirmisher",
     snowHoarfrostMystic: "Mystic",
     ashObsidianShaper: "Mystic",
-    snowVoidChanter: "Siphoner",
-    ashRiftWarden: "Siphoner",
+    // Bug 1.4 fix: Updated from deprecated snowVoidChanter/ashRiftWarden
+    snowSoulLinker: "Siphoner",
+    ashCinderHarvester: "Siphoner",
     snowCryomancer: "Mage",
     ashMagmaSpitter: "Mage",
     snowSoulFreeze: "Priest",
@@ -1533,7 +1534,8 @@ export function updateConduitLink() {
 }
 
 export function executeRiftPulse(piece) {
-  if (piece.key !== "ashRiftWarden" && piece.key !== "snowVoidChanter")
+  // Bug 1.4 fix: Updated from deprecated ashRiftWarden/snowVoidChanter
+  if (piece.key !== "ashCinderHarvester" && piece.key !== "snowSoulLinker")
     return false;
   if (!piece.canRiftPulse || piece.hasUsedRiftPulse) return false;
   flash("The Anchor unleashes a Rift Pulse!", piece.team, gameState);
@@ -1898,7 +1900,12 @@ function endOfTurnUpkeep() {
       if (p.dazedFor > 0) p.dazedFor--;
       if (p.deathMeteorCooldown > 0) p.deathMeteorCooldown--;
       if (p.helpFromAboveCooldown > 0) p.helpFromAboveCooldown--;
-      if (p.helpFromAboveCooldown <= 0) p.hasHelpFromAboveActive = false;
+      // Bug 1.2 fix: Active duration is tracked separately from the cooldown timer.
+      // The shield lasts exactly 5 turns; cooldown keeps ticking for 15 turns.
+      if (p.helpFromAboveActiveTurns > 0) {
+        p.helpFromAboveActiveTurns--;
+        if (p.helpFromAboveActiveTurns <= 0) p.hasHelpFromAboveActive = false;
+      }
       if (p.ability && p.ability.cooldown > 0) p.ability.cooldown--;
       if (p.ability && p.ability.active && p.ability.duration > 0) {
         p.ability.duration--;
@@ -1965,7 +1972,10 @@ function endOfTurnUpkeep() {
                 creator.damageDealt = (creator.damageDealt || 0) + (prevHp - p.currentHp);
                 if (!creator.isVeteran && creator.damageDealt >= (creator.maxHp || 5)) creator.readyForVeteranPromotion = true;
               }
-              if (p.currentHp <= 0) handlePieceCapture(p, creator, gameState);
+              // Bug 1.1/1.3 fix: Check leader survival passives before executing capture
+              if (p.currentHp <= 0 && !applyAoeLethalPassives(p, gameState)) {
+                handlePieceCapture(p, creator, gameState);
+              }
             } else {
               p.currentHp = Math.min(p.maxHp || 5, p.currentHp + s.heal);
             }
@@ -1998,7 +2008,10 @@ function endOfTurnUpkeep() {
                 creator.damageDealt = (creator.damageDealt || 0) + (prevHp - p.currentHp);
                 if (!creator.isVeteran && creator.damageDealt >= (creator.maxHp || 5)) creator.readyForVeteranPromotion = true;
               }
-              if (p.currentHp <= 0) handlePieceCapture(p, creator, gameState);
+              // Bug 1.1/1.3 fix: Check leader survival passives before executing capture
+              if (p.currentHp <= 0 && !applyAoeLethalPassives(p, gameState)) {
+                handlePieceCapture(p, creator, gameState);
+              }
             } else {
               p.currentHp = Math.min(p.maxHp || 5, p.currentHp + s.heal);
             }
@@ -2051,7 +2064,8 @@ function endOfTurnUpkeep() {
     gameState.pendingCaptures.forEach(({ capturedId, attackerId }) => {
       const captured = gameState.pieces.find(p => p.id === capturedId);
       const attacker = gameState.pieces.find(p => p.id === attackerId);
-      if (captured && captured.currentHp <= 0) {
+      // Bug 1.1/1.3 fix: Check leader survival passives before executing capture
+      if (captured && captured.currentHp <= 0 && !applyAoeLethalPassives(captured, gameState)) {
         handlePieceCapture(captured, attacker, gameState);
       }
     });
@@ -2144,6 +2158,7 @@ export function initGame() {
   gameState.shockwaves = [];
   gameState.trapDeployments = [];
   gameState.trapTriggers = [];
+  gameState.deathMeteors = []; // Bug 2.3: scorched-earth markers from Ash Tyrant's Death Meteor passive
   gameState.selectedPiece = null;
   gameState.currentTurn = "snow";
   gameState.turnCount = 1;
