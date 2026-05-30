@@ -640,3 +640,249 @@ export function drawVentAnimations(ctx, gameState) {
     if (anim.ticks > 30 && anim.particles.length === 0) gameState.ventAnimations.splice(i, 1);
   }
 }
+
+export function spawnGlacialFractureEffect(row, col, gameState) {
+  gameState.glacialFractureAnimations = gameState.glacialFractureAnimations || [];
+  const targetX = col * C.CELL_SIZE + C.CELL_SIZE / 2;
+  const targetY = row * C.CELL_SIZE + C.CELL_SIZE / 2;
+
+  const shards = [];
+  for (let i = 0; i < 30; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.random() * 8 + 4;
+    shards.push({
+      x: targetX,
+      y: targetY,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      alpha: 1,
+      size: Math.random() * 8 + 4,
+      rot: Math.random() * Math.PI,
+      vrot: (Math.random() - 0.5) * 0.4
+    });
+  }
+  
+  gameState.glacialFractureAnimations.push({
+    x: targetX,
+    y: targetY,
+    ticks: 0,
+    maxTicks: 45,
+    shards
+  });
+
+  // Also add a shockwave
+  gameState.shockwaves = gameState.shockwaves || [];
+  gameState.shockwaves.push({ x: targetX, y: targetY, radius: C.CELL_SIZE * 2, life: 1, color: '0, 255, 255' });
+}
+
+export function drawGlacialFractureAnimations(ctx, gameState) {
+  if (!gameState.glacialFractureAnimations) return;
+
+  for (let i = gameState.glacialFractureAnimations.length - 1; i >= 0; i--) {
+    const anim = gameState.glacialFractureAnimations[i];
+    anim.ticks++;
+
+    // Draw the "frosted glass territory overlay" blooming effect
+    const progress = Math.min(anim.ticks / 20, 1);
+    ctx.save();
+    ctx.translate(anim.x, anim.y);
+    const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, C.CELL_SIZE * 2);
+    grad.addColorStop(0, `rgba(180, 240, 255, ${0.4 * (1 - progress)})`);
+    grad.addColorStop(1, 'rgba(180, 240, 255, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, C.CELL_SIZE * 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Cyan step-flickering borders
+    if (progress < 1) {
+      ctx.strokeStyle = `rgba(0, 255, 255, ${Math.random() * 0.8 + 0.2})`;
+      ctx.lineWidth = 4 * (1 - progress);
+      ctx.strokeRect(-C.CELL_SIZE * 2, -C.CELL_SIZE * 2, C.CELL_SIZE * 4, C.CELL_SIZE * 4);
+    }
+    ctx.restore();
+
+    // Flying shards
+    for (let k = anim.shards.length - 1; k >= 0; k--) {
+      const s = anim.shards[k];
+      s.x += s.vx; s.y += s.vy; s.vx *= 0.9; s.vy *= 0.9; s.rot += s.vrot; s.alpha -= 0.03;
+      if (s.alpha <= 0) { anim.shards.splice(k, 1); continue; }
+      
+      ctx.save();
+      ctx.translate(s.x, s.y); ctx.rotate(s.rot);
+      ctx.fillStyle = `rgba(100, 220, 255, ${s.alpha})`;
+      ctx.beginPath(); ctx.moveTo(0, -s.size); ctx.lineTo(s.size / 2, s.size); ctx.lineTo(-s.size / 2, s.size); ctx.fill();
+      ctx.restore();
+    }
+
+    if (anim.ticks >= anim.maxTicks && anim.shards.length === 0) {
+      gameState.glacialFractureAnimations.splice(i, 1);
+    }
+  }
+}
+
+export function spawnAColdFarewellEffect(row, col, gameState) {
+  gameState.aColdFarewellAnimations = gameState.aColdFarewellAnimations || [];
+  const targetX = col * C.CELL_SIZE + C.CELL_SIZE / 2;
+  const targetY = row * C.CELL_SIZE + C.CELL_SIZE / 2;
+
+  const blastParticles = [];
+  for (let i = 0; i < 40; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.random() * 10 + 2;
+    blastParticles.push({
+      x: targetX, y: targetY,
+      vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+      alpha: 1,
+      size: Math.random() * 5 + 2
+    });
+  }
+
+  gameState.aColdFarewellAnimations.push({
+    x: targetX,
+    y: targetY,
+    ticks: 0,
+    maxTicks: 50,
+    blastParticles
+  });
+
+  gameState.shockwaves = gameState.shockwaves || [];
+  gameState.shockwaves.push({ x: targetX, y: targetY, radius: C.CELL_SIZE * 1.5, life: 1, color: '150, 255, 200' });
+}
+
+export function drawAColdFarewellAnimations(ctx, gameState) {
+  if (!gameState.aColdFarewellAnimations) return;
+
+  for (let i = gameState.aColdFarewellAnimations.length - 1; i >= 0; i--) {
+    const anim = gameState.aColdFarewellAnimations[i];
+    anim.ticks++;
+
+    // Initial blast mist
+    const mistProgress = Math.min(anim.ticks / 15, 1);
+    if (mistProgress < 1) {
+      ctx.save();
+      ctx.translate(anim.x, anim.y);
+      const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, C.CELL_SIZE * 1.5);
+      grad.addColorStop(0, `rgba(150, 255, 200, ${0.8 * (1 - mistProgress)})`);
+      grad.addColorStop(1, 'rgba(150, 255, 200, 0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(0, 0, C.CELL_SIZE * 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Blast particles
+    for (let k = anim.blastParticles.length - 1; k >= 0; k--) {
+      const p = anim.blastParticles[k];
+      p.x += p.vx; p.y += p.vy; p.vx *= 0.85; p.vy *= 0.85; p.alpha -= 0.02;
+      if (p.alpha <= 0) { anim.blastParticles.splice(k, 1); continue; }
+      
+      ctx.fillStyle = `rgba(150, 255, 200, ${p.alpha})`;
+      ctx.shadowColor = '#96ffc8';
+      ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    if (anim.ticks >= anim.maxTicks && anim.blastParticles.length === 0) {
+      gameState.aColdFarewellAnimations.splice(i, 1);
+    }
+  }
+}
+
+export function spawnFrostfallImpact(r, c, gameState) {
+  if (!gameState.frostfallAnimations) gameState.frostfallAnimations = [];
+  const targetX = c * C.CELL_SIZE + C.CELL_SIZE / 2;
+  const targetY = r * C.CELL_SIZE + C.CELL_SIZE / 2;
+
+  const shards = [];
+  for (let i = 0; i < 40; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.random() * 8 + 3;
+    shards.push({
+      x: targetX, y: targetY,
+      vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+      alpha: 1, size: Math.random() * 4 + 2, rot: Math.random() * Math.PI,
+      rv: (Math.random() - 0.5) * 0.4
+    });
+  }
+  gameState.frostfallAnimations.push({ x: targetX, y: targetY, ticks: 0, shards });
+
+  // Add shockwave
+  gameState.shockwaves = gameState.shockwaves || [];
+  gameState.shockwaves.push({ x: targetX, y: targetY, radius: C.CELL_SIZE * 2, life: 1, color: '135, 206, 250' });
+}
+
+export function drawFrostfallAnimations(ctx, gameState) {
+  if (!gameState.frostfallAnimations) return;
+  for (let i = gameState.frostfallAnimations.length - 1; i >= 0; i--) {
+    const anim = gameState.frostfallAnimations[i];
+    anim.ticks++;
+
+    for (let k = anim.shards.length - 1; k >= 0; k--) {
+      const s = anim.shards[k];
+      s.x += s.vx; s.y += s.vy;
+      s.vx *= 0.9; s.vy *= 0.9;
+      s.rot += s.rv;
+      s.alpha -= 0.03;
+      if (s.alpha <= 0) {
+        anim.shards.splice(k, 1);
+        continue;
+      }
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      ctx.rotate(s.rot);
+      ctx.fillStyle = `rgba(135, 206, 250, ${s.alpha})`;
+      ctx.shadowColor = '#87CEFA';
+      ctx.shadowBlur = 10;
+      ctx.fillRect(-s.size / 2, -s.size, s.size, s.size * 2);
+      ctx.restore();
+    }
+
+    if (anim.ticks > 20 && anim.shards.length === 0) {
+      gameState.frostfallAnimations.splice(i, 1);
+    }
+  }
+}
+
+export function spawnFateLinkCast(src, dst, gameState) {
+  if (!gameState.fateLinkAnimations) gameState.fateLinkAnimations = [];
+  if (!src || !dst) return;
+  
+  const sx = src.col * C.CELL_SIZE + C.CELL_SIZE / 2;
+  const sy = src.row * C.CELL_SIZE + C.CELL_SIZE / 2;
+  const dx = dst.col * C.CELL_SIZE + C.CELL_SIZE / 2;
+  const dy = dst.row * C.CELL_SIZE + C.CELL_SIZE / 2;
+
+  gameState.fateLinkAnimations.push({ sx, sy, dx, dy, ticks: 0, maxTicks: 40 });
+}
+
+export function drawFateLinkAnimations(ctx, gameState) {
+  if (!gameState.fateLinkAnimations) return;
+  for (let i = gameState.fateLinkAnimations.length - 1; i >= 0; i--) {
+    const anim = gameState.fateLinkAnimations[i];
+    anim.ticks++;
+
+    const progress = Math.min(anim.ticks / 15, 1);
+    const alpha = (anim.maxTicks - anim.ticks) / 25;
+    if (alpha <= 0) {
+      gameState.fateLinkAnimations.splice(i, 1);
+      continue;
+    }
+
+    ctx.save();
+    ctx.strokeStyle = `rgba(211, 211, 211, ${alpha})`;
+    ctx.lineWidth = 4;
+    ctx.shadowColor = '#fff';
+    ctx.shadowBlur = 15;
+    ctx.setLineDash([10, 10]);
+    ctx.lineDashOffset = -anim.ticks;
+    
+    ctx.beginPath();
+    ctx.moveTo(anim.sx, anim.sy);
+    ctx.lineTo(anim.sx + (anim.dx - anim.sx) * progress, anim.sy + (anim.dy - anim.sy) * progress);
+    ctx.stroke();
+    ctx.restore();
+  }
+}

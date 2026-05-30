@@ -1,5 +1,5 @@
 import * as C from '../../shared/constants.js';
-import { getValidMoves, getEffectivePower } from '../../shared/utils.js';
+import { getValidMoves, getEffectivePower, getPieceMoveRadius } from '../../shared/utils.js';
 import { GameState, getCurrentState, isState } from '../../shared/logic.js';
 
 import {
@@ -544,9 +544,11 @@ export function drawSelection(gameState) {
     ctx.stroke();
     ctx.restore();
 
-    // Draw the continuous glowing movement radius circle of 0.9 units!
+    // Draw the continuous glowing movement radius circle based on piece agility!
     ctx.save();
-    const moveRadiusPx = 0.9 * C.CELL_SIZE;
+    // Assuming E.getPieceMoveRadius is available, or use p.agility as fallback
+    const maxRadius = (typeof getPieceMoveRadius === 'function') ? getPieceMoveRadius(p, gameState) : (p.agility || 2);
+    const moveRadiusPx = maxRadius * C.CELL_SIZE;
     const pulseRadius = moveRadiusPx + Math.sin(performance.now() * 0.005) * 3;
 
     ctx.strokeStyle = p.team === 'snow' ? 'rgba(0, 220, 255, 0.75)' : 'rgba(255, 90, 30, 0.75)';
@@ -1167,6 +1169,35 @@ export function drawPiece(p, targetCtx, gameState) {
           } else {
             drawCtx.drawImage(badge, bx, by, badgeSize, badgeSize);
           }
+
+          // A Cold Farewell Control Lock Visuals (Strength Badge)
+          if ((gameState.debuffs || []).some(d => d.pieceId === p.id && d.name === "ColdFarewellControlLock")) {
+            drawCtx.save();
+            if (gameState.playerTeam === 'ash') {
+              drawCtx.translate(bx + badgeSize / 2, by + badgeSize / 2);
+              drawCtx.rotate(Math.PI);
+              drawCtx.translate(-(bx + badgeSize / 2), -(by + badgeSize / 2));
+            }
+            drawCtx.strokeStyle = 'rgba(150, 240, 255, 0.9)';
+            drawCtx.lineWidth = 2;
+            drawCtx.fillStyle = 'rgba(100, 200, 255, 0.4)';
+            drawCtx.shadowColor = '#00ffff';
+            drawCtx.shadowBlur = 8;
+            drawCtx.beginPath();
+            const cx = bx + badgeSize / 2;
+            const cy = by + badgeSize / 2;
+            const br = badgeSize / 1.5;
+            for (let i = 0; i < 8; i++) {
+              const angle = (i * Math.PI) / 4;
+              const rad = br + (Math.random() - 0.5) * 6;
+              if (i === 0) drawCtx.moveTo(cx + Math.cos(angle) * rad, cy + Math.sin(angle) * rad);
+              else drawCtx.lineTo(cx + Math.cos(angle) * rad, cy + Math.sin(angle) * rad);
+            }
+            drawCtx.closePath();
+            drawCtx.fill();
+            drawCtx.stroke();
+            drawCtx.restore();
+          }
         }
       }
     } catch (e) { }
@@ -1256,6 +1287,29 @@ export function drawPiece(p, targetCtx, gameState) {
       drawCtx.textAlign = 'center';
       drawCtx.textBaseline = 'middle';
       drawCtx.fillText(String(defVal), defX + defSize / 2, defY + defSize / 2 + 1);
+
+      // A Cold Farewell Control Lock Visuals (Defense Badge)
+      if ((gameState.debuffs || []).some(d => d.pieceId === p.id && d.name === "ColdFarewellControlLock")) {
+        drawCtx.strokeStyle = 'rgba(150, 240, 255, 0.9)';
+        drawCtx.lineWidth = 2;
+        drawCtx.fillStyle = 'rgba(100, 200, 255, 0.4)';
+        drawCtx.shadowColor = '#00ffff';
+        drawCtx.shadowBlur = 8;
+        drawCtx.beginPath();
+        const cx = defX + defSize / 2;
+        const cy = defY + defSize / 2;
+        const br = defSize / 1.2;
+        for (let i = 0; i < 8; i++) {
+          const angle = (i * Math.PI) / 4;
+          const rad = br + (Math.random() - 0.5) * 6;
+          if (i === 0) drawCtx.moveTo(cx + Math.cos(angle) * rad, cy + Math.sin(angle) * rad);
+          else drawCtx.lineTo(cx + Math.cos(angle) * rad, cy + Math.sin(angle) * rad);
+        }
+        drawCtx.closePath();
+        drawCtx.fill();
+        drawCtx.stroke();
+      }
+
       drawCtx.restore();
     } catch (e) { }
 
@@ -1613,6 +1667,36 @@ export function renderBoard(gameState) {
         boardCtx.fillStyle = `rgba(205, 92, 92, 0.4)`;
         boardCtx.fillRect(g.col * C.CELL_SIZE, g.row * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
       }
+    });
+  }
+
+  if (gameState.blizzardStorms) {
+    gameState.blizzardStorms.forEach(s => {
+      const cx = s.c * C.CELL_SIZE + C.CELL_SIZE / 2;
+      const cy = s.r * C.CELL_SIZE + C.CELL_SIZE / 2;
+      const radiusPx = s.radius * C.CELL_SIZE;
+      
+      boardCtx.save();
+      
+      // Scorched earth base
+      boardCtx.fillStyle = 'rgba(10, 20, 30, 0.5)';
+      boardCtx.beginPath();
+      boardCtx.arc(cx, cy, radiusPx, 0, Math.PI * 2);
+      boardCtx.fill();
+      
+      // Blizzard mist
+      const time = performance.now() * 0.001;
+      const grad = boardCtx.createRadialGradient(cx, cy, 0, cx, cy, radiusPx);
+      grad.addColorStop(0, `rgba(200, 255, 255, ${0.4 + 0.1 * Math.sin(time * 2)})`);
+      grad.addColorStop(0.7, `rgba(150, 255, 200, ${0.2 + 0.05 * Math.cos(time * 3)})`);
+      grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      
+      boardCtx.fillStyle = grad;
+      boardCtx.beginPath();
+      boardCtx.arc(cx, cy, radiusPx, 0, Math.PI * 2);
+      boardCtx.fill();
+      
+      boardCtx.restore();
     });
   }
 

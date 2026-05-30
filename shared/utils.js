@@ -145,6 +145,14 @@ export function getEffectiveStrength(piece, gameState, opponent = null) {
       else str += safe(b.amount);
     });
 
+  // Frost Duo (Glacial Mage Passive)
+  if (piece.key === "snowGlacialMage") {
+    const wisps = (gameState.pieces || []).filter(p => p.key === "snowIceWisp" && p.team === piece.team && p.currentHp > 0);
+    if (wisps.length >= 2) {
+      str += 1;
+    }
+  }
+
   // Help From Above aura
   gameState.pieces.forEach(p => {
     if (p.team === piece.team && p.isVeteran && C.PIECE_TYPES[p.key]?.veteranAbility?.key === "HelpFromAbove") {
@@ -240,6 +248,30 @@ export function getEffectiveDefense(piece, gameState) {
   }
 
   return Math.max(0, def);
+}
+
+/**
+ * Returns the effective Control of a piece after all modifiers.
+ */
+export function getEffectiveControl(piece, gameState) {
+  if (!piece) return 0;
+  let ctrl = piece.control || 0.1;
+
+  // Frost Duo (Glacial Mage Passive)
+  if (piece.key === "snowGlacialMage" && gameState) {
+    const wisps = (gameState.pieces || []).filter(p => p.key === "snowIceWisp" && p.team === piece.team && p.currentHp > 0);
+    ctrl += 0.2 * wisps.length;
+  }
+
+  // Apply AColdFarewell Control Lock debuffs
+  if (gameState && gameState.debuffs) {
+    const lock = gameState.debuffs.find(d => d.pieceId === piece.id && d.name === "ColdFarewellControlLock");
+    if (lock) {
+      return 0; // Exactly 0
+    }
+  }
+
+  return Math.max(0, ctrl);
 }
 
 /**
@@ -423,25 +455,45 @@ export function previewDamage(attacker, defender, gameState) {
  * Now reads from the agility stat on the piece object (initialized by createPiece).
  * Falls back to the old key-pattern heuristic for backward-compat with old saves.
  */
-export function getPieceMoveRadius(piece) {
+export function getPieceMoveRadius(piece, gameState) {
   if (!piece) return 2;
+  
+  let agi = 2;
   // New stat-based radius — agility IS the move budget
-  if (typeof piece.agility === "number") return piece.agility;
-  // Legacy fallback (pieces from old saves without agility stat)
-  const key = piece.key || "";
-  if (
-    key.includes("Strider") ||
-    key.includes("Trapper") ||
-    key.includes("Stalker") ||
-    key.includes("Scout") ||
-    key.includes("Prowler") ||
-    key.includes("Brute") ||
-    key.includes("Yeti") ||
-    key.includes("Beast")
-  ) {
-    return 3;
+  if (typeof piece.agility === "number") {
+    agi = piece.agility;
+  } else {
+    // Legacy fallback (pieces from old saves without agility stat)
+    const key = piece.key || "";
+    if (
+      key.includes("Strider") ||
+      key.includes("Trapper") ||
+      key.includes("Stalker") ||
+      key.includes("Scout") ||
+      key.includes("Prowler") ||
+      key.includes("Brute") ||
+      key.includes("Yeti") ||
+      key.includes("Beast")
+    ) {
+      agi = 3;
+    }
   }
-  return 2;
+  
+  // Apply Frost Duo bonus
+  if (piece.key === "snowGlacialMage" && gameState) {
+    const wisps = (gameState.pieces || []).filter(p => p.key === "snowIceWisp" && p.team === piece.team && p.currentHp > 0);
+    agi += 0.2 * wisps.length;
+  }
+
+  // Apply AColdFarewell debuffs
+  if (gameState && gameState.debuffs) {
+    const debuff = gameState.debuffs.find(d => d.pieceId === piece.id && d.name === "ColdFarewellAgi");
+    if (debuff) {
+      agi -= debuff.amount;
+    }
+  }
+
+  return Math.max(0, agi);
 }
 
 export function getValidMoves(piece, gameState) {

@@ -1,5 +1,5 @@
 import * as C from "./constants.js";
-import { updateBoardMap, isCaptureSuccessful, getValidMoves, dealDamage, previewDamage, getPieceMoveRadius, applyAoeLethalPassives } from "./utils.js";
+import { updateBoardMap, isCaptureSuccessful, getValidMoves, dealDamage, previewDamage, getPieceMoveRadius, applyAoeLethalPassives, getEffectiveControl } from "./utils.js";
 import { executeAscensionChoice as _executeAscensionLogic } from "./ascension.js";
 
 let gameState = {};
@@ -188,6 +188,38 @@ export function handlePieceCapture(capturedPiece, attacker, gs) {
     }
   }
 
+  // 3b. A Cold Farewell (Ice Wisp death passive)
+  if (capturedPiece.key === "snowIceWisp") {
+    const rad = C.ABILITY_VALUES.AColdFarewell?.radius || 1.5;
+    gs.temporaryBoosts = gs.temporaryBoosts || [];
+    gs.debuffs = gs.debuffs || [];
+    
+    gs.pieces.forEach(p => {
+      if (p.id !== capturedPiece.id && p.currentHp > 0) {
+        if (Math.hypot(p.row - capturedPiece.row, p.col - capturedPiece.col) <= rad) {
+          if (p.team !== capturedPiece.team) {
+            p.currentHp = Math.max(0, p.currentHp - (C.ABILITY_VALUES.AColdFarewell?.damage || 2));
+            gs.debuffs.push({ pieceId: p.id, duration: C.ABILITY_VALUES.AColdFarewell?.duration || 4, amount: C.ABILITY_VALUES.AColdFarewell?.agilityDebuff || 0.4, name: "ColdFarewellAgi" });
+            gs.debuffs.push({ pieceId: p.id, duration: 2, amount: 0, name: "ColdFarewellControlLock" }); // 2 turns = "their next move"
+          } else {
+            gs.temporaryBoosts.push({ pieceId: p.id, duration: C.ABILITY_VALUES.AColdFarewell?.duration || 4, amount: C.ABILITY_VALUES.AColdFarewell?.strengthBoost || 1, name: "ColdFarewellStr" });
+          }
+        }
+      }
+    });
+    
+    gs.blizzardStorms = gs.blizzardStorms || [];
+    gs.blizzardStorms.push({
+      r: capturedPiece.row,
+      c: capturedPiece.col,
+      duration: C.ABILITY_VALUES.AColdFarewell?.duration || 4,
+      radius: rad,
+      team: capturedPiece.team
+    });
+    
+    emit(gs, { type: "ANIMATION", name: "AColdFarewell", r: capturedPiece.row, c: capturedPiece.col });
+  }
+
   // 4. Remove piece
   gs.pieces = gs.pieces.filter((p) => p.id !== capturedPiece.id);
 
@@ -238,13 +270,18 @@ export function activateAbility(piece, unleashCostOrKey = 0) {
 
   emit(gameState, { type: "HIDE_ABILITY_PANEL" });
 
-  if (
-    abilityKeyToUse === "GlacialWall" ||
-    (piece.ability?.isVeteranFortress && abilityKeyToUse === "GlacialFortress")
-  ) {
+  if (abilityKeyToUse === "GlacialWall" || (piece.ability?.isVeteranFortress && abilityKeyToUse === "GlacialFortress")) {
     setCurrentState(GameState.WALL_PLACEMENT_FIRST);
     gameState.abilityContext = { piece, abilityKey: "GlacialWall" };
     flash("Select a location for the first wall.", piece.team, gameState);
+    return false;
+  }
+
+  if (abilityKeyToUse === "FateLink") {
+    ensureSets(gameState);
+    gameState.abilityContext = { piece, abilityKey: abilityKeyToUse, step: 1 };
+    setCurrentState(GameState.ABILITY_TARGETING);
+    flash("Select a friendly target for Fate Link.", piece.team, gameState);
     return false;
   }
 
@@ -373,9 +410,84 @@ export function executeAbility(
     // Attach specific animations
     if (abilityKey === "FrenziedDash") {
       emit(gameStateLocal, { type: "ANIMATION", name: "FrenziedDash", pieceId: piece.id, oldRow, oldCol, targetR: target.r, targetC: target.c });
-    } else if (abilityKey === "SummonIceWisp") {
-      const newWisp = gameStateLocal.pieces[gameStateLocal.pieces.length - 1];
-      emit(gameStateLocal, { type: "ANIMATION", name: "SummonWisp", r: target.r, c: target.c, wispId: newWisp.id });
+    } else if (abilityKey === "GlacialFracture") {
+      // 1. Convert territory to snow
+      let enemiesCaught = [];
+      const rad = C.ABILITY_VALUES.GlacialFracture.radius;
+      for (let r = -Math.floor(rad); r <= Math.ceil(rad); r++) {
+        for (let c = -Math.floor(rad); c <= Math.ceil(rad); c++) {
+          if (Math.hypot(r, c) <= rad) {
+            const tr = Math.round(target.r + r);
+            const tc = Math.round(target.c + c);
+            if (inBounds(tr, tc)) {
+              gameStateLocal.snowTerritory.add(`${tr},${tc}`);
+              gameStateLocal.ashTerritory.delete(`${tr},${tc}`);
+              
+              // 2. Damage enemies
+              const p = C.getPieceAt(tr, tc, gameStateLocal.pieces);
+              if (p && p.team !== piece.team && p.currentHp > 0) {
+                enemiesCaught.push(p);
+                p.currentHp = Math.max(0, p.currentHp - C.ABILITY_VALUES.GlacialFracture.damage);
+              }
+            }
+          }
+        }
+      }
+      
+      // 3. Check wisp resonance limit
+      const currentWisps = gameStateLocal.pieces.filter(p => p.key === "snowIceWisp" && p.team === piece.team && p.currentHp > 0);
+      if (currentWisps.length >= C.ABILITY_VALUES.GlacialFracture.wispCap) {
+        flash("Glacial Mage Resonance Maxed: No further Wisps can be sustained", "snow", gameStateLocal);
+        return false; // Preserves turn action
+      }
+      
+      // 4. Spawn Ice Wisp logic
+      let bestTile = null;
+      let maxDistSum = -1;
+      let closestToMage = Infinity;
+      
+      for (let r = -Math.floor(rad); r <= Math.ceil(rad); r++) {
+        for (let c = -Math.floor(rad); c <= Math.ceil(rad); c++) {
+          if (Math.hypot(r, c) <= rad) {
+            const tr = Math.round(target.r + r);
+            const tc = Math.round(target.c + c);
+            if (inBounds(tr, tc) && !C.getPieceAt(tr, tc, gameStateLocal.pieces) && 
+                !C.getPieceAt(tr - 0.5, tc - 0.5, gameStateLocal.pieces)) {
+              
+              if (enemiesCaught.length > 0) {
+                let distSum = 0;
+                enemiesCaught.forEach(ep => {
+                  distSum += Math.hypot(ep.row - tr, ep.col - tc);
+                });
+                if (distSum > maxDistSum) {
+                  maxDistSum = distSum;
+                  bestTile = {r: tr, c: tc};
+                }
+              } else {
+                let distToMage = Math.hypot(piece.row - tr, piece.col - tc);
+                if (distToMage < closestToMage) {
+                  closestToMage = distToMage;
+                  bestTile = {r: tr, c: tc};
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      if (bestTile && createPiece) {
+        let isPower1 = false;
+        if (piece.isVeteran && C.PIECE_TYPES[piece.key]?.veteranAbility?.key === "WispEnhancement") {
+          isPower1 = true;
+        } else if (gameStateLocal.factionPassives?.[piece.team]?.ascension?.PrimalPower) {
+          isPower1 = true;
+        }
+        createPiece("snowIceWisp", piece.team, bestTile.r, bestTile.c, gameStateLocal.pieces, { power: isPower1 ? 1 : 0 });
+        const newWisp = gameStateLocal.pieces[gameStateLocal.pieces.length - 1];
+        emit(gameStateLocal, { type: "ANIMATION", name: "GlacialFracture", targetR: target.r, targetC: target.c, wispId: newWisp.id });
+      } else {
+        emit(gameStateLocal, { type: "ANIMATION", name: "GlacialFracture", targetR: target.r, targetC: target.c });
+      }
     } else {
       if (abilityKey === "LavaGlob") {
         emit(gameStateLocal, { type: "ANIMATION", name: "LavaGlob", oldRow, oldCol, targetR: target.r, targetC: target.c });
@@ -495,7 +607,29 @@ export function handleAbilityClick(row, col) {
   }
 
   if (isState(GameState.ABILITY_TARGETING)) {
-    const { piece, abilityKey } = gameState.abilityContext;
+    const { piece, abilityKey, step, target1 } = gameState.abilityContext;
+    if (abilityKey === "FateLink") {
+      const tp = C.getPieceAt(row, col, gameState.pieces);
+      if (step === 1) {
+        if (tp && tp.team === piece.team && Math.hypot(tp.col - piece.col, tp.row - piece.row) <= C.ABILITIES.FateLink.range) {
+          gameState.abilityContext.step = 2;
+          gameState.abilityContext.target1 = { r: tp.row, c: tp.col, id: tp.id };
+          flash("Select an enemy target for Fate Link.", piece.team, gameState);
+        } else {
+          flash("Invalid friendly target.", piece.team, gameState);
+          deselectPiece();
+        }
+        return false;
+      } else if (step === 2) {
+        if (tp && tp.team !== piece.team && Math.hypot(tp.col - piece.col, tp.row - piece.row) <= C.ABILITIES.FateLink.range) {
+          return executeAbility(piece, { r: tp.row, c: tp.col, target1 }, abilityKey, gameState);
+        } else {
+          flash("Invalid enemy target.", piece.team, gameState);
+          deselectPiece();
+          return false;
+        }
+      }
+    }
     return executeAbility(piece, { r: row, c: col }, abilityKey, gameState);
   }
   return false;
@@ -744,7 +878,7 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
           piece.readyForVeteranPromotion = false;
           promoteToVeteran(piece);
         }
-        flash(`${C.PIECE_TYPES[piece.key]?.name || 'Unit'} attacked but ${C.PIECE_TYPES[defender.key]?.name || 'Defender'} survived!`, piece.team, gameState);
+        // flash(`${C.PIECE_TYPES[piece.key]?.name || 'Unit'} attacked but ${C.PIECE_TYPES[defender.key]?.name || 'Defender'} survived!`, piece.team, gameState);
       } else {
         const color = defender.team === "ash" ? "#ff4400" : "#00ccff";
         emit(gameState, {
@@ -779,13 +913,13 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
         piece.readyForVeteranPromotion = false;
         promoteToVeteran(piece);
       }
-      flash(`${C.PIECE_TYPES[piece.key]?.name || 'Unit'} attacked but ${C.PIECE_TYPES[defender.key]?.name || 'Defender'} survived!`, piece.team, gameState);
+      // flash(`${C.PIECE_TYPES[piece.key]?.name || 'Unit'} attacked but ${C.PIECE_TYPES[defender.key]?.name || 'Defender'} survived!`, piece.team, gameState);
     }
   } else {
     if (!gameState.movePulses) gameState.movePulses = [];
     gameState.movePulses.push({ startRow, startCol, targetRow, targetCol, team: piece.team, life: 1.0 });
     updatePiecePosition(piece, targetRow, targetCol);
-    flash(`${C.PIECE_TYPES[piece.key]?.name || 'Unit'} moved.`, piece.team, gameState);
+    // flash(`${C.PIECE_TYPES[piece.key]?.name || 'Unit'} moved.`, piece.team, gameState);
   }
 
   checkSpecialTerrains(piece, piece.row, piece.col, gameState);
@@ -799,7 +933,7 @@ function paintTerritoryPath(piece, startRow, startCol, endRow, endCol, gameState
   if (!gameState.territoryTrails) gameState.territoryTrails = [];
   
   const dist = Math.hypot(endCol - startCol, endRow - startRow);
-  const radius = piece ? (dist === 0 ? getPieceMoveRadius(piece) : (piece.control || 0.5)) : 1;
+  const radius = piece ? getEffectiveControl(piece, gameState) : 1;
   const team = piece ? piece.team : 'snow';
   const steps = dist === 0 ? 0 : Math.max(1, Math.ceil(dist / 0.5));
   const newPoints = [];
@@ -1384,7 +1518,7 @@ export function executeSacrifice(piece) {
     // Bug 1.4 fix: Updated from deprecated snowVoidChanter/ashRiftWarden
     snowSoulLinker: "Siphoner",
     ashCinderHarvester: "Siphoner",
-    snowCryomancer: "Mage",
+    snowGlacialMage: "Mage",
     ashMagmaSpitter: "Mage",
     snowSoulFreeze: "Priest",
     ashScorchPriest: "Priest",
@@ -2001,6 +2135,25 @@ function endOfTurnUpkeep() {
     t.duration -= 0.5;
     return t.duration > 0;
   });
+  if (gameState.blizzardStorms) {
+    gameState.blizzardStorms = gameState.blizzardStorms.filter((s) => {
+      s.duration -= 0.5; // Turn flips happen twice (once for each team) per round
+      // Apply start-of-phase effects (when duration hits integer, meaning start of casting team's phase)
+      if (s.duration > 0 && s.duration % 1 === 0) {
+        gameState.pieces.forEach(p => {
+          if (p.team === s.team && p.currentHp > 0) {
+            const dist = Math.hypot(p.row - s.r, p.col - s.c);
+            if (dist <= s.radius) {
+              p.currentHp = Math.min(p.maxHp || C.PIECE_TYPES[p.key]?.stats?.hp || 5, p.currentHp + (C.ABILITY_VALUES.AColdFarewell?.heal || 1));
+              flash(`${C.PIECE_TYPES[p.key]?.name} healed by Blizzard Storm!`, p.team, gameState);
+            }
+          }
+        });
+      }
+      return s.duration > 0;
+    });
+  }
+
   if (gameState.spikeRains) {
     gameState.spikeRains = gameState.spikeRains.filter((s) => {
       s.duration -= 0.5;

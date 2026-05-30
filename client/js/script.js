@@ -186,6 +186,8 @@ E.preloadImages(C.IMAGES, (imgs) => {
 
             if (data.state) {
                 gameState = data.state;
+                if (Array.isArray(gameState.snowTerritory)) gameState.snowTerritory = new Set(gameState.snowTerritory);
+                if (Array.isArray(gameState.ashTerritory)) gameState.ashTerritory = new Set(gameState.ashTerritory);
                 // FIX: Only restore local if the server state didn't provide fresh timers
                 if (currentTimers && !data.state.timers) gameState.timers = currentTimers;
                 attachImagesToState();
@@ -194,6 +196,8 @@ E.preloadImages(C.IMAGES, (imgs) => {
                 for (const k of Object.keys(data.diff)) {
                     gameState[k] = data.diff[k];
                 }
+                if (Array.isArray(gameState.snowTerritory)) gameState.snowTerritory = new Set(gameState.snowTerritory);
+                if (Array.isArray(gameState.ashTerritory)) gameState.ashTerritory = new Set(gameState.ashTerritory);
                 // FIX: Only restore local if the diff payload didn't explicitly update the timers
                 if (currentTimers && !data.diff.timers) gameState.timers = currentTimers;
                 attachImagesToState();
@@ -557,30 +561,37 @@ function setupCanvas() {
 
         // If no piece clicked but a piece is selected, check for move
         if (gameState.selectedPiece) {
-            const dx = decimalCol - gameState.selectedPiece.col;
-            const dy = decimalRow - gameState.selectedPiece.row;
-            const dist = Math.hypot(dx, dy);
-            const agility = gameState.selectedPiece.agility || 2;
-
             if (clickedPiece && clickedPiece.team === allowedSelectTeam) {
                 // Clicked another of our own pieces: switch selection directly!
                 window.sendAction('SELECT_PIECE', { pieceId: clickedPiece.id });
                 try { gameState.selectedPiece = clickedPiece; } catch (e) { }
-                try { gameState.validMoves = []; } catch (e) { }
+                try { gameState.validMoves = calculateValidMoves(clickedPiece); } catch (e) { }
                 try { updateMobileDrawer(clickedPiece); } catch (e) { }
                 try { UI.drawLabels(gameState); UI.renderBoard(gameState); } catch (e) { }
                 return;
-            } else if (dist <= agility) {
+            } else {
+                // Determine target location. If a piece was clicked directly, use its coords.
+                // Otherwise, use the exact logic coordinates for continuous movement!
                 const targetRow = clickedPiece ? clickedPiece.row : logicRow;
                 const targetCol = clickedPiece ? clickedPiece.col : logicCol;
-                executeMove(gameState.selectedPiece, targetRow, targetCol);
-                deselectPiece();
-                try { UI.drawLabels(gameState); UI.renderBoard(gameState); } catch (e) { }
-                return;
-            } else {
-                deselectPiece();
-                try { UI.drawLabels(gameState); UI.renderBoard(gameState); } catch (e) { }
-                return;
+                
+                // Continuous movement validation
+                const dist = Math.hypot(targetRow - gameState.selectedPiece.row, targetCol - gameState.selectedPiece.col);
+                const maxRadius = E.getPieceMoveRadius ? E.getPieceMoveRadius(gameState.selectedPiece, gameState) : (gameState.selectedPiece.agility || 2);
+                
+                // Check if we clicked on an ally (friendly fire / stacking prevention)
+                const isTargetAlly = clickedPiece && clickedPiece.team === gameState.selectedPiece.team;
+                
+                if (dist <= maxRadius + 0.1 && !isTargetAlly) {
+                    executeMove(gameState.selectedPiece, targetRow, targetCol);
+                    deselectPiece();
+                    try { UI.drawLabels(gameState); UI.renderBoard(gameState); } catch (e) { }
+                    return;
+                } else {
+                    deselectPiece();
+                    try { UI.drawLabels(gameState); UI.renderBoard(gameState); } catch (e) { }
+                    return;
+                }
             }
         }
 
@@ -742,6 +753,24 @@ function playAnimation(animData) {
         case 'TrapTrigger':
             const stuckPiece = gameState.pieces.find(p => p.id === animData.pieceId);
             Effects.spawnTrapTriggerEffect(animData.r, animData.c, stuckPiece, gameState);
+            break;
+        case 'FrostfallImpact':
+            Effects.spawnFrostfallImpact(animData.r, animData.c, gameState);
+            break;
+        case 'FateLinkCast':
+            const src = gameState.pieces.find(p => p.id === animData.sourceId);
+            const dst = gameState.pieces.find(p => p.id === animData.targetId);
+            Effects.spawnFateLinkCast(src, dst, gameState);
+            break;
+        case 'GlacialFracture': 
+            Effects.spawnGlacialFractureEffect(animData.targetR, animData.targetC, gameState);
+            if (animData.wispId) {
+                const wisp = gameState.pieces.find(p => p.id === animData.wispId);
+                Effects.spawnSummonWispEffect(wisp.row, wisp.col, wisp, gameState);
+            }
+            break;
+        case 'AColdFarewell': 
+            Effects.spawnAColdFarewellEffect(animData.r, animData.c, gameState); 
             break;
     }
 }
@@ -1084,6 +1113,7 @@ export function applyActionLogic(actionType, data, gs) {
     }
     // Ensure utilities depending on the 2D grid are accurate after logic changes
     try { E.updateBoardMap(gs); } catch (e) { }
+    try { UI.renderBoard(gs); UI.drawLabels(gs); } catch (e) { }
 
     if (turnEnded) {
         // If an ascension becomes ready, show the popup and DO NOT auto-switch turns.
@@ -1295,7 +1325,11 @@ function animationLoop(time) {
     if (Effects.drawGlacialWallAnimations) Effects.drawGlacialWallAnimations(gameState);
     if (Effects.drawPummelKnockbackAnimations) Effects.drawPummelKnockbackAnimations(gameState);
     if (Effects.drawScorchedRetreatAnimations) Effects.drawScorchedRetreatAnimations(gameState, ctx, loadedImages);
-    if (Effects.drawVentAnimations) Effects.drawVentAnimations(gameState); // Fixed invalid param passing
+    if (Effects.drawVentAnimations) Effects.drawVentAnimations(gameState);
+    if (Effects.drawGlacialFractureAnimations) Effects.drawGlacialFractureAnimations(gameState);
+    if (Effects.drawAColdFarewellAnimations) Effects.drawAColdFarewellAnimations(gameState);
+    if (Effects.drawFrostfallAnimations) Effects.drawFrostfallAnimations(ctx, gameState);
+    if (Effects.drawFateLinkAnimations) Effects.drawFateLinkAnimations(ctx, gameState);
     if (Effects.drawShrineEffects) Effects.drawShrineEffects(gameState);
     UI.drawLastMoveIndicator(gameState);
 

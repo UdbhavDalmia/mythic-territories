@@ -37,7 +37,7 @@ export const IMAGES = {
   gameBackgroundAsh: "images/bg-game2.png",
   gameBackgroundSnow: "images/bg-game.png",
   snowArcticTrapper: "units/arctic-trapper.png",
-  snowCryomancer: "units/cryomancer.png",
+  snowGlacialMage: "units/cryomancer.png",
   snowFrostLord: "units/frost-lord.png",
   snowFrostbiteStalker: "units/snow-wolf.png",
   snowGlacialBrute: "units/glacial-brute.png",
@@ -98,6 +98,8 @@ export const ABILITY_VALUES = {
   SetSnare: { range: 2, cooldown: 4, duration: 3 },
   Shrine: { powerBoost: 1, overloadCharges: 2 },
   Siphon: { maxCharges: 3 },
+  GlacialFracture: { cooldown: 9, range: 2.5, radius: 2, damage: 2, wispCap: 2 },
+  AColdFarewell: { radius: 1.5, duration: 4, damage: 2, heal: 1, strengthBoost: 1, agilityDebuff: 0.4 },
   SummonIceWisp: { cooldown: 4, range: 4 },
   TyrantsProclamation: { duration: 4, powerBoost: 1 },
   UnstableGround: { cooldown: 4, range: 4, duration: 3, damage: 1 },
@@ -130,7 +132,7 @@ export const ABILITY_VALUES = {
    SECTION 4: ENGINE HELPERS & TARGETING LOGIC
    Pure functions used heavily by abilities to validate board state.
    ========================================================================== */
-export const getPieceAt = (r, c, pieces) => pieces ? pieces.find(p => Math.hypot(p.col - c, p.row - r) < 0.5) || null : null;
+export const getPieceAt = (r, c, pieces) => pieces ? pieces.find(p => Math.hypot(p.col - c, p.row - r) < 0.7) || null : null;
 export const inBounds = (r, c) => r >= 0 && r < ROWS && c >= 0 && c < COLS;
 
 export function applyDebuff(gs, debuff) {
@@ -561,6 +563,16 @@ export const ABILITIES = {
       });
     }
   },
+  GlacialFracture: {
+    name: "Glacial Fracture",
+    cooldown: ABILITY_VALUES.GlacialFracture.cooldown,
+    requiresTargeting: true,
+    range: ABILITY_VALUES.GlacialFracture.range,
+    targetType: "any",
+    effect: (piece, target, gameState, createPiece) => {
+      // Handled in logic.js
+    }
+  },
   SummonIceWisp: {
     name: "Summon Ice Wisp",
     cooldown: ABILITY_VALUES.SummonIceWisp.cooldown,
@@ -862,23 +874,25 @@ export const ABILITIES = {
     cooldown: ABILITY_VALUES.FateLink.cooldown,
     requiresTargeting: true,
     range: ABILITY_VALUES.FateLink.range,
-    targetType: "special", // Needs to target both friendly and enemy. The UI usually picks target one by one. We'll set it to "any" and handle it.
+    targetType: "special",
     specialTargeting: (p, t, gs) => {
-      // For simplicity in targeting, let's say it targets an enemy and automatically binds the closest ally (or itself)? 
-      // "Magically binds a friendly unit to an enemy unit"
-      // If the UI only supports one click, we can target an enemy, and bind the caster to it.
       const tp = getPieceAt(t.r, t.c, gs.pieces);
+      if (gs.abilityContext && gs.abilityContext.abilityKey === 'FateLink' && gs.abilityContext.step === 1) {
+        return tp && tp.team === p.team;
+      }
       return tp && tp.team !== p.team;
     },
     effect: (p, t, gs) => {
-      const tp = getPieceAt(t.r, t.c, gs.pieces);
-      if (tp) {
+      const target2 = getPieceAt(t.r, t.c, gs.pieces);
+      const target1 = t.target1 ? gs.pieces.find(pc => pc.id === t.target1.id) : null;
+      if (target1 && target2) {
         gs.fateLinks = gs.fateLinks || [];
         gs.fateLinks.push({
-          sourceId: p.id,
-          targetId: tp.id,
+          sourceId: target1.id,
+          targetId: target2.id,
           duration: ABILITY_VALUES.FateLink.duration
         });
+        emit(gs, { type: "ANIMATION", name: "FateLinkCast", sourceId: target1.id, targetId: target2.id });
       }
     }
   },
@@ -930,18 +944,6 @@ export const ABILITIES = {
           if (target.team !== p.team) {
             target.currentHp = Math.max(0, (target.currentHp || target.stats?.hp || 5) - dmg);
             if (target.currentHp <= 0) toRemove.push({ piece: target });
-          } else if (target.id !== p.id) {
-            target.currentHp = Math.max(0, (target.currentHp || target.stats?.hp || 5) - allyDmg);
-            if (target.currentHp <= 0) {
-              toRemove.push({ piece: target });
-            } else {
-              gs.temporaryBoosts.push({
-                pieceId: target.id,
-                amount: strBoost,
-                duration: duration,
-                name: "ReignOfFireRage"
-              });
-            }
           }
         }
       });
@@ -973,10 +975,10 @@ export const ABILITIES = {
         damage: ABILITY_VALUES.FrostfallBlessing.damage,
         heal: ABILITY_VALUES.FrostfallBlessing.heal
       });
+      emit(gs, { type: "ANIMATION", name: "FrostfallImpact", r: t.r, c: t.c });
     }
   }
-  }
-;
+};
 
 /* ==========================================================================
    SECTION 6: UNIT & FACTION REGISTRY
@@ -1085,11 +1087,11 @@ export const PIECE_TYPES = {
       cooldown: ABILITY_VALUES.DistractingRoar.cooldown
     }
   },
-  snowCryomancer: {
-    name: "Cryomancer",
+  snowGlacialMage: {
+    name: "Glacial Mage",
     power: 5,
-    stats: { hp: 6, def: 0, strength: 5, range: 4, agility: 2, control: 0.1 },
-    ability: { name: "Summon Ice Wisp", key: "SummonIceWisp" },
+    stats: { hp: 7, def: 2, strength: 2, range: 2.5, agility: 1.4, control: 1.2 },
+    ability: { name: "Glacial Fracture", key: "GlacialFracture" },
     veteranAbility: {
       key: "WispEnhancement",
       isPermanentUpgrade: true,
@@ -1147,7 +1149,8 @@ export const PIECE_TYPES = {
   snowIceWisp: {
     name: "Ice Wisp",
     power: 0,
-    stats: { hp: 2, def: 0, strength: 0, range: 1, agility: 2, control: 0.1 }
+    stats: { hp: 2, def: 1, strength: 1, range: 1, agility: 2, control: 0.4 },
+    passiveAbility: "AColdFarewell"
   },
   snowRampagingYeti: {
     name: "Rampaging Yeti",
@@ -1190,7 +1193,7 @@ export const PIECE_VALUES = {
   ashCinderHarvester: 700,
   ashScorchPriest: 450,
   snowArcticTrapper: 150,
-  snowCryomancer: 500,
+  snowGlacialMage: 500,
   snowFrostbiteStalker: 150,
   snowFrostLord: 1000,
   snowGlacialBrute: 300,
@@ -1217,7 +1220,7 @@ export const TEAM_PIECES = {
   },
   snow: {
     Brawler: "snowRampagingYeti",
-    Mage: "snowCryomancer",
+    Mage: "snowGlacialMage",
     Mystic: "snowHoarfrostMystic",
     Priest: "snowSoulFreeze",
     Shaper: "snowIceWeaver",
@@ -1368,7 +1371,7 @@ export const ASCENSION_CHOICES = {
     A: {
       name: "Primal Power",
       team: {
-        snow: "Cryomancer: Summoned Wisp is Power 1.",
+        snow: "Glacial Mage: Summoned Wisp is Power 1.",
         ash: "Magma Spitter: Lava Glob targets up to Power 3."
       },
       key: "PrimalPower"

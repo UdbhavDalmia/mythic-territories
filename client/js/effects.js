@@ -116,3 +116,8 @@ export const spawnPummelKnockbackEffect = (...a) => Anim.spawnPummelKnockbackEff
 export const drawPummelKnockbackAnimations = gs => Anim.drawPummelKnockbackAnimations(ctx, gs)
 export const spawnVentEffect = (...a) => Anim.spawnVentEffect(...a)
 export const drawVentAnimations = gs => Anim.drawVentAnimations(ctx, gs)
+
+export const spawnGlacialFractureEffect = (...a) => Anim.spawnGlacialFractureEffect(...a)
+export const drawGlacialFractureAnimations = gs => Anim.drawGlacialFractureAnimations(ctx, gs)
+export const spawnAColdFarewellEffect = (...a) => Anim.spawnAColdFarewellEffect(...a)
+export const drawAColdFarewellAnimations = gs => Anim.drawAColdFarewellAnimations(ctx, gs)
