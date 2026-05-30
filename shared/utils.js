@@ -221,8 +221,8 @@ export function getEffectiveDefense(piece, gameState) {
   if (
     (gameState.unstableGrounds || []).some(
       (g) =>
-        g.row === piece.row &&
-        g.col === piece.col &&
+        g.row === Math.round(piece.row) &&
+        g.col === Math.round(piece.col) &&
         g.creator?.team !== piece.team
     )
   )
@@ -234,7 +234,7 @@ export function getEffectiveDefense(piece, gameState) {
       (piece.team === "snow"
         ? C.SHAPES.topLayout
         : C.SHAPES.bottomLayout
-      ).some(([r, c]) => r === piece.row && c === piece.col)
+      ).some(([r, c]) => Math.round(r) === Math.round(piece.row) && Math.round(c) === Math.round(piece.col))
     )
       def += 1;
   }
@@ -264,58 +264,8 @@ export function dealDamage(attacker, defender, gameState) {
 
   let actualDmg = Math.min(defender.currentHp, dmg);
   
-  // Passives triggering on Lethal Strike
-  if (actualDmg >= defender.currentHp) {
-    if (C.PIECE_TYPES[defender.key]?.veteranAbility?.key === "HelpFromAbove" || C.PIECE_TYPES[defender.key]?.ability?.key === "HelpFromAbove") {
-      // Frost Lord passive: survives on 1 HP, grants ally aura
-      if ((defender.helpFromAboveCooldown || 0) <= 0) {
-        actualDmg = defender.currentHp - 1;
-        defender.helpFromAboveCooldown = C.ABILITY_VALUES.HelpFromAbove?.cooldown || 15;
-        defender.hasHelpFromAboveActive = true;
-        // Bug 1.2 fix: Track active duration (5 turns) separately from 15-turn cooldown
-        defender.helpFromAboveActiveTurns = C.ABILITY_VALUES.HelpFromAbove?.activeDuration || 5;
-        // Grant +1 Strength to all allies within 1.5 tiles for 5 turns
-        const radius = C.ABILITY_VALUES.HelpFromAbove?.radius || 1.5;
-        if (gameState.pieces) {
-          gameState.pieces.forEach(ally => {
-            if (ally.team === defender.team && ally.id !== defender.id) {
-              const dist = Math.hypot(ally.row - defender.row, ally.col - defender.col);
-              if (dist <= radius) {
-                if (!gameState.temporaryBoosts) gameState.temporaryBoosts = [];
-                gameState.temporaryBoosts.push({
-                  pieceId: ally.id,
-                  amount: C.ABILITY_VALUES.HelpFromAbove?.strengthBoost || 1,
-                  duration: 5,
-                  name: "HelpFromAboveAura"
-                });
-              }
-            }
-          });
-        }
-      }
-    } else if (defender.key === "ashAshTyrant") {
-      // Bug 1.3 fix: Death Meteor passive executes on any lethal strike including AoE
-      if ((defender.deathMeteorCooldown || 0) <= 0) {
-        actualDmg = defender.currentHp - 1;
-        defender.deathMeteorCooldown = 15;
-        // Explosion: 4 dmg to enemies, 2 dmg to allies within radius 2
-        if (gameState.pieces) {
-          gameState.pieces.forEach(p => {
-            const dist = Math.hypot(p.row - defender.row, p.col - defender.col);
-            if (dist <= 2 && p.id !== defender.id) {
-              if (p.team !== defender.team) {
-                p.currentHp = Math.max(0, (p.currentHp || p.stats?.hp || 5) - 4);
-              } else {
-                p.currentHp = Math.max(0, (p.currentHp || p.stats?.hp || 5) - 2);
-              }
-            }
-          });
-        }
-        gameState.deathMeteors = gameState.deathMeteors || [];
-        gameState.deathMeteors.push({ r: defender.row, c: defender.col });
-      }
-    }
-  }
+  // Passives triggering on Lethal Strike are now handled centrally in handlePieceCapture 
+  // via applyAoeLethalPassives so they trigger identically across movement and AoE.
   
   // Check if defender has Magma Shield (blocks 1 damage)
   const shieldIdx = (gameState.shields || []).findIndex(s => s.pieceId === defender.id);
@@ -518,16 +468,22 @@ export function getValidMoves(piece, gameState) {
   );
   const hazards = gameState.unstableGrounds || [];
 
-  const isFree = (r, c) =>
-    !walls.some((w) => w.row === r && w.col === c) &&
-    !voids.some((v) => v.row === r && v.col === c);
+  const isFree = (r, c) => {
+    const gridR = Math.round(r);
+    const gridC = Math.round(c);
+    return !walls.some((w) => w.row === gridR && w.col === gridC) &&
+           !voids.some((v) => v.row === gridR && v.col === gridC);
+  };
 
   // Returns true if landing here triggers an enemy trap (BFS halts expansion)
-  const isHostileTrap = (r, c) =>
-    snares.some((t) => t.row === r && t.col === c) ||
-    hazards.some(
-      (g) => g.row === r && g.col === c && g.creator?.team !== piece.team
-    );
+  const isHostileTrap = (r, c) => {
+    const gridR = Math.round(r);
+    const gridC = Math.round(c);
+    return snares.some((t) => t.row === gridR && t.col === gridC) ||
+      hazards.some(
+        (g) => g.row === gridR && g.col === gridC && g.creator?.team !== piece.team
+      );
+  };
 
   // 1. Conduit Link Anchor Teleports
   if (isLinkOwned) {

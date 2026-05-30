@@ -1491,52 +1491,26 @@ export function renderBoard(gameState) {
     });
   }
 
-  if (gameState.movePulses) {
-    gameState.movePulses = gameState.movePulses.filter(pulse => {
-      pulse.life -= 0.015; // Fade over ~60 frames
-      if (pulse.life <= 0) return false;
-      
-      boardCtx.save();
-      const color = pulse.team === 'snow' ? '0, 200, 255' : '255, 100, 50';
-      const steps = Math.max(1, Math.hypot(pulse.targetCol - pulse.startCol, pulse.targetRow - pulse.startRow));
-      
-      for (let i = 0; i <= steps; i++) {
-        const t = i / steps;
-        const r = pulse.startRow + (pulse.targetRow - pulse.startRow) * t;
-        const c = pulse.startCol + (pulse.targetCol - pulse.startCol) * t;
-        const x = c * C.CELL_SIZE;
-        const y = r * C.CELL_SIZE;
-        
-        // Origin dark, Target flash, intermediate flicker
-        let opacity = 0;
-        if (i === 0) opacity = pulse.life * 0.3; // Origin dark
-        else if (i === steps) opacity = pulse.life * 0.8; // Target flash
-        else opacity = pulse.life * 0.4 * (0.5 + 0.5 * Math.sin(performance.now() * 0.01 + i)); // Intermediate flicker
-        
-        boardCtx.fillStyle = `rgba(${color}, ${opacity})`;
-        boardCtx.fillRect(x, y, C.CELL_SIZE, C.CELL_SIZE);
-      }
-      boardCtx.restore();
-      return true;
-    });
-  }
-
   // ── TERRITORY RENDERING (CACHED CELL-BASED) ────────────────────────────────
   // Build a cheap serialised key from the two territory Sets and trail count.
   // Only re-run the pixel loop when something actually changed.
   const snowSet  = gameState.snowTerritory  || new Set();
   const ashSet   = gameState.ashTerritory   || new Set();
   const trailLen = (gameState.territoryTrails || []).length;
+  
+  if (trailLen === 0 && snowSet.size === 0 && ashSet.size === 0) {
+    _terrCacheKey = "";
+    _terrCacheCanvas = null;
+  }
+  
   let hash = trailLen;
   snowSet.forEach(v => { hash += v.charCodeAt(0) * 10 + v.charCodeAt(2); });
   ashSet.forEach(v => { hash -= v.charCodeAt(0) * 10 + v.charCodeAt(2); });
   const newKey   = snowSet.size + '/' + ashSet.size + '/' + hash;
 
-  _terrFrameSkip++;
   const needRebuild = (newKey !== _terrCacheKey) || !_terrCacheCanvas;
 
-  if (needRebuild && _terrFrameSkip >= TERR_SKIP_FRAMES) {
-    _terrFrameSkip = 0;
+  if (needRebuild) {
     _terrCacheKey  = newKey;
 
     // ── Cell-based fill: iterate the 10×10 grid and paint cells directly ──

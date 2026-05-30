@@ -52,7 +52,7 @@ const inBounds = (r, c) => r >= 0 && r < C.ROWS && c >= 0 && c < C.COLS;
 
 export function checkSpecialTerrains(p, r, c, gs) {
   const trapIndex = gs.specialTerrains.findIndex(
-    (t) => t.row === r && t.col === c
+    (t) => Math.round(t.row) === Math.round(r) && Math.round(t.col) === Math.round(c)
   );
   if (trapIndex !== -1) {
     const trap = gs.specialTerrains[trapIndex];
@@ -64,7 +64,7 @@ export function checkSpecialTerrains(p, r, c, gs) {
         gs
       );
       gs.specialTerrains.splice(trapIndex, 1);
-      emit(gs, { type: "ANIMATION", name: "TrapTrigger", r, c, pieceId: p.id });
+      emit(gs, { type: "ANIMATION", name: "TrapTrigger", r: Math.round(r), c: Math.round(c), pieceId: p.id });
     } else if (trap.type === "icyGround" && p.team !== "snow") {
       p.isDazed = true;
       p.dazedFor = Math.max(p.dazedFor || 0, 3);
@@ -104,7 +104,12 @@ function revertTetherPower(t, gs) {
 
 // Unified handler for unit destruction (reverts tethers, triggers passives)
 export function handlePieceCapture(capturedPiece, attacker, gs) {
-  if (!capturedPiece) return;
+  if (!capturedPiece) return false;
+
+  // 0. Intercept deaths via passives (e.g. Ash Tyrant's Death Meteor)
+  if (applyAoeLethalPassives(capturedPiece, gs)) {
+    return false; // Intercepted, piece survives
+  }
 
   // 1. Revert tethers involving this piece
   // If piece was the siphoner
@@ -124,6 +129,29 @@ export function handlePieceCapture(capturedPiece, attacker, gs) {
       });
     }
   });
+
+  // 1b. Revert magma grips involving this piece
+  if (gs.magmaGrips) {
+    gs.magmaGrips = gs.magmaGrips.filter(mg => {
+      if (mg.harvesterId === capturedPiece.id) {
+        const target = gs.pieces.find(p => p.id === mg.targetId);
+        if (target) {
+          target.def = (target.def || 0) + (mg.defStolen || 0);
+          target.agility = (target.agility || 1) + (mg.agiStolen || 0);
+        }
+        return false;
+      }
+      if (mg.targetId === capturedPiece.id) {
+        const harvester = gs.pieces.find(p => p.id === mg.harvesterId);
+        if (harvester) {
+          harvester.def = Math.max(0, (harvester.def || 0) - (mg.defStolen || 0));
+          harvester.agility = Math.max(0.1, (harvester.agility || 1) - (mg.agiStolen || 0));
+        }
+        return false;
+      }
+      return true;
+    });
+  }
 
   // 2. Martyrdom / Vengeance
   if (
@@ -169,6 +197,7 @@ export function handlePieceCapture(capturedPiece, attacker, gs) {
   }
   
   flash(`${C.PIECE_TYPES[capturedPiece.key]?.name || 'Unit'} was captured!`, attacker ? attacker.team : 'neutral', gs);
+  return true;
 }
 
 // ============================================================================
@@ -347,12 +376,18 @@ export function executeAbility(
     } else if (abilityKey === "SummonIceWisp") {
       const newWisp = gameStateLocal.pieces[gameStateLocal.pieces.length - 1];
       emit(gameStateLocal, { type: "ANIMATION", name: "SummonWisp", r: target.r, c: target.c, wispId: newWisp.id });
-    } else if (abilityKey === "LavaGlob") {
-      emit(gameStateLocal, { type: "ANIMATION", name: "LavaGlob", oldRow, oldCol, targetR: target.r, targetC: target.c });
-    } else if (abilityKey === "SetSnare") {
-      emit(gameStateLocal, { type: "ANIMATION", name: "TrapDeployment", oldRow, oldCol, targetR: target.r, targetC: target.c });
-    } else if (abilityKey === "FrigidPath") {
-      emit(gameStateLocal, { type: "ANIMATION", name: "FrigidPath", oldRow, oldCol, targetR: target.r, targetC: target.c });
+    } else {
+      if (abilityKey === "LavaGlob") {
+        emit(gameStateLocal, { type: "ANIMATION", name: "LavaGlob", oldRow, oldCol, targetR: target.r, targetC: target.c });
+      } else if (abilityKey === "SetSnare") {
+        emit(gameStateLocal, { type: "ANIMATION", name: "TrapDeployment", oldRow, oldCol, targetR: target.r, targetC: target.c });
+      } else if (abilityKey === "FrigidPath") {
+        emit(gameStateLocal, { type: "ANIMATION", name: "FrigidPath", oldRow, oldCol, targetR: target.r, targetC: target.c });
+      } else if (abilityKey === "FateLink") {
+        emit(gameStateLocal, { type: "ANIMATION", name: "FateLink", targetR: target.r, targetC: target.c });
+      } else if (abilityKey === "FrostfallBlessing") {
+        emit(gameStateLocal, { type: "ANIMATION", name: "FrostfallBlessing", targetR: target.r, targetC: target.c });
+      }
     }
   }
 
@@ -699,36 +734,45 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
   }
 
   // Inside movePiece, replace the capture block
-  if (defender) {
+  if (defender && defender.team !== piece.team) {
     if (isCaptureSuccessful(piece, defender, gameState)) {
-      const color = defender.team === "ash" ? "#ff4400" : "#00ccff";
-      emit(gameState, {
-        type: "ANIMATION",
-        name: "ShatterCapture",
-        r: defender.row,
-        c: defender.col,
-        color
-      });
+      const actuallyCaptured = handlePieceCapture(defender, piece, gameState);
 
-      handlePieceCapture(defender, piece, gameState);
+      if (!actuallyCaptured) {
+        // Intercepted by lethal passives (e.g. Death Meteor)
+        if (piece.readyForVeteranPromotion) {
+          piece.readyForVeteranPromotion = false;
+          promoteToVeteran(piece);
+        }
+        flash(`${C.PIECE_TYPES[piece.key]?.name || 'Unit'} attacked but ${C.PIECE_TYPES[defender.key]?.name || 'Defender'} survived!`, piece.team, gameState);
+      } else {
+        const color = defender.team === "ash" ? "#ff4400" : "#00ccff";
+        emit(gameState, {
+          type: "ANIMATION",
+          name: "ShatterCapture",
+          r: defender.row,
+          c: defender.col,
+          color
+        });
 
-      if (gameState.factionPassives[piece.team].ascension.HitAndRun)
-        piece.isEntrenched = true;
+        if (gameState.factionPassives[piece.team].ascension.HitAndRun)
+          piece.isEntrenched = true;
 
-      if (piece.readyForVeteranPromotion) {
-        piece.readyForVeteranPromotion = false;
-        promoteToVeteran(piece);
-      }
-      if (isMovingToShrine) handleShrineCapture(piece, defender);
+        if (piece.readyForVeteranPromotion) {
+          piece.readyForVeteranPromotion = false;
+          promoteToVeteran(piece);
+        }
+        if (isMovingToShrine) handleShrineCapture(piece, defender);
 
-      updatePiecePosition(piece, targetRow, targetCol);
-      if (
-        isMovingToShrine &&
-        gameState.shrineIsOverloaded &&
-        !gameState.trappedPiece
-      ) {
-        piece.isTrapped = true;
-        gameState.trappedPiece = piece.id;
+        updatePiecePosition(piece, targetRow, targetCol);
+        if (
+          isMovingToShrine &&
+          gameState.shrineIsOverloaded &&
+          !gameState.trappedPiece
+        ) {
+          piece.isTrapped = true;
+          gameState.trappedPiece = piece.id;
+        }
       }
     } else {
       if (piece.readyForVeteranPromotion) {

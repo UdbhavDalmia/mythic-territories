@@ -238,6 +238,8 @@ E.preloadImages(C.IMAGES, (imgs) => {
 // Helper to safely bind visuals to the pure data state
 function attachImagesToState() {
     if (!gameState) return;
+    try { E.updateBoardMap(gameState); } catch (e) { }
+
     gameState.images = loadedImages;
     gameState.images.snowIceWisp = loadedImages.snowIceWisp || loadedImages.wisp || loadedImages['units/wisp.png'];
     gameState.boardImgs = {
@@ -271,8 +273,6 @@ function attachImagesToState() {
             gameState.abilityContext.allyTarget = gameState.pieces.find(p => p.id === gameState.abilityContext.allyTarget.id) || gameState.abilityContext.allyTarget;
         }
     }
-
-    try { E.updateBoardMap(gameState); } catch (e) { }
 }
 
 // Start / Reset helpers
@@ -526,14 +526,20 @@ function setupCanvas() {
             return;
         }
 
+        // The logic coordinate of the piece is visual center minus 0.5
+        const logicRow = decimalRow - 0.5;
+        const logicCol = decimalCol - 0.5;
+
         // If we're in an ability targeting mode, delegate to the existing handler
         if (gameState.abilityContext) {
-            // CRITICAL FIX: Send all target interactions as a raw click to let the server router handle Tethers/Walls properly
-            window.sendAction('HANDLE_CLICK', { r: row, c: col });
+            const targetP = C.getPieceAt(logicRow, logicCol, gameState.pieces);
+            const targetR = targetP ? targetP.row : Math.floor(decimalRow);
+            const targetC = targetP ? targetP.col : Math.floor(decimalCol);
+            window.sendAction('HANDLE_CLICK', { r: targetR, c: targetC });
             return;
         }
 
-        const clickedPiece = C.getPieceAt(row, col, gameState.pieces);
+        const clickedPiece = C.getPieceAt(logicRow, logicCol, gameState.pieces);
         const allowedSelectTeam = isLocal
             ? gameState.currentTurn
             : (gameState.currentTurn === myTeam ? myTeam : null);
@@ -565,8 +571,8 @@ function setupCanvas() {
                 try { UI.drawLabels(gameState); UI.renderBoard(gameState); } catch (e) { }
                 return;
             } else if (dist <= agility) {
-                const targetRow = clickedPiece ? clickedPiece.row : decimalRow;
-                const targetCol = clickedPiece ? clickedPiece.col : decimalCol;
+                const targetRow = clickedPiece ? clickedPiece.row : logicRow;
+                const targetCol = clickedPiece ? clickedPiece.col : logicCol;
                 executeMove(gameState.selectedPiece, targetRow, targetCol);
                 deselectPiece();
                 try { UI.drawLabels(gameState); UI.renderBoard(gameState); } catch (e) { }

@@ -960,7 +960,7 @@ export const ABILITIES = {
     cooldown: ABILITY_VALUES.FrostfallBlessing.cooldown,
     requiresTargeting: true,
     range: ABILITY_VALUES.FrostfallBlessing.range,
-    targetType: "empty",
+    targetType: "any",
     effect: (p, t, gs) => {
       if (!gs.frostfallBlessings) gs.frostfallBlessings = [];
       gs.frostfallBlessings.push({
