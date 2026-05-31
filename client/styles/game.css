@@ -199,7 +199,7 @@ button:disabled {
    align-items: flex-start;
    gap: 20px;
    margin-top: 20px;
-   padding: 0 20px;
+   padding: 0;
 }
 
 .game-container {
@@ -441,10 +441,12 @@ button:disabled {
    font-family: 'Exo 2', sans-serif;
    pointer-events: none;
    z-index: 10000;
-   white-space: pre-line;
+   white-space: pre-wrap;
+   word-wrap: break-word;
    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.08);
    border-radius: 12px;
    min-width: 160px;
+   width: 400px;
    transition: opacity 0.15s ease;
 }
 

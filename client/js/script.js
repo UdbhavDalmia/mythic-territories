@@ -4,9 +4,6 @@ import * as Effects from './effects.js';
 import * as Logic from '../../shared/logic.js';
 import * as E from '../../shared/utils.js';
 
-// ============================================================================
-// ROOM & MODE MANAGEMENT
-// ============================================================================
 const urlParams = new URLSearchParams(window.location.search);
 const roomId = urlParams.get('room');
 const gameMode = urlParams.get('mode');
@@ -25,42 +22,32 @@ let socket = null;
 let loadedImages = {};
 let disconnectInterval = null
 let isWaitingForServer = false; // Locks UI while waiting for server response in multiplayer
-// Toggle to enable playing vs AI in local mode. Can be set via URL param `?ai=1`.
 const vsAI = urlParams.get('ai') === '1';
 
-// AI worker reference (created on demand)
 let aiWorker = null;
 
-// Check whether it's the AI's turn and, if so, run the AI (only in local mode).
 function checkAITurn() {
-    // CRITICAL: Never run AI logic if connected to a multiplayer room
     if (!isLocal) return;
     if (!vsAI) return;
     if (!gameState || gameState.gameOver) return;
-    // Only run AI when it's Ash's turn (AI plays Ash in this setup)
     if (gameState.currentTurn !== 'ash') return;
 
-    // Spawn a worker to compute the best action
     try {
         if (aiWorker) aiWorker.terminate();
         aiWorker = new Worker('js/ai.worker.js', { type: 'module' });
         aiWorker.onmessage = (ev) => {
             const { bestAction } = ev.data;
             if (!bestAction) return;
-            // Translate worker action into local game actions
             if (bestAction.type === 'move') {
                 processLocalAction('MOVE', { pieceId: bestAction.piece.id, r: bestAction.target.row, c: bestAction.target.col, isHighway: bestAction.target.isHighway || false });
             } else if (bestAction.type === 'ability') {
                 processLocalAction('ABILITY', { pieceId: bestAction.piece.id, abilityKey: bestAction.abilityKey, target: bestAction.target });
             }
             aiWorker.terminate(); aiWorker = null;
-            // After AI acts, re-render
             try { E.updateBoardMap(gameState); } catch (e) { }
             UI.renderBoard(gameState); UI.drawLabels(gameState);
-            // If the AI's action ended its turn, check again (in case turns chain)
             setTimeout(checkAITurn, 0);
         };
-        // Send a copy of the gameState to the worker
         aiWorker.postMessage({ gameState: structuredClone(gameState), aiConfig: {} });
     } catch (e) {
         console.warn('Failed to spawn AI worker:', e);
@@ -68,9 +55,6 @@ function checkAITurn() {
     }
 }
 
-// ============================================================================
-// INITIALIZATION (Dual-Mode)
-// ============================================================================
 E.preloadImages(C.IMAGES, (imgs) => {
     loadedImages = imgs;
 
@@ -88,28 +72,23 @@ E.preloadImages(C.IMAGES, (imgs) => {
         }, 100);
     } else {
         socket = io();
-        // Mark the page as multiplayer so CSS can reveal multiplayer-only UI
         try { document.body.classList.add('multiplayer'); } catch (e) { }
         socket.on('connect', () => socket.emit('joinRoom', roomId));
 
         socket.on('init', (data) => {
             gameState = data.state;
             myTeam = data.team;
-            // FIX: Show your team header in MP
             const teamDisplay = document.getElementById('yourTeamDisplay');
             if (teamDisplay) {
                 teamDisplay.style.display = 'block';
                 teamDisplay.textContent = `YOU ARE TEAM ${myTeam.toUpperCase()}`;
             }
-            // Update player count UI for multiplayer and normalize the board map
             updatePlayerCountUI(data.playerCount);
             attachImagesToState();
-            // Rebuild board map so client logic like getValidMoves works immediately
             E.updateBoardMap(gameState);
             setupCanvas();
             UI.showFlashMessage(`Joined room ${roomId} as Team ${myTeam.toUpperCase()}`, 'neutral', gameState);
 
-            // Clear disconnect timer if joining mid-game (update both desktop and mobile)
             try { clearInterval(disconnectInterval); } catch (e) { }
             const timerEl = document.getElementById('disconnectTimerDisplay');
             const timerElMobile = document.getElementById('disconnectTimerDisplay-mobile');
@@ -143,7 +122,6 @@ E.preloadImages(C.IMAGES, (imgs) => {
                 UI.startTimer(gameState);
                 updateControlButtons();
 
-                // NEW: Send your accurate timers to the server to sync the newly joined/reloaded player
                 socket.emit('gameAction', { roomId, actionType: 'SYNC_TIMERS', data: { timers: gameState.timers } });
             }
         });
@@ -154,10 +132,8 @@ E.preloadImages(C.IMAGES, (imgs) => {
             UI.showFlashMessage(`Player left the room.`, 'neutral', gameState);
             updatePlayerCountUI(data.playerCount);
 
-            // Stop the game timers
             try { UI.stopTimer(); } catch (e) { }
 
-            // Show disconnect modal
             const modal = document.getElementById('disconnectModal');
             const messageEl = document.getElementById('disconnectMessage');
             const btn = document.getElementById('mainMenuBtn');
@@ -188,7 +164,6 @@ E.preloadImages(C.IMAGES, (imgs) => {
                 gameState = data.state;
                 if (Array.isArray(gameState.snowTerritory)) gameState.snowTerritory = new Set(gameState.snowTerritory);
                 if (Array.isArray(gameState.ashTerritory)) gameState.ashTerritory = new Set(gameState.ashTerritory);
-                // FIX: Only restore local if the server state didn't provide fresh timers
                 if (currentTimers && !data.state.timers) gameState.timers = currentTimers;
                 attachImagesToState();
             } else if (data.diff) {
@@ -198,7 +173,6 @@ E.preloadImages(C.IMAGES, (imgs) => {
                 }
                 if (Array.isArray(gameState.snowTerritory)) gameState.snowTerritory = new Set(gameState.snowTerritory);
                 if (Array.isArray(gameState.ashTerritory)) gameState.ashTerritory = new Set(gameState.ashTerritory);
-                // FIX: Only restore local if the diff payload didn't explicitly update the timers
                 if (currentTimers && !data.diff.timers) gameState.timers = currentTimers;
                 attachImagesToState();
             }
@@ -223,13 +197,11 @@ E.preloadImages(C.IMAGES, (imgs) => {
             }
         });
 
-        // FIX: Unlock the UI if the server rejects an action
         socket.on('error', (msg) => {
             alert(msg);
             isWaitingForServer = false;
         });
 
-        // Handle server-initiated room closure (e.g., opponent failed to reconnect)
         socket.on('roomClosed', (msg) => {
             if (isLocal) return; // FIX: Block in P&P mode
 
@@ -239,7 +211,6 @@ E.preloadImages(C.IMAGES, (imgs) => {
     }
 });
 
-// Helper to safely bind visuals to the pure data state
 function attachImagesToState() {
     if (!gameState) return;
     try { E.updateBoardMap(gameState); } catch (e) { }
@@ -262,7 +233,6 @@ function attachImagesToState() {
     gameState.snowTerritory = normalizeToSet(gameState.snowTerritory);
     gameState.ashTerritory = normalizeToSet(gameState.ashTerritory);
 
-    // CRITICAL FIX: Re-link disconnected JSON object references back to the main pieces array
     if (gameState.selectedPiece) {
         gameState.selectedPiece = gameState.pieces.find(p => p.id === gameState.selectedPiece.id) || gameState.selectedPiece;
     }
@@ -279,7 +249,6 @@ function attachImagesToState() {
     }
 }
 
-// Start / Reset helpers
 function updateControlButtons() {
     const label = (!gameState || !gameState.gameStarted) ? 'START' : 'RESET';
     ['startResetBtn', 'startResetBtn-mobile'].forEach(id => {
@@ -289,7 +258,6 @@ function updateControlButtons() {
             if (!isLocal && myTeam !== 'snow') {
                 btn.style.display = 'none'; // Only host can start in MP
             } else {
-                // Force visibility for mobile and desktop
                 btn.style.display = id === 'startResetBtn-mobile' ? 'inline-block' : 'block';
                 btn.style.visibility = 'visible';
                 btn.style.opacity = '1';
@@ -297,7 +265,6 @@ function updateControlButtons() {
         }
     });
 
-    // Hide the start buttons entirely for multiplayer once the game starts, UNLESS the game is over
     if (!isLocal && gameState && gameState.gameStarted && !gameState.gameOver) { // FIX: Added gameOver check
         const desktopBtn = document.getElementById('startResetBtn');
         const mobileBtn = document.getElementById('startResetBtn-mobile');
@@ -310,7 +277,6 @@ window.handleStartReset = function () {
     if (!isLocal && myTeam !== 'snow') return;
 
     if (!gameState || !gameState.gameStarted) {
-        // Clear message logs on Start
         const ml = document.getElementById('messageLog'); if (ml) ml.innerHTML = '';
         const mlMobile = document.getElementById('messageLog-mobile'); if (mlMobile) mlMobile.innerHTML = '';
 
@@ -339,7 +305,6 @@ window.handleStartReset = function () {
                 console.error('Failed to reset game', e);
             }
         } else {
-            // CRITICAL FIX: Emit reset command to server
             socket.emit('gameAction', { roomId, actionType: 'RESET_GAME', data: {} });
         }
     }
@@ -351,12 +316,10 @@ function setupCanvas() {
     if (!displayCanvas) return;
     canvas = displayCanvas;
 
-    // CRITICAL FIX: Explicitly set the internal resolution of the canvas
     canvas.width = C.CANVAS_SIZE;
     canvas.height = C.CANVAS_SIZE;
     ctx = canvas.getContext('2d');
 
-    // Create offscreen canvases
     boardCanvas = document.createElement('canvas');
     boardCanvas.width = C.CANVAS_SIZE;
     boardCanvas.height = C.CANVAS_SIZE;
@@ -373,7 +336,6 @@ function setupCanvas() {
     UI.renderBoard(gameState);
     UI.drawLabels(gameState);
 
-    // Attach UI DOM handlers (menu, start/reset, mobile variants, and piece hover)
     const menuBtn = document.getElementById('menuButton');
     const menuBtnMobile = document.getElementById('menuButton-mobile');
     const startBtn = document.getElementById('startResetBtn');
@@ -387,16 +349,13 @@ function setupCanvas() {
     if (startBtnMobile) startBtnMobile.onclick = window.handleStartReset;
     updateControlButtons();
 
-    // Setup Optional Expansion / Toggle for Mobile Drawer
     const drawerHandle = document.querySelector('.drawer-handle');
     const drawerPeek = document.getElementById('drawerPeek');
-    // Use a global toggle so other code (and delegated listeners) can reliably toggle the drawer
     if (typeof window.toggleMobileDrawer !== 'function') {
         window.toggleMobileDrawer = function () {
             const drawer = document.getElementById('mobileDrawer');
             if (!drawer) return;
             drawer.classList.toggle('expanded');
-            // Ensure peek class is present when not expanded
             if (!drawer.classList.contains('expanded')) {
                 drawer.classList.add('peek');
             } else {
@@ -407,7 +366,6 @@ function setupCanvas() {
     if (drawerHandle) drawerHandle.addEventListener('click', window.toggleMobileDrawer);
     if (drawerPeek) drawerPeek.addEventListener('click', window.toggleMobileDrawer);
 
-    // ====== UPDATE: Fix Piece Hover Popup Position & Tracking ======
     if (canvas && piecePopup) {
     canvas.addEventListener('mousemove', (e) => {
             if (!gameState) { piecePopup.style.display = 'none'; return; }
@@ -421,7 +379,6 @@ function setupCanvas() {
             let col = Math.floor(x / C.CELL_SIZE);
             let row = Math.floor(y / C.CELL_SIZE);
 
-            // Account for rotated view for Ash in multiplayer
             if (!isLocal && myTeam === 'ash') {
                 col = C.COLS - 1 - col;
                 row = C.ROWS - 1 - row;
@@ -436,8 +393,6 @@ function setupCanvas() {
                 infoHtml = infoHtml.replace(/★|\*/g, '');
                 infoHtml = infoHtml.replace(/\n{2,}/g, '\n').trim();
 
-                // === TACTICAL PREDICTOR ===
-                // Show predicted damage when hovering an enemy while a friendly is selected
                 const sel = gameState.selectedPiece;
                 if (
                     sel &&
@@ -472,11 +427,9 @@ function setupCanvas() {
             const offsetX = 15;
             const offsetY = 15;
 
-            // CRITICAL FIX: Use pageX/pageY so scrolling doesn't detach the popup
             let finalLeft = e.pageX + offsetX;
             let finalTop = e.pageY + offsetY;
 
-            // CRITICAL FIX: Check against document dimensions
             if (finalLeft + piecePopup.offsetWidth > document.documentElement.scrollWidth - 10) {
                 finalLeft = e.pageX - piecePopup.offsetWidth - 10;
             }
@@ -484,7 +437,6 @@ function setupCanvas() {
                 finalTop = e.pageY - piecePopup.offsetHeight - 10;
             }
 
-            // CRITICAL FIX: Make the popup invisible to the mouse so it doesn't cause flickering loops
             piecePopup.style.pointerEvents = 'none';
             piecePopup.style.position = 'absolute';
             piecePopup.style.left = finalLeft + 'px';
@@ -494,11 +446,9 @@ function setupCanvas() {
 
     }
 
-    // Improved Selection Handler for Mobile & Desktop
     function handleSelection(e) {
         if (!canvas || !gameState) return;
         try { if (!isLocal && isWaitingForServer) return; } catch (er) { }
-        // Prevent global click handler from also processing this event
         try { if (e.stopPropagation) e.stopPropagation(); } catch (er) { }
 
         const rect = canvas.getBoundingClientRect();
@@ -513,7 +463,6 @@ function setupCanvas() {
         let row = Math.floor(y / C.CELL_SIZE);
         let decimalCol = x / C.CELL_SIZE;
         let decimalRow = y / C.CELL_SIZE;
-        // Account for rotated view for Ash in multiplayer
         if (!isLocal && myTeam === 'ash') {
             col = C.COLS - 1 - col;
             row = C.ROWS - 1 - row;
@@ -521,7 +470,6 @@ function setupCanvas() {
             decimalRow = C.ROWS - decimalRow;
         }
 
-        // Prevent selecting units before the game has started
         if (!gameState.gameStarted) {
             const clickedPiece = C.getPieceAt(row, col, gameState.pieces);
             if (clickedPiece) {
@@ -530,11 +478,9 @@ function setupCanvas() {
             return;
         }
 
-        // The logic coordinate of the piece is visual center minus 0.5
         const logicRow = decimalRow - 0.5;
         const logicCol = decimalCol - 0.5;
 
-        // If we're in an ability targeting mode, delegate to the existing handler
         if (gameState.abilityContext) {
             const targetP = C.getPieceAt(logicRow, logicCol, gameState.pieces);
             const targetR = targetP ? targetP.row : Math.floor(decimalRow);
@@ -549,20 +495,16 @@ function setupCanvas() {
             : (gameState.currentTurn === myTeam ? myTeam : null);
 
         if (allowedSelectTeam && clickedPiece && clickedPiece.team === allowedSelectTeam) {
-            // Select
             window.sendAction('SELECT_PIECE', { pieceId: clickedPiece.id });
             try { gameState.selectedPiece = clickedPiece; } catch (e) { }
             try { gameState.validMoves = calculateValidMoves(clickedPiece); } catch (e) { gameState.validMoves = []; }
             try { updateMobileDrawer(clickedPiece); } catch (e) { }
-            // UI update
             try { UI.drawLabels(gameState); UI.renderBoard(gameState); } catch (e) { }
             return;
         }
 
-        // If no piece clicked but a piece is selected, check for move
         if (gameState.selectedPiece) {
             if (clickedPiece && clickedPiece.team === allowedSelectTeam) {
-                // Clicked another of our own pieces: switch selection directly!
                 window.sendAction('SELECT_PIECE', { pieceId: clickedPiece.id });
                 try { gameState.selectedPiece = clickedPiece; } catch (e) { }
                 try { gameState.validMoves = calculateValidMoves(clickedPiece); } catch (e) { }
@@ -570,16 +512,12 @@ function setupCanvas() {
                 try { UI.drawLabels(gameState); UI.renderBoard(gameState); } catch (e) { }
                 return;
             } else {
-                // Determine target location. If a piece was clicked directly, use its coords.
-                // Otherwise, use the exact logic coordinates for continuous movement!
                 const targetRow = clickedPiece ? clickedPiece.row : logicRow;
                 const targetCol = clickedPiece ? clickedPiece.col : logicCol;
                 
-                // Continuous movement validation
                 const dist = Math.hypot(targetRow - gameState.selectedPiece.row, targetCol - gameState.selectedPiece.col);
                 const maxRadius = E.getPieceMoveRadius ? E.getPieceMoveRadius(gameState.selectedPiece, gameState) : (gameState.selectedPiece.agility || 2);
                 
-                // Check if we clicked on an ally (friendly fire / stacking prevention)
                 const isTargetAlly = clickedPiece && clickedPiece.team === gameState.selectedPiece.team;
                 
                 if (dist <= maxRadius + 0.1 && !isTargetAlly) {
@@ -595,7 +533,6 @@ function setupCanvas() {
             }
         }
 
-        // Otherwise ensure nothing is selected
         deselectPiece();
     }
 
@@ -609,7 +546,6 @@ function setupCanvas() {
         try { gameState.selectedPiece = null; } catch (e) { }
         try { gameState.validMoves = []; } catch (e) { }
 
-        // Reset the text when a piece is deselected
         const peekName = document.getElementById('peek-name');
         const peekDesc = document.getElementById('peek-desc');
         const miniLog = document.getElementById('miniLog');
@@ -618,7 +554,6 @@ function setupCanvas() {
         if (peekDesc) peekDesc.textContent = '';
         if (miniLog) miniLog.style.display = 'none';
 
-        // Add these lines to clear the expanded menu:
         const nameEl = document.getElementById('mobile-ability-name');
         const descEl = document.getElementById('mobile-ability-description');
         const expandedHeader = document.querySelector('.unit-header-mobile');
@@ -630,11 +565,9 @@ function setupCanvas() {
         const drawer = document.getElementById('mobileDrawer');
         if (drawer) { drawer.classList.remove('expanded'); }
     }
-    // Hook canvas-level click/touch to selection handler; stop propagation to avoid global handler
     if (canvas) {
         canvas.addEventListener('click', (ev) => { try { handleSelection(ev); } catch (e) { } });
         canvas.addEventListener('touchstart', (ev) => {
-            // Prevent double-firing and page scroll
             try { ev.preventDefault(); } catch (e) { }
             const t = ev.touches && ev.touches[0];
             if (t) {
@@ -643,13 +576,10 @@ function setupCanvas() {
         }, { passive: false });
     }
 
-    // Touch long-press (mobile): show a ghost overlay/peek for the touched tile
     if (canvas) {
         canvas.addEventListener('touchstart', (e) => {
             if (!gameState) return;
-            // Do not show ghost previews before the game starts
             if (!gameState.gameStarted) return;
-            // Prevent synthetic mouse events and page scroll while interacting with the board
             try { e.preventDefault(); } catch (err) { }
             const touch = e.touches[0];
             const rect = canvas.getBoundingClientRect();
@@ -660,7 +590,6 @@ function setupCanvas() {
             if (x < 0 || y < 0 || x > canvas.width || y > canvas.height) return;
             let col = Math.floor(x / C.CELL_SIZE);
             let row = Math.floor(y / C.CELL_SIZE);
-            // Account for rotated view for Ash in multiplayer
             if (!isLocal && myTeam === 'ash') {
                 col = C.COLS - 1 - col;
                 row = C.ROWS - 1 - row;
@@ -686,9 +615,6 @@ function setupCanvas() {
     }
 }
 
-// ============================================================================
-// THE EVENT PROCESSOR
-// ============================================================================
 function processServerEvents(events) {
     events.forEach(event => {
         switch (event.type) {
@@ -701,7 +627,6 @@ function processServerEvents(events) {
                 break;
             case 'HIDE_ABILITY_PANEL': UI.hideAbilityPanel(); break;
 
-            // CRITICAL FIX: Only show the popup to the triggering player
             case 'SHOW_ASCENSION_POPUP':
                 if (isLocal || (gameState.pendingAscension && gameState.pendingAscension.team === myTeam)) {
                     UI.showAscensionPopup(gameState);
@@ -775,9 +700,6 @@ function playAnimation(animData) {
     }
 }
 
-// ============================================================================
-// INPUT HANDLING & LOCAL ROUTER
-// ============================================================================
 const menuBtn = document.getElementById('menuButton');
 if (menuBtn) {
     menuBtn.onclick = () => { window.location.href = 'index.html'; };
@@ -791,16 +713,13 @@ function updatePlayerCountUI(count) {
     if (elMobile) elMobile.textContent = `Players: ${count}/2`;
 }
 
-// Calculate valid moves for a piece. Prefer using the shared utils if available.
 function calculateValidMoves(piece) {
     if (!piece || !gameState) return [];
     try {
-        // Shared utility returns rich move objects — use that when possible
         const utilMoves = E.getValidMoves ? E.getValidMoves(piece, gameState) : null;
         if (Array.isArray(utilMoves)) return utilMoves.map(m => ({ r: m.row ?? m.r, c: m.col ?? m.c, ...m }));
     } catch (e) { }
 
-    // Fallback: simple adjacent empty squares
     const moves = [];
     for (let dr = -1; dr <= 1; dr++) {
         for (let dc = -1; dc <= 1; dc++) {
@@ -813,20 +732,16 @@ function calculateValidMoves(piece) {
     return moves;
 }
 
-// Mobile drawer helpers
 function updateMobileDrawer(piece) {
     const drawer = document.getElementById('mobileDrawer');
     if (!drawer || !piece) return;
 
-    // Ensure local selection state is set for UI consistency
     try { gameState.selectedPiece = piece; } catch (e) { }
     try { gameState.validMoves = calculateValidMoves(piece); } catch (e) { gameState.validMoves = []; }
 
     drawer.classList.remove('hidden');
     drawer.classList.add('peek');
-    // NOTE: Intentionally NOT adding 'expanded' here so it stays peeked until tapped.
 
-    // 1. Format the strict left-side text you requested on separate lines
     const peekName = document.getElementById('peek-name');
     const peekDesc = document.getElementById('peek-desc');
     const miniLog = document.getElementById('miniLog');
@@ -840,7 +755,6 @@ function updateMobileDrawer(piece) {
         abilityText = `${piece.ability.name} (${cd})`;
     }
 
-    // Compact peek summary: single column, small text. When expanded, CSS hides this area.
     if (peekName) {
         peekName.style.display = 'block';
         peekName.style.fontSize = '13px';
@@ -855,23 +769,17 @@ function updateMobileDrawer(piece) {
     }
     if (miniLog) miniLog.style.display = 'none'; // Keep mini log out of peek; it is present in expanded view
 
-    // 2. Populate the detailed expanded content
     const nameEl = document.getElementById('mobile-ability-name');
     const descEl = document.getElementById('mobile-ability-description');
 
-    // Gather ability entries from the piece FIRST so we can use them for descriptions
-    // Gather ability entries from the piece FIRST
     let abilities = [];
-    // FIX: Use the spread operator [...] to create a shallow copy so we don't mutate the core game state!
     if (Array.isArray(piece.abilities) && piece.abilities.length > 0) abilities = [...piece.abilities];
     else if (piece.ability) abilities = [{ ...piece.ability }];
     else if (piece.abilityName) abilities = [{ name: piece.abilityName, key: piece.abilityKey || piece.abilityKeyName }];
 
-    // Check for veteran abilities that might not be packaged in the main array
     if (piece.isVeteran && piece.secondaryAbilityKey) {
         const vetName = C.ABILITIES[piece.secondaryAbilityKey]?.name || 'Veteran Ability';
 
-        // CRITICAL FIX: Pass the cooldown property so the UI button visually disables
         abilities.push({
             name: vetName,
             key: piece.secondaryAbilityKey,
@@ -879,17 +787,14 @@ function updateMobileDrawer(piece) {
         });
     }
 
-    // Expanded header now shows concise lines: name, power, ability status
     try {
         const expandedHeader = document.querySelector('.unit-header-mobile');
         if (expandedHeader) {
-            // Clear existing content and rebuild the layout
             expandedHeader.innerHTML = '';
             const lineName = document.createElement('div'); lineName.className = 'expanded-name'; lineName.textContent = displayName;
             const linePower = document.createElement('div'); linePower.className = 'expanded-power'; linePower.textContent = `Power: ${power}`;
             const lineAbility = document.createElement('div'); lineAbility.className = 'expanded-ability'; lineAbility.textContent = abilityText;
 
-            // Build the specific ability description block
             const abilityDescriptions = abilities.map(a => {
                 const name = a.name || 'Action';
                 const desc = getAbilityDescription(a.key || a.abilityKey);
@@ -905,7 +810,6 @@ function updateMobileDrawer(piece) {
             lineDesc.style.textAlign = 'center';
             lineDesc.innerHTML = abilityDescriptions;
 
-            // Append everything in order
             expandedHeader.appendChild(lineName);
             expandedHeader.appendChild(linePower);
             expandedHeader.appendChild(lineAbility);
@@ -919,7 +823,6 @@ function updateMobileDrawer(piece) {
     }
 }
 
-// Helper to get ability descriptions based on the rules
 function getAbilityDescription(abilityKey) {
     const descriptions = {
         'SetSnare': 'Create a trap on an adjacent empty square. The first enemy to enter is Stuck for 2 turns.',
@@ -959,14 +862,12 @@ function closeMobileDrawer() {
     const drawer = document.getElementById('mobileDrawer');
     if (!drawer) return;
     drawer.classList.remove('expanded');
-    // We strictly DO NOT remove 'peek' or add 'hidden' anymore
 }
 
 window.sendAction = function (actionType, data) {
     if (isLocal) {
         processLocalAction(actionType, data);
     } else {
-        // NEW: Enforce the lock globally so players can't spam buttons during lag
         if (isWaitingForServer && (actionType === 'MOVE' || actionType === 'ABILITY' || actionType === 'HANDLE_CLICK' || actionType === 'SWITCH_TURN')) {
             return;
         }
@@ -974,7 +875,6 @@ window.sendAction = function (actionType, data) {
         if (gameState && (actionType === 'MOVE' || actionType === 'ABILITY' || actionType === 'HANDLE_CLICK' || actionType === 'SWITCH_TURN')) {
             if (gameState.currentTurn !== myTeam) return;
 
-            // Apply the lock
             isWaitingForServer = true;
         }
 
@@ -982,24 +882,19 @@ window.sendAction = function (actionType, data) {
     }
 };
 
-// Consolidate global click listener to ignore game board areas
 window.addEventListener('click', (e) => {
     if (!isLocal && isWaitingForServer) return;
 
-    // FIX: If the click is on the canvas, ignore it here. 
-    // The specific canvas 'click' and 'touchstart' listeners already handle it.
     if (e.target === canvas) return;
 
     try {
         if (e.target && e.target.closest && e.target.closest('.ability-panel, .ui-container, button, .top-menu-btn, #left-column, #right-column, #mobile-top-bar, #disconnectModal, .mobile-drawer')) return;
     } catch (err) { }
 
-    // Deselect if clicking on empty UI background
     window.sendAction('SELECT_PIECE', { pieceId: null });
     try { gameState.selectedPiece = null; gameState.validMoves = []; } catch (e) { }
 });
 
-// Update canvas listeners to prevent event bubbling/duplication
 if (canvas) {
     canvas.addEventListener('click', (ev) => {
         ev.preventDefault();
@@ -1026,9 +921,6 @@ window.endTurn = function () {
     window.sendAction('SWITCH_TURN', {});
 };
 
-// ============================================================================
-// THE SHARED LOGIC SWITCHBOARD
-// ============================================================================
 export function applyActionLogic(actionType, data, gs) {
     let turnEnded = false;
     const find = (id) => gs.pieces.find(x => x.id === id);
@@ -1041,13 +933,11 @@ export function applyActionLogic(actionType, data, gs) {
         case 'MOVE':
             const mp = find(data.pieceId);
             if (mp) {
-                // Trigger lunge & screenshake if this move is a capture attack
                 const defender = C.getPieceAt(data.r, data.c, gs.pieces);
                 if (defender && defender.team !== mp.team) {
                     try {
                         UI.triggerLunge(mp.id, data.r, data.c);
                         UI.triggerScreenshake(10, 150);
-                        // Trigger dissolve early if the hit will be lethal
                         const preview = E.previewDamage(mp, defender, gs);
                         if (preview.isFatal) {
                             UI.triggerPieceDissolve(defender);
@@ -1062,7 +952,6 @@ export function applyActionLogic(actionType, data, gs) {
         case 'ABILITY':
             const cp = find(data.pieceId);
             if (cp) {
-                // Target-based ability casting triggers pulse & impact shake
                 if (data.target) {
                     try {
                         UI.triggerPulse(cp.id);
@@ -1111,15 +1000,12 @@ export function applyActionLogic(actionType, data, gs) {
             Logic.endGame(data.team === 'snow' ? 'ash' : 'snow');
             break;
     }
-    // Ensure utilities depending on the 2D grid are accurate after logic changes
     try { E.updateBoardMap(gs); } catch (e) { }
     try { UI.renderBoard(gs); UI.drawLabels(gs); } catch (e) { }
 
     if (turnEnded) {
-        // If an ascension becomes ready, show the popup and DO NOT auto-switch turns.
         const ascensionTriggered = Logic.checkAscensionReady();
         if (!ascensionTriggered && isLocal) {
-            // In local mode we are authoritative for turn progression.
             Logic.switchTurn();
         }
     }
@@ -1132,18 +1018,11 @@ function processLocalAction(actionType, data) {
     if (gameState.events && gameState.events.length > 0) processServerEvents(gameState.events);
     UI.renderBoard(gameState);
     UI.drawLabels(gameState);
-    // If playing locally against AI, allow the AI to act when it's their turn
     if (isLocal && vsAI) setTimeout(checkAITurn, 0);
 }
 
-// ============================================================================
-// THE RENDER LOOP
-// ============================================================================
-// Draw faction ley-lines (borders between captured territory)
 function drawLeyLines(ctx, gs) {
-    // Disabled at user request to remove borders connecting the territory
 }
-// Draw a subtle ghost overlay showing a unit's possible moves / threat area
 function drawGhostOverlay(ctx, gs) {
     if (!gs || !gs.ghostPieceId) return;
     const piece = gs.pieces && gs.pieces.find(p => p.id === gs.ghostPieceId);
@@ -1170,7 +1049,6 @@ function drawGhostOverlay(ctx, gs) {
         ctx.stroke();
     });
 
-    // Also highlight the piece's current tile with a stronger ring
     const cpx = piece.col * C.CELL_SIZE + C.CELL_SIZE / 2;
     const cpy = piece.row * C.CELL_SIZE + C.CELL_SIZE / 2;
     ctx.beginPath();
@@ -1202,12 +1080,10 @@ function animationLoop(time) {
 
     if (!gameState) { requestAnimationFrame(animationLoop); return; }
     
-    // Update the visual states of all active and dying pieces
     try { UI.updateVisualStates(gameState, dt); } catch (e) { }
 
     ctx.clearRect(0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
     
-    // Save state to apply global impact screenshake
     ctx.save();
     try { UI.applyScreenshake(ctx); } catch (e) { }
 
@@ -1219,14 +1095,10 @@ function animationLoop(time) {
         didTransform = true;
     }
 
-    // Render static background layer generated by ui.js
     const bgCanvas = UI.getBoardCanvas();
     if (bgCanvas) ctx.drawImage(bgCanvas, 0, 0);
-    // Draw ley-lines (territory borders) above the board background
     try { drawLeyLines(ctx, gameState); } catch (e) { /* non-fatal */ }
-    // Draw ghost overlay (from long-press peek) above ley-lines but under particles/pieces
     try { drawGhostOverlay(ctx, gameState); } catch (e) { /* non-fatal */ }
-    // Draw valid-move highlights for the currently selected piece as a premium glowing range circle
     try {
         if (gameState && gameState.selectedPiece) {
             const piece = gameState.selectedPiece;
@@ -1240,7 +1112,6 @@ function animationLoop(time) {
             ctx.save();
             ctx.globalCompositeOperation = 'lighter';
             
-            // 1. Soft glowing fill
             const fillGrad = ctx.createRadialGradient(cx, cy, radiusPx * 0.4, cx, cy, radiusPx);
             if (piece.team === 'snow') {
                 fillGrad.addColorStop(0, 'rgba(0, 191, 255, 0.08)');
@@ -1256,7 +1127,6 @@ function animationLoop(time) {
             ctx.fillStyle = fillGrad;
             ctx.fill();
 
-            // 2. Neon stroke with breathing shadow blur
             const pulse = 10 + Math.sin(Date.now() / 250) * 4; // breathing shadow
             ctx.strokeStyle = piece.team === 'snow' ? 'rgba(0, 191, 255, 0.85)' : 'rgba(255, 69, 0, 0.85)';
             ctx.lineWidth = 3.5;
@@ -1266,7 +1136,6 @@ function animationLoop(time) {
             ctx.arc(cx, cy, radiusPx, 0, Math.PI * 2);
             ctx.stroke();
 
-            // 3. Draw a subtle dashed ring slightly outside to add strategic grid-free visual depth!
             ctx.strokeStyle = piece.team === 'snow' ? 'rgba(0, 191, 255, 0.35)' : 'rgba(255, 69, 0, 0.35)';
             ctx.lineWidth = 1.5;
             ctx.setLineDash([6, 8]);
@@ -1291,10 +1160,8 @@ function animationLoop(time) {
         (gameState.projectiles?.length || 0) +
         (gameState.groundEffectParticles?.length || 0)
     );
-    // If too many active elements, throttle visuals
     gameState.lowDetail = visualLoad > 450;
 
-    // Under lowDetail, proactively cap some particle arrays so draw work remains bounded
     if (gameState.lowDetail) {
         if (gameState.battleParticles && gameState.battleParticles.length > 200) gameState.battleParticles.length = 200;
         if (gameState.snowParticles && gameState.snowParticles.length > 80) gameState.snowParticles.length = 80;
@@ -1305,17 +1172,14 @@ function animationLoop(time) {
     if (Effects.drawGroundEffectParticles) Effects.drawGroundEffectParticles(gameState);
     if (Effects.drawSiphonParticles) Effects.drawSiphonParticles(gameState);
 
-    // Draw active pieces
     if (gameState.pieces) {
         gameState.pieces.forEach(p => {
             if (p.id !== gameState.trappedPiece) UI.drawPiece(p, ctx, gameState);
         });
     }
 
-    // Draw dying pieces (captured pieces performing dissolve animation)
     try { UI.drawDyingPieces(ctx, gameState); } catch (e) { }
 
-    // FIX: Draw ALL dynamic animations (Many were missing here)
     if (Effects.drawFrenziedDashAnimations) Effects.drawFrenziedDashAnimations(gameState);
     if (Effects.drawSummonWispAnimations) Effects.drawSummonWispAnimations(gameState);
     if (Effects.drawLavaGlobAnimations) Effects.drawLavaGlobAnimations(gameState);
@@ -1333,18 +1197,14 @@ function animationLoop(time) {
     if (Effects.drawShrineEffects) Effects.drawShrineEffects(gameState);
     UI.drawLastMoveIndicator(gameState);
 
-    // Draw interactive overlays
     if (gameState.selectedPiece && (isLocal || gameState.currentTurn === myTeam)) {
         UI.drawSelection(gameState);
         if (gameState.abilityContext) UI.drawAbilityHighlights(gameState);
     }
-    // Restore the transform if one was applied
     if (didTransform) ctx.restore();
 
-    // Restore the global screenshake save
     ctx.restore();
 
-    // Sync mobile timers directly from gameState object to bypass ui.js missing the IDs
     if (gameState && gameState.timers) {
         const sTimer = document.getElementById('miniTimerSnow');
         const aTimer = document.getElementById('miniTimerAsh');
@@ -1369,14 +1229,10 @@ try {
     }
 } catch (e) { }
 
-// ============================================================================
-// RESPONSIVE SCALING (Fit to Laptop Screen)
-// ============================================================================
 function scaleGame() {
     const wrapper = document.getElementById('game-wrapper');
     if (!wrapper) return;
     
-    // Ignore mobile view scaling which is handled by CSS media queries
     if (window.innerWidth <= 1024) {
         wrapper.style.transform = 'none';
         return;

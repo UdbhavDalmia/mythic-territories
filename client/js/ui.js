@@ -18,9 +18,6 @@ let boardCtx;
 let ctx;
 let offCanvas = null;
 
-// ── Territory rendering cache ────────────────────────────────────────────────
-// The per-cell distance-field is expensive. We cache the rendered ImageData and
-// only rebuild it when the territory sets or trails actually change.
 let _terrCacheCanvas = null;      // cached offscreen canvas with fluid fill
 let _terrCacheKey    = '';        // serialized key of last rendered state
 let _terrFrameSkip   = 0;        // allow a max of 1 rebuild every N frames
@@ -79,7 +76,6 @@ export function initUI(mainCtx, boardContext) {
   boardCtx = boardContext;
 }
 
-// Expose the offscreen board canvas so the main render loop can blit it to the visible canvas
 export function getBoardCanvas() {
   return boardCtx && boardCtx.canvas ? boardCtx.canvas : null;
 }
@@ -90,7 +86,6 @@ const formatTime = seconds => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-// Move this to the top of the file to persist across state changes
 let globalTimerInterval = null;
 
 export function startTimer(gameState) {
@@ -100,7 +95,6 @@ export function startTimer(gameState) {
     if (gameState.gameOver || !gameState.gameStarted) return;
     const currentTeam = gameState.currentTurn || 'snow';
 
-    // Ensure timers object exists
     if (!gameState.timers) gameState.timers = { snow: 600, ash: 600 };
 
     if (gameState.timers[currentTeam] > 0) {
@@ -121,7 +115,6 @@ export function stopTimer() {
 }
 
 export function resetTimers(gameState) {
-  // CRITICAL FIX: Use the exposed stopTimer method to clear the global interval
   stopTimer();
 
   gameState.timers = gameState.timers || {};
@@ -346,7 +339,6 @@ export function calculateDynamicTerritoryAreas(gameState) {
   const ashSet = gameState.ashTerritory || new Set();
   const trails = gameState.territoryTrails || [];
 
-  // Group trails by cell coordinate for highly-optimized O(1) proximity queries
   const trailsByCell = {};
   for (let r = 0; r < 10; r++) {
     for (let c = 0; c < 10; c++) {
@@ -377,7 +369,6 @@ export function calculateDynamicTerritoryAreas(gameState) {
       const nearbySnowBases = [];
       const nearbyAshBases = [];
 
-      // Pre-filter nearby base cells to minimize loop iterations
       for (let nr = Math.max(0, r - 1); nr <= Math.min(9, r + 1); nr++) {
         for (let nc = Math.max(0, c - 1); nc <= Math.min(9, c + 1); nc++) {
           const npos = `${nr},${nc}`;
@@ -395,7 +386,6 @@ export function calculateDynamicTerritoryAreas(gameState) {
         for (let sc = 0; sc < N; sc++) {
           const x = c + (sc + 0.5) / N;
 
-          // 1. Evaluate Snow coverage (clipped to exclude Ash cells)
           if (!isAsh) {
             let isCovered = false;
             for (let k = 0; k < nearbySnowBases.length; k++) {
@@ -422,7 +412,6 @@ export function calculateDynamicTerritoryAreas(gameState) {
             }
           }
 
-          // 2. Evaluate Ash coverage (clipped to exclude Snow cells)
           if (!isSnow) {
             let isCovered = false;
             for (let k = 0; k < nearbyAshBases.length; k++) {
@@ -452,7 +441,6 @@ export function calculateDynamicTerritoryAreas(gameState) {
     }
   }
 
-  // Count the total area occupied out of the 100 cell spaces
   const snowArea = (snowCoveredCount / totalSubcells) * 100;
   const ashArea = (ashCoveredCount / totalSubcells) * 100;
 
@@ -476,7 +464,6 @@ export function drawLabels(gameState) {
     turnLabel.className = 'label turn ' + (gameState.currentTurn || '');
   }
 
-  // Swap labels visually for Ash player's rotated perspective
   if (gameState.playerTeam === 'ash') {
     if (snowLabel) {
       snowLabel.textContent = `Ash: ${areas.ash}`;
@@ -526,7 +513,6 @@ export function drawSelection(gameState) {
     const time = performance.now() * 0.003;
 
     ctx.save();
-    // Soft glowing base ring
     ctx.strokeStyle = p.team === 'snow' ? 'rgba(0, 191, 255, 0.85)' : 'rgba(255, 69, 0, 0.85)';
     ctx.lineWidth = 3.5;
     ctx.shadowColor = ctx.strokeStyle;
@@ -536,7 +522,6 @@ export function drawSelection(gameState) {
     ctx.arc(cx, cy, C.CELL_SIZE * 0.38, 0, Math.PI * 2);
     ctx.stroke();
 
-    // Rotating dash indicators
     ctx.setLineDash([8, 12]);
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -544,9 +529,7 @@ export function drawSelection(gameState) {
     ctx.stroke();
     ctx.restore();
 
-    // Draw the continuous glowing movement radius circle based on piece agility!
     ctx.save();
-    // Assuming E.getPieceMoveRadius is available, or use p.agility as fallback
     const maxRadius = (typeof getPieceMoveRadius === 'function') ? getPieceMoveRadius(p, gameState) : (p.agility || 2);
     const moveRadiusPx = maxRadius * C.CELL_SIZE;
     const pulseRadius = moveRadiusPx + Math.sin(performance.now() * 0.005) * 3;
@@ -556,14 +539,12 @@ export function drawSelection(gameState) {
     ctx.shadowColor = ctx.strokeStyle;
     ctx.shadowBlur = 10;
 
-    // Soft filled movement area
     ctx.fillStyle = p.team === 'snow' ? 'rgba(0, 180, 255, 0.06)' : 'rgba(255, 70, 0, 0.06)';
     ctx.beginPath();
     ctx.arc(cx, cy, pulseRadius, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
-    // Fine dashed outer orbit
     ctx.setLineDash([4, 6]);
     ctx.lineWidth = 1.2;
     ctx.beginPath();
@@ -574,7 +555,6 @@ export function drawSelection(gameState) {
 }
 
 function drawTerritoryBorders(team, gameState) {
-  // Neutralized to remove hard territory border lines completely
 }
 
 export function generatePieceInfoString(piece, gameState) {
@@ -584,7 +564,6 @@ export function generatePieceInfoString(piece, gameState) {
 
   let info = `<b>${typeInfo.name || 'Unit'}</b> (${piece.team?.charAt(0).toUpperCase() + piece.team?.slice(1)})<br>`;
 
-  // === RPG Stat Bar ===
   const hp = typeof piece.currentHp === 'number' ? piece.currentHp : (piece.maxHp || effectivePower);
   const maxHp = piece.maxHp || hp;
   const hpPct = maxHp > 0 ? Math.round((hp / maxHp) * 100) : 100;
@@ -605,7 +584,6 @@ export function generatePieceInfoString(piece, gameState) {
     info += `<div style="font-size:11px;color:#00aaff;font-weight:bold;text-shadow:0 0 4px #00aaff;margin-bottom:4px;">★ VETERAN</div>`;
   }
 
-  // 5-stat line
   const s = piece.stats || C.PIECE_TYPES[piece.key]?.stats;
   if (s || typeof piece.strength === 'number') {
     const curHp = typeof piece.currentHp === 'number' ? piece.currentHp : (s?.hp || 5);
@@ -658,13 +636,16 @@ export function generatePieceInfoString(piece, gameState) {
     info += `<br><span class="overload-text">Overload: ${piece.overloadPoints}</span>`;
   }
 
-  // Active ability line
   if (piece.ability?.key && piece.ability.key !== 'Siphon') {
     const cdText = (piece.ability.cooldown || 0) > 0 ? `CD: ${piece.ability.cooldown}` : 'Ready';
-    info += `<div style="margin-top:5px;font-size:11px;"><span style="color:#88ccff">Active:</span> ${piece.ability.name} (${cdText})</div>`;
+    info += `<div style="margin-top:5px;font-size:11px;line-height:1.3;"><span style="color:#88ccff">Active:</span> <span style="color:#ffcc00">${piece.ability.name}</span> (${cdText})`;
+    const desc = getAbilityDescription(piece.ability.key);
+    if (desc) {
+      info += `<br><span style="color:#ddd">${desc}</span>`;
+    }
+    info += `</div>`;
   }
 
-  // Passive ability line
   const passiveInfo = getPassiveAbilityInfo(piece);
   if (passiveInfo) {
     info += `<div style="margin-top:3px;font-size:11px;"><span style="color:#aaffaa">Passive:</span> ${passiveInfo}</div>`;
@@ -673,25 +654,47 @@ export function generatePieceInfoString(piece, gameState) {
   return info;
 }
 
+function getAbilityDescription(abilityKey) {
+    const descriptions = {
+        'FrostfallBlessing': 'AOE (Range 2.5, Rad 2) deals 2 damage to enemies and heals allies for 1 HP for 5 turns.',
+        'ReignOfFire': 'AOE (Range 2.5, Rad 2) deals 2 damage to enemies; deals 1 damage to allies but grants them +2 Strength for 3 turns.',
+        'FateLink': 'Binds an ally and enemy (Range 3) for 4 turns; any damage taken by the ally is mirrored exactly to the enemy.',
+        "TheReapersToll": 'Steals 1 Defence and 0.4 Agility from an enemy (Range 3) for 4 turns, transferring the stats to self.',
+        'GlacialFracture': 'AOE (Range 2.5, Rad 2) deals 2 damage, creates Snow territory, and summons 1 Ice Wisp furthest from caught enemies (Max 2).'
+    };
+    return descriptions[abilityKey] || '';
+}
+
 function getPassiveAbilityInfo(piece) {
   const key = piece.key;
   if (key === 'snowFrostLord') {
     const cd = piece.helpFromAboveCooldown || 0;
     const active = piece.hasHelpFromAboveActive ? ' [ACTIVE]' : '';
-    if (cd > 0) return `Help From Above — CD: ${cd} turns${active}`;
-    return `Help From Above — Ready${active}`;
+    const desc = "Lethal damage is negated; becomes invulnerable for 5 turns and grants nearby allies (Rad 1.5) +1 Strength.";
+    if (cd > 0) return `Help From Above — CD: ${cd} turns${active}<br><span style="color:#ccc">${desc}</span>`;
+    return `Help From Above — Ready${active}<br><span style="color:#ccc">${desc}</span>`;
   }
   if (key === 'ashAshTyrant') {
     const cd = piece.deathMeteorCooldown || 0;
-    if (cd > 0) return `Death Meteor — CD: ${cd} turns`;
-    return `Death Meteor — Ready`;
+    const desc = "Lethal damage is negated; survives at 1 HP and triggers an explosion (Rad 2) dealing 4 damage to enemies and 2 damage to allies.";
+    if (cd > 0) return `Death Meteor — CD: ${cd} turns<br><span style="color:#ccc">${desc}</span>`;
+    return `Death Meteor — Ready<br><span style="color:#ccc">${desc}</span>`;
   }
   if (key === 'snowSoulLinker') {
-    const hasFateLink = false; // shown elsewhere
-    return `Cold Snap — Heals 2 HP when linked enemy dies`;
+    const desc = "If the bound enemy dies, the Soul Linker heals 2 HP; excess healing is converted into a 1-damage absorb shield.";
+    return `Cold Snap<br><span style="color:#ccc">${desc}</span>`;
   }
-  if (key === 'ashCinderHarvester') {
-    return `Combustion — 50% chance to deal 1 dmg when Magma Grip expires`;
+  if (key === 'ashAshReaper') {
+    const desc = "When The Reaper's Toll expires, the stolen stats return and the enemy has a 50% chance to take 1 unavoidable damage.";
+    return `Ashes To Ashes<br><span style="color:#ccc">${desc}</span>`;
+  }
+  if (key === 'snowGlacialMage') {
+    const desc = "Gains +0.2 Control and +0.2 Agility per active Ice Wisp; gains an additional +1 Strength if both Wisps are active.";
+    return `Frost Duo<br><span style="color:#ccc">${desc}</span>`;
+  }
+  if (key === 'snowIceWisp') {
+    const desc = "On death, explodes (Rad 1.5) for 4 turns; allies heal 1 HP/turn and get +1 Strength; enemies lose 0.4 Agility and have Control reduced to 0.";
+    return `A Cold Farewell<br><span style="color:#ccc">${desc}</span>`;
   }
   return null;
 }
@@ -726,7 +729,6 @@ export function placePieces(pieces, gameState) {
       if (p.isFading) ctx.globalAlpha = p.fadeAlpha;
       const yOffset = p === gameState.selectedPiece ? Math.sin(time * 2.5) * 2 : 0;
 
-      // CRITICAL FIX: Counter-rotate pieces for Ash
       if (gameState.playerTeam === 'ash') {
         ctx.translate(p.col * C.CELL_SIZE + C.CELL_SIZE / 2, p.row * C.CELL_SIZE + yOffset + C.CELL_SIZE / 2);
         ctx.rotate(Math.PI);
@@ -757,7 +759,6 @@ export function placePieces(pieces, gameState) {
           const bx = p.col * C.CELL_SIZE + C.CELL_SIZE - badgeSize - pad;
           const by = p.row * C.CELL_SIZE + pad;
 
-          // CRITICAL FIX: Counter-rotate badges for Ash
           if (gameState.playerTeam === 'ash') {
             ctx.save();
             ctx.translate(bx + badgeSize / 2, by + badgeSize / 2);
@@ -788,7 +789,6 @@ export function placePieces(pieces, gameState) {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        // CRITICAL FIX: Counter-rotate text for Ash
         if (gameState.playerTeam === 'ash') {
           ctx.translate(ox + overlaySize / 2, oy + overlaySize / 2);
           ctx.rotate(Math.PI);
@@ -828,9 +828,6 @@ export function placePieces(pieces, gameState) {
   renderEffects(ctx);
 }
 
-// ============================================================================
-// PREMIUM 2D ANIMATION ENGINE
-// ============================================================================
 const visualStates = new Map();
 
 export function clearVisualStates() {
@@ -870,12 +867,10 @@ export function updateVisualStates(gameState, deltaTime = 16.67) {
 
   const currentIds = new Set(gameState.pieces.map(p => p.id));
 
-  // 1. Process active and dying animation states
   for (const [id, vis] of visualStates.entries()) {
     const p = gameState.pieces.find(piece => piece.id === id);
 
     if (!p) {
-      // The unit was captured/removed from the board: Trigger smooth death fade + shard spray
       if (!vis.isDead) {
         vis.isDead = true;
         vis.deathProgress = 0.0;
@@ -884,7 +879,6 @@ export function updateVisualStates(gameState, deltaTime = 16.67) {
         const startX = vis.x + C.CELL_SIZE / 2;
         const startY = vis.y + C.CELL_SIZE / 2;
 
-        // Spawn 15-20 premium faction-themed drift particles
         for (let i = 0; i < 18; i++) {
           const angle = Math.random() * Math.PI * 2;
           const speed = Math.random() * 3.5 + 1.2;
@@ -914,7 +908,6 @@ export function updateVisualStates(gameState, deltaTime = 16.67) {
 
     vis.team = p.team;
 
-    // 2. Position Lerp & Hop bobbing math
     const targetX = p.col * C.CELL_SIZE;
     const targetY = p.row * C.CELL_SIZE;
 
@@ -923,12 +916,10 @@ export function updateVisualStates(gameState, deltaTime = 16.67) {
     const dist = Math.hypot(dx, dy);
 
     if (dist > 1.2) {
-      // Frame-independent exponential decay to eliminate lag
       const factor = 1.0 - Math.exp(-0.015 * deltaTime);
       vis.x += dx * factor;
       vis.y += dy * factor;
 
-      // Bob scale up & down in mid-flight
       const lift = Math.sin(Math.min(1.0, dist / (C.CELL_SIZE * 1.5)) * Math.PI) * 0.14;
       vis.scale = 1.0 + lift;
       vis.rotation = Math.sin(Math.min(1.0, dist / (C.CELL_SIZE * 1.5)) * Math.PI * 2) * 0.06;
@@ -937,7 +928,6 @@ export function updateVisualStates(gameState, deltaTime = 16.67) {
       vis.y = targetY;
       vis.rotation = 0;
 
-      // Springy squash-and-stretch landing recovery
       if (vis.scale > 1.0) {
         vis.scale -= 0.018 * (deltaTime / 16.67);
         if (vis.scale < 1.0) vis.scale = 1.0;
@@ -947,7 +937,6 @@ export function updateVisualStates(gameState, deltaTime = 16.67) {
       }
     }
 
-    // 3. Combat Lunge with spring-damping recoil
     if (vis.lungeProgress < 1.0) {
       vis.lungeProgress += 0.08 * (deltaTime / 16.67); // Snappy lunge execution
       if (vis.lungeProgress >= 1.0) {
@@ -956,12 +945,10 @@ export function updateVisualStates(gameState, deltaTime = 16.67) {
         vis.offsetY = 0;
       } else {
         if (vis.lungeProgress < 0.25) {
-          // Linear rapid charge forward
           const pNorm = vis.lungeProgress / 0.25;
           vis.offsetX = vis.lungeDx * pNorm;
           vis.offsetY = vis.lungeDy * pNorm;
         } else {
-          // Spring back with decaying cosine wave
           const pNorm = (vis.lungeProgress - 0.25) / 0.75;
           const spring = Math.cos(pNorm * Math.PI * 2.5) * Math.exp(-pNorm * 3.8);
           vis.offsetX = vis.lungeDx * spring;
@@ -970,7 +957,6 @@ export function updateVisualStates(gameState, deltaTime = 16.67) {
       }
     }
 
-    // 4. Spellcast / Ranged Pulsation
     if (vis.pulseProgress < 1.0) {
       vis.pulseProgress += 0.06 * (deltaTime / 16.67);
       if (vis.pulseProgress >= 1.0) {
@@ -996,7 +982,6 @@ export function triggerLunge(pieceId, targetR, targetC) {
   const dist = Math.hypot(dx, dy);
 
   if (dist > 0) {
-    // Attack lunges 40% of the distance to the defender
     vis.lungeDx = (dx / dist) * C.CELL_SIZE * 0.40;
     vis.lungeDy = (dy / dist) * C.CELL_SIZE * 0.40;
     vis.lungeProgress = 0.0;
@@ -1008,7 +993,6 @@ export function triggerPulse(pieceId) {
   if (vis) vis.pulseProgress = 0.0;
 }
 
-// Global screenshake parameters
 let shakeIntensity = 0;
 let shakeDuration = 0;
 
@@ -1064,10 +1048,8 @@ export function drawPiece(p, targetCtx, gameState) {
       const cx = vis.x + C.CELL_SIZE / 2 + vis.offsetX;
       const cy = vis.y + yOffset + C.CELL_SIZE / 2 + vis.offsetY;
 
-      // Define local helpers to draw slashes in local coordinate space
       const drawSlashLocal = () => {
         if (vis.lungeProgress < 0.6) {
-          // If team is Ash, lunge vector is inverted visually since board view is flipped 180 deg
           const f = (gameState.playerTeam === 'ash') ? -1 : 1;
           const attackAngle = Math.atan2(vis.lungeDy * f, vis.lungeDx * f);
           const arcRadius = C.CELL_SIZE * 0.65;
@@ -1089,30 +1071,22 @@ export function drawPiece(p, targetCtx, gameState) {
         }
       };
 
-      // Determine if piece is a leader and calculate its size
       const isLeader = p.key.includes('Lord') || p.key.includes('Tyrant');
       const drawSize = isLeader ? C.CELL_SIZE * 1.4 : C.CELL_SIZE;
       
-      // Calculate horizontal flip (Y-axis rotation) to face the center of the board
       const centerX = 5 * C.CELL_SIZE;
-      // If piece is on the left (cx < centerX), it should face right (scale 1 or -1 depending on sprite default).
-      // Assuming sprites look somewhat neutral/forward, flipping them creates the illusion of facing center.
       const flipX = cx > centerX ? -1 : 1;
 
-      // Keep them standing straight (no Z-rotation unless it's a specific visual effect like dashing)
       const pieceRotation = vis.rotation; // Usually 0
 
       drawCtx.translate(cx, cy);
       drawCtx.rotate(pieceRotation);
-      // Apply flipX for facing center, combined with the piece's normal scale
       drawCtx.scale(vis.scale * flipX, vis.scale);
       
-      // Procedural "shine" aura for power-ups
       let hasAura = false;
       if (p.isVeteran) hasAura = true;
       if (p.hasHelpFromAbove) hasAura = true;
       if (gameState.temporaryBoosts && gameState.temporaryBoosts.some(b => b.pieceId === p.id)) hasAura = true;
-      // Also shine if the piece is the conduit owner or trapped in shrine overload?
       if (gameState.conduit && gameState.conduit.owner === p.team && gameState.conduit.ownerId === p.id) hasAura = true;
       
       if (hasAura) {
@@ -1159,7 +1133,6 @@ export function drawPiece(p, targetCtx, gameState) {
           const bx = vis.x + C.CELL_SIZE - badgeSize - pad + vis.offsetX;
           const by = vis.y + pad + vis.offsetY;
 
-          // CRITICAL FIX: Counter-rotate badges for Ash
           if (gameState.playerTeam === 'ash') {
             drawCtx.save();
             drawCtx.translate(bx + badgeSize / 2, by + badgeSize / 2);
@@ -1170,7 +1143,6 @@ export function drawPiece(p, targetCtx, gameState) {
             drawCtx.drawImage(badge, bx, by, badgeSize, badgeSize);
           }
 
-          // A Cold Farewell Control Lock Visuals (Strength Badge)
           if ((gameState.debuffs || []).some(d => d.pieceId === p.id && d.name === "ColdFarewellControlLock")) {
             drawCtx.save();
             if (gameState.playerTeam === 'ash') {
@@ -1203,7 +1175,6 @@ export function drawPiece(p, targetCtx, gameState) {
     } catch (e) { }
 
     try {
-      // Procedural HP Bar
       const maxHp = C.PIECE_TYPES[p.key]?.stats?.hp || 5;
       const curHp = typeof p.currentHp === 'number' ? p.currentHp : maxHp;
       const hpPct = Math.max(0, Math.min(1, curHp / maxHp));
@@ -1220,7 +1191,6 @@ export function drawPiece(p, targetCtx, gameState) {
       }
       drawCtx.fillStyle = 'rgba(0,0,0,0.7)';
       drawCtx.fillRect(barX, barY, barW, barH);
-      // Bug 2.1 fix: White HP bar when Help From Above shield is active
       let hpColor = '#00ff00';
       if (p.hasHelpFromAboveActive) {
         hpColor = '#ffffff';
@@ -1231,14 +1201,12 @@ export function drawPiece(p, targetCtx, gameState) {
       }
       drawCtx.fillStyle = hpColor;
       if (p.hasHelpFromAboveActive) {
-        // Add glow effect on white bar
         drawCtx.shadowColor = '#aaeeff';
         drawCtx.shadowBlur = 8;
       }
       drawCtx.fillRect(barX, barY, barW * hpPct, barH);
       drawCtx.shadowBlur = 0;
 
-      // Bug 2.1 fix: Cyan status gem next to HP bar to show HelpFromAbove readiness
       if (p.key === 'snowFrostLord') {
         const gemR = barH * 1.0;
         const gemX = barX + barW + gemR + 2;
@@ -1257,7 +1225,6 @@ export function drawPiece(p, targetCtx, gameState) {
       }
       drawCtx.restore();
 
-      // Procedural Defense Badge
       const defVal = p.def || C.PIECE_TYPES[p.key]?.stats?.def || 0;
       const defSize = C.CELL_SIZE * 0.22;
       const defX = vis.x + 4 + vis.offsetX; // Top left
@@ -1288,7 +1255,6 @@ export function drawPiece(p, targetCtx, gameState) {
       drawCtx.textBaseline = 'middle';
       drawCtx.fillText(String(defVal), defX + defSize / 2, defY + defSize / 2 + 1);
 
-      // A Cold Farewell Control Lock Visuals (Defense Badge)
       if ((gameState.debuffs || []).some(d => d.pieceId === p.id && d.name === "ColdFarewellControlLock")) {
         drawCtx.strokeStyle = 'rgba(150, 240, 255, 0.9)';
         drawCtx.lineWidth = 2;
@@ -1330,7 +1296,6 @@ export function drawPiece(p, targetCtx, gameState) {
         drawCtx.textAlign = 'center';
         drawCtx.textBaseline = 'middle';
 
-        // CRITICAL FIX: Counter-rotate text for Ash
         if (gameState.playerTeam === 'ash') {
           drawCtx.translate(ox + overlaySize / 2, oy + overlaySize / 2);
           drawCtx.rotate(Math.PI);
@@ -1359,14 +1324,12 @@ export function drawPiece(p, targetCtx, gameState) {
       drawCtx.stroke();
     }
 
-    // Bug 2.1 fix: Protective runic ring of ice around Frost Lord during active shield
     if (p.key === 'snowFrostLord' && p.hasHelpFromAboveActive) {
       const pulseFactor = 0.5 + 0.5 * Math.sin(performance.now() * 0.004);
       const ringRadius = C.CELL_SIZE * 0.48 + pulseFactor * 4;
       const pcx = vis.x + C.CELL_SIZE / 2 + vis.offsetX;
       const pcy = vis.y + C.CELL_SIZE / 2 + vis.offsetY;
       drawCtx.save();
-      // Outer runic ring
       drawCtx.strokeStyle = `rgba(0, 230, 255, ${0.6 + 0.4 * pulseFactor})`;
       drawCtx.lineWidth = 3;
       drawCtx.shadowColor = '#00eeff';
@@ -1376,14 +1339,12 @@ export function drawPiece(p, targetCtx, gameState) {
       drawCtx.beginPath();
       drawCtx.arc(pcx, pcy, ringRadius, 0, Math.PI * 2);
       drawCtx.stroke();
-      // Inner solid ring
       drawCtx.setLineDash([]);
       drawCtx.lineWidth = 1.5;
       drawCtx.strokeStyle = `rgba(180, 255, 255, ${0.5 + 0.3 * pulseFactor})`;
       drawCtx.beginPath();
       drawCtx.arc(pcx, pcy, ringRadius * 0.78, 0, Math.PI * 2);
       drawCtx.stroke();
-      // Draw runic spikes (6 points)
       for (let i = 0; i < 6; i++) {
         const angle = (i / 6) * Math.PI * 2 + performance.now() * 0.001;
         const sx = pcx + Math.cos(angle) * ringRadius * 0.78;
@@ -1447,7 +1408,6 @@ export function renderBoard(gameState) {
   if (backgroundImg?.complete) {
     boardCtx.drawImage(backgroundImg, 0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
   } else {
-    // Fallback premium dark radial gradient
     const bgGrad = boardCtx.createRadialGradient(
       C.CANVAS_SIZE / 2, C.CANVAS_SIZE / 2, 50,
       C.CANVAS_SIZE / 2, C.CANVAS_SIZE / 2, C.CANVAS_SIZE * 0.75
@@ -1477,7 +1437,6 @@ export function renderBoard(gameState) {
   let riftPulse = 0;
   if (gameState.conduit?.consecutiveTurnsHeld >= 2) riftPulse = Math.sin(performance.now() * 0.005) * 0.3;
 
-  // Render pulsing glow rings around the corner rifts on the background image
   const riftRadius = C.CELL_SIZE * 1.35;
   const riftCenters = [
     [1.5 * C.CELL_SIZE, 1.5 * C.CELL_SIZE],
@@ -1488,7 +1447,6 @@ export function renderBoard(gameState) {
     boardCtx.save();
     boardCtx.strokeStyle = riftColor === C.RIFT_COLORS.VOID ? 'rgba(148, 0, 211, 0.25)' : riftColor;
     boardCtx.lineWidth = 3.5;
-    // Removed expensive shadowBlur for performance
     
     boardCtx.beginPath();
     boardCtx.arc(rx, ry, riftRadius, 0, Math.PI * 2);
@@ -1545,9 +1503,6 @@ export function renderBoard(gameState) {
     });
   }
 
-  // ── TERRITORY RENDERING (CACHED CELL-BASED) ────────────────────────────────
-  // Build a cheap serialised key from the two territory Sets and trail count.
-  // Only re-run the pixel loop when something actually changed.
   const snowSet  = gameState.snowTerritory  || new Set();
   const ashSet   = gameState.ashTerritory   || new Set();
   const trailLen = (gameState.territoryTrails || []).length;
@@ -1567,8 +1522,6 @@ export function renderBoard(gameState) {
   if (needRebuild) {
     _terrCacheKey  = newKey;
 
-    // ── Cell-based fill: iterate the 10×10 grid and paint cells directly ──
-    // This is O(100) instead of O(10000) per frame and looks equally good.
     if (!_terrCacheCanvas) {
       _terrCacheCanvas = document.createElement('canvas');
       _terrCacheCanvas.width  = C.CANVAS_SIZE;
@@ -1579,7 +1532,6 @@ export function renderBoard(gameState) {
 
     const CS = C.CELL_SIZE;
 
-    // Paint territory trails as smaller glowing dots
     if (gameState.territoryTrails) {
       if (!window._gradCache) window._gradCache = {};
       
@@ -1598,7 +1550,6 @@ export function renderBoard(gameState) {
           const tempCtx = tempCanvas.getContext('2d');
           const g = tempCtx.createRadialGradient(rPxRound, rPxRound, 0, rPxRound, rPxRound, rPxRound);
           if (t.team === 'snow') {
-            // Darker colors as requested, with 1.0 opacity center so it overwrites instead of mixing
             g.addColorStop(0, 'rgba(20, 80, 200, 1.0)');
             g.addColorStop(0.5, 'rgba(20, 80, 200, 0.8)');
             g.addColorStop(1, 'rgba(10, 50, 150, 0.0)');
@@ -1620,7 +1571,6 @@ export function renderBoard(gameState) {
     }
   }
 
-  // Blit the cached territory canvas onto the board
   if (_terrCacheCanvas) {
     boardCtx.save();
     boardCtx.globalAlpha = 0.6; // Apply transparency to the entire flattened territory layer
@@ -1629,7 +1579,6 @@ export function renderBoard(gameState) {
     boardCtx.restore();
   }
 
-  // End of renderBoard
 
 
 
@@ -1678,13 +1627,11 @@ export function renderBoard(gameState) {
       
       boardCtx.save();
       
-      // Scorched earth base
       boardCtx.fillStyle = 'rgba(10, 20, 30, 0.5)';
       boardCtx.beginPath();
       boardCtx.arc(cx, cy, radiusPx, 0, Math.PI * 2);
       boardCtx.fill();
       
-      // Blizzard mist
       const time = performance.now() * 0.001;
       const grad = boardCtx.createRadialGradient(cx, cy, 0, cx, cy, radiusPx);
       grad.addColorStop(0, `rgba(200, 255, 255, ${0.4 + 0.1 * Math.sin(time * 2)})`);
@@ -1736,7 +1683,6 @@ export function renderBoard(gameState) {
   drawTethers(gameState);
   drawFlashEffects(gameState);
 
-  // Bug 2.3 fix: Render scorched-earth overlays left by Death Meteor blasts
   if (gameState.deathMeteors && gameState.deathMeteors.length > 0) {
     gameState.deathMeteors.forEach(m => {
       const radius = 2; // matches the explosion radius
@@ -1747,11 +1693,9 @@ export function renderBoard(gameState) {
           const tr = m.r + dr, tc = m.c + dc;
           if (tr < 0 || tr >= 10 || tc < 0 || tc >= 10) continue;
           const alpha = Math.max(0.15, 0.55 - dist * 0.12);
-          // Scorched dark char pattern
           boardCtx.save();
           boardCtx.fillStyle = `rgba(20,8,0,${alpha})`;
           boardCtx.fillRect(tc * C.CELL_SIZE, tr * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
-          // Add crackling ember accent
           boardCtx.strokeStyle = `rgba(180,50,0,${alpha * 0.7})`;
           boardCtx.lineWidth = 1.5;
           const cx = tc * C.CELL_SIZE + C.CELL_SIZE / 2;
@@ -1769,7 +1713,6 @@ export function renderBoard(gameState) {
     });
   }
 
-  // Bug 2.2 fix: FateLink VFX - runic snowflake under linked units + frost overlay on bound enemy
   if (gameState.fateLinks && gameState.fateLinks.length > 0 && gameState.pieces) {
     gameState.fateLinks.forEach(fl => {
       const source = gameState.pieces.find(p => p.id === fl.sourceId);
@@ -1778,7 +1721,6 @@ export function renderBoard(gameState) {
 
       const t = performance.now() * 0.003;
 
-      // Draw runic snowflake beneath both source and target
       [source, target].forEach(p => {
         const cx = p.col * C.CELL_SIZE + C.CELL_SIZE / 2;
         const cy = p.row * C.CELL_SIZE + C.CELL_SIZE / 2;
@@ -1788,14 +1730,12 @@ export function renderBoard(gameState) {
         boardCtx.shadowColor = '#00ccff';
         boardCtx.shadowBlur = 10;
         boardCtx.lineWidth = 1.8;
-        // 6-pointed snowflake
         for (let i = 0; i < 6; i++) {
           const angle = (i / 6) * Math.PI * 2 + t * 0.5;
           const arm = C.CELL_SIZE * 0.32;
           boardCtx.beginPath();
           boardCtx.moveTo(cx, cy);
           boardCtx.lineTo(cx + Math.cos(angle) * arm, cy + Math.sin(angle) * arm);
-          // Barbs
           const bx = cx + Math.cos(angle) * arm * 0.55;
           const by = cy + Math.sin(angle) * arm * 0.55;
           const bArm = arm * 0.22;
@@ -1807,7 +1747,6 @@ export function renderBoard(gameState) {
         boardCtx.restore();
       });
 
-      // Heavy frost overlay on the bound enemy
       boardCtx.save();
       boardCtx.globalAlpha = 0.38 + 0.15 * Math.sin(t);
       boardCtx.fillStyle = 'rgba(160, 230, 255, 0.45)';
@@ -1816,7 +1755,6 @@ export function renderBoard(gameState) {
       const ex = target.col * C.CELL_SIZE;
       const ey = target.row * C.CELL_SIZE;
       boardCtx.fillRect(ex, ey, C.CELL_SIZE, C.CELL_SIZE);
-      // Frost crystal border
       boardCtx.strokeStyle = 'rgba(100, 200, 255, 0.85)';
       boardCtx.lineWidth = 2;
       boardCtx.strokeRect(ex + 2, ey + 2, C.CELL_SIZE - 4, C.CELL_SIZE - 4);
@@ -1890,7 +1828,6 @@ export function showAbilityPanel(piece, gameState) {
   const sacrificeBtn = $('sacrificeBtn');
   const releaseBtn = $('releaseBtn');
 
-  // Clean up dynamic tether buttons from previous render
   panel.querySelectorAll('[data-dynamic-tether="true"]').forEach(btn => btn.remove());
 
   resetMobileAbilityBar();

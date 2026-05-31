@@ -131,8 +131,8 @@ export function handlePieceCapture(capturedPiece, attacker, gs) {
   });
 
   // 1b. Revert magma grips involving this piece
-  if (gs.magmaGrips) {
-    gs.magmaGrips = gs.magmaGrips.filter(mg => {
+  if (gs.TheReapersTolls) {
+    gs.TheReapersTolls = gs.TheReapersTolls.filter(mg => {
       if (mg.harvesterId === capturedPiece.id) {
         const target = gs.pieces.find(p => p.id === mg.targetId);
         if (target) {
@@ -1517,7 +1517,7 @@ export function executeSacrifice(piece) {
     ashObsidianShaper: "Mystic",
     // Bug 1.4 fix: Updated from deprecated snowVoidChanter/ashRiftWarden
     snowSoulLinker: "Siphoner",
-    ashCinderHarvester: "Siphoner",
+    ashAshReaper: "Siphoner",
     snowGlacialMage: "Mage",
     ashMagmaSpitter: "Mage",
     snowSoulFreeze: "Priest",
@@ -1713,7 +1713,7 @@ export function updateConduitLink() {
 
 export function executeRiftPulse(piece) {
   // Bug 1.4 fix: Updated from deprecated ashRiftWarden/snowVoidChanter
-  if (piece.key !== "ashCinderHarvester" && piece.key !== "snowSoulLinker")
+  if (piece.key !== "ashAshReaper" && piece.key !== "snowSoulLinker")
     return false;
   if (!piece.canRiftPulse || piece.hasUsedRiftPulse) return false;
   flash("The Anchor unleashes a Rift Pulse!", piece.team, gameState);
@@ -2226,11 +2226,11 @@ function endOfTurnUpkeep() {
     });
   }
 
-  if (gameState.magmaGrips) {
-    gameState.magmaGrips = gameState.magmaGrips.filter((mg) => {
+  if (gameState.TheReapersTolls) {
+    gameState.TheReapersTolls = gameState.TheReapersTolls.filter((mg) => {
       mg.duration -= 0.5;
       if (mg.duration <= 0) {
-        // Combustion passive: revert stats, then 50% chance to shatter for 1 damage
+        // AshesToAshes passive: revert stats, then 50% chance to shatter for 1 damage
         const target = gameState.pieces.find(p => p.id === mg.targetId);
         const harvester = gameState.pieces.find(p => p.id === mg.harvesterId);
         // Revert stat steal
@@ -2242,10 +2242,10 @@ function endOfTurnUpkeep() {
           harvester.def = Math.max(0, (harvester.def || 0) - (mg.defStolen || 0));
           harvester.agility = Math.max(0.1, (harvester.agility || 1) - (mg.agiStolen || 0));
         }
-        // 50% Combustion shatter
+        // 50% AshesToAshes shatter
         if (target && Math.random() < 0.5) {
           target.currentHp = Math.max(0, target.currentHp - 1);
-          flash(`Combustion! ${C.PIECE_TYPES[target.key]?.name || 'Unit'} shatters for 1 damage!`, 'ash', gameState);
+          flash(`AshesToAshes! ${C.PIECE_TYPES[target.key]?.name || 'Unit'} shatters for 1 damage!`, 'ash', gameState);
           if (target.currentHp <= 0) {
             handlePieceCapture(target, harvester, gameState);
           }

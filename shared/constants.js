@@ -32,7 +32,7 @@ export const IMAGES = {
   ashMagmaSpitter: "units/magma-spitter.png",
   ashObsidianShaper: "units/obsidian-shaper.png",
   ashRiftForger: "units/rift-forger.png",
-  ashCinderHarvester: "units/rift-warden.png",
+  ashAshReaper: "units/rift-warden.png",
   ashScorchPriest: "units/scorch-priest.png",
   gameBackgroundAsh: "images/bg-game2.png",
   gameBackgroundSnow: "images/bg-game.png",
@@ -46,7 +46,7 @@ export const IMAGES = {
   snowIceWisp: "units/wisp.png",
   snowRampagingYeti: "units/yeti.png",
   snowSoulFreeze: "units/soul-freeze.png",
-  snowSoulLinker: "units/void-chanter.png"
+  snowSoulLinker: "units/soul-linker.png"
 };
 
 /* ==========================================================================
@@ -123,7 +123,7 @@ export const ABILITY_VALUES = {
   SpikeRain: { cooldown: 11, duration: 5, range: 2.5, radius: 2, damage: 2, heal: 1 },
   HelpFromAbove: { cooldown: 10, radius: 1.5, strengthBoost: 1 },
   FateLink: { cooldown: 7, range: 3, duration: 4 },
-  MagmaGrip: { cooldown: 7, range: 3, duration: 4 },
+  TheReapersToll: { cooldown: 7, range: 3, duration: 4 },
   ReignOfFire: { cooldown: 11, duration: 3, range: 2.5, radius: 2, damage: 2, allyDamage: 1, strengthBoost: 2 },
   FrostfallBlessing: { cooldown: 11, duration: 5, range: 2.5, radius: 2, damage: 2, heal: 1 }
 };
@@ -896,11 +896,11 @@ export const ABILITIES = {
       }
     }
   },
-  MagmaGrip: {
-    name: "Magma Grip",
-    cooldown: ABILITY_VALUES.MagmaGrip.cooldown,
+  TheReapersToll: {
+    name: "The Reaper's Toll",
+    cooldown: ABILITY_VALUES.TheReapersToll.cooldown,
     requiresTargeting: true,
-    range: ABILITY_VALUES.MagmaGrip.range,
+    range: ABILITY_VALUES.TheReapersToll.range,
     targetType: "enemy",
     canBeBlocked: true,
     effect: (p, t, gs) => {
@@ -908,11 +908,11 @@ export const ABILITIES = {
       if (tp) {
         const defSteal = 1;
         const agiSteal = 0.4;
-        gs.magmaGrips = gs.magmaGrips || [];
-        gs.magmaGrips.push({
+        gs.TheReapersTolls = gs.TheReapersTolls || [];
+        gs.TheReapersTolls.push({
           harvesterId: p.id,
           targetId: tp.id,
-          duration: ABILITY_VALUES.MagmaGrip.duration,
+          duration: ABILITY_VALUES.TheReapersToll.duration,
           defStolen: defSteal,
           agiStolen: agiSteal
         });
@@ -1060,11 +1060,11 @@ export const PIECE_TYPES = {
       isPassive: true
     }
   },
-  ashCinderHarvester: {
-    name: "Cinder Harvester",
+  ashAshReaper: {
+    name: "Ash Reaper",
     power: 3,
     stats: { hp: 8, def: 2, strength: 3, range: 2, agility: 1.8, control: 0.8 },
-    ability: { name: "Magma Grip", key: "MagmaGrip" },
+    ability: { name: "The Reaper's Toll", key: "TheReapersToll" },
     veteranAbility: null
   },
   ashScorchPriest: {
@@ -1190,7 +1190,7 @@ export const PIECE_VALUES = {
   ashMagmaSpitter: 500,
   ashObsidianShaper: 250,
   ashRiftForger: 250,
-  ashCinderHarvester: 700,
+  ashAshReaper: 700,
   ashScorchPriest: 450,
   snowArcticTrapper: 150,
   snowGlacialMage: 500,
@@ -1212,7 +1212,7 @@ export const TEAM_PIECES = {
     Mystic: "ashObsidianShaper",
     Priest: "ashScorchPriest",
     Shaper: "ashRiftForger",
-    Siphoner: "ashCinderHarvester",
+    Siphoner: "ashAshReaper",
     Skirmisher: "ashAshStrider",
     Striker: "ashCinderScout",
     Tyrant: "ashAshTyrant",
