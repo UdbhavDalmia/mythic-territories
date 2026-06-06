@@ -753,7 +753,12 @@ function isTargetValid(piece, target, ability, gameStateLocal) {
   if (!target) return !ability?.requiresTargeting;
   const { r, c } = target;
   const targetPiece = C.getPieceAt(r, c, gameStateLocal.pieces);
-  const distance = Math.max(Math.abs(piece.row - r), Math.abs(piece.col - c));
+  let distance;
+  if (ability.circularRange) {
+    distance = Math.hypot(piece.row - r, piece.col - c);
+  } else {
+    distance = Math.max(Math.abs(piece.row - r), Math.abs(piece.col - c));
+  }
   if (ability.range > 0 && distance > ability.range) return false;
   if (targetPiece?.hasDefensiveWard && ability.canBeBlocked) return false;
 

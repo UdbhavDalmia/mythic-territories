@@ -282,6 +282,11 @@ window.handleStartReset = function () {
 
         if (isLocal) {
             gameState.gameStarted = true;
+            try { 
+                gameState.ashParticles = [];
+                gameState.frostfallShards = [];
+                Effects.initParticles(gameState); 
+            } catch (e) { }
             try { UI.startTimer(gameState); } catch (e) { }
             updateControlButtons();
             UI.renderBoard(gameState);
@@ -378,6 +383,9 @@ function setupCanvas() {
 
             let col = Math.floor(x / C.CELL_SIZE);
             let row = Math.floor(y / C.CELL_SIZE);
+            
+            gameState.hoverCol = col;
+            gameState.hoverRow = row;
 
             if (!isLocal && myTeam === 'ash') {
                 col = C.COLS - 1 - col;
@@ -556,11 +564,18 @@ function setupCanvas() {
 
         const nameEl = document.getElementById('mobile-ability-name');
         const descEl = document.getElementById('mobile-ability-description');
-        const expandedHeader = document.querySelector('.unit-header-mobile');
 
-        if (expandedHeader) expandedHeader.innerHTML = '<div class="expanded-name">No Unit Selected</div><div class="expanded-ability">Select a unit to see its actions.</div>';
-        if (nameEl) nameEl.textContent = 'No Unit Selected';
-        if (descEl) descEl.innerHTML = 'Select a unit to see its actions.';
+        if (nameEl) {
+            nameEl.textContent = 'No Unit Selected';
+            nameEl.style.color = '#fff';
+            nameEl.style.fontSize = '15px';
+            nameEl.style.marginBottom = '5px';
+        }
+        if (descEl) {
+            descEl.innerHTML = '<div style="color:#aaa;font-size:12px;">Select a unit to see its actions.</div>';
+            descEl.style.fontSize = '13px';
+            descEl.style.lineHeight = '1.4';
+        }
 
         const drawer = document.getElementById('mobileDrawer');
         if (drawer) { drawer.classList.remove('expanded'); }
@@ -679,8 +694,8 @@ function playAnimation(animData) {
             const stuckPiece = gameState.pieces.find(p => p.id === animData.pieceId);
             Effects.spawnTrapTriggerEffect(animData.r, animData.c, stuckPiece, gameState);
             break;
-        case 'FrostfallImpact':
-            Effects.spawnFrostfallImpact(animData.r, animData.c, gameState);
+        case 'FrostfallBlessing':
+            Effects.spawnFrostfallBlessingEffect(animData.targetR, animData.targetC, gameState);
             break;
         case 'FateLinkCast':
             const src = gameState.pieces.find(p => p.id === animData.sourceId);
@@ -788,38 +803,21 @@ function updateMobileDrawer(piece) {
     }
 
     try {
-        const expandedHeader = document.querySelector('.unit-header-mobile');
-        if (expandedHeader) {
-            expandedHeader.innerHTML = '';
-            const lineName = document.createElement('div'); lineName.className = 'expanded-name'; lineName.textContent = displayName;
-            const linePower = document.createElement('div'); linePower.className = 'expanded-power'; linePower.textContent = `Power: ${power}`;
-            const lineAbility = document.createElement('div'); lineAbility.className = 'expanded-ability'; lineAbility.textContent = abilityText;
-
-            const abilityDescriptions = abilities.map(a => {
-                const name = a.name || 'Action';
-                const desc = getAbilityDescription(a.key || a.abilityKey);
-                return `<span style="color:#ffcc00">${name}:</span> <span style="color:#ddd">${desc}</span>`;
-            }).join('<br><br>');
-
-            const lineDesc = document.createElement('div');
-            lineDesc.className = 'expanded-desc-text';
-            lineDesc.style.fontSize = '13px';
-            lineDesc.style.marginTop = '12px';
-            lineDesc.style.marginBottom = '5px';
-            lineDesc.style.lineHeight = '1.4';
-            lineDesc.style.textAlign = 'center';
-            lineDesc.innerHTML = abilityDescriptions;
-
-            expandedHeader.appendChild(lineName);
-            expandedHeader.appendChild(linePower);
-            expandedHeader.appendChild(lineAbility);
-            if (abilities.length > 0) expandedHeader.appendChild(lineDesc);
+        if (nameEl) {
+            nameEl.innerText = displayName;
+            nameEl.style.color = '#fff';
+            nameEl.style.fontSize = '15px';
+            nameEl.style.marginBottom = '5px';
         }
-        if (nameEl) nameEl.innerText = displayName;
-        if (descEl) descEl.innerHTML = UI.generatePieceInfoString(piece, gameState);
+        if (descEl) {
+            const abilitiesHtml = UI.generateAbilitiesInfoString(piece);
+            descEl.innerHTML = abilitiesHtml || '<div style="color:#aaa;font-size:12px;">No abilities available.</div>';
+            descEl.style.fontSize = '13px';
+            descEl.style.lineHeight = '1.4';
+        }
     } catch (er) {
         if (nameEl) nameEl.innerText = displayName;
-        if (descEl) descEl.innerHTML = UI.generatePieceInfoString(piece, gameState);
+        if (descEl) descEl.innerHTML = 'Error loading abilities.';
     }
 }
 
@@ -915,6 +913,7 @@ if (canvas) {
 window.useAbility = function (abilityKey) {
     if (!gameState.selectedPiece) return;
     window.sendAction('ABILITY', { pieceId: gameState.selectedPiece.id, abilityKey, target: null });
+    closeMobileDrawer();
 };
 
 window.endTurn = function () {
@@ -1192,7 +1191,7 @@ function animationLoop(time) {
     if (Effects.drawVentAnimations) Effects.drawVentAnimations(gameState);
     if (Effects.drawGlacialFractureAnimations) Effects.drawGlacialFractureAnimations(gameState);
     if (Effects.drawAColdFarewellAnimations) Effects.drawAColdFarewellAnimations(gameState);
-    if (Effects.drawFrostfallAnimations) Effects.drawFrostfallAnimations(ctx, gameState);
+    if (Effects.drawFrostfallBlessingAnimations) Effects.drawFrostfallBlessingAnimations(gameState);
     if (Effects.drawFateLinkAnimations) Effects.drawFateLinkAnimations(ctx, gameState);
     if (Effects.drawShrineEffects) Effects.drawShrineEffects(gameState);
     UI.drawLastMoveIndicator(gameState);

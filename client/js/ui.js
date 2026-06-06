@@ -287,9 +287,26 @@ export function drawAbilityHighlights(gameState) {
   const ability = C.ABILITIES[abilityKey];
   if (!ability) return;
 
+  ctx.save();
+  if (ability.circularRange) {
+    ctx.beginPath();
+    ctx.arc(piece.col * C.CELL_SIZE + C.CELL_SIZE / 2, piece.row * C.CELL_SIZE + C.CELL_SIZE / 2, ability.range * C.CELL_SIZE, 0, Math.PI * 2);
+    ctx.clip(); // Mask the highlighted squares to be perfectly circular!
+    
+    // Draw an outline for the boundary
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(0, 255, 0, 0.4)';
+    ctx.stroke();
+  }
+
   for (let r = 0; r < C.ROWS; r++) {
     for (let c = 0; c < C.COLS; c++) {
-      const distance = Math.max(Math.abs(piece.row - r), Math.abs(piece.col - c));
+      let distance;
+      if (ability.circularRange) {
+        distance = Math.hypot(piece.row - r, piece.col - c);
+      } else {
+        distance = Math.max(Math.abs(piece.row - r), Math.abs(piece.col - c));
+      }
       if (ability.range >= 0 && distance > ability.range) continue;
 
       let isValid = false;
@@ -306,9 +323,48 @@ export function drawAbilityHighlights(gameState) {
       }
 
       if (isValid) {
-        ctx.fillStyle = 'rgba(0,255,0,0.4)';
+        ctx.fillStyle = 'rgba(0,255,0,0.3)';
         ctx.fillRect(c * C.CELL_SIZE, r * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
       }
+    }
+  }
+  ctx.restore();
+
+  // Draw AOE radius circle if applicable
+  if (ability.radius && gameState.hoverRow !== undefined && gameState.hoverCol !== undefined) {
+    let isValidTarget = false;
+    const distance = ability.circularRange 
+        ? Math.hypot(piece.row - gameState.hoverRow, piece.col - gameState.hoverCol) 
+        : Math.max(Math.abs(piece.row - gameState.hoverRow), Math.abs(piece.col - gameState.hoverCol));
+    
+    if (ability.range < 0 || distance <= ability.range) {
+        if (ability.specialTargeting) {
+            isValidTarget = ability.specialTargeting(piece, {r: gameState.hoverRow, c: gameState.hoverCol}, gameState);
+        } else {
+            const hoverP = C.getPieceAt(gameState.hoverRow, gameState.hoverCol, gameState.pieces);
+            switch(ability.targetType) {
+                case 'enemy': isValidTarget = hoverP && hoverP.team !== piece.team && !hoverP.hasDefensiveWard; break;
+                case 'friendly': isValidTarget = hoverP && hoverP.team === piece.team; break;
+                case 'empty': isValidTarget = !hoverP; break;
+                case 'any': isValidTarget = true; break;
+            }
+        }
+    }
+
+    if (isValidTarget) {
+      const hx = gameState.hoverCol * C.CELL_SIZE + C.CELL_SIZE / 2;
+      const hy = gameState.hoverRow * C.CELL_SIZE + C.CELL_SIZE / 2;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(hx, hy, ability.radius * C.CELL_SIZE, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 6]);
+      ctx.lineDashOffset = performance.now() * 0.02;
+      ctx.stroke();
+      ctx.restore();
     }
   }
 }
@@ -636,6 +692,13 @@ export function generatePieceInfoString(piece, gameState) {
     info += `<br><span class="overload-text">Overload: ${piece.overloadPoints}</span>`;
   }
 
+  info += generateAbilitiesInfoString(piece);
+
+  return info;
+}
+
+export function generateAbilitiesInfoString(piece) {
+  let info = '';
   if (piece.ability?.key && piece.ability.key !== 'Siphon') {
     const cdText = (piece.ability.cooldown || 0) > 0 ? `CD: ${piece.ability.cooldown}` : 'Ready';
     info += `<div style="margin-top:5px;font-size:11px;line-height:1.3;"><span style="color:#88ccff">Active:</span> <span style="color:#ffcc00">${piece.ability.name}</span> (${cdText})`;
@@ -648,8 +711,9 @@ export function generatePieceInfoString(piece, gameState) {
 
   const passiveInfo = getPassiveAbilityInfo(piece);
   if (passiveInfo) {
-    info += `<div style="margin-top:3px;font-size:11px;"><span style="color:#aaffaa">Passive:</span> ${passiveInfo}</div>`;
+    info += `<div style="margin-top:3px;font-size:11px;line-height:1.3;"><span style="color:#aaffaa">Passive:</span> ${passiveInfo}</div>`;
   }
+  return info;
 
   return info;
 }
@@ -740,6 +804,7 @@ export function placePieces(pieces, gameState) {
           ctx.drawImage(img, p.col * C.CELL_SIZE, p.row * C.CELL_SIZE + yOffset, C.CELL_SIZE, C.CELL_SIZE);
         }
       }
+      
       ctx.restore();
     }
 
@@ -1071,8 +1136,7 @@ export function drawPiece(p, targetCtx, gameState) {
         }
       };
 
-      const isLeader = p.key.includes('Lord') || p.key.includes('Tyrant');
-      const drawSize = isLeader ? C.CELL_SIZE * 1.4 : C.CELL_SIZE;
+      const drawSize = C.CELL_SIZE;
       
       const centerX = 5 * C.CELL_SIZE;
       const flipX = cx > centerX ? -1 : 1;
@@ -1190,21 +1254,30 @@ export function drawPiece(p, targetCtx, gameState) {
         drawCtx.translate(-(barX + barW / 2), -(barY + barH / 2));
       }
       drawCtx.fillStyle = 'rgba(0,0,0,0.7)';
-      drawCtx.fillRect(barX, barY, barW, barH);
-      let hpColor = '#00ff00';
+      drawCtx.beginPath();
+      if (drawCtx.roundRect) {
+        drawCtx.roundRect(barX, barY, barW, barH, 2.5);
+      } else {
+        drawCtx.rect(barX, barY, barW, barH);
+      }
+      drawCtx.fill();
+
+      let hpColor = hpPct > 0.6 ? '#44dd88' : hpPct > 0.3 ? '#ffcc44' : '#ff4444';
       if (p.hasHelpFromAboveActive) {
         hpColor = '#ffffff';
-      } else if (hpPct <= 0.25) {
-        hpColor = '#ff0000';
-      } else if (hpPct <= 0.5) {
-        hpColor = '#ffff00';
       }
       drawCtx.fillStyle = hpColor;
       if (p.hasHelpFromAboveActive) {
         drawCtx.shadowColor = '#aaeeff';
         drawCtx.shadowBlur = 8;
       }
-      drawCtx.fillRect(barX, barY, barW * hpPct, barH);
+      drawCtx.beginPath();
+      if (drawCtx.roundRect) {
+        drawCtx.roundRect(barX, barY, barW * hpPct, barH, 2.5);
+      } else {
+        drawCtx.rect(barX, barY, barW * hpPct, barH);
+      }
+      drawCtx.fill();
       drawCtx.shadowBlur = 0;
 
       if (p.key === 'snowFrostLord') {
@@ -1214,7 +1287,11 @@ export function drawPiece(p, targetCtx, gameState) {
         const isReady = (p.helpFromAboveCooldown || 0) <= 0;
         const gemColor = isReady ? '#00eeff' : 'rgba(0,150,180,0.5)';
         drawCtx.beginPath();
-        drawCtx.arc(gemX, gemY, gemR, 0, Math.PI * 2);
+        drawCtx.moveTo(gemX, gemY - gemR);
+        drawCtx.lineTo(gemX + gemR, gemY);
+        drawCtx.lineTo(gemX, gemY + gemR);
+        drawCtx.lineTo(gemX - gemR, gemY);
+        drawCtx.closePath();
         drawCtx.fillStyle = gemColor;
         if (isReady) {
           drawCtx.shadowColor = '#00eeff';
@@ -1862,7 +1939,11 @@ export function showAbilityPanel(piece, gameState) {
       } else return;
     }
     btn.textContent = text;
-    btn.onclick = onClick;
+    btn.onclick = () => {
+      onClick();
+      const drawer = document.getElementById('mobileDrawer');
+      if (drawer) drawer.classList.remove('expanded');
+    };
     btn.disabled = disabled;
     btn.style.display = 'block';
     mobileBtnIndex++;

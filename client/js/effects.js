@@ -110,6 +110,8 @@ export const drawTrapTriggerAnimations = gs => Anim.drawTrapTriggerAnimations(ct
 
 export const spawnFrigidPathEffect = (...a) => Anim.spawnFrigidPathEffect(...a)
 export const drawFrigidPathAnimations = gs => Anim.drawFrigidPathAnimations(ctx, gs)
+export const spawnFrostfallBlessingEffect = (...a) => Anim.spawnFrostfallBlessingEffect(...a)
+export const drawFrostfallBlessingAnimations = gs => Anim.drawFrostfallBlessingAnimations(ctx, gs)
 export const drawIcyGroundBlock = (...a) => Terrain.drawIcyGroundBlock(...a)
 
 export const spawnPummelKnockbackEffect = (...a) => Anim.spawnPummelKnockbackEffect(...a)

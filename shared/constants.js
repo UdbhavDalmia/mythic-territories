@@ -32,7 +32,7 @@ export const IMAGES = {
   ashMagmaSpitter: "units/magma-spitter.png",
   ashObsidianShaper: "units/obsidian-shaper.png",
   ashRiftForger: "units/rift-forger.png",
-  ashAshReaper: "units/rift-warden.png",
+  ashAshReaper: "units/ash-reaper.png",
   ashScorchPriest: "units/scorch-priest.png",
   gameBackgroundAsh: "images/bg-game2.png",
   gameBackgroundSnow: "images/bg-game.png",
@@ -961,7 +961,9 @@ export const ABILITIES = {
     name: "Frostfall Blessing",
     cooldown: ABILITY_VALUES.FrostfallBlessing.cooldown,
     requiresTargeting: true,
+    circularRange: true,
     range: ABILITY_VALUES.FrostfallBlessing.range,
+    radius: ABILITY_VALUES.FrostfallBlessing.radius,
     targetType: "any",
     effect: (p, t, gs) => {
       if (!gs.frostfallBlessings) gs.frostfallBlessings = [];
@@ -975,7 +977,6 @@ export const ABILITIES = {
         damage: ABILITY_VALUES.FrostfallBlessing.damage,
         heal: ABILITY_VALUES.FrostfallBlessing.heal
       });
-      emit(gs, { type: "ANIMATION", name: "FrostfallImpact", r: t.r, c: t.c });
     }
   }
 };

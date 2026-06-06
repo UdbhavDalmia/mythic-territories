@@ -791,58 +791,125 @@ export function drawAColdFarewellAnimations(ctx, gameState) {
   }
 }
 
-export function spawnFrostfallImpact(r, c, gameState) {
-  if (!gameState.frostfallAnimations) gameState.frostfallAnimations = [];
+export function spawnFrostfallBlessingEffect(r, c, gameState) {
+  // Just add a shockwave when cast
   const targetX = c * C.CELL_SIZE + C.CELL_SIZE / 2;
   const targetY = r * C.CELL_SIZE + C.CELL_SIZE / 2;
-
-  const shards = [];
-  for (let i = 0; i < 40; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const speed = Math.random() * 8 + 3;
-    shards.push({
-      x: targetX, y: targetY,
-      vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-      alpha: 1, size: Math.random() * 4 + 2, rot: Math.random() * Math.PI,
-      rv: (Math.random() - 0.5) * 0.4
-    });
-  }
-  gameState.frostfallAnimations.push({ x: targetX, y: targetY, ticks: 0, shards });
-
-  // Add shockwave
+  const radiusPx = 2.0 * C.CELL_SIZE; // True radius from constants
   gameState.shockwaves = gameState.shockwaves || [];
-  gameState.shockwaves.push({ x: targetX, y: targetY, radius: C.CELL_SIZE * 2, life: 1, color: '135, 206, 250' });
+  gameState.shockwaves.push({ x: targetX, y: targetY, radius: radiusPx, life: 1, color: '135, 206, 250' });
 }
 
-export function drawFrostfallAnimations(ctx, gameState) {
-  if (!gameState.frostfallAnimations) return;
-  for (let i = gameState.frostfallAnimations.length - 1; i >= 0; i--) {
-    const anim = gameState.frostfallAnimations[i];
-    anim.ticks++;
-
-    for (let k = anim.shards.length - 1; k >= 0; k--) {
-      const s = anim.shards[k];
-      s.x += s.vx; s.y += s.vy;
-      s.vx *= 0.9; s.vy *= 0.9;
-      s.rot += s.rv;
-      s.alpha -= 0.03;
-      if (s.alpha <= 0) {
-        anim.shards.splice(k, 1);
-        continue;
-      }
+export function drawFrostfallBlessingAnimations(ctx, gameState) {
+  if (!gameState.frostfallShards) gameState.frostfallShards = [];
+  
+  // Continuously spawn new shards for active abilities
+  if (gameState.frostfallBlessings && gameState.frostfallBlessings.length > 0) {
+    gameState.frostfallBlessings.forEach(blessing => {
+      const targetX = blessing.c * C.CELL_SIZE + C.CELL_SIZE / 2;
+      const targetY = blessing.r * C.CELL_SIZE + C.CELL_SIZE / 2;
+      const radiusPx = blessing.radius * C.CELL_SIZE;
+      
+      // Draw the boundary circle
       ctx.save();
-      ctx.translate(s.x, s.y);
-      ctx.rotate(s.rot);
-      ctx.fillStyle = `rgba(135, 206, 250, ${s.alpha})`;
-      ctx.shadowColor = '#87CEFA';
-      ctx.shadowBlur = 10;
-      ctx.fillRect(-s.size / 2, -s.size, s.size, s.size * 2);
+      ctx.beginPath();
+      ctx.arc(targetX, targetY, radiusPx, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(135, 206, 250, 1.0)';
+      ctx.lineWidth = 4;
+      ctx.setLineDash([8, 12]); 
+      ctx.lineDashOffset = performance.now() * 0.02; // Slowly crawling boundary
+      ctx.stroke();
+      
+      // Faint frosted inner area
+      ctx.fillStyle = 'rgba(200, 240, 255, 0.05)';
+      ctx.fill();
       ctx.restore();
+
+      // Spawn 1-2 flakes per frame per active blessing
+      const numToSpawn = Math.floor(Math.random() * 2) + 1;
+      
+      for (let i = 0; i < numToSpawn; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        // Concentrate more towards the center using sqrt, and slightly confine the max radius
+        const distance = Math.sqrt(Math.random()) * (radiusPx - C.CELL_SIZE * 0.3); 
+        
+        gameState.frostfallShards.push({
+          x: targetX + Math.cos(angle) * distance,
+          y: targetY - C.CELL_SIZE * 1.2 - Math.random() * C.CELL_SIZE * 1.0, // Start just above the ability area
+          targetY: targetY + Math.sin(angle) * distance,
+          vx: (Math.random() - 0.5) * 1.5,
+          vy: Math.random() * 1.5 + 2.5,
+          alpha: Math.random() * 0.3 + 0.7, // brighter
+          size: Math.random() * 3 + 3, // slightly bigger
+          hitProcessed: false
+        });
+      }
+    });
+  }
+
+  // Animate existing shards
+  for (let k = gameState.frostfallShards.length - 1; k >= 0; k--) {
+    const s = gameState.frostfallShards[k];
+    s.x += s.vx; 
+    s.y += s.vy;
+
+    if (!s.hitProcessed && s.y >= s.targetY) {
+      s.hitProcessed = true;
+      
+      let col = Math.floor(s.x / C.CELL_SIZE);
+      let row = Math.floor(s.targetY / C.CELL_SIZE);
+      const hitPiece = C.getPieceAt(row, col, gameState.pieces);
+      
+      if (hitPiece) {
+          s.vy = 0;
+          s.vx = 0;
+          s.isPieceHit = true;
+          // Randomly position the dot slightly higher to look like it stuck to the unit
+          s.y -= Math.random() * C.CELL_SIZE * 0.6;
+          if (hitPiece.team !== 'snow') {
+              s.hitColor = '255, 255, 255'; // Enemy hit: white dot
+          } else {
+              s.hitColor = '100, 255, 100'; // Ally hit: green dot
+          }
+      } else {
+          // Hit empty ground: stick to the floor
+          s.vy = 0;
+          s.vx = 0;
+      }
     }
 
-    if (anim.ticks > 20 && anim.shards.length === 0) {
-      gameState.frostfallAnimations.splice(i, 1);
+    if (s.alpha <= 0) {
+      gameState.frostfallShards.splice(k, 1);
+      continue;
     }
+    
+    ctx.save();
+    if (s.vy === 0) {
+        if (s.isPieceHit) {
+            // Dot stuck to a piece
+            s.alpha -= 0.04; // Fade out relatively quickly
+            ctx.fillStyle = `rgba(${s.hitColor}, ${s.alpha})`;
+            ctx.shadowColor = `rgba(${s.hitColor}, 1.0)`;
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.size * 1.5, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            // Baked snow on the floor
+            s.alpha -= 0.003; // Fade out very slowly to stay longer
+            ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    } else {
+        // Falling snow
+        ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`; // Pure white
+        ctx.shadowColor = '#fff';
+        ctx.shadowBlur = 8; // More glow
+        ctx.fillRect(s.x - s.size / 2, s.y - s.size / 2, s.size, s.size);
+    }
+    ctx.restore();
   }
 }
 
