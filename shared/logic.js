@@ -414,9 +414,9 @@ export function executeAbility(
       // 1. Convert territory to snow
       let enemiesCaught = [];
       const rad = C.ABILITY_VALUES.GlacialFracture.radius;
-      for (let r = -Math.floor(rad); r <= Math.ceil(rad); r++) {
-        for (let c = -Math.floor(rad); c <= Math.ceil(rad); c++) {
-          if (Math.hypot(r, c) <= rad) {
+      for (let r = -Math.floor(rad + 0.5); r <= Math.ceil(rad + 0.5); r++) {
+        for (let c = -Math.floor(rad + 0.5); c <= Math.ceil(rad + 0.5); c++) {
+          if (Math.hypot(r, c) <= rad + 0.5) {
             const tr = Math.round(target.r + r);
             const tc = Math.round(target.c + c);
             if (inBounds(tr, tc)) {
@@ -2081,19 +2081,19 @@ function endOfTurnUpkeep() {
       if (p.stuck > 0) p.stuck--;
       if (p.overloadBoost?.duration > 0) p.overloadBoost.duration--;
       if (p.dazedFor > 0) p.dazedFor--;
-      if (p.deathMeteorCooldown > 0) p.deathMeteorCooldown--;
-      if (p.helpFromAboveCooldown > 0) p.helpFromAboveCooldown--;
-      // Bug 1.2 fix: Active duration is tracked separately from the cooldown timer.
-      // The shield lasts exactly 5 turns; cooldown keeps ticking for 15 turns.
+      // Active duration is tracked separately from the cooldown timer.
       if (p.helpFromAboveActiveTurns > 0) {
         p.helpFromAboveActiveTurns--;
         if (p.helpFromAboveActiveTurns <= 0) p.hasHelpFromAboveActive = false;
       }
-      if (p.ability && p.ability.cooldown > 0) p.ability.cooldown--;
-      if (p.ability && p.ability.active && p.ability.duration > 0) {
-        p.ability.duration--;
-        if (p.ability.duration <= 0) p.ability.active = false;
-      }
+    }
+    // Ability cooldowns and durations decrement every move (regardless of whose turn it is)
+    if (p.deathMeteorCooldown > 0) p.deathMeteorCooldown--;
+    if (p.helpFromAboveCooldown > 0) p.helpFromAboveCooldown--;
+    if (p.ability && p.ability.cooldown > 0) p.ability.cooldown--;
+    if (p.ability && p.ability.active && p.ability.duration > 0) {
+      p.ability.duration--;
+      if (p.ability.duration <= 0) p.ability.active = false;
     }
   });
 
@@ -2118,7 +2118,7 @@ function endOfTurnUpkeep() {
   gameState.shields = filterByTurn(gameState.shields);
 
   gameState.glacialWalls = gameState.glacialWalls.filter((w) => {
-    w.duration -= 0.5;
+    w.duration -= 1;
     if (w.duration <= 0) {
       emit(gameState, {
         type: "ANIMATION",
@@ -2131,24 +2131,24 @@ function endOfTurnUpkeep() {
     return true;
   });
   gameState.unstableGrounds = gameState.unstableGrounds.filter((g) => {
-    g.duration -= 0.5;
+    g.duration -= 1;
     return g.duration > 0;
   });
   gameState.specialTerrains = gameState.specialTerrains.filter((t) => {
-    if (t.age !== undefined) t.age += 0.5;
+    if (t.age !== undefined) t.age += 1;
     if (t.duration === 99) return true;
-    t.duration -= 0.5;
+    t.duration -= 1;
     return t.duration > 0;
   });
   if (gameState.blizzardStorms) {
     gameState.blizzardStorms = gameState.blizzardStorms.filter((s) => {
-      s.duration -= 0.5; // Turn flips happen twice (once for each team) per round
-      // Apply start-of-phase effects (when duration hits integer, meaning start of casting team's phase)
-      if (s.duration > 0 && s.duration % 1 === 0) {
+      s.duration -= 1; 
+      // Apply healing only on the caster's turn
+      if (s.duration > 0 && gameState.currentTurn === s.team) {
         gameState.pieces.forEach(p => {
           if (p.team === s.team && p.currentHp > 0) {
             const dist = Math.hypot(p.row - s.r, p.col - s.c);
-            if (dist <= s.radius) {
+            if (dist <= s.radius + 0.5) {
               p.currentHp = Math.min(p.maxHp || C.PIECE_TYPES[p.key]?.stats?.hp || 5, p.currentHp + (C.ABILITY_VALUES.AColdFarewell?.heal || 1));
               flash(`${C.PIECE_TYPES[p.key]?.name} healed by Blizzard Storm!`, p.team, gameState);
             }
@@ -2161,12 +2161,12 @@ function endOfTurnUpkeep() {
 
   if (gameState.spikeRains) {
     gameState.spikeRains = gameState.spikeRains.filter((s) => {
-      s.duration -= 0.5;
+      s.duration -= 1;
       if (s.duration > 0) {
         const creator = gameState.pieces.find(c => c.id === s.creatorId) || { id: 'spike', team: s.team };
         gameState.pieces.forEach(p => {
           const dist = Math.hypot(p.row - s.r, p.col - s.c);
-          if (dist <= s.radius) {
+          if (dist <= s.radius + 0.5) {
             if (p.team !== s.team) {
               const prevHp = p.currentHp;
               p.currentHp = Math.max(0, p.currentHp - s.damage);
@@ -2190,19 +2190,19 @@ function endOfTurnUpkeep() {
 
   if (gameState.reignOfFires) {
     gameState.reignOfFires = gameState.reignOfFires.filter((r) => {
-      r.duration -= 0.5;
+      r.duration -= 1;
       return r.duration > 0;
     });
   }
 
   if (gameState.frostfallBlessings) {
     gameState.frostfallBlessings = gameState.frostfallBlessings.filter((s) => {
-      s.duration -= 0.5;
+      s.duration -= 1;
       if (s.duration > 0) {
         const creator = gameState.pieces.find(c => c.id === s.creatorId) || { id: 'frost', team: s.team };
         gameState.pieces.forEach(p => {
           const dist = Math.hypot(p.row - s.r, p.col - s.c);
-          if (dist <= s.radius) {
+          if (dist <= s.radius + 0.5) {
             if (p.team !== s.team) {
               const prevHp = p.currentHp;
               p.currentHp = Math.max(0, p.currentHp - s.damage);
@@ -2215,7 +2215,10 @@ function endOfTurnUpkeep() {
                 handlePieceCapture(p, creator, gameState);
               }
             } else {
-              p.currentHp = Math.min(p.maxHp || 5, p.currentHp + s.heal);
+              // Tyrants cannot heal from Frostfall Blessing
+              if (p.key !== 'ashAshTyrant' && p.key !== 'snowFrostLord') {
+                p.currentHp = Math.min(p.maxHp || 5, p.currentHp + s.heal);
+              }
             }
           }
         });
@@ -2226,14 +2229,14 @@ function endOfTurnUpkeep() {
 
   if (gameState.fateLinks) {
     gameState.fateLinks = gameState.fateLinks.filter((fl) => {
-      fl.duration -= 0.5;
+      fl.duration -= 1;
       return fl.duration > 0;
     });
   }
 
   if (gameState.TheReapersTolls) {
     gameState.TheReapersTolls = gameState.TheReapersTolls.filter((mg) => {
-      mg.duration -= 0.5;
+      mg.duration -= 1;
       if (mg.duration <= 0) {
         // AshesToAshes passive: revert stats, then 50% chance to shatter for 1 damage
         const target = gameState.pieces.find(p => p.id === mg.targetId);
@@ -2358,6 +2361,7 @@ export function initGame() {
   gameState.battleParticles = [];
   gameState.projectiles = [];
   gameState.shockwaves = [];
+  gameState.frostfallBlessings = [];
   gameState.trapDeployments = [];
   gameState.trapTriggers = [];
   gameState.deathMeteors = []; // Bug 2.3: scorched-earth markers from Ash Tyrant's Death Meteor passive

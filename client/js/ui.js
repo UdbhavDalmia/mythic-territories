@@ -304,10 +304,11 @@ export function drawAbilityHighlights(gameState) {
       let distance;
       if (ability.circularRange) {
         distance = Math.hypot(piece.row - r, piece.col - c);
+        if (ability.range >= 0 && distance > ability.range + 0.75) continue;
       } else {
         distance = Math.max(Math.abs(piece.row - r), Math.abs(piece.col - c));
+        if (ability.range >= 0 && distance > ability.range) continue;
       }
-      if (ability.range >= 0 && distance > ability.range) continue;
 
       let isValid = false;
       if (ability.specialTargeting) {

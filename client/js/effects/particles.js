@@ -47,13 +47,16 @@ export function drawMarkOfCinderSparks(ctx, gameState) {
 
 export function drawParticles(ctx, gameState) {
   const low = !!gameState.lowDetail;
+  // When low-detail is active OR the deep freeze vignette is aggressively drawn, sample fewer environmental particles
+  const isVignetteHeavy = gameState.frostVignette && (gameState.frostVignette.life / gameState.frostVignette.maxLife) < 0.8;
+  const drawLowDetail = low || isVignetteHeavy;
 
   const drawSet = (arr, color, territory) => {
     arr = arr || [];
     const entries = (territory && territory.size > 0) ? Array.from(territory) : [];
     // When low-detail is active, sample fewer particles to reduce draw work
-    if (low && arr.length > 0) {
-      for (let i = 0; i < arr.length; i += 3) {
+    if (drawLowDetail && arr.length > 0) {
+      for (let i = 0; i < arr.length; i += (isVignetteHeavy ? 4 : 3)) { // Drop even more if vignette is heavy
         const p = arr[i];
         if (!p) continue;
         p.x += p.vx;
@@ -263,6 +266,7 @@ export function initParticles(gameState) {
   gameState.snowParticles = createSet(35, gameState.snowTerritory, 'snow');
   gameState.ashParticles = createSet(35, gameState.ashTerritory, 'ash');
   gameState.battleParticles = [];
+  gameState.frostfallShards = [];
 }
 
 export function spawnBattleParticles(attacker, defender, gameState) {
