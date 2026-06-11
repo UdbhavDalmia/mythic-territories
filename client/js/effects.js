@@ -123,3 +123,8 @@ export const spawnGlacialFractureEffect = (...a) => Anim.spawnGlacialFractureEff
 export const drawGlacialFractureAnimations = gs => Anim.drawGlacialFractureAnimations(ctx, gs)
 export const spawnAColdFarewellEffect = (...a) => Anim.spawnAColdFarewellEffect(...a)
 export const drawAColdFarewellAnimations = gs => Anim.drawAColdFarewellAnimations(ctx, gs)
+
+export const spawnGuardianSaveEffect = (...a) => Anim.spawnGuardianSaveEffect(...a)
+export const drawGuardianSaveAnimations = (ctx, gs) => Anim.drawGuardianSaveAnimations(ctx, gs)
+export const drawHelpFromAboveFog = (ctx, gs) => Anim.drawHelpFromAboveFog(ctx, gs)
+export const drawHelpFromAboveVapors = (ctx, gs) => Anim.drawHelpFromAboveVapors(ctx, gs)

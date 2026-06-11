@@ -1242,3 +1242,206 @@ export function drawFateLinkAnimations(ctx, gameState) {
     ctx.restore();
   }
 }
+// === HELP FROM ABOVE VISUALS ===
+
+export function spawnGuardianSaveEffect(piece, gameState) {
+  if (!piece) return;
+  gameState.guardianAnimations = gameState.guardianAnimations || [];
+  gameState.guardianAnimations.push({
+      x: piece.col * C.CELL_SIZE + C.CELL_SIZE / 2,
+      y: piece.row * C.CELL_SIZE + C.CELL_SIZE / 2,
+      life: 1.0,
+      scale: 0.5,
+      shards: []
+  });
+}
+
+const WOLF_PATH = new Path2D(
+  "M-16.7,-38.3 C-15.3,-26.7 -10,-18.3 -5,-13.3 C-3.3,-15 -1.7,-25 3.3,-35 C6.7,-26.7 10,-20 13.3,-16.7 C23.3,-13.3 35,-6.7 45,5 C43.3,10 40,11.7 35,11.7 C30,11.7 26.7,10 21.7,8.3 C23.3,13.3 25,18.3 21.7,21.7 C16.7,25 10,23.3 5,26.7 C1.7,31.7 -1.7,36.7 -8.3,40 C-18.3,38.3 -26.7,33.3 -33.3,25 C-38.3,15 -41.7,5 -40,-5 C-38.3,-15 -35,-23.3 -28.3,-30 C-25,-33.3 -21.7,-36.7 -16.7,-38.3 Z"
+);
+
+export function drawGuardianSaveAnimations(ctx, gameState) {
+  if (!gameState.guardianAnimations) return;
+  for (let i = gameState.guardianAnimations.length - 1; i >= 0; i--) {
+      const anim = gameState.guardianAnimations[i];
+      anim.life -= 0.015;
+      
+      // Expand quickly, then hold, then shatter
+      if (anim.life > 0.8) {
+          anim.scale += 0.15;
+      }
+      
+      if (anim.life <= 0 && anim.shards.length === 0) {
+          // Shatter
+          for(let k=0; k<25; k++) {
+              anim.shards.push({
+                  x: anim.x + (Math.random()-0.5)*100,
+                  y: anim.y + (Math.random()-0.5)*100,
+                  vx: (Math.random()-0.5)*4,
+                  vy: (Math.random()-0.5)*4,
+                  life: 1.0,
+                  size: Math.random()*4 + 2
+              });
+          }
+      }
+      
+      if (anim.shards.length === 0) {
+          // Draw Wolf Spirit
+          ctx.save();
+          ctx.translate(anim.x, anim.y);
+          ctx.scale(anim.scale, anim.scale);
+          ctx.globalAlpha = Math.min(1.0, anim.life * 1.5);
+          
+          // Ethereal glow
+          ctx.shadowColor = 'rgba(150, 220, 255, 0.8)';
+          ctx.shadowBlur = 20;
+          ctx.fillStyle = 'rgba(40, 100, 150, 0.6)';
+          ctx.fill(WOLF_PATH);
+          
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = 'rgba(200, 240, 255, 0.9)';
+          ctx.stroke(WOLF_PATH);
+          ctx.restore();
+      } else {
+          // Draw shards
+          let allDead = true;
+          anim.shards.forEach(s => {
+              s.x += s.vx;
+              s.y += s.vy;
+              s.life -= 0.05;
+              if (s.life > 0) {
+                  allDead = false;
+                  ctx.fillStyle = `rgba(150, 220, 255, ${s.life})`;
+                  ctx.fillRect(s.x, s.y, s.size, s.size);
+              }
+          });
+          if (allDead) {
+              gameState.guardianAnimations.splice(i, 1);
+          }
+      }
+  }
+}
+
+let _darkFogCache = null;
+
+export function drawHelpFromAboveFog(ctx, gameState) {
+  if (!gameState.pieces) return;
+  const frostLords = gameState.pieces.filter(p => p.hasHelpFromAboveActive);
+  if (frostLords.length === 0) return;
+
+  if (!_darkFogCache) {
+      _darkFogCache = document.createElement('canvas');
+      const size = C.CELL_SIZE * 6;
+      _darkFogCache.width = size;
+      _darkFogCache.height = size;
+      const fctx = _darkFogCache.getContext('2d');
+      const cx = size / 2;
+      const cy = size / 2;
+      
+      // Icy cold smoke base
+      const grad = fctx.createRadialGradient(cx, cy, 0, cx, cy, cx);
+      grad.addColorStop(0, 'rgba(180, 230, 255, 0.05)');
+      grad.addColorStop(0.4, 'rgba(100, 160, 220, 0.15)');
+      grad.addColorStop(0.7, 'rgba(40, 80, 130, 0.4)');
+      grad.addColorStop(1, 'rgba(10, 20, 40, 0)');
+      fctx.fillStyle = grad;
+      fctx.fillRect(0, 0, size, size);
+
+      // Create dense, fluffy smoke clouds
+      for(let i=0; i<15; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const dist = Math.random() * cx * 0.7;
+          const offsetX = cx + Math.cos(angle) * dist;
+          const offsetY = cy + Math.sin(angle) * dist;
+          const cloudRadius = Math.random() * cx * 0.5 + cx * 0.2;
+          
+          const rGrad = fctx.createRadialGradient(offsetX, offsetY, 0, offsetX, offsetY, cloudRadius);
+          // Light, dense icy mist
+          rGrad.addColorStop(0, `rgba(220, 240, 255, ${Math.random() * 0.15 + 0.1})`);
+          rGrad.addColorStop(0.5, `rgba(120, 180, 230, ${Math.random() * 0.2 + 0.05})`);
+          rGrad.addColorStop(1, 'rgba(60, 100, 150, 0)');
+          fctx.fillStyle = rGrad;
+          fctx.beginPath();
+          fctx.arc(offsetX, offsetY, cloudRadius, 0, Math.PI * 2);
+          fctx.fill();
+      }
+  }
+
+  const time = performance.now() * 0.0004;
+  frostLords.forEach(p => {
+      const px = p.col * C.CELL_SIZE + C.CELL_SIZE / 2;
+      const py = p.row * C.CELL_SIZE + C.CELL_SIZE / 2;
+      
+      ctx.save();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 0.9;
+      
+      // Draw 4 layers of slowly rotating, shifting icy smoke
+      for(let i=0; i<4; i++) {
+          const driftAngle = time * 0.5 + i * (Math.PI / 2);
+          const driftX = Math.cos(driftAngle) * (C.CELL_SIZE * 0.4);
+          const driftY = Math.sin(driftAngle) * (C.CELL_SIZE * 0.4);
+          
+          ctx.save();
+          ctx.translate(px + driftX, py + driftY);
+          // Alternating slow rotations to make it look like swirling smoke
+          ctx.rotate(time * (i % 2 === 0 ? 0.3 : -0.2) + i * 1.2);
+          
+          // Modulate opacity so it gently pulses and shifts
+          ctx.globalAlpha = 0.4 + 0.2 * Math.sin(time * 1.5 + i);
+          ctx.drawImage(_darkFogCache, -_darkFogCache.width/2, -_darkFogCache.height/2);
+          ctx.restore();
+      }
+      ctx.restore();
+  });
+}
+
+export function drawHelpFromAboveVapors(ctx, gameState) {
+  if (!gameState.temporaryBoosts) return;
+  const buffedAllies = gameState.temporaryBoosts.filter(b => b.name === "HelpFromAboveAura");
+  if (buffedAllies.length === 0) return;
+
+  gameState.vaporParticles = gameState.vaporParticles || [];
+  
+  if (Math.random() < 0.25) {
+      buffedAllies.forEach(b => {
+          const ally = gameState.pieces.find(p => p.id === b.pieceId);
+          if (ally && ally.currentHp > 0) {
+              const ax = ally.col * C.CELL_SIZE + C.CELL_SIZE / 2;
+              const ay = ally.row * C.CELL_SIZE + C.CELL_SIZE / 2;
+              gameState.vaporParticles.push({
+                  y: ay + C.CELL_SIZE * 0.4, // start near feet
+                  baseX: ax,
+                  life: 1.0,
+                  speedY: -(Math.random() * 0.8 + 0.4),
+                  phase: Math.random() * Math.PI * 2,
+                  phaseSpeed: (Math.random() * 0.05 + 0.05) * (Math.random() > 0.5 ? 1 : -1)
+              });
+          }
+      });
+  }
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  for (let i = gameState.vaporParticles.length - 1; i >= 0; i--) {
+      const v = gameState.vaporParticles[i];
+      v.life -= 0.015;
+      v.phase += v.phaseSpeed;
+      v.y += v.speedY;
+      
+      // Swirl around the unit up to their head
+      const radius = C.CELL_SIZE * 0.35 * (0.5 + v.life * 0.5); // swirl tighter as it goes up
+      v.x = v.baseX + Math.sin(v.phase) * radius;
+      
+      if (v.life <= 0) {
+          gameState.vaporParticles.splice(i, 1);
+          continue;
+      }
+      
+      ctx.fillStyle = `rgba(180, 230, 255, ${v.life * 0.5})`;
+      ctx.beginPath();
+      ctx.arc(v.x, v.y, 2 + v.life * 3, 0, Math.PI * 2);
+      ctx.fill();
+  }
+  ctx.restore();
+}

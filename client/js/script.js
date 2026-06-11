@@ -106,8 +106,6 @@ E.preloadImages(C.IMAGES, (imgs) => {
                 try { UI.startTimer(gameState); } catch (e) { }
                 updateControlButtons();
             }
-
-            requestAnimationFrame(animationLoop);
         });
 
         socket.on('playerJoined', (data) => {
@@ -352,6 +350,19 @@ function setupCanvas() {
 
     if (startBtn) startBtn.onclick = window.handleStartReset;
     if (startBtnMobile) startBtnMobile.onclick = window.handleStartReset;
+    
+    const restartBtn = document.getElementById('restartBtn');
+    if (restartBtn) restartBtn.onclick = () => {
+        const vs = document.getElementById('victoryScreen');
+        if (vs) vs.style.display = 'none';
+        window.handleStartReset();
+    };
+    
+    const victoryMenuBtn = document.getElementById('victoryMenuBtn');
+    if (victoryMenuBtn) victoryMenuBtn.onclick = () => {
+        window.location.href = 'index.html';
+    };
+    
     updateControlButtons();
 
     const drawerHandle = document.querySelector('.drawer-handle');
@@ -670,6 +681,10 @@ function playAnimation(animData) {
             const dashPiece = gameState.pieces.find(p => p.id === animData.pieceId);
             Effects.spawnFrenziedDashEffect(dashPiece, animData.oldRow, animData.oldCol, animData.targetR, animData.targetC, gameState);
             break;
+        case 'GuardianSave':
+            const savedPiece = gameState.pieces.find(p => p.id === animData.pieceId);
+            Effects.spawnGuardianSaveEffect(savedPiece, gameState);
+            break;
         case 'SummonWisp':
             const wisp = gameState.pieces.find(p => p.id === animData.wispId);
             Effects.spawnSummonWispEffect(animData.r, animData.c, wisp, gameState);
@@ -936,11 +951,11 @@ export function applyActionLogic(actionType, data, gs) {
                 if (defender && defender.team !== mp.team) {
                     try {
                         UI.triggerLunge(mp.id, data.r, data.c);
-                        UI.triggerScreenshake(10, 150);
+
                         const preview = E.previewDamage(mp, defender, gs);
                         if (preview.isFatal) {
                             UI.triggerPieceDissolve(defender);
-                            UI.triggerScreenshake(18, 220);
+
                         }
                     } catch (e) {}
                 }
@@ -954,7 +969,7 @@ export function applyActionLogic(actionType, data, gs) {
                 if (data.target) {
                     try {
                         UI.triggerPulse(cp.id);
-                        UI.triggerScreenshake(14, 200);
+
                     } catch (e) {}
                     turnEnded = Logic.executeAbility(cp, data.target, data.abilityKey, gs);
                 } else {
@@ -971,7 +986,7 @@ export function applyActionLogic(actionType, data, gs) {
             if (vp) {
                 try {
                     UI.triggerPulse(vp.id);
-                    UI.triggerScreenshake(16, 220);
+
                 } catch (e) {}
             }
             turnEnded = Logic.ventOverload(vp);
@@ -989,7 +1004,7 @@ export function applyActionLogic(actionType, data, gs) {
             if (rp) {
                 try {
                     UI.triggerPulse(rp.id);
-                    UI.triggerScreenshake(12, 180);
+
                 } catch (e) {}
             }
             turnEnded = Logic.executeRiftPulse(rp);
@@ -1171,11 +1186,15 @@ function animationLoop(time) {
     if (Effects.drawGroundEffectParticles) Effects.drawGroundEffectParticles(gameState);
     if (Effects.drawSiphonParticles) Effects.drawSiphonParticles(gameState);
 
+    if (Effects.drawHelpFromAboveFog) Effects.drawHelpFromAboveFog(ctx, gameState);
+
     if (gameState.pieces) {
         gameState.pieces.forEach(p => {
             if (p.id !== gameState.trappedPiece) UI.drawPiece(p, ctx, gameState);
         });
     }
+
+    if (Effects.drawHelpFromAboveVapors) Effects.drawHelpFromAboveVapors(ctx, gameState);
 
     try { UI.drawDyingPieces(ctx, gameState); } catch (e) { }
 
@@ -1192,6 +1211,7 @@ function animationLoop(time) {
     if (Effects.drawGlacialFractureAnimations) Effects.drawGlacialFractureAnimations(gameState);
     if (Effects.drawAColdFarewellAnimations) Effects.drawAColdFarewellAnimations(gameState);
     if (Effects.drawFrostfallBlessingAnimations) Effects.drawFrostfallBlessingAnimations(gameState);
+    if (Effects.drawGuardianSaveAnimations) Effects.drawGuardianSaveAnimations(ctx, gameState);
     if (Effects.drawFateLinkAnimations) Effects.drawFateLinkAnimations(ctx, gameState);
     if (Effects.drawShrineEffects) Effects.drawShrineEffects(gameState);
     UI.drawLastMoveIndicator(gameState);

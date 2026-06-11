@@ -53,7 +53,12 @@ export function drawParticles(ctx, gameState) {
 
   const drawSet = (arr, color, territory) => {
     arr = arr || [];
-    const entries = (territory && territory.size > 0) ? Array.from(territory) : [];
+    let entries = null;
+    const getEntries = () => {
+      if (!entries) entries = (territory && territory.size > 0) ? Array.from(territory) : [];
+      return entries;
+    };
+
     // When low-detail is active, sample fewer particles to reduce draw work
     if (drawLowDetail && arr.length > 0) {
       for (let i = 0; i < arr.length; i += (isVignetteHeavy ? 4 : 3)) { // Drop even more if vignette is heavy
@@ -65,11 +70,12 @@ export function drawParticles(ctx, gameState) {
         // territory fallback handled below
         if (!territory || !territory.has || !territory.has(currentTerritory)) {
           let r, c;
-          if (entries.length === 0) {
+          const e = getEntries();
+          if (e.length === 0) {
             r = Math.floor(Math.random() * C.ROWS);
             c = Math.floor(Math.random() * C.COLS);
           } else {
-            const entry = entries[Math.floor(Math.random() * entries.length)];
+            const entry = e[Math.floor(Math.random() * e.length)];
             if (typeof entry === 'string') {
               const parts = entry.split(',').map(Number);
               r = parts[0]; c = parts[1];
@@ -113,12 +119,13 @@ export function drawParticles(ctx, gameState) {
       // If territory is missing or doesn't contain the current cell, pick a fallback location
       if (!territory || !territory.has || !territory.has(currentTerritory)) {
         let r, c;
-        if (entries.length === 0) {
+        const e = getEntries();
+        if (e.length === 0) {
           // No territory yet: random cell
           r = Math.floor(Math.random() * C.ROWS);
           c = Math.floor(Math.random() * C.COLS);
         } else {
-          const entry = entries[Math.floor(Math.random() * entries.length)];
+          const entry = e[Math.floor(Math.random() * e.length)];
           if (typeof entry === 'string') {
             const parts = entry.split(',').map(Number);
             r = parts[0]; c = parts[1];
@@ -167,7 +174,7 @@ export function drawParticles(ctx, gameState) {
     const drawIndexStart = gameState.lowDetail ? Math.max(0, gameState.battleParticles.length - 60) : 0;
     if (i < drawIndexStart) { continue; }
     const p = gameState.battleParticles[i];
-    p.alpha -= 0.03;
+    p.alpha -= 0.015;
     if (p.alpha <= 0) {
       gameState.battleParticles.splice(i, 1);
       continue;

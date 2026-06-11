@@ -291,41 +291,34 @@ export function drawAbilityHighlights(gameState) {
   if (ability.circularRange) {
     ctx.beginPath();
     ctx.arc(piece.col * C.CELL_SIZE + C.CELL_SIZE / 2, piece.row * C.CELL_SIZE + C.CELL_SIZE / 2, ability.range * C.CELL_SIZE, 0, Math.PI * 2);
-    ctx.clip(); // Mask the highlighted squares to be perfectly circular!
-    
-    // Draw an outline for the boundary
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.15)';
+    ctx.fill();
     ctx.lineWidth = 2;
     ctx.strokeStyle = 'rgba(0, 255, 0, 0.4)';
     ctx.stroke();
-  }
-
-  for (let r = 0; r < C.ROWS; r++) {
-    for (let c = 0; c < C.COLS; c++) {
-      let distance;
-      if (ability.circularRange) {
-        distance = Math.hypot(piece.row - r, piece.col - c);
-        if (ability.range >= 0 && distance > ability.range + 0.75) continue;
-      } else {
-        distance = Math.max(Math.abs(piece.row - r), Math.abs(piece.col - c));
+  } else {
+    for (let r = 0; r < C.ROWS; r++) {
+      for (let c = 0; c < C.COLS; c++) {
+        let distance = Math.max(Math.abs(piece.row - r), Math.abs(piece.col - c));
         if (ability.range >= 0 && distance > ability.range) continue;
-      }
 
-      let isValid = false;
-      if (ability.specialTargeting) {
-        isValid = ability.specialTargeting(piece, { r, c }, gameState);
-      } else {
-        const targetPiece = C.getPieceAt(r, c, gameState.pieces);
-        switch (ability.targetType) {
-          case 'enemy': isValid = targetPiece && targetPiece.team !== piece.team && !targetPiece.hasDefensiveWard; break;
-          case 'friendly': isValid = targetPiece && targetPiece.team === piece.team; break;
-          case 'empty': isValid = !targetPiece; break;
-          case 'any': isValid = true; break;
+        let isValid = false;
+        if (ability.specialTargeting) {
+          isValid = ability.specialTargeting(piece, { r, c }, gameState);
+        } else {
+          const targetPiece = C.getPieceAt(r, c, gameState.pieces);
+          switch (ability.targetType) {
+            case 'enemy': isValid = targetPiece && targetPiece.team !== piece.team && !targetPiece.hasDefensiveWard; break;
+            case 'friendly': isValid = targetPiece && targetPiece.team === piece.team; break;
+            case 'empty': isValid = !targetPiece; break;
+            case 'any': isValid = true; break;
+          }
         }
-      }
 
-      if (isValid) {
-        ctx.fillStyle = 'rgba(0,255,0,0.3)';
-        ctx.fillRect(c * C.CELL_SIZE, r * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
+        if (isValid) {
+          ctx.fillStyle = 'rgba(0,255,0,0.3)';
+          ctx.fillRect(c * C.CELL_SIZE, r * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
+        }
       }
     }
   }
@@ -778,7 +771,7 @@ export function showVictoryScreen(winningTeam) {
   banner.style.display = 'flex';
   title.textContent = `${winningTeam.toUpperCase()} WINS!`;
   title.className = winningTeam === 'snow' ? 'snow-message' : 'ash-message';
-  if (art) { art.src = winningTeam === 'snow' ? 'units/frost-lord.png' : 'units/ash-tyrant.png'; art.style.display = 'block'; }
+  if (art) { art.src = winningTeam === 'snow' ? 'images/leaders/snow_leader_clash.png' : 'images/leaders/ash_leader_clash.png'; art.style.display = 'block'; }
 }
 
 export function placePieces(pieces, gameState) {
@@ -1584,11 +1577,6 @@ export function renderBoard(gameState) {
   const snowSet  = gameState.snowTerritory  || new Set();
   const ashSet   = gameState.ashTerritory   || new Set();
   const trailLen = (gameState.territoryTrails || []).length;
-  
-  if (trailLen === 0 && snowSet.size === 0 && ashSet.size === 0) {
-    _terrCacheKey = "";
-    _terrCacheCanvas = null;
-  }
   
   let hash = trailLen;
   snowSet.forEach(v => { hash += v.charCodeAt(0) * 10 + v.charCodeAt(2); });

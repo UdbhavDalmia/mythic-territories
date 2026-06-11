@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.speedX = (Math.random() - 0.5) * 0.8;
                 this.speedY = type === 'snow' ? Math.random() * 0.5 + 0.2 : (Math.random() * -0.8 - 0.2);
                 this.life = 1.0;
-                this.decay = Math.random() * 0.02 + 0.015;
+                this.decay = Math.random() * 0.001 + 0.0015;
             }
             update() {
                 this.x += this.speedX; this.y += this.speedY;
@@ -75,7 +75,14 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let i = 0; i < count; i++) particles.push(new Particle(x, y, type));
         };
 
-        window.addEventListener('mousemove', e => { if (Math.random() > 0.6) spawn(e.clientX, e.clientY); });
+        let lastSpawn = 0;
+        window.addEventListener('mousemove', e => { 
+            const now = performance.now();
+            if (now - lastSpawn > 50 && Math.random() > 0.4) {
+                spawn(e.clientX, e.clientY);
+                lastSpawn = now;
+            }
+        });
         window.addEventListener('click', e => spawn(e.clientX, e.clientY, 10));
 
         const animate = () => {

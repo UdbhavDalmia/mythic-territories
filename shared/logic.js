@@ -948,9 +948,12 @@ function paintTerritoryPath(piece, startRow, startCol, endRow, endCol, gameState
     const r = startRow + (endRow - startRow) * t;
     const c = startCol + (endCol - startCol) * t;
     
-    const isRedundant = gameState.territoryTrails.some(oldT => 
-      oldT.team === team && Math.hypot(oldT.col - c, oldT.row - r) < 0.2 && oldT.radius >= radius
-    );
+    const isRedundant = gameState.territoryTrails.some(oldT => {
+      if (oldT.team !== team || oldT.radius < radius) return false;
+      const dx = oldT.col - c;
+      const dy = oldT.row - r;
+      return (dx * dx + dy * dy) < 0.04;
+    });
     
     if (!isRedundant) {
       newPoints.push({
@@ -969,8 +972,9 @@ function paintTerritoryPath(piece, startRow, startCol, endRow, endCol, gameState
     
     for (let gr = minR; gr <= maxR; gr++) {
       for (let gc = minC; gc <= maxC; gc++) {
-        const distToPiece = Math.hypot(gr - r, gc - c);
-        if (distToPiece <= radius) {
+        const dx = gr - r;
+        const dy = gc - c;
+        if ((dx * dx + dy * dy) <= radius * radius) {
           const pos = `${gr},${gc}`;
           if (team === 'snow') {
             gameState.snowTerritory.add(pos);
@@ -986,20 +990,29 @@ function paintTerritoryPath(piece, startRow, startCol, endRow, endCol, gameState
   }
 
   // Prune overlapping same-team and other-team trail circles for incredible performance!
-  gameState.territoryTrails = gameState.territoryTrails.filter(oldT => {
-    if (oldT.team !== team) {
-      return !newPoints.some(np => Math.hypot(oldT.col - np.col, oldT.row - np.row) <= radius);
-    } else {
-      return !newPoints.some(np => Math.hypot(oldT.col - np.col, oldT.row - np.row) <= radius * 0.5);
-    }
-  });
+  if (newPoints.length > 0) {
+    const radiusSqOther = radius * radius;
+    const radiusSqSame = (radius * 0.5) * (radius * 0.5);
+    gameState.territoryTrails = gameState.territoryTrails.filter(oldT => {
+      const radiusSq = oldT.team !== team ? radiusSqOther : radiusSqSame;
+      for (let i = 0; i < newPoints.length; i++) {
+        const np = newPoints[i];
+        const dx = oldT.col - np.col;
+        const dy = oldT.row - np.row;
+        if ((dx * dx + dy * dy) <= radiusSq) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }
 
   // Push new points to trails AFTER pruning so they don't self-prune
   gameState.territoryTrails.push(...newPoints);
   
   // Hard cap to prevent runaway array growth causing massive network and render lag
-  if (gameState.territoryTrails.length > 1500) {
-    gameState.territoryTrails = gameState.territoryTrails.slice(-1500);
+  if (gameState.territoryTrails.length > 500) {
+    gameState.territoryTrails = gameState.territoryTrails.slice(-500);
   }
 }
 
@@ -2086,14 +2099,14 @@ function endOfTurnUpkeep() {
         p.helpFromAboveActiveTurns--;
         if (p.helpFromAboveActiveTurns <= 0) p.hasHelpFromAboveActive = false;
       }
-    }
-    // Ability cooldowns and durations decrement every move (regardless of whose turn it is)
-    if (p.deathMeteorCooldown > 0) p.deathMeteorCooldown--;
-    if (p.helpFromAboveCooldown > 0) p.helpFromAboveCooldown--;
-    if (p.ability && p.ability.cooldown > 0) p.ability.cooldown--;
-    if (p.ability && p.ability.active && p.ability.duration > 0) {
-      p.ability.duration--;
-      if (p.ability.duration <= 0) p.ability.active = false;
+      // Ability cooldowns and durations decrement only on the piece's team's turn
+      if (p.deathMeteorCooldown > 0) p.deathMeteorCooldown--;
+      if (p.helpFromAboveCooldown > 0) p.helpFromAboveCooldown--;
+      if (p.ability && p.ability.cooldown > 0) p.ability.cooldown--;
+      if (p.ability && p.ability.active && p.ability.duration > 0) {
+        p.ability.duration--;
+        if (p.ability.duration <= 0) p.ability.active = false;
+      }
     }
   });
 

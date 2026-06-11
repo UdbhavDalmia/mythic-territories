@@ -337,8 +337,7 @@ export function applyAoeLethalPassives(piece, gameState) {
 
   // Frost Lord – Help From Above
   if (
-    C.PIECE_TYPES[piece.key]?.veteranAbility?.key === "HelpFromAbove" ||
-    C.PIECE_TYPES[piece.key]?.ability?.key === "HelpFromAbove"
+    piece.key === 'snowFrostLord' && !piece.hasHelpFromAboveActive
   ) {
     if ((piece.helpFromAboveCooldown || 0) <= 0) {
       piece.currentHp = 1;
@@ -359,6 +358,18 @@ export function applyAoeLethalPassives(piece, gameState) {
               });
             }
           }
+        });
+      }
+      
+      // Emit the animation trigger for the client
+      if (typeof window === 'undefined' || gameState.isLocalSimulation !== true) {
+        if (!gameState.events) gameState.events = [];
+        gameState.events.push({
+          type: "ANIMATION",
+          name: "GuardianSave",
+          pieceId: piece.id,
+          r: piece.row,
+          c: piece.col
         });
       }
       return true; // intercept: do NOT capture
