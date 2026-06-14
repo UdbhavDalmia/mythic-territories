@@ -1279,3 +1279,24 @@ function scaleGame() {
 window.addEventListener('resize', scaleGame);
 window.addEventListener('DOMContentLoaded', scaleGame);
 scaleGame();
+
+// Temporary keydown listener for developer testing of the Help From Above visual effects
+window.addEventListener('keydown', (e) => {
+    if (e.key === 't' || e.key === 'T') {
+        console.log("Toggle HelpFromAbove triggered via keypress");
+        if (gameState && gameState.pieces) {
+            const fl = gameState.pieces.find(p => p.key === 'snowFrostLord');
+            if (fl) {
+                fl.hasHelpFromAboveActive = !fl.hasHelpFromAboveActive;
+                console.log(`Frost Lord HelpFromAbove active: ${fl.hasHelpFromAboveActive}`);
+                if (fl.hasHelpFromAboveActive) {
+                    if (Effects.spawnGuardianSaveEffect) {
+                        Effects.spawnGuardianSaveEffect(fl, gameState);
+                    }
+                }
+            } else {
+                console.warn("No Frost Lord found on board.");
+            }
+        }
+    }
+});

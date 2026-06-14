@@ -1165,8 +1165,69 @@ export function drawPiece(p, targetCtx, gameState) {
         drawCtx.restore();
       }
 
+      // Find if there is an active Frost Lord
+      const frostLord = gameState.pieces && gameState.pieces.find(fl => fl.key === 'snowFrostLord');
+      
+      // Check if an intro animation is currently running for this Frost Lord
+      const isIntroAnimating = frostLord && gameState.guardianAnimations && 
+                               gameState.guardianAnimations.some(anim => anim.pieceId === frostLord.id);
+
+      let isFrostLordActive = false;
+      let isBuffed = false;
+
+      if (isIntroAnimating) {
+        // During intro animation, rely strictly on helpFromAboveVisualActive flag
+        if (p.id === frostLord.id) {
+          const anim = gameState.guardianAnimations.find(a => a.pieceId === frostLord.id);
+          if (anim) {
+            // As life goes from 1.0 to 0.4, scale goes from 0.0 to 1.0
+            const progress = Math.min(1.0, Math.max(0.0, (1.0 - anim.life) / 0.6));
+            p.helpFromAboveGlowMultiplier = progress;
+            isFrostLordActive = true;
+          } else {
+            isFrostLordActive = true;
+          }
+        } else {
+          isBuffed = p.helpFromAboveVisualActive;
+        }
+      } else {
+        // After intro animation finishes, rely on standard states
+        isFrostLordActive = p.key === 'snowFrostLord' && p.hasHelpFromAboveActive;
+        isBuffed = (gameState.temporaryBoosts && gameState.temporaryBoosts.some(b => b.pieceId === p.id && b.name === "HelpFromAboveAura")) ||
+                   (gameState.pieces && gameState.pieces.some(fl => 
+                       fl.key === 'snowFrostLord' && 
+                       fl.hasHelpFromAboveActive && 
+                       p.id !== fl.id && 
+                       p.team === fl.team && 
+                       p.currentHp > 0 &&
+                       Math.hypot(p.row - fl.row, p.col - fl.col) <= 1.5
+                   ));
+      }
+
+      // If they are buffed/active but not in intro animation (or is an ally whose ray arrived), fade multiplier to 1.0
+      if (isBuffed || isFrostLordActive) {
+        if (!isIntroAnimating || (p.id !== frostLord.id)) {
+          p.helpFromAboveGlowMultiplier = Math.min(1.0, (p.helpFromAboveGlowMultiplier || 0.0) + 0.08);
+        }
+      }
+
       if (!(p.isDashing && (p.key === 'ashMagmaProwler' || p.key.includes('MagmaProwler')))) {
-        drawCtx.drawImage(img, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+        if (isBuffed || isFrostLordActive) {
+          drawCtx.save();
+          const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.008);
+          const mult = p.helpFromAboveGlowMultiplier !== undefined ? p.helpFromAboveGlowMultiplier : 1.0;
+          if (isFrostLordActive) {
+            drawCtx.shadowColor = `rgba(0, 240, 255, ${0.95 * mult})`; // Cyan/White Divine Aura
+            drawCtx.shadowBlur = (18 + 12 * pulse) * mult;
+          } else {
+            drawCtx.shadowColor = `rgba(255, 215, 0, ${0.95 * mult})`; // Golden Empowered Aura
+            drawCtx.shadowBlur = (12 + 8 * pulse) * mult;
+          }
+          drawCtx.drawImage(img, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+          drawCtx.restore();
+        } else {
+          drawCtx.drawImage(img, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+        }
       }
       
       drawSlashLocal();
@@ -1393,44 +1454,6 @@ export function drawPiece(p, targetCtx, gameState) {
       drawCtx.beginPath();
       drawCtx.arc(vis.x + C.CELL_SIZE / 2 + vis.offsetX, vis.y + C.CELL_SIZE / 2 + vis.offsetY, C.CELL_SIZE * 0.4, 0, 2 * Math.PI);
       drawCtx.stroke();
-    }
-
-    if (p.key === 'snowFrostLord' && p.hasHelpFromAboveActive) {
-      const pulseFactor = 0.5 + 0.5 * Math.sin(performance.now() * 0.004);
-      const ringRadius = C.CELL_SIZE * 0.48 + pulseFactor * 4;
-      const pcx = vis.x + C.CELL_SIZE / 2 + vis.offsetX;
-      const pcy = vis.y + C.CELL_SIZE / 2 + vis.offsetY;
-      drawCtx.save();
-      drawCtx.strokeStyle = `rgba(0, 230, 255, ${0.6 + 0.4 * pulseFactor})`;
-      drawCtx.lineWidth = 3;
-      drawCtx.shadowColor = '#00eeff';
-      drawCtx.shadowBlur = 14;
-      drawCtx.setLineDash([6, 5]);
-      drawCtx.lineDashOffset = -performance.now() * 0.05;
-      drawCtx.beginPath();
-      drawCtx.arc(pcx, pcy, ringRadius, 0, Math.PI * 2);
-      drawCtx.stroke();
-      drawCtx.setLineDash([]);
-      drawCtx.lineWidth = 1.5;
-      drawCtx.strokeStyle = `rgba(180, 255, 255, ${0.5 + 0.3 * pulseFactor})`;
-      drawCtx.beginPath();
-      drawCtx.arc(pcx, pcy, ringRadius * 0.78, 0, Math.PI * 2);
-      drawCtx.stroke();
-      for (let i = 0; i < 6; i++) {
-        const angle = (i / 6) * Math.PI * 2 + performance.now() * 0.001;
-        const sx = pcx + Math.cos(angle) * ringRadius * 0.78;
-        const sy = pcy + Math.sin(angle) * ringRadius * 0.78;
-        const ex = pcx + Math.cos(angle) * ringRadius * 1.1;
-        const ey = pcy + Math.sin(angle) * ringRadius * 1.1;
-        drawCtx.beginPath();
-        drawCtx.moveTo(sx, sy);
-        drawCtx.lineTo(ex, ey);
-        drawCtx.strokeStyle = 'rgba(0, 255, 255, 0.9)';
-        drawCtx.lineWidth = 2;
-        drawCtx.shadowBlur = 6;
-        drawCtx.stroke();
-      }
-      drawCtx.restore();
     }
 
     drawSiphonRunes(p, gameState);
