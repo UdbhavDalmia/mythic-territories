@@ -67,6 +67,21 @@ body {
   height: 100vh;
 }
 
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-image: url('../images/new-bg.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  z-index: -2;
+  pointer-events: none;
+}
+
 /* -------------------------
    3) Page-level theming (primal-home)
    - Background images and main vertical layout.
@@ -80,11 +95,6 @@ body {
   padding: 20px;
   overflow-y: auto;
   overflow-x: hidden;
-  background-image: url('../images/new-bg.png');
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: cover;
-  background-attachment: fixed;
   perspective: 1000px;
   position: relative;
 }
@@ -100,8 +110,8 @@ body {
   padding: 15px;
   transition: all 0.3s ease;
   position: relative;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+
+
 }
 
 
@@ -240,8 +250,8 @@ body {
   justify-content: center;
   gap: 20px;
   box-shadow: 0 0 30px rgba(255, 215, 0, 0.15), 0 0 15px rgba(0, 0, 0, 0.5) inset;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+
+
   clip-path: polygon(5% 0, 95% 0, 100% 50%, 95% 100%, 5% 100%, 0 50%);
 }
 
@@ -469,6 +479,8 @@ body {
   height: 100%;
   z-index: 1;
   pointer-events: none;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .game-title,
@@ -483,8 +495,11 @@ body {
    ------------------------- */
 @media (max-width: 768px) {
   .primal-home {
-    background-image: url('../images/mobile-bg.png');
     padding: 10px;
+  }
+  
+  body::before {
+    background-image: url('../images/mobile-bg.png');
   }
 
   .game-title {
@@ -596,7 +611,7 @@ body {
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  backdrop-filter: blur(6px);
+
 }
 
 .modal.hidden {

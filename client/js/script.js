@@ -1232,8 +1232,14 @@ function animationLoop(time) {
             const secs = seconds % 60;
             return `${mins}:${secs.toString().padStart(2, '0')}`;
         };
-        if (sTimer) sTimer.textContent = formatTime(gameState.timers.snow);
-        if (aTimer) aTimer.textContent = formatTime(gameState.timers.ash);
+        if (sTimer) {
+            const sStr = formatTime(gameState.timers.snow);
+            if (sTimer.textContent !== sStr) sTimer.textContent = sStr;
+        }
+        if (aTimer) {
+            const aStr = formatTime(gameState.timers.ash);
+            if (aTimer.textContent !== aStr) aTimer.textContent = aStr;
+        }
     }
 
     requestAnimationFrame(animationLoop);
