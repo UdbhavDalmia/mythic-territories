@@ -1453,3 +1453,337 @@ export function drawHelpFromAboveFog(ctx, gameState) {
 export function drawHelpFromAboveVapors(ctx, gameState) {
   // Emptied: legacy vapors removed
 }
+
+// ============================================================
+// REIGN OF FIRE — Fire streams from Ash Tyrant to target zone
+// ============================================================
+export function spawnReignOfFireEffect(tyrantPiece, targetR, targetC, gameState) {
+  if (!gameState || !tyrantPiece) return;
+  gameState.reignOfFireAnimations = gameState.reignOfFireAnimations || [];
+
+  const srcX = tyrantPiece.col * C.CELL_SIZE + C.CELL_SIZE / 2;
+  const srcY = tyrantPiece.row * C.CELL_SIZE + C.CELL_SIZE / 2;
+  const dstX = targetC * C.CELL_SIZE + C.CELL_SIZE / 2;
+  const dstY = targetR * C.CELL_SIZE + C.CELL_SIZE / 2;
+
+  const radius = (C.ABILITY_VALUES && C.ABILITY_VALUES.ReignOfFire && C.ABILITY_VALUES.ReignOfFire.radius) || 2;
+  const maxSpread = radius * C.CELL_SIZE * 0.75;
+
+  const NUM_STREAMS = 7;
+  const streams = [];
+  for (let i = 0; i < NUM_STREAMS; i++) {
+    // Spread targets across the AoE area
+    const angleOffset = Math.random() * Math.PI * 2;
+    const distOffset = Math.random() * maxSpread;
+    const targetFlareX = dstX + Math.cos(angleOffset) * distOffset;
+    const targetFlareY = dstY + Math.sin(angleOffset) * distOffset;
+
+    const dx = targetFlareX - srcX;
+    const dy = targetFlareY - srcY;
+    const angle = Math.atan2(dy, dx);
+    const speed = 18 + Math.random() * 6;
+    streams.push({
+      x: srcX, y: srcY,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      targetX: targetFlareX,
+      targetY: targetFlareY,
+      trail: [], impacted: false,
+      size: 5 + Math.random() * 4,
+      delay: i * 2, ticks: 0
+    });
+  }
+  const impactPieces = (gameState.pieces || []).map(p => {
+    const dist = Math.hypot(p.row - targetR, p.col - targetC);
+    if (dist <= radius) return { id: p.id, team: p.team, col: p.col, row: p.row };
+    return null;
+  }).filter(Boolean);
+
+  gameState.reignOfFireAnimations.push({
+    srcX, srcY, dstX, dstY, streams, impactPieces,
+    ticks: 0, impactTriggered: false, impactParticles: [], allyGlows: []
+  });
+}
+
+export function drawReignOfFireAnimations(ctx, gameState) {
+  if (!gameState.reignOfFireAnimations) return;
+
+  for (let i = gameState.reignOfFireAnimations.length - 1; i >= 0; i--) {
+    const anim = gameState.reignOfFireAnimations[i];
+    anim.ticks++;
+    let allImpacted = true;
+
+    for (let s = 0; s < anim.streams.length; s++) {
+      const st = anim.streams[s];
+      if (st.impacted) continue;
+      if (anim.ticks < st.delay) { allImpacted = false; continue; }
+      allImpacted = false;
+      st.ticks++;
+
+      const dx = st.targetX - st.x;
+      const dy = st.targetY - st.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist < Math.hypot(st.vx, st.vy) + 2) {
+        st.impacted = true;
+        
+        // Localized impact visual at flare destination
+        gameState.shockwaves = gameState.shockwaves || [];
+        gameState.shockwaves.push({ x: st.targetX, y: st.targetY, radius: C.CELL_SIZE * 0.8, life: 0.8, color: '255, 100, 0' });
+
+        for (let e = 0; e < 8; e++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = Math.random() * 5 + 2;
+          anim.impactParticles.push({
+            x: st.targetX, y: st.targetY,
+            vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 1,
+            alpha: 1, size: Math.random() * 3 + 1.5,
+            color: Math.random() > 0.5 ? '255, 80, 10' : '255, 200, 50'
+          });
+        }
+
+        if (!anim.impactTriggered) {
+          anim.impactTriggered = true;
+          // Core shockwave at the main target cell
+          gameState.shockwaves.push({ x: anim.dstX, y: anim.dstY, radius: C.CELL_SIZE * 2.0, life: 1.0, color: '255, 80, 0' });
+
+          anim.impactPieces.forEach(ip => {
+            const piece = (gameState.pieces || []).find(p => p.id === ip.id);
+            if (!piece) return;
+            const px = piece.col * C.CELL_SIZE + C.CELL_SIZE / 2;
+            const py = piece.row * C.CELL_SIZE + C.CELL_SIZE / 2;
+            if (ip.team !== 'ash') {
+              for (let e = 0; e < 18; e++) {
+                anim.impactParticles.push({
+                  x: px + (Math.random() - 0.5) * C.CELL_SIZE,
+                  y: py - C.CELL_SIZE * 0.5,
+                  vx: (Math.random() - 0.5) * 3, vy: Math.random() * 3 + 1,
+                  alpha: 1, size: Math.random() * 3 + 1,
+                  color: '255, 50, 0', isEnemyHit: true
+                });
+              }
+            } else {
+              anim.allyGlows.push({ px, py, life: 1.0 });
+            }
+          });
+        }
+        continue;
+      }
+
+      st.x += st.vx; st.y += st.vy;
+      for (let e = 0; e < 3; e++) {
+        st.trail.push({
+          x: st.x + (Math.random() - 0.5) * 8, y: st.y + (Math.random() - 0.5) * 8,
+          alpha: 0.9, size: Math.random() * st.size * 0.7 + 1
+        });
+      }
+
+      // Draw trails (Additive composite operation without shadowBlur)
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (let t = st.trail.length - 1; t >= 0; t--) {
+        const tp = st.trail[t];
+        tp.alpha -= 0.07;
+        if (tp.alpha <= 0) { st.trail.splice(t, 1); continue; }
+        ctx.fillStyle = `rgba(${tp.alpha > 0.5 ? '255, 150, 20' : '230, 50, 0'}, ${tp.alpha})`;
+        ctx.beginPath(); ctx.arc(tp.x, tp.y, tp.size, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+
+      // Draw projectile head (High-performance gradient, shadowBlur removed)
+      ctx.save(); ctx.translate(st.x, st.y);
+      const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, st.size);
+      grad.addColorStop(0, 'rgba(255, 255, 220, 1)');
+      grad.addColorStop(0.3, 'rgba(255, 150, 0, 0.9)');
+      grad.addColorStop(1, 'rgba(200, 30, 0, 0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(0, 0, st.size, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+    // High performance impact particles (One global save/restore, shadowBlur removed)
+    if (anim.impactParticles.length > 0) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (let k = anim.impactParticles.length - 1; k >= 0; k--) {
+        const p = anim.impactParticles[k];
+        p.x += p.vx; p.y += p.vy; p.vx *= 0.93; p.vy += 0.25;
+        p.alpha -= p.isEnemyHit ? 0.025 : 0.02;
+        if (p.alpha <= 0) { anim.impactParticles.splice(k, 1); continue; }
+        ctx.fillStyle = `rgba(${p.color}, ${p.alpha})`;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    for (let g = anim.allyGlows.length - 1; g >= 0; g--) {
+      const gl = anim.allyGlows[g];
+      gl.life -= 0.012;
+      if (gl.life <= 0) { anim.allyGlows.splice(g, 1); continue; }
+      const pulse = 0.5 + 0.5 * Math.sin(anim.ticks * 0.25);
+      const innerAlpha = gl.life * (0.55 + 0.25 * pulse);
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      const innerGrad = ctx.createRadialGradient(gl.px, gl.py, 0, gl.px, gl.py, C.CELL_SIZE * 0.7);
+      innerGrad.addColorStop(0, `rgba(255, 200, 60, ${innerAlpha})`);
+      innerGrad.addColorStop(0.5, `rgba(220, 50, 0, ${innerAlpha * 0.6})`);
+      innerGrad.addColorStop(1, 'rgba(180, 20, 0, 0)');
+      ctx.fillStyle = innerGrad; ctx.beginPath(); ctx.arc(gl.px, gl.py, C.CELL_SIZE * 0.7, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      if (anim.ticks < 10) {
+        ctx.save(); ctx.strokeStyle = `rgba(255, 100, 0, ${gl.life * 0.7})`; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(gl.px, gl.py, C.CELL_SIZE * 0.35 * (1 + (10 - anim.ticks) * 0.05), 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+      }
+    }
+
+    if (allImpacted && anim.impactTriggered && anim.impactParticles.length === 0 && anim.allyGlows.length === 0) {
+      if (!anim.streams.some(s => s.trail.length > 0)) gameState.reignOfFireAnimations.splice(i, 1);
+    }
+  }
+}
+
+// ============================================================
+// DEATH METEOR — Eclipse, meteor fall, screen shake, glow
+// ============================================================
+export function spawnDeathMeteorEffect(piece, gameState) {
+  if (!piece || !gameState) return;
+  gameState.deathMeteorAnimations = gameState.deathMeteorAnimations || [];
+  const cx = piece.col * C.CELL_SIZE + C.CELL_SIZE / 2;
+  const cy = piece.row * C.CELL_SIZE + C.CELL_SIZE / 2;
+  gameState.deathMeteorAnimations.push({
+    pieceId: piece.id, cx, cy,
+    meteorX: cx + (Math.random() - 0.5) * C.CELL_SIZE * 0.5,
+    meteorY: -C.CELL_SIZE * 3,
+    targetX: cx, targetY: cy,
+    ticks: 0, phase: 'eclipse', eclipseLife: 0,
+    shakeTriggered: false, impactParticles: [], emberTrail: []
+  });
+}
+
+export function drawDeathMeteorAnimations(ctx, gameState) {
+  if (!gameState.deathMeteorAnimations) return;
+  const W = C.CANVAS_SIZE; const H = C.CANVAS_SIZE;
+
+  for (let i = gameState.deathMeteorAnimations.length - 1; i >= 0; i--) {
+    const anim = gameState.deathMeteorAnimations[i];
+    anim.ticks++;
+
+    if (anim.phase === 'eclipse') {
+      anim.eclipseLife = Math.min(1, anim.ticks / 20);
+      ctx.save();
+      const g = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, W*0.7);
+      g.addColorStop(0, `rgba(25, 0, 0, ${anim.eclipseLife * 0.45})`);
+      g.addColorStop(0.5, `rgba(5, 0, 0, ${anim.eclipseLife * 0.72})`);
+      g.addColorStop(1, `rgba(0, 0, 0, ${anim.eclipseLife * 0.88})`);
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore();
+      if (anim.ticks >= 22) anim.phase = 'fall';
+
+    } else if (anim.phase === 'fall') {
+      ctx.save();
+      const g = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, W*0.7);
+      g.addColorStop(0, 'rgba(25, 0, 0, 0.45)'); g.addColorStop(0.5, 'rgba(5, 0, 0, 0.72)'); g.addColorStop(1, 'rgba(0, 0, 0, 0.88)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore();
+
+      const dx = anim.targetX - anim.meteorX; const dy = anim.targetY - anim.meteorY;
+      const dist = Math.hypot(dx, dy); const speed = 28;
+
+      if (dist > speed + 2) {
+        anim.meteorX += (dx / dist) * speed; anim.meteorY += (dy / dist) * speed;
+        for (let e = 0; e < 5; e++) {
+          anim.emberTrail.push({ x: anim.meteorX + (Math.random()-0.5)*18, y: anim.meteorY + (Math.random()-0.5)*18, vx: (Math.random()-0.5)*2, vy: Math.random()*3-0.5, alpha: 1, size: Math.random()*8+4 });
+        }
+        for (let t = anim.emberTrail.length - 1; t >= 0; t--) {
+          const tp = anim.emberTrail[t]; tp.x += tp.vx; tp.y += tp.vy; tp.alpha -= 0.05;
+          if (tp.alpha <= 0) { anim.emberTrail.splice(t, 1); continue; }
+          ctx.fillStyle = `rgba(${tp.alpha > 0.6 ? '255, 200, 50' : '255, 80, 0'}, ${tp.alpha})`; ctx.shadowColor = 'rgba(255, 100, 0, 0.9)'; ctx.shadowBlur = 14;
+          ctx.beginPath(); ctx.arc(tp.x, tp.y, tp.size, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.shadowBlur = 0;
+        ctx.save(); ctx.translate(anim.meteorX, anim.meteorY);
+        const mAngle = Math.atan2(dy, dx); ctx.rotate(mAngle + Math.PI/4);
+        const mS = C.CELL_SIZE * 0.7;
+        const mg = ctx.createRadialGradient(0, 0, mS*0.1, 0, 0, mS);
+        mg.addColorStop(0, 'rgba(255,255,220,1)'); mg.addColorStop(0.3, 'rgba(255,140,0,0.9)'); mg.addColorStop(0.7, 'rgba(180,30,0,0.5)'); mg.addColorStop(1, 'rgba(80,0,0,0)');
+        ctx.fillStyle = mg; ctx.shadowColor = '#ff5500'; ctx.shadowBlur = 40;
+        ctx.beginPath(); ctx.arc(0, 0, mS, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#111'; ctx.shadowBlur = 0;
+        ctx.beginPath(); ctx.moveTo(-mS*0.4,-mS*0.5); ctx.lineTo(mS*0.3,-mS*0.3); ctx.lineTo(mS*0.5,mS*0.2); ctx.lineTo(0,mS*0.5); ctx.lineTo(-mS*0.45,mS*0.3); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      } else {
+        anim.phase = 'impact'; anim.impactTick = 0;
+        if (!anim.shakeTriggered) { anim.shakeTriggered = true; if (UI.triggerScreenshake) UI.triggerScreenshake(18, 450); }
+        gameState.shockwaves = gameState.shockwaves || [];
+        gameState.shockwaves.push({ x: anim.cx, y: anim.cy, radius: C.CELL_SIZE*2.5, life: 1, color: '255, 120, 0' });
+        gameState.shockwaves.push({ x: anim.cx, y: anim.cy, radius: C.CELL_SIZE*4.0, life: 0.7, color: '220, 40, 0' });
+        for (let e = 0; e < 60; e++) {
+          const angle = Math.random()*Math.PI*2; const sp = Math.random()*15+5;
+          anim.impactParticles.push({ x: anim.cx, y: anim.cy, vx: Math.cos(angle)*sp, vy: Math.sin(angle)*sp-4, alpha: 1, size: Math.random()*7+3, color: Math.random() > 0.4 ? '255, 100, 10' : '255, 220, 80' });
+        }
+      }
+
+    } else if (anim.phase === 'impact') {
+      anim.impactTick = (anim.impactTick || 0) + 1;
+      const fe = Math.max(0, 1 - anim.impactTick / 30);
+      if (fe > 0) { ctx.save(); ctx.fillStyle = `rgba(0,0,0,${fe*0.75})`; ctx.fillRect(0,0,W,H); ctx.restore(); }
+      if (anim.impactTick < 20) {
+        const ga = Math.max(0, 1 - anim.impactTick/20);
+        const ig = ctx.createRadialGradient(anim.cx, anim.cy, 0, anim.cx, anim.cy, C.CELL_SIZE*3);
+        ig.addColorStop(0, `rgba(255,240,100,${ga*0.9})`); ig.addColorStop(0.3, `rgba(255,80,0,${ga*0.7})`); ig.addColorStop(0.7, `rgba(180,20,0,${ga*0.4})`); ig.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = ig; ctx.beginPath(); ctx.arc(anim.cx, anim.cy, C.CELL_SIZE*3, 0, Math.PI*2); ctx.fill(); ctx.restore();
+      }
+      for (let k = anim.impactParticles.length-1; k >= 0; k--) {
+        const p = anim.impactParticles[k]; p.x+=p.vx; p.y+=p.vy; p.vx*=0.90; p.vy+=0.3; p.alpha-=0.018;
+        if (p.alpha<=0) { anim.impactParticles.splice(k,1); continue; }
+        ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.fillStyle=`rgba(${p.color},${p.alpha})`; ctx.shadowColor=`rgba(${p.color},1)`; ctx.shadowBlur=12;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill(); ctx.restore();
+      }
+      ctx.shadowBlur=0;
+      if (anim.impactTick > 40 && anim.impactParticles.length === 0) gameState.deathMeteorAnimations.splice(i,1);
+    }
+  }
+}
+
+// ============================================================
+// DEATH METEOR SHIELD — Reddish revival shield on Ash Tyrant
+// ============================================================
+export function drawDeathMeteorShield(ctx, piece, gameState) {
+  if (!piece || piece.key !== 'ashAshTyrant') return;
+  if (!piece.deathMeteorCooldown || piece.deathMeteorCooldown <= 0) return;
+  if (!piece.hasTriggeredDeathMeteor) return;
+
+  const maxCooldown = (C.ABILITY_VALUES && C.ABILITY_VALUES.DeathMeteor && C.ABILITY_VALUES.DeathMeteor.cooldown) || 10;
+  const life = Math.min(1, (piece.deathMeteorCooldown / maxCooldown) * 1.2);
+  const t = performance.now() * 0.001;
+  const yOffset = (gameState && piece === gameState.selectedPiece) ? Math.sin(t * 2.5) * 2 : 0;
+  const vis = UI.getPieceVisualState ? UI.getPieceVisualState(piece) : null;
+  const cx = vis ? (vis.x + C.CELL_SIZE / 2 + vis.offsetX) : (piece.col * C.CELL_SIZE + C.CELL_SIZE / 2);
+  const cy = vis ? (vis.y + yOffset + C.CELL_SIZE / 2 + vis.offsetY) : (piece.row * C.CELL_SIZE + C.CELL_SIZE / 2 + yOffset);
+  const pulse = 0.5 + 0.5 * Math.sin(t * 3.0);
+  const outerRadius = C.CELL_SIZE * (0.65 + 0.05 * pulse);
+  const innerRadius = C.CELL_SIZE * 0.48;
+
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, outerRadius, 0, Math.PI*2);
+  ctx.strokeStyle = `rgba(220, 30, 0, ${life * (0.75 + 0.2 * pulse)})`;
+  ctx.shadowColor = `rgba(255, 50, 0, ${life})`; ctx.shadowBlur = 20 + 10 * pulse;
+  ctx.lineWidth = 4 * life; ctx.stroke();
+
+  ctx.beginPath(); ctx.arc(cx, cy, innerRadius, 0, Math.PI*2);
+  ctx.strokeStyle = `rgba(255, 120, 0, ${life * (0.5 + 0.2 * pulse)})`;
+  ctx.lineWidth = 2 * life; ctx.shadowBlur = 10; ctx.stroke();
+
+  const sg = ctx.createRadialGradient(cx, cy, 0, cx, cy, innerRadius);
+  sg.addColorStop(0, `rgba(255, 100, 20, ${life * 0.18})`);
+  sg.addColorStop(0.6, `rgba(180, 20, 0, ${life * 0.10})`);
+  sg.addColorStop(1, 'rgba(80, 0, 0, 0)');
+  ctx.fillStyle = sg; ctx.shadowBlur = 0;
+  ctx.beginPath(); ctx.arc(cx, cy, innerRadius, 0, Math.PI*2); ctx.fill();
+
+  const NUM_ORBLETS = 5;
+  for (let j = 0; j < NUM_ORBLETS; j++) {
+    const orbAngle = (j / NUM_ORBLETS) * Math.PI * 2 + t * 2.2;
+    ctx.beginPath();
+    ctx.arc(cx + Math.cos(orbAngle)*outerRadius, cy + Math.sin(orbAngle)*outerRadius, 3.5*life, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(255, 180, 50, ${life * 0.9})`;
+    ctx.shadowColor = 'rgba(255, 80, 0, 0.9)'; ctx.shadowBlur = 12; ctx.fill();
+  }
+  ctx.shadowBlur = 0; ctx.restore();
+}

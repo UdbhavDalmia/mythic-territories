@@ -101,7 +101,6 @@ export const ABILITY_VALUES = {
   GlacialFracture: { cooldown: 9, range: 2.5, radius: 2, damage: 2, wispCap: 2 },
   AColdFarewell: { radius: 1.5, duration: 4, damage: 2, heal: 1, strengthBoost: 1, agilityDebuff: 0.4 },
   SummonIceWisp: { cooldown: 4, range: 4 },
-  TyrantsProclamation: { duration: 4, powerBoost: 1 },
   UnstableGround: { cooldown: 4, range: 4, duration: 3, damage: 1 },
   FrostStomp: { cooldown: 3, duration: 1 },
   HardenedIce: { cooldown: 5, duration: 4 },
@@ -595,21 +594,6 @@ export const ABILITIES = {
       gs.territoryCaptureTurn[pos] = gs.turnCount;
     }
   },
-  TyrantsProclamation: {
-    name: "Tyrant's Proclamation",
-    requiresTargeting: false,
-    isUltimate: true,
-    effect: (p, t, gs) =>
-      gs.pieces.forEach((fp) => {
-        if (fp.team === p.team)
-          gs.temporaryBoosts.push({
-            pieceId: fp.id,
-            amount: ABILITY_VALUES.TyrantsProclamation.powerBoost,
-            duration: ABILITY_VALUES.TyrantsProclamation.duration,
-            name: "Proclamation"
-          });
-      })
-  },
   UnstableGround: {
     name: "Unstable Ground",
     cooldown: ABILITY_VALUES.UnstableGround.cooldown,
@@ -944,6 +928,20 @@ export const ABILITIES = {
           if (target.team !== p.team) {
             target.currentHp = Math.max(0, (target.currentHp || target.stats?.hp || 5) - dmg);
             if (target.currentHp <= 0) toRemove.push({ piece: target });
+          } else {
+            // Deals 1 damage to allies caught in the radius
+            target.currentHp = Math.max(0, (target.currentHp || target.stats?.hp || 5) - allyDmg);
+            if (target.currentHp <= 0) toRemove.push({ piece: target });
+
+            // Grants +2 Strength for 3 turns
+            gs.temporaryBoosts = gs.temporaryBoosts || [];
+            gs.temporaryBoosts = gs.temporaryBoosts.filter(b => !(b.pieceId === target.id && b.name === "ReignOfFireStr"));
+            gs.temporaryBoosts.push({
+              pieceId: target.id,
+              duration: duration,
+              amount: strBoost,
+              name: "ReignOfFireStr"
+            });
           }
         }
       });

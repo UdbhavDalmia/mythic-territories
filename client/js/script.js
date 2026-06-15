@@ -727,6 +727,16 @@ function playAnimation(animData) {
         case 'AColdFarewell': 
             Effects.spawnAColdFarewellEffect(animData.r, animData.c, gameState); 
             break;
+        case 'ReignOfFire': {
+            const tyrant = gameState.pieces.find(p => p.id === animData.pieceId);
+            if (tyrant) Effects.spawnReignOfFireEffect(tyrant, animData.targetR, animData.targetC, gameState);
+            break;
+        }
+        case 'DeathMeteor': {
+            const meteor = gameState.pieces.find(p => p.id === animData.pieceId);
+            if (meteor) Effects.spawnDeathMeteorEffect(meteor, gameState);
+            break;
+        }
     }
 }
 
@@ -864,8 +874,6 @@ function getAbilityDescription(abilityKey) {
         'EruptionLink': 'Grants an adjacent ally Magma Shield and +2 Power for 1 turn.',
         'HardenedIce': 'Grants an adjacent ally Steadfast for 2 full rounds.',
         'SoulfireBurst': 'Detonates a nearby Unstable Ground, dealing 1 damage to adjacent units.',
-        'KingsEdict': 'Enemy Ash pieces -1 Power and cannot move diagonally (2 rounds).',
-        'TyrantsProclamation': 'Friendly Ash pieces +1 Power; captures create Unstable Ground (2 rounds).',
         'Siphon': 'Link units to transfer power or absorb debuffs.'
     };
     return descriptions[abilityKey] || 'Activate ability.';
@@ -1213,6 +1221,9 @@ function animationLoop(time) {
     if (Effects.drawFrostfallBlessingAnimations) Effects.drawFrostfallBlessingAnimations(gameState);
     if (Effects.drawGuardianSaveAnimations) Effects.drawGuardianSaveAnimations(ctx, gameState);
     if (Effects.drawFateLinkAnimations) Effects.drawFateLinkAnimations(ctx, gameState);
+    if (Effects.drawReignOfFireAnimations) Effects.drawReignOfFireAnimations(gameState);
+    // Death Meteor eclipse must be drawn after pieces (it overlays the full canvas)
+    if (Effects.drawDeathMeteorAnimations) Effects.drawDeathMeteorAnimations(gameState);
     if (Effects.drawShrineEffects) Effects.drawShrineEffects(gameState);
     UI.drawLastMoveIndicator(gameState);
 
@@ -1280,13 +1291,40 @@ window.addEventListener('resize', scaleGame);
 window.addEventListener('DOMContentLoaded', scaleGame);
 scaleGame();
 
-// Temporary keydown listener for developer testing of the Help From Above visual effects
+// Temporary keydown listener for developer testing of the Ash Tyrant visual effects
 window.addEventListener('keydown', e => {
-    if (e.key.toLowerCase() === 't' && gameState?.pieces) {
-        const fl = gameState.pieces.find(p => p.key === 'snowFrostLord');
-        if (fl) {
-            fl.hasHelpFromAboveActive = !fl.hasHelpFromAboveActive;
-            if (fl.hasHelpFromAboveActive) Effects.spawnGuardianSaveEffect?.(fl, gameState);
+    if (!gameState?.pieces) return;
+
+    if (e.key.toLowerCase() === 'k') {
+        const tyrant = gameState.pieces.find(p => p.key === 'ashAshTyrant');
+        if (tyrant) {
+            const targetR = tyrant.row;
+            const targetC = Math.min(7, tyrant.col + 2);
+            Effects.spawnReignOfFireEffect(tyrant, targetR, targetC, gameState);
+            
+            // Add temporary strength boost for local test visual feedback
+            const radius = 2;
+            gameState.pieces.forEach(p => {
+                const dist = Math.hypot(p.row - targetR, p.col - targetC);
+                if (dist <= radius && p.team === tyrant.team) {
+                    gameState.temporaryBoosts = gameState.temporaryBoosts || [];
+                    if (!gameState.temporaryBoosts.some(b => b.pieceId === p.id && b.name === "ReignOfFireStr")) {
+                        gameState.temporaryBoosts.push({
+                            pieceId: p.id,
+                            duration: 3,
+                            amount: 2,
+                            name: "ReignOfFireStr"
+                        });
+                    }
+                }
+            });
+        }
+    } else if (e.key.toLowerCase() === 'l') {
+        const tyrant = gameState.pieces.find(p => p.key === 'ashAshTyrant');
+        if (tyrant) {
+            tyrant.deathMeteorCooldown = 15;
+            tyrant.hasTriggeredDeathMeteor = true;
+            Effects.spawnDeathMeteorEffect(tyrant, gameState);
         }
     }
 });

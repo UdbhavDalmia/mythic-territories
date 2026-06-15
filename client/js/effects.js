@@ -128,3 +128,8 @@ export const spawnGuardianSaveEffect = (...a) => Anim.spawnGuardianSaveEffect(..
 export const drawGuardianSaveAnimations = (ctx, gs) => Anim.drawGuardianSaveAnimations(ctx, gs)
 export const drawHelpFromAboveFog = (ctx, gs) => Anim.drawHelpFromAboveFog(ctx, gs)
 export const drawHelpFromAboveVapors = (ctx, gs) => Anim.drawHelpFromAboveVapors(ctx, gs)
+export const spawnReignOfFireEffect = (...a) => Anim.spawnReignOfFireEffect(...a)
+export const drawReignOfFireAnimations = gs => Anim.drawReignOfFireAnimations(ctx, gs)
+export const spawnDeathMeteorEffect = (...a) => Anim.spawnDeathMeteorEffect(...a)
+export const drawDeathMeteorAnimations = gs => Anim.drawDeathMeteorAnimations(ctx, gs)
+export const drawDeathMeteorShield = (ctxParam, piece, gs) => Anim.drawDeathMeteorShield(ctxParam, piece, gs)

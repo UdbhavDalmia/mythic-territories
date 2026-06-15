@@ -10,7 +10,8 @@ import {
   drawGlacialWallBlock,
   drawBurningGroundBlock,
   drawSnareTrapBlock,
-  drawIcyGroundBlock
+  drawIcyGroundBlock,
+  drawDeathMeteorShield
 } from './effects.js';
 let boardCtx;
 let ctx;
@@ -876,13 +877,45 @@ export function drawPiece(p, targetCtx, gameState) {
         p.helpFromAboveGlowMultiplier = Math.min(1.0, (p.helpFromAboveGlowMultiplier || 0.0) + 0.08);
       }
       if (!(p.isDashing && (p.key === 'ashMagmaProwler' || p.key.includes('MagmaProwler')))) {
-        if (isBuffed || isFrostLordActive) {
+        const isReignOfFireBuffed = gameState.temporaryBoosts?.some(b => b.pieceId === p.id && b.name === "ReignOfFireStr");
+        if (isBuffed || isFrostLordActive || isReignOfFireBuffed) {
           drawCtx.save();
           const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.008);
-          const mult = p.helpFromAboveGlowMultiplier ?? 1.0;
-          drawCtx.shadowColor = isFrostLordActive ? `rgba(0, 240, 255, ${0.95 * mult})` : `rgba(255, 215, 0, ${0.95 * mult})`;
-          drawCtx.shadowBlur = (isFrostLordActive ? 18 + 12 * pulse : 12 + 8 * pulse) * mult;
+          if (isReignOfFireBuffed) {
+            drawCtx.shadowColor = 'rgba(255, 60, 0, 0.95)';
+            drawCtx.shadowBlur = 15 + 10 * pulse;
+          } else {
+            const mult = p.helpFromAboveGlowMultiplier ?? 1.0;
+            drawCtx.shadowColor = isFrostLordActive ? `rgba(0, 240, 255, ${0.95 * mult})` : `rgba(255, 215, 0, ${0.95 * mult})`;
+            drawCtx.shadowBlur = (isFrostLordActive ? 18 + 12 * pulse : 12 + 8 * pulse) * mult;
+          }
           drawCtx.drawImage(img, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+          
+          if (isReignOfFireBuffed) {
+            // Draw floating magmatic ember particles rising from the piece
+            drawCtx.save();
+            drawCtx.globalCompositeOperation = 'lighter';
+            for (let j = 0; j < 4; j++) {
+              const seed = (p.id * 13 + j * 37) % 100;
+              const speedY = 0.5 + (seed % 10) * 0.05;
+              const rangeX = 15 + (seed % 15);
+              const phaseOffset = seed * 0.1;
+              const tCycle = (performance.now() * 0.001 * speedY + phaseOffset) % 1.0;
+              
+              const px = Math.sin(tCycle * Math.PI * 2 + seed) * rangeX;
+              const py = drawSize * 0.5 - tCycle * drawSize * 1.1;
+              const size = (1.5 + (seed % 3) * 0.8) * (1.0 - tCycle);
+              const alpha = (1.0 - tCycle) * 0.8;
+              
+              drawCtx.fillStyle = `rgba(255, ${100 + (seed % 10) * 12}, 10, ${alpha})`;
+              drawCtx.shadowColor = 'rgba(255, 100, 0, 0.8)';
+              drawCtx.shadowBlur = 6;
+              drawCtx.beginPath();
+              drawCtx.arc(px, py, size, 0, Math.PI * 2);
+              drawCtx.fill();
+            }
+            drawCtx.restore();
+          }
           drawCtx.restore();
         } else {
           drawCtx.drawImage(img, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
@@ -1059,6 +1092,10 @@ export function drawPiece(p, targetCtx, gameState) {
     p.powerBoosted = (gameState.temporaryBoosts || []).some(b => b.pieceId === p.id && b.amount > 0) || p.shrineBoost > 0 || p.anchorBoost > 0;
     p.isChilled = (gameState.debuffs || []).some(d => d.pieceId === p.id && d.amount > 0) || (gameState.markedPieces || []).some(m => m.targetId === p.id);
     drawStatusIcons(drawCtx, p, vis.x + C.CELL_SIZE / 2 + vis.offsetX, vis.y + C.CELL_SIZE / 2 + vis.offsetY);
+    // Ash Tyrant reddish revival shield (Death Meteor passive)
+    if (p.key === 'ashAshTyrant' && drawDeathMeteorShield) {
+      drawDeathMeteorShield(drawCtx, p, gameState);
+    }
   } catch (err) { }
 }
 export function drawDyingPieces(targetCtx, gameState) {

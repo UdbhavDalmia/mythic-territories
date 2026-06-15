@@ -108,6 +108,11 @@ export function handlePieceCapture(capturedPiece, attacker, gs) {
 
   // 0. Intercept deaths via passives (e.g. Ash Tyrant's Death Meteor)
   if (applyAoeLethalPassives(capturedPiece, gs)) {
+    // If the Ash Tyrant's Death Meteor just fired, emit the cinematic animation
+    if (capturedPiece.key === 'ashAshTyrant' && (capturedPiece.deathMeteorCooldown || 0) > 0) {
+      capturedPiece.hasTriggeredDeathMeteor = true;
+      emit(gs, { type: 'ANIMATION', name: 'DeathMeteor', pieceId: capturedPiece.id });
+    }
     return false; // Intercepted, piece survives
   }
 
@@ -499,6 +504,10 @@ export function executeAbility(
         emit(gameStateLocal, { type: "ANIMATION", name: "FateLink", targetR: target.r, targetC: target.c });
       } else if (abilityKey === "FrostfallBlessing") {
         emit(gameStateLocal, { type: "ANIMATION", name: "FrostfallBlessing", targetR: target.r, targetC: target.c });
+      } else if (abilityKey === "ReignOfFire") {
+        emit(gameStateLocal, { type: "ANIMATION", name: "ReignOfFire", pieceId: piece.id, targetR: target.r, targetC: target.c });
+      } else if (abilityKey === "DeathMeteor") {
+        emit(gameStateLocal, { type: "ANIMATION", name: "DeathMeteor", targetR: target.r, targetC: target.c });
       }
     }
   }

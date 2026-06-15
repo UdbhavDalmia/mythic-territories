@@ -583,7 +583,7 @@ function scoreActionHeuristically(action, gameState, aiTeam) {
 
         if (abilityKey === 'Siphon') {
             score += 700;
-        } else if (abilityKey === 'KingsEdict' || abilityKey === 'TyrantsProclamation') {
+        } else if (abilityKey === 'KingsEdict') {
             score += 1000;
         } else if (abilityKey === 'MarkOfCinder' || abilityKey === 'LavaGlob') {
             if (targetPiece) {
