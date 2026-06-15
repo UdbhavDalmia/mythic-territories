@@ -125,6 +125,24 @@ io.on('connection', (socket) => {
                 return;
             }
 
+            if (actionType === 'TOGGLE_TEST_MODE') {
+                gs.testMode = data.enabled;
+                if (gs.testMode) {
+                    if (!gs.originalPieces) {
+                        gs.originalPieces = JSON.parse(JSON.stringify(gs.pieces));
+                    }
+                    gs.pieces = gs.pieces.filter(p => p.key === 'snowFrostLord' || p.key === 'ashAshTyrant');
+                } else {
+                    if (gs.originalPieces) {
+                        gs.pieces = JSON.parse(JSON.stringify(gs.originalPieces));
+                        delete gs.originalPieces;
+                    }
+                }
+                room.lastSentState = null;
+                emitStateUpdate(room);
+                return;
+            }
+
             if (!player || gs.currentTurn !== player.team) return;
 
             if (!gs.gameStarted) {

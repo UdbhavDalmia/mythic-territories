@@ -326,15 +326,38 @@ export function drawAbilityHighlights(gameState) {
       const hx = gameState.hoverCol * C.CELL_SIZE + C.CELL_SIZE / 2;
       const hy = gameState.hoverRow * C.CELL_SIZE + C.CELL_SIZE / 2;
       ctx.save();
-      ctx.beginPath();
-      ctx.arc(hx, hy, ability.radius * C.CELL_SIZE, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,255,255,0.2)';
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.8)';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([6, 6]);
-      ctx.lineDashOffset = performance.now() * 0.02;
-      ctx.stroke();
+      
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = 'rgba(255, 255, 255, 0.3)';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([4, 4]);
+      ctx.lineDashOffset = performance.now() * 0.01;
+
+      if (abilityKey === 'ReignOfFire') {
+        const px = piece.col * C.CELL_SIZE + C.CELL_SIZE / 2;
+        const py = piece.row * C.CELL_SIZE + C.CELL_SIZE / 2;
+        const theta = Math.atan2(hy - py, hx - px);
+        const angleWidth = Math.PI / 3; // 60 degrees
+        const startAngle = theta - angleWidth / 2;
+        const endAngle = theta + angleWidth / 2;
+        const R = ability.range * C.CELL_SIZE;
+
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.arc(px, py, R, startAngle, endAngle);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        const R = (ability.radius || 2) * C.CELL_SIZE;
+        ctx.beginPath();
+        ctx.arc(hx, hy, R, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+      
       ctx.restore();
     }
   }
@@ -857,6 +880,68 @@ export function drawPiece(p, targetCtx, gameState) {
         drawCtx.fill();
         drawCtx.restore();
       }
+
+      // Leader/King visual enhancements: premium rotating sigils behind leaders
+      if (p.key === 'snowFrostLord') {
+        drawCtx.save();
+        drawCtx.globalCompositeOperation = 'lighter';
+        const rot = time * 0.3;
+        drawCtx.rotate(rot);
+        drawCtx.strokeStyle = 'rgba(0, 200, 255, 0.45)';
+        drawCtx.lineWidth = 1.8;
+        drawCtx.setLineDash([4, 12]);
+        drawCtx.beginPath();
+        drawCtx.arc(0, 0, drawSize * 0.58, 0, Math.PI * 2);
+        drawCtx.stroke();
+        
+        drawCtx.rotate(-rot * 2);
+        drawCtx.strokeStyle = `rgba(100, 240, 255, ${0.5 + 0.2 * Math.sin(time * 3.5)})`;
+        drawCtx.lineWidth = 2.2;
+        drawCtx.setLineDash([8, 8]);
+        drawCtx.beginPath();
+        drawCtx.arc(0, 0, drawSize * 0.46, 0, Math.PI * 2);
+        drawCtx.stroke();
+
+        const pulseGlow = 0.5 + 0.3 * Math.sin(time * 3.5);
+        const grad = drawCtx.createRadialGradient(0, 0, drawSize * 0.1, 0, 0, drawSize * 0.6);
+        grad.addColorStop(0, `rgba(0, 180, 255, ${0.25 * pulseGlow})`);
+        grad.addColorStop(1, 'rgba(0, 180, 255, 0)');
+        drawCtx.fillStyle = grad;
+        drawCtx.beginPath();
+        drawCtx.arc(0, 0, drawSize * 0.6, 0, Math.PI * 2);
+        drawCtx.fill();
+        drawCtx.restore();
+      } else if (p.key === 'ashAshTyrant') {
+        drawCtx.save();
+        drawCtx.globalCompositeOperation = 'lighter';
+        const rot = time * 0.25;
+        drawCtx.rotate(rot);
+        drawCtx.strokeStyle = 'rgba(255, 90, 0, 0.45)';
+        drawCtx.lineWidth = 2.2;
+        drawCtx.setLineDash([15, 6]);
+        drawCtx.beginPath();
+        drawCtx.arc(0, 0, drawSize * 0.58, 0, Math.PI * 2);
+        drawCtx.stroke();
+        
+        drawCtx.rotate(-rot * 1.8);
+        drawCtx.strokeStyle = `rgba(255, 140, 0, ${0.5 + 0.2 * Math.cos(time * 4.0)})`;
+        drawCtx.lineWidth = 1.8;
+        drawCtx.setLineDash([4, 18]);
+        drawCtx.beginPath();
+        drawCtx.arc(0, 0, drawSize * 0.48, 0, Math.PI * 2);
+        drawCtx.stroke();
+
+        const pulseGlow = 0.5 + 0.3 * Math.cos(time * 4.0);
+        const grad = drawCtx.createRadialGradient(0, 0, drawSize * 0.1, 0, 0, drawSize * 0.6);
+        grad.addColorStop(0, `rgba(230, 60, 0, ${0.28 * pulseGlow})`);
+        grad.addColorStop(1, 'rgba(230, 60, 0, 0)');
+        drawCtx.fillStyle = grad;
+        drawCtx.beginPath();
+        drawCtx.arc(0, 0, drawSize * 0.6, 0, Math.PI * 2);
+        drawCtx.fill();
+        drawCtx.restore();
+      }
+
       const frostLord = gameState.pieces?.find(fl => fl.key === 'snowFrostLord');
       const isIntroAnimating = frostLord && gameState.guardianAnimations?.some(a => a.pieceId === frostLord.id);
       let isFrostLordActive = false, isBuffed = false;
@@ -916,6 +1001,39 @@ export function drawPiece(p, targetCtx, gameState) {
             }
             drawCtx.restore();
           }
+
+          if (isFrostLordActive) {
+            // Draw floating ice crystal particles rising/drifting from the piece
+            drawCtx.save();
+            drawCtx.globalCompositeOperation = 'lighter';
+            for (let j = 0; j < 5; j++) {
+              const seed = (p.id * 17 + j * 43) % 100;
+              const speedY = 0.4 + (seed % 10) * 0.04;
+              const rangeX = 12 + (seed % 12);
+              const phaseOffset = seed * 0.15;
+              const tCycle = (performance.now() * 0.001 * speedY + phaseOffset) % 1.0;
+              
+              const px = Math.sin(tCycle * Math.PI * 2 + seed) * rangeX;
+              const py = drawSize * 0.5 - tCycle * drawSize * 1.1;
+              const size = (1.2 + (seed % 3) * 0.6) * (1.0 - tCycle);
+              const alpha = (1.0 - tCycle) * 0.85;
+              
+              drawCtx.fillStyle = `rgba(${135 + (seed % 5) * 20}, 235, 255, ${alpha})`;
+              drawCtx.shadowColor = 'rgba(0, 200, 255, 0.8)';
+              drawCtx.shadowBlur = 5;
+              
+              // Draw small diamond/crystal shape
+              drawCtx.beginPath();
+              drawCtx.moveTo(px, py - size * 1.5);
+              drawCtx.lineTo(px + size, py);
+              drawCtx.lineTo(px, py + size * 1.5);
+              drawCtx.lineTo(px - size, py);
+              drawCtx.closePath();
+              drawCtx.fill();
+            }
+            drawCtx.restore();
+          }
+
           drawCtx.restore();
         } else {
           drawCtx.drawImage(img, -drawSize / 2, -drawSize / 2, drawSize, drawSize);

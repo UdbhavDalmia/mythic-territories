@@ -295,6 +295,9 @@ export function dealDamage(attacker, defender, gameState) {
   }
 
   let actualDmg = Math.min(defender.currentHp, dmg);
+  if (defender.key === 'snowFrostLord' && defender.hasHelpFromAboveActive) {
+    actualDmg = 0;
+  }
   
   // Passives triggering on Lethal Strike are now handled centrally in handlePieceCapture 
   // via applyAoeLethalPassives so they trigger identically across movement and AoE.
@@ -327,80 +330,7 @@ export function dealDamage(attacker, defender, gameState) {
   return dmg;
 }
 
-/**
- * Bug 1.1 & 1.3 fix: Checks and applies lethal-strike passives (HelpFromAbove, Death Meteor)
- * before an AoE source removes a piece. Returns true if the passive intercepted the kill.
- * Call this in AoE upkeep loops instead of directly invoking handlePieceCapture when HP <= 0.
- */
-export function applyAoeLethalPassives(piece, gameState) {
-  if (!piece || typeof piece.currentHp !== "number" || piece.currentHp > 0) return false;
 
-  // Frost Lord – Help From Above
-  if (
-    piece.key === 'snowFrostLord' && !piece.hasHelpFromAboveActive
-  ) {
-    if ((piece.helpFromAboveCooldown || 0) <= 0) {
-      piece.currentHp = 1;
-      piece.helpFromAboveCooldown = C.ABILITY_VALUES.HelpFromAbove?.cooldown || 15;
-      piece.hasHelpFromAboveActive = true;
-      piece.helpFromAboveActiveTurns = C.ABILITY_VALUES.HelpFromAbove?.activeDuration || 5;
-      const radius = C.ABILITY_VALUES.HelpFromAbove?.radius || 1.5;
-      if (gameState.pieces && gameState.temporaryBoosts) {
-        gameState.pieces.forEach(ally => {
-          if (ally.team === piece.team && ally.id !== piece.id) {
-            const dist = Math.hypot(ally.row - piece.row, ally.col - piece.col);
-            if (dist <= radius) {
-              gameState.temporaryBoosts.push({
-                pieceId: ally.id,
-                amount: C.ABILITY_VALUES.HelpFromAbove?.strengthBoost || 1,
-                duration: 5,
-                name: "HelpFromAboveAura"
-              });
-            }
-          }
-        });
-      }
-      
-      // Emit the animation trigger for the client
-      if (typeof window === 'undefined' || gameState.isLocalSimulation !== true) {
-        if (!gameState.events) gameState.events = [];
-        gameState.events.push({
-          type: "ANIMATION",
-          name: "GuardianSave",
-          pieceId: piece.id,
-          r: piece.row,
-          c: piece.col
-        });
-      }
-      return true; // intercept: do NOT capture
-    }
-  }
-
-  // Ash Tyrant – Death Meteor
-  if (piece.key === "ashAshTyrant") {
-    if ((piece.deathMeteorCooldown || 0) <= 0) {
-      piece.currentHp = 1;
-      piece.deathMeteorCooldown = 15;
-      if (gameState.pieces) {
-        gameState.pieces.forEach(p => {
-          const dist = Math.hypot(p.row - piece.row, p.col - piece.col);
-          if (dist <= 2 && p.id !== piece.id) {
-            if (p.team !== piece.team) {
-              p.currentHp = Math.max(0, (p.currentHp || 5) - 4);
-            } else {
-              p.currentHp = Math.max(0, (p.currentHp || 5) - 2);
-            }
-          }
-        });
-      }
-      gameState.deathMeteors = gameState.deathMeteors || [];
-      gameState.deathMeteors.push({ r: piece.row, c: piece.col });
-      return true; // intercept: do NOT capture
-    }
-  }
-
-  return false;
-}
 
 /* ==========================================================================
    SECTION 2: MOVEMENT & COMBAT VALIDATION
@@ -451,6 +381,9 @@ export function isCaptureSuccessful(attacker, defender, gameState) {
  * Used by the Tactical Predictor in the client mousemove handler.
  */
 export function previewDamage(attacker, defender, gameState) {
+  if (defender.key === 'snowFrostLord' && defender.hasHelpFromAboveActive) {
+    return { dmg: 0, isFatal: false };
+  }
   const str = getEffectiveStrength(attacker, gameState, defender);
   const def = getEffectiveDefense(defender, gameState);
   const dmg = Math.max(1, str - def);
@@ -468,6 +401,13 @@ export function previewDamage(attacker, defender, gameState) {
  */
 export function getPieceMoveRadius(piece, gameState) {
   if (!piece) return 2;
+  
+  if (gameState?.testMode) {
+    if (piece.key === 'snowFrostLord' || piece.key === 'ashAshTyrant') {
+      return 10;
+    }
+    return 0;
+  }
   
   let agi = 2;
   // New stat-based radius — agility IS the move budget
@@ -588,7 +528,7 @@ export function getValidMoves(piece, gameState) {
   }
 
   // 2. BFS Pathfinding — budget driven by piece.agility stat
-  const moveRadius = getPieceMoveRadius(piece);
+  const moveRadius = getPieceMoveRadius(piece, gameState);
   const queue = [{ r: piece.row, c: piece.col, d: 0 }];
   const visited = new Set([`${piece.row},${piece.col}`]);
   const normalMovesMap = new Map(); // posKey -> moveObject

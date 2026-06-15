@@ -76,6 +76,44 @@ export const CONDUIT_VALUES = {
   PHASE_COLLAPSE: 3
 };
 
+export function cellIntersectsCircle(r, c, targetR, targetC, radius) {
+  const cx = targetC + 0.5;
+  const cy = targetR + 0.5;
+  const closestX = Math.max(c, Math.min(cx, c + 1));
+  const closestY = Math.max(r, Math.min(cy, r + 1));
+  const distSq = (closestX - cx) ** 2 + (closestY - cy) ** 2;
+  return distSq <= radius ** 2 + 1e-5;
+}
+
+export function cellIntersectsSector(r, c, sourceR, sourceC, targetR, targetC, range, sectorAngleWidth = Math.PI / 3) {
+  const cx = sourceC + 0.5;
+  const cy = sourceR + 0.5;
+  const tx = targetC + 0.5;
+  const ty = targetR + 0.5;
+  const theta = Math.atan2(ty - cy, tx - cx);
+
+  const steps = 4;
+  for (let i = 0; i <= steps; i++) {
+    const x = c + i / steps;
+    for (let j = 0; j <= steps; j++) {
+      const y = r + j / steps;
+      const dx = x - cx;
+      const dy = y - cy;
+      const dist = Math.hypot(dx, dy);
+      if (dist <= range + 1e-5) {
+        let angle = Math.atan2(dy, dx);
+        let diff = angle - theta;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        if (Math.abs(diff) <= sectorAngleWidth / 2 + 1e-5) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 export const ABILITY_VALUES = {
   ChillingAura: { cooldown: 4, duration: 3, powerDebuff: 1 },
   FrenziedDash: { range: 2, cooldown: 3 },
@@ -414,7 +452,11 @@ export const ABILITIES = {
       if (tp) {
         const dmg = ABILITY_VALUES.LavaGlob.damage;
         tp.power = Math.max(0, tp.power - dmg);
-        if (typeof tp.currentHp === "number") tp.currentHp = Math.max(0, tp.currentHp - dmg);
+        if (typeof tp.currentHp === "number") {
+          if (!(tp.key === 'snowFrostLord' && tp.hasHelpFromAboveActive)) {
+            tp.currentHp = Math.max(0, tp.currentHp - dmg);
+          }
+        }
       }
     }
   },
@@ -447,7 +489,11 @@ export const ABILITIES = {
       if (p.isElementalHarmony) {
         const dmg = ABILITY_VALUES.LavaGlob.damage;
         tp.power = Math.max(0, tp.power - dmg);
-        if (typeof tp.currentHp === "number") tp.currentHp = Math.max(0, tp.currentHp - dmg);
+        if (typeof tp.currentHp === "number") {
+          if (!(tp.key === 'snowFrostLord' && tp.hasHelpFromAboveActive)) {
+            tp.currentHp = Math.max(0, tp.currentHp - dmg);
+          }
+        }
       }
       gs.markedPieces.push({
         targetId: tp.id,
@@ -795,7 +841,11 @@ export const ABILITIES = {
       if (tp) {
         const dmg = ABILITY_VALUES.VolatileCinder.damage;
         tp.power = Math.max(0, tp.power - dmg);
-        if (typeof tp.currentHp === "number") tp.currentHp = Math.max(0, tp.currentHp - dmg);
+        if (typeof tp.currentHp === "number") {
+          if (!(tp.key === 'snowFrostLord' && tp.hasHelpFromAboveActive)) {
+            tp.currentHp = Math.max(0, tp.currentHp - dmg);
+          }
+        }
       }
     }
   },
@@ -821,7 +871,11 @@ export const ABILITIES = {
           const tp = getPieceAt(t.r + dr, t.c + dc, gs.pieces);
           if (tp) {
             tp.power = Math.max(0, tp.power - dmg);
-            if (typeof tp.currentHp === "number") tp.currentHp = Math.max(0, tp.currentHp - dmg);
+            if (typeof tp.currentHp === "number") {
+              if (!(tp.key === 'snowFrostLord' && tp.hasHelpFromAboveActive)) {
+                tp.currentHp = Math.max(0, tp.currentHp - dmg);
+              }
+            }
           }
         }
       gs.unstableGrounds = gs.unstableGrounds.filter((g) => g !== gr);
@@ -912,8 +966,10 @@ export const ABILITIES = {
     name: "Reign of Fire",
     cooldown: ABILITY_VALUES.ReignOfFire.cooldown,
     requiresTargeting: true,
+    circularRange: true,
     range: ABILITY_VALUES.ReignOfFire.range,
-    targetType: "empty", // AoE targets an area
+    radius: ABILITY_VALUES.ReignOfFire.radius,
+    targetType: "any", // AoE targets an area
     effect: (p, t, gs) => {
       const dmg = ABILITY_VALUES.ReignOfFire.damage;
       const allyDmg = ABILITY_VALUES.ReignOfFire.allyDamage;
@@ -923,8 +979,10 @@ export const ABILITIES = {
       
       const toRemove = [];
       gs.pieces.forEach(target => {
-        const dist = Math.hypot(target.row - t.r, target.col - t.c);
-        if (dist <= radius) {
+        if (cellIntersectsSector(target.row, target.col, p.row, p.col, t.r, t.c, ABILITY_VALUES.ReignOfFire.range, Math.PI / 3)) {
+          if (target.key === 'snowFrostLord' && target.hasHelpFromAboveActive) {
+            return; // Immune to damage
+          }
           if (target.team !== p.team) {
             target.currentHp = Math.max(0, (target.currentHp || target.stats?.hp || 5) - dmg);
             if (target.currentHp <= 0) toRemove.push({ piece: target });

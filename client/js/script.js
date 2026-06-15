@@ -175,6 +175,11 @@ E.preloadImages(C.IMAGES, (imgs) => {
                 attachImagesToState();
             }
 
+            const testToggle = document.getElementById('testModeToggle');
+            if (testToggle) {
+                testToggle.checked = !!gameState.testMode;
+            }
+
             if (!isLocal && gameState.currentTurn !== myTeam) {
                 gameState.selectedPiece = null;
             }
@@ -347,6 +352,13 @@ function setupCanvas() {
 
     if (menuBtn) menuBtn.onclick = () => { window.location.href = 'index.html'; };
     if (menuBtnMobile) menuBtnMobile.onclick = () => { window.location.href = 'index.html'; };
+
+    const testModeToggle = document.getElementById('testModeToggle');
+    if (testModeToggle) {
+        testModeToggle.onchange = () => {
+            window.sendAction('TOGGLE_TEST_MODE', { enabled: testModeToggle.checked });
+        };
+    }
 
     if (startBtn) startBtn.onclick = window.handleStartReset;
     if (startBtnMobile) startBtnMobile.onclick = window.handleStartReset;
@@ -1021,6 +1033,20 @@ export function applyActionLogic(actionType, data, gs) {
         case 'TIMEOUT':
             Logic.endGame(data.team === 'snow' ? 'ash' : 'snow');
             break;
+        case 'TOGGLE_TEST_MODE':
+            gs.testMode = data.enabled;
+            if (gs.testMode) {
+                if (!gs.originalPieces) {
+                    gs.originalPieces = JSON.parse(JSON.stringify(gs.pieces));
+                }
+                gs.pieces = gs.pieces.filter(p => p.key === 'snowFrostLord' || p.key === 'ashAshTyrant');
+            } else {
+                if (gs.originalPieces) {
+                    gs.pieces = JSON.parse(JSON.stringify(gs.originalPieces));
+                    delete gs.originalPieces;
+                }
+            }
+            break;
     }
     try { E.updateBoardMap(gs); } catch (e) { }
     try { UI.renderBoard(gs); UI.drawLabels(gs); } catch (e) { }
@@ -1291,9 +1317,74 @@ window.addEventListener('resize', scaleGame);
 window.addEventListener('DOMContentLoaded', scaleGame);
 scaleGame();
 
-// Temporary keydown listener for developer testing of the Ash Tyrant visual effects
+let lastDebugKey = null;
+let lastDebugKeyTime = 0;
+
+// Keydown listener for developer testing of the leader visual effects (f+1/2 for Frost Lord, t+1/2 for Ash Tyrant)
 window.addEventListener('keydown', e => {
     if (!gameState?.pieces) return;
+
+    const key = e.key.toLowerCase();
+    const now = Date.now();
+
+    if (key === 'f' || key === 't') {
+        lastDebugKey = key;
+        lastDebugKeyTime = now;
+        return;
+    }
+
+    if ((key === '1' || key === '2') && lastDebugKey && (now - lastDebugKeyTime < 2000)) {
+        const prefix = lastDebugKey;
+        lastDebugKey = null; // consume
+        
+        if (prefix === 'f') {
+            const frostLord = gameState.pieces.find(p => p.key === 'snowFrostLord');
+            if (frostLord) {
+                if (key === '1') {
+                    // Frost Lord active visuals (Frostfall Blessing)
+                    Effects.spawnFrostfallBlessingEffect(frostLord.row, frostLord.col, gameState);
+                } else {
+                    // Frost Lord passive visuals (Guardian Save / Help From Above)
+                    frostLord.hasHelpFromAboveActive = true;
+                    frostLord.helpFromAboveActiveTurns = 5;
+                    Effects.spawnGuardianSaveEffect(frostLord, gameState);
+                }
+            }
+        } else if (prefix === 't') {
+            const tyrant = gameState.pieces.find(p => p.key === 'ashAshTyrant');
+            if (tyrant) {
+                if (key === '1') {
+                    // Ash Tyrant active visuals (Reign of Fire)
+                    const targetR = tyrant.row;
+                    const targetC = Math.min(7, tyrant.col + 2);
+                    Effects.spawnReignOfFireEffect(tyrant, targetR, targetC, gameState);
+                    
+                    // Add temporary strength boost for local test visual feedback
+                    const radius = 2;
+                    gameState.pieces.forEach(p => {
+                        const dist = Math.hypot(p.row - targetR, p.col - targetC);
+                        if (dist <= radius && p.team === tyrant.team) {
+                            gameState.temporaryBoosts = gameState.temporaryBoosts || [];
+                            if (!gameState.temporaryBoosts.some(b => b.pieceId === p.id && b.name === "ReignOfFireStr")) {
+                                gameState.temporaryBoosts.push({
+                                    pieceId: p.id,
+                                    duration: 3,
+                                    amount: 2,
+                                    name: "ReignOfFireStr"
+                                });
+                            }
+                        }
+                    });
+                } else {
+                    // Ash Tyrant passive visuals (Death Meteor)
+                    tyrant.deathMeteorCooldown = 15;
+                    tyrant.hasTriggeredDeathMeteor = true;
+                    Effects.spawnDeathMeteorEffect(tyrant, gameState);
+                }
+            }
+        }
+        return;
+    }
 
     if (e.key.toLowerCase() === 'k') {
         const tyrant = gameState.pieces.find(p => p.key === 'ashAshTyrant');

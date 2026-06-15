@@ -1063,10 +1063,8 @@ export function drawFrostfallBlessingAnimations(ctx, gameState) {
       
       ctx.restore();
 
-      // Spawn 1-2 flakes per frame per active blessing
-      const numToSpawn = Math.floor(Math.random() * 2) + 1;
-      
-      for (let i = 0; i < numToSpawn; i++) {
+      // Spawn 1 flake every few frames (40% chance per frame) to lessen density
+      if (Math.random() < 0.4) {
         const angle = Math.random() * Math.PI * 2;
         // Concentrate more towards the center using sqrt, and slightly confine the max radius
         const distance = Math.sqrt(Math.random()) * (radiusPx - C.CELL_SIZE * 0.3); 
@@ -1192,11 +1190,27 @@ export function drawFrostfallBlessingAnimations(ctx, gameState) {
             ctx.fill();
         }
     } else {
-        // Falling snow
-        ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`; // Pure white
-        ctx.shadowColor = '#fff';
-        ctx.shadowBlur = 8; // More glow
-        ctx.fillRect(s.x - s.size / 2, s.y - s.size / 2, s.size, s.size);
+        // Falling snow - rendered as a beautiful rotating crystal snowflake
+        ctx.save();
+        ctx.translate(s.x, s.y);
+        ctx.rotate(performance.now() * 0.003 + s.size); // gentle spin
+        ctx.fillStyle = `rgba(220, 245, 255, ${s.alpha})`;
+        ctx.shadowColor = '#88ddff';
+        ctx.shadowBlur = 6;
+        
+        ctx.beginPath();
+        // 8-point crystalline star shape
+        ctx.moveTo(0, -s.size * 1.4);
+        ctx.lineTo(s.size * 0.35, -s.size * 0.35);
+        ctx.lineTo(s.size * 1.4, 0);
+        ctx.lineTo(s.size * 0.35, s.size * 0.35);
+        ctx.lineTo(0, s.size * 1.4);
+        ctx.lineTo(-s.size * 0.35, s.size * 0.35);
+        ctx.lineTo(-s.size * 1.4, 0);
+        ctx.lineTo(-s.size * 0.35, -s.size * 0.35);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
     }
     ctx.restore();
   }
@@ -1466,26 +1480,28 @@ export function spawnReignOfFireEffect(tyrantPiece, targetR, targetC, gameState)
   const dstX = targetC * C.CELL_SIZE + C.CELL_SIZE / 2;
   const dstY = targetR * C.CELL_SIZE + C.CELL_SIZE / 2;
 
-  const radius = (C.ABILITY_VALUES && C.ABILITY_VALUES.ReignOfFire && C.ABILITY_VALUES.ReignOfFire.radius) || 2;
-  const maxSpread = radius * C.CELL_SIZE * 0.75;
+  const range = (C.ABILITY_VALUES && C.ABILITY_VALUES.ReignOfFire && C.ABILITY_VALUES.ReignOfFire.range) || 2.5;
+  const R = range * C.CELL_SIZE;
+  const theta = Math.atan2(dstY - srcY, dstX - srcX);
+  const angleWidth = Math.PI / 3; // 60 degrees
 
-  const NUM_STREAMS = 7;
+  const NUM_STREAMS = 15;
   const streams = [];
   for (let i = 0; i < NUM_STREAMS; i++) {
-    // Spread targets across the AoE area
-    const angleOffset = Math.random() * Math.PI * 2;
-    const distOffset = Math.random() * maxSpread;
-    const targetFlareX = dstX + Math.cos(angleOffset) * distOffset;
-    const targetFlareY = dstY + Math.sin(angleOffset) * distOffset;
+    // Sample random endpoints within the 60-degree sector
+    const angle = theta + (Math.random() - 0.5) * angleWidth;
+    const dist = Math.random() * R;
+    const targetFlareX = srcX + Math.cos(angle) * dist;
+    const targetFlareY = srcY + Math.sin(angle) * dist;
 
-    const dx = targetFlareX - srcX;
-    const dy = targetFlareY - srcY;
-    const angle = Math.atan2(dy, dx);
+    const streamDx = targetFlareX - srcX;
+    const streamDy = targetFlareY - srcY;
+    const streamAngle = Math.atan2(streamDy, streamDx);
     const speed = 18 + Math.random() * 6;
     streams.push({
       x: srcX, y: srcY,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
+      vx: Math.cos(streamAngle) * speed,
+      vy: Math.sin(streamAngle) * speed,
       targetX: targetFlareX,
       targetY: targetFlareY,
       trail: [], impacted: false,
@@ -1494,8 +1510,9 @@ export function spawnReignOfFireEffect(tyrantPiece, targetR, targetC, gameState)
     });
   }
   const impactPieces = (gameState.pieces || []).map(p => {
-    const dist = Math.hypot(p.row - targetR, p.col - targetC);
-    if (dist <= radius) return { id: p.id, team: p.team, col: p.col, row: p.row };
+    if (C.cellIntersectsSector(p.row, p.col, tyrantPiece.row, tyrantPiece.col, targetR, targetC, range, angleWidth)) {
+      return { id: p.id, team: p.team, col: p.col, row: p.row };
+    }
     return null;
   }).filter(Boolean);
 

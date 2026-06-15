@@ -1,5 +1,5 @@
 import * as C from "./constants.js";
-import { updateBoardMap, isCaptureSuccessful, getValidMoves, dealDamage, previewDamage, getPieceMoveRadius, applyAoeLethalPassives, getEffectiveControl } from "./utils.js";
+import { updateBoardMap, isCaptureSuccessful, getValidMoves, dealDamage, previewDamage, getPieceMoveRadius, getEffectiveControl } from "./utils.js";
 import { executeAscensionChoice as _executeAscensionLogic } from "./ascension.js";
 
 let gameState = {};
@@ -100,6 +100,113 @@ function revertTetherPower(t, gs) {
     if (ally) ally.power = Math.max(0, ally.power - 1);
     if (enemy) enemy.power += 1;
   }
+}
+
+export function resolveDeaths(gs, defaultAttacker = null) {
+  let deathResolved = true;
+  while (deathResolved) {
+    deathResolved = false;
+    const dyingPiece = gs.pieces.find(p => typeof p.currentHp === "number" && p.currentHp <= 0);
+    if (dyingPiece) {
+      handlePieceCapture(dyingPiece, defaultAttacker, gs);
+      deathResolved = true;
+    }
+  }
+}
+
+/**
+ * Bug 1.1 & 1.3 fix: Checks and applies lethal-strike passives (HelpFromAbove, Death Meteor)
+ * before an AoE source removes a piece. Returns true if the passive intercepted the kill.
+ * Call this in AoE upkeep loops instead of directly invoking handlePieceCapture when HP <= 0.
+ */
+export function applyAoeLethalPassives(piece, gameState) {
+  if (!piece || typeof piece.currentHp !== "number" || piece.currentHp > 0) return false;
+
+  // Frost Lord – Help From Above
+  if (piece.key === 'snowFrostLord') {
+    if (piece.hasHelpFromAboveActive) {
+      piece.currentHp = 1;
+      return true; // Intercept death: Frost Lord is immune to death/damage during his active state
+    }
+    if ((piece.helpFromAboveCooldown || 0) <= 0) {
+      piece.currentHp = 1;
+      piece.helpFromAboveCooldown = C.ABILITY_VALUES.HelpFromAbove?.cooldown || 15;
+      piece.hasHelpFromAboveActive = true;
+      piece.helpFromAboveActiveTurns = C.ABILITY_VALUES.HelpFromAbove?.activeDuration || 5;
+      const radius = C.ABILITY_VALUES.HelpFromAbove?.radius || 1.5;
+      if (gameState.pieces && gameState.temporaryBoosts) {
+        gameState.pieces.forEach(ally => {
+          if (ally.team === piece.team && ally.id !== piece.id) {
+            const dist = Math.hypot(ally.row - piece.row, ally.col - piece.col);
+            if (dist <= radius) {
+              gameState.temporaryBoosts.push({
+                pieceId: ally.id,
+                amount: C.ABILITY_VALUES.HelpFromAbove?.strengthBoost || 1,
+                duration: 5,
+                name: "HelpFromAboveAura"
+              });
+            }
+          }
+        });
+      }
+      
+      // Emit the animation trigger for the client
+      if (typeof window === 'undefined' || gameState.isLocalSimulation !== true) {
+        if (!gameState.events) gameState.events = [];
+        gameState.events.push({
+          type: "ANIMATION",
+          name: "GuardianSave",
+          pieceId: piece.id,
+          r: piece.row,
+          c: piece.col
+        });
+      }
+      return true; // intercept: do NOT capture
+    }
+  }
+
+  // Ash Tyrant – Death Meteor
+  if (piece.key === "ashAshTyrant") {
+    if ((piece.deathMeteorCooldown || 0) <= 0) {
+      piece.currentHp = 1;
+      piece.deathMeteorCooldown = 15;
+      if (gameState.pieces) {
+        gameState.pieces.forEach(p => {
+          if (C.cellIntersectsCircle(p.row, p.col, piece.row, piece.col, 2) && p.id !== piece.id) {
+            if (p.key === 'snowFrostLord' && p.hasHelpFromAboveActive) {
+              return; // Skip damage due to active Help From Above protective state
+            }
+            if (p.team !== piece.team) {
+              p.currentHp = Math.max(0, (p.currentHp || 5) - 4);
+            } else {
+              p.currentHp = Math.max(0, (p.currentHp || 5) - 2);
+            }
+          }
+        });
+      }
+      gameState.deathMeteors = gameState.deathMeteors || [];
+      gameState.deathMeteors.push({ r: piece.row, c: piece.col });
+
+      // Secondary explosive payload logic: spawn Unstable Ground with isBurningGround on center square
+      gameState.unstableGrounds = gameState.unstableGrounds || [];
+      if (!gameState.unstableGrounds.some(g => g.row === piece.row && g.col === piece.col)) {
+        gameState.unstableGrounds.push({
+          row: piece.row,
+          col: piece.col,
+          duration: 3,
+          isBurningGround: true,
+          creator: piece
+        });
+      }
+
+      // Resolve collateral deaths caused by the explosion
+      resolveDeaths(gameState, piece);
+
+      return true; // intercept: do NOT capture
+    }
+  }
+
+  return false;
 }
 
 // Unified handler for unit destruction (reverts tethers, triggers passives)
@@ -1111,7 +1218,7 @@ export function createPiece(r, c, key, team) {
     canRiftPulse: false,
     hasUsedRiftPulse: false
   };
-  if (key.includes("Chanter") || key.includes("Warden")) {
+  if (key.includes("Chanter") || key.includes("Warden") || key.includes("Linker") || key.includes("Reaper") || key.includes("Harvester")) {
     piece.charges = 0;
     piece.overloadPoints = 0;
     piece.tethers = [];
@@ -1722,7 +1829,10 @@ export function updateConduitLink() {
     anchors.TL.anchorBoost = boost;
     if (
       (anchors.TL.key.includes("Warden") ||
-        anchors.TL.key.includes("Chanter")) &&
+        anchors.TL.key.includes("Chanter") ||
+        anchors.TL.key.includes("Linker") ||
+        anchors.TL.key.includes("Reaper") ||
+        anchors.TL.key.includes("Harvester")) &&
       !anchors.TL.hasUsedRiftPulse
     )
       anchors.TL.canRiftPulse = true;
@@ -1731,7 +1841,10 @@ export function updateConduitLink() {
     anchors.BR.anchorBoost = boost;
     if (
       (anchors.BR.key.includes("Warden") ||
-        anchors.BR.key.includes("Chanter")) &&
+        anchors.BR.key.includes("Chanter") ||
+        anchors.BR.key.includes("Linker") ||
+        anchors.BR.key.includes("Reaper") ||
+        anchors.BR.key.includes("Harvester")) &&
       !anchors.BR.hasUsedRiftPulse
     )
       anchors.BR.canRiftPulse = true;
@@ -2187,24 +2300,23 @@ function endOfTurnUpkeep() {
       if (s.duration > 0) {
         const creator = gameState.pieces.find(c => c.id === s.creatorId) || { id: 'spike', team: s.team };
         gameState.pieces.forEach(p => {
-          const dist = Math.hypot(p.row - s.r, p.col - s.c);
-          if (dist <= s.radius + 0.5) {
+          if (C.cellIntersectsCircle(p.row, p.col, s.r, s.c, s.radius)) {
             if (p.team !== s.team) {
+              if (p.key === 'snowFrostLord' && p.hasHelpFromAboveActive) {
+                return; // Immune
+              }
               const prevHp = p.currentHp;
               p.currentHp = Math.max(0, p.currentHp - s.damage);
               if (creator.id !== 'spike') {
                 creator.damageDealt = (creator.damageDealt || 0) + (prevHp - p.currentHp);
                 if (!creator.isVeteran && creator.damageDealt >= (creator.maxHp || 5)) creator.readyForVeteranPromotion = true;
               }
-              // Bug 1.1/1.3 fix: Check leader survival passives before executing capture
-              if (p.currentHp <= 0 && !applyAoeLethalPassives(p, gameState)) {
-                handlePieceCapture(p, creator, gameState);
-              }
             } else {
               p.currentHp = Math.min(p.maxHp || 5, p.currentHp + s.heal);
             }
           }
         });
+        resolveDeaths(gameState, creator);
       }
       return s.duration > 0;
     });
@@ -2223,18 +2335,16 @@ function endOfTurnUpkeep() {
       if (s.duration > 0) {
         const creator = gameState.pieces.find(c => c.id === s.creatorId) || { id: 'frost', team: s.team };
         gameState.pieces.forEach(p => {
-          const dist = Math.hypot(p.row - s.r, p.col - s.c);
-          if (dist <= s.radius + 0.5) {
+          if (C.cellIntersectsCircle(p.row, p.col, s.r, s.c, s.radius)) {
             if (p.team !== s.team) {
+              if (p.key === 'snowFrostLord' && p.hasHelpFromAboveActive) {
+                return; // Immune
+              }
               const prevHp = p.currentHp;
               p.currentHp = Math.max(0, p.currentHp - s.damage);
               if (creator.id !== 'frost') {
                 creator.damageDealt = (creator.damageDealt || 0) + (prevHp - p.currentHp);
                 if (!creator.isVeteran && creator.damageDealt >= (creator.maxHp || 5)) creator.readyForVeteranPromotion = true;
-              }
-              // Bug 1.1/1.3 fix: Check leader survival passives before executing capture
-              if (p.currentHp <= 0 && !applyAoeLethalPassives(p, gameState)) {
-                handlePieceCapture(p, creator, gameState);
               }
             } else {
               // Tyrants cannot heal from Frostfall Blessing
@@ -2244,6 +2354,7 @@ function endOfTurnUpkeep() {
             }
           }
         });
+        resolveDeaths(gameState, creator);
       }
       return s.duration > 0;
     });
@@ -2276,9 +2387,7 @@ function endOfTurnUpkeep() {
         if (target && Math.random() < 0.5) {
           target.currentHp = Math.max(0, target.currentHp - 1);
           flash(`AshesToAshes! ${C.PIECE_TYPES[target.key]?.name || 'Unit'} shatters for 1 damage!`, 'ash', gameState);
-          if (target.currentHp <= 0) {
-            handlePieceCapture(target, harvester, gameState);
-          }
+          resolveDeaths(gameState, harvester);
         }
         return false; // expire
       }
@@ -2291,9 +2400,9 @@ function endOfTurnUpkeep() {
     gameState.pendingCaptures.forEach(({ capturedId, attackerId }) => {
       const captured = gameState.pieces.find(p => p.id === capturedId);
       const attacker = gameState.pieces.find(p => p.id === attackerId);
-      // Bug 1.1/1.3 fix: Check leader survival passives before executing capture
-      if (captured && captured.currentHp <= 0 && !applyAoeLethalPassives(captured, gameState)) {
-        handlePieceCapture(captured, attacker, gameState);
+      if (captured) {
+        captured.currentHp = 0;
+        resolveDeaths(gameState, attacker);
       }
     });
     gameState.pendingCaptures = [];
@@ -2353,10 +2462,12 @@ export function withGameState(gs, fn) {
 }
 
 export function initGame() {
+  const isTestMode = gameState ? gameState.testMode : false;
   // Ensure gameState object exists and required collections are initialized
   if (!gameState || typeof gameState !== "object") gameState = {};
   gameState.pieceIdCounter = 0;
   gameState.currentState = GameState.AWAITING_PIECE_SELECTION;
+  gameState.testMode = isTestMode;
   gameState.events = [];
   gameState.pieces = [];
   if (!gameState.snowTerritory) gameState.snowTerritory = new Set();
@@ -2506,6 +2617,10 @@ export function initGame() {
     )
   );
   // Base territories are seeded entirely by the pieces' starting positions
+
+  if (isTestMode) {
+    gameState.pieces = gameState.pieces.filter(p => p.key === 'snowFrostLord' || p.key === 'ashAshTyrant');
+  }
 
   gameState.pieces.forEach((p) => {
     paintTerritoryPath(p, p.row, p.col, p.row, p.col, gameState);
