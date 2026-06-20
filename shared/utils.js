@@ -22,8 +22,12 @@ export function getEffectivePower(
   )
     return 0;
 
+  let basePower = safe(piece.power);
+  if (piece.key === 'snowFrostLord' && piece.hasHelpFromAboveActive) {
+    basePower = 3;
+  }
   let base =
-    safe(piece.power) + safe(piece.shrineBoost) + safe(piece.anchorBoost);
+    basePower + safe(piece.shrineBoost) + safe(piece.anchorBoost);
   if (piece.isConduitTier1) base += C.ANCHOR_AURA_POWER;
 
   (gameState.temporaryBoosts || [])
@@ -125,6 +129,9 @@ export function getEffectiveStrength(piece, gameState, opponent = null) {
 
   // Base from RPG stat (fall back to legacy power for old-format pieces)
   let str = safe(piece.strength, safe(piece.power, 1));
+  if (piece.key === 'snowFrostLord' && piece.hasHelpFromAboveActive) {
+    str = 3;
+  }
 
   // Shrine and anchor boosts apply to all combat stats
   str += safe(piece.shrineBoost) + safe(piece.anchorBoost);
@@ -153,14 +160,7 @@ export function getEffectiveStrength(piece, gameState, opponent = null) {
     }
   }
 
-  // Help From Above aura
-  gameState.pieces.forEach(p => {
-    if (p.team === piece.team && p.isVeteran && C.PIECE_TYPES[p.key]?.veteranAbility?.key === "HelpFromAbove") {
-      if (Math.hypot(p.row - piece.row, p.col - piece.col) <= (C.ABILITY_VALUES.HelpFromAbove?.radius || 1.5)) {
-        str += C.ABILITY_VALUES.HelpFromAbove?.strengthBoost || 1;
-      }
-    }
-  });
+  // Help From Above aura removed
 
   // Debuffs reduce strength
   (gameState.debuffs || [])
@@ -298,6 +298,9 @@ export function dealDamage(attacker, defender, gameState) {
   if (defender.key === 'snowFrostLord' && defender.hasHelpFromAboveActive) {
     actualDmg = 0;
   }
+  if (defender.key === 'ashAshTyrant' && defender.hasDeathMeteorInvincibility) {
+    actualDmg = 0;
+  }
   
   // Passives triggering on Lethal Strike are now handled centrally in handlePieceCapture 
   // via applyAoeLethalPassives so they trigger identically across movement and AoE.
@@ -382,6 +385,9 @@ export function isCaptureSuccessful(attacker, defender, gameState) {
  */
 export function previewDamage(attacker, defender, gameState) {
   if (defender.key === 'snowFrostLord' && defender.hasHelpFromAboveActive) {
+    return { dmg: 0, isFatal: false };
+  }
+  if (defender.key === 'ashAshTyrant' && defender.hasDeathMeteorInvincibility) {
     return { dmg: 0, isFatal: false };
   }
   const str = getEffectiveStrength(attacker, gameState, defender);
@@ -474,8 +480,10 @@ export function getValidMoves(piece, gameState) {
   const isFree = (r, c) => {
     const gridR = Math.round(r);
     const gridC = Math.round(c);
+    const hasCrater = (gameState.specialTerrains || []).some(t => t.type === 'crater' && Math.round(t.row) === gridR && Math.round(t.col) === gridC);
     return !walls.some((w) => w.row === gridR && w.col === gridC) &&
-           !voids.some((v) => v.row === gridR && v.col === gridC);
+           !voids.some((v) => v.row === gridR && v.col === gridC) &&
+           !hasCrater;
   };
 
   // Returns true if landing here triggers an enemy trap (BFS halts expansion)

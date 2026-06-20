@@ -662,7 +662,7 @@ export function spawnGlacialFractureEffect(row, col, gameState) {
       vrot: (Math.random() - 0.5) * 0.4
     });
   }
-  
+
   gameState.glacialFractureAnimations.push({
     x: targetX,
     y: targetY,
@@ -708,7 +708,7 @@ export function drawGlacialFractureAnimations(ctx, gameState) {
       const s = anim.shards[k];
       s.x += s.vx; s.y += s.vy; s.vx *= 0.9; s.vy *= 0.9; s.rot += s.vrot; s.alpha -= 0.03;
       if (s.alpha <= 0) { anim.shards.splice(k, 1); continue; }
-      
+
       ctx.save();
       ctx.translate(s.x, s.y); ctx.rotate(s.rot);
       ctx.fillStyle = `rgba(100, 220, 255, ${s.alpha})`;
@@ -778,7 +778,7 @@ export function drawAColdFarewellAnimations(ctx, gameState) {
       const p = anim.blastParticles[k];
       p.x += p.vx; p.y += p.vy; p.vx *= 0.85; p.vy *= 0.85; p.alpha -= 0.02;
       if (p.alpha <= 0) { anim.blastParticles.splice(k, 1); continue; }
-      
+
       ctx.fillStyle = `rgba(150, 255, 200, ${p.alpha})`;
       ctx.shadowColor = '#96ffc8';
       ctx.shadowBlur = 8;
@@ -803,13 +803,13 @@ export function spawnFrostfallBlessingEffect(r, c, gameState) {
   // Deep Freeze Vignette
   const spikes = [];
   for (let i = 0; i < 45; i++) {
-      spikes.push({
-          angle: Math.random() * Math.PI * 2,
-          length: Math.random() * 200 + 80,
-          thickness: Math.random() * 5 + 2,
-          branchAngles: [Math.random() * 0.6 + 0.2, -Math.random() * 0.6 - 0.2],
-          branchPos: Math.random() * 0.6 + 0.2
-      });
+    spikes.push({
+      angle: Math.random() * Math.PI * 2,
+      length: Math.random() * 200 + 80,
+      thickness: Math.random() * 5 + 2,
+      branchAngles: [Math.random() * 0.6 + 0.2, -Math.random() * 0.6 - 0.2],
+      branchPos: Math.random() * 0.6 + 0.2
+    });
   }
   gameState.frostVignette = { life: 0, maxLife: 180, spikes }; // Fades in and inwards, holds, then fades out over ~3 seconds
 }
@@ -818,170 +818,175 @@ export function drawFrostfallBlessingAnimations(ctx, gameState) {
   if (!gameState.frostfallShards) gameState.frostfallShards = [];
   if (!gameState.dyingFrostfallBlessings) gameState.dyingFrostfallBlessings = [];
   if (!gameState.knownFrostfallBlessings) gameState.knownFrostfallBlessings = [];
-  
+
   // Detect terminated blessings and trigger shatter sequence
   const currentIds = (gameState.frostfallBlessings || []).map(b => `${b.r},${b.c}`);
   gameState.knownFrostfallBlessings.forEach(known => {
-      if (!currentIds.includes(`${known.r},${known.c}`)) {
-          gameState.dyingFrostfallBlessings.push({ ...known, shatterLife: 1.0 });
-      }
+    if (!currentIds.includes(`${known.r},${known.c}`)) {
+      gameState.dyingFrostfallBlessings.push({ ...known, shatterLife: 1.0 });
+    }
   });
   gameState.knownFrostfallBlessings = (gameState.frostfallBlessings || []).map(b => ({ ...b }));
 
   // Draw Deep Freeze Vignette
   if (gameState.frostVignette && gameState.frostVignette.life < gameState.frostVignette.maxLife) {
+    const currentProgress = gameState.frostVignette.life / gameState.frostVignette.maxLife;
+    if (currentProgress >= 0.75) {
+      gameState.frostVignette.life += 3; // Fade out 3x faster
+    } else {
       gameState.frostVignette.life += 1;
-      const progress = gameState.frostVignette.life / gameState.frostVignette.maxLife;
-      
-      let alpha = 1.0;
-      let innerRadiusMod = 0.8;
-      
-      if (progress < 0.25) {
-          // Phase 1: Fade in and creep inwards dramatically
-          alpha = progress / 0.25;
-          innerRadiusMod = 0.9 - (progress / 0.25) * 0.7; // Transparent center shrinks drastically from 0.9 to 0.2!
-      } else if (progress < 0.75) {
-          // Phase 2: Hold the deep freeze
-          alpha = 1.0;
-          innerRadiusMod = 0.2;
-      } else {
-          // Phase 3: Slowly fade out
-          alpha = 1 - ((progress - 0.75) / 0.25);
-          innerRadiusMod = 0.2;
-      }
-      
-      ctx.save();
-      // Use source-over instead of lighter to allow the blackish shadows to render correctly
-      ctx.globalCompositeOperation = 'source-over';
-      const w = C.CANVAS_SIZE;
-      const h = C.CANVAS_SIZE;
-      
-      // Much more intense gradient
-      const grad = ctx.createRadialGradient(w/2, h/2, w * innerRadiusMod * 0.5, w/2, h/2, w * 0.8);
-      grad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-      grad.addColorStop(0.3, `rgba(220, 250, 255, ${alpha * 0.3})`); // Bright mist creeping close to center
-      grad.addColorStop(0.6, `rgba(100, 180, 240, ${alpha * 0.65})`); // Rich frosty blue
-      grad.addColorStop(0.85, `rgba(20, 40, 70, ${alpha * 0.85})`);   // Deep cold shadows
-      grad.addColorStop(1, `rgba(5, 10, 15, ${alpha * 1.0})`);        // Absolute black frost at edges
-      
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, w, h);
-      
-      // Draw procedural frost spikes creeping in (Optimized for performance)
-      ctx.save();
-      ctx.translate(w/2, h/2);
-      
-      const maxSpikeGrowth = 1.0 - innerRadiusMod; // Grows as the vignette pushes inward
-      
-      // Draw a faster simulated glow by drawing the spikes twice: once thick/faint, once thin/bright
-      // This is massively faster than using ctx.shadowBlur = 12 on 45 complex branching paths
-      [
-          { width: 8, color: `rgba(150, 220, 255, ${alpha * 0.2})` }, 
-          { width: 1, color: `rgba(220, 250, 255, ${alpha * 0.9})` }
-      ].forEach(pass => {
-          ctx.strokeStyle = pass.color;
-          gameState.frostVignette.spikes.forEach(spike => {
-              ctx.save();
-              ctx.rotate(spike.angle);
-              
-              const edgeDist = w * 0.7; // Start drawing just outside the viewable circle
-              const currentLength = spike.length * maxSpikeGrowth * 1.5; 
-              
-              ctx.lineWidth = spike.thickness * pass.width;
-              ctx.beginPath();
-              ctx.moveTo(edgeDist, 0);
-              ctx.lineTo(edgeDist - currentLength, 0);
-              
-              // Draw little frost branches coming off the main spike
-              const branchStart = edgeDist - currentLength * spike.branchPos;
-              spike.branchAngles.forEach(ba => {
-                  ctx.moveTo(branchStart, 0);
-                  ctx.lineTo(branchStart - Math.cos(ba)*currentLength*0.4, -Math.sin(ba)*currentLength*0.4);
-              });
-              
-              ctx.stroke();
-              ctx.restore();
-          });
+    }
+    const progress = Math.min(1.0, gameState.frostVignette.life / gameState.frostVignette.maxLife);
+
+    let alpha = 1.0;
+    let innerRadiusMod = 0.8;
+
+    if (progress < 0.25) {
+      // Phase 1: Fade in and creep inwards dramatically
+      alpha = progress / 0.25;
+      innerRadiusMod = 0.9 - (progress / 0.25) * 0.7; // Transparent center shrinks drastically from 0.9 to 0.2!
+    } else if (progress < 0.75) {
+      // Phase 2: Hold the deep freeze
+      alpha = 1.0;
+      innerRadiusMod = 0.2;
+    } else {
+      // Phase 3: Slowly fade out
+      alpha = 1 - ((progress - 0.75) / 0.25);
+      innerRadiusMod = 0.2;
+    }
+
+    ctx.save();
+    // Use source-over instead of lighter to allow the blackish shadows to render correctly
+    ctx.globalCompositeOperation = 'source-over';
+    const w = C.CANVAS_SIZE;
+    const h = C.CANVAS_SIZE;
+
+    // Much more intense gradient
+    const grad = ctx.createRadialGradient(w / 2, h / 2, w * innerRadiusMod * 0.5, w / 2, h / 2, w * 0.8);
+    grad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    grad.addColorStop(0.3, `rgba(220, 250, 255, ${alpha * 0.3})`); // Bright mist creeping close to center
+    grad.addColorStop(0.6, `rgba(100, 180, 240, ${alpha * 0.65})`); // Rich frosty blue
+    grad.addColorStop(0.85, `rgba(20, 40, 70, ${alpha * 0.85})`);   // Deep cold shadows
+    grad.addColorStop(1, `rgba(5, 10, 15, ${alpha * 1.0})`);        // Absolute black frost at edges
+
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    // Draw procedural frost spikes creeping in (Optimized for performance)
+    ctx.save();
+    ctx.translate(w / 2, h / 2);
+
+    const maxSpikeGrowth = 1.0 - innerRadiusMod; // Grows as the vignette pushes inward
+
+    // Draw a faster simulated glow by drawing the spikes twice: once thick/faint, once thin/bright
+    // This is massively faster than using ctx.shadowBlur = 12 on 45 complex branching paths
+    [
+      { width: 8, color: `rgba(150, 220, 255, ${alpha * 0.2})` },
+      { width: 1, color: `rgba(220, 250, 255, ${alpha * 0.9})` }
+    ].forEach(pass => {
+      ctx.strokeStyle = pass.color;
+      gameState.frostVignette.spikes.forEach(spike => {
+        ctx.save();
+        ctx.rotate(spike.angle);
+
+        const edgeDist = w * 0.7; // Start drawing just outside the viewable circle
+        const currentLength = spike.length * maxSpikeGrowth * 1.5;
+
+        ctx.lineWidth = spike.thickness * pass.width;
+        ctx.beginPath();
+        ctx.moveTo(edgeDist, 0);
+        ctx.lineTo(edgeDist - currentLength, 0);
+
+        // Draw little frost branches coming off the main spike
+        const branchStart = edgeDist - currentLength * spike.branchPos;
+        spike.branchAngles.forEach(ba => {
+          ctx.moveTo(branchStart, 0);
+          ctx.lineTo(branchStart - Math.cos(ba) * currentLength * 0.4, -Math.sin(ba) * currentLength * 0.4);
+        });
+
+        ctx.stroke();
+        ctx.restore();
       });
-      ctx.restore();
-      
-      // Icy screen border (Reduced blur radius for performance)
-      ctx.strokeStyle = `rgba(180, 240, 255, ${alpha * 0.4})`;
-      ctx.lineWidth = 25;
-      ctx.shadowColor = 'rgba(0, 0, 0, 1.0)'; 
-      ctx.shadowBlur = 25; // Halved from 60 to significantly improve GPU fill-rate
-      ctx.strokeRect(0, 0, w, h);
-      ctx.restore();
+    });
+    ctx.restore();
+
+    // Icy screen border (Reduced blur radius for performance)
+    ctx.strokeStyle = `rgba(180, 240, 255, ${alpha * 0.4})`;
+    ctx.lineWidth = 25;
+    ctx.shadowColor = 'rgba(0, 0, 0, 1.0)';
+    ctx.shadowBlur = 25; // Halved from 60 to significantly improve GPU fill-rate
+    ctx.strokeRect(0, 0, w, h);
+    ctx.restore();
   } else if (gameState.frostVignette) {
-      gameState.frostVignette = null;
+    gameState.frostVignette = null;
   }
 
   // Draw Shatter End Sequence
   for (let i = gameState.dyingFrostfallBlessings.length - 1; i >= 0; i--) {
-      const dying = gameState.dyingFrostfallBlessings[i];
-      dying.shatterLife -= 0.03;
-      
-      const targetX = dying.c * C.CELL_SIZE + C.CELL_SIZE / 2;
-      const targetY = dying.r * C.CELL_SIZE + C.CELL_SIZE / 2;
-      const radiusPx = dying.radius * C.CELL_SIZE;
-      
-      if (dying.shatterLife <= 0) {
-          gameState.dyingFrostfallBlessings.splice(i, 1);
-          // Final Burst
-          for(let j=0; j<25; j++) {
-              const angle = Math.random() * Math.PI * 2;
-              const speed = Math.random() * 8 + 4;
-              gameState.battleParticles.push({
-                  x: targetX + Math.cos(angle) * (radiusPx * 0.8),
-                  y: targetY + Math.sin(angle) * (radiusPx * 0.8), 
-                  vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed, 
-                  alpha: 1, radius: Math.random()*3+2, color: '150,220,255'
-              });
-          }
-          continue;
-      }
-      
-      // Draw dying aura - expands, fades, spins fast
-      ctx.save();
-      const expandRadius = radiusPx * (1 + (1 - dying.shatterLife) * 0.3);
-      
-      ctx.beginPath();
-      ctx.arc(targetX, targetY, expandRadius, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(100, 200, 255, ${dying.shatterLife})`;
-      ctx.shadowColor = 'rgba(100, 200, 255, 1.0)';
-      ctx.shadowBlur = 20;
-      ctx.lineWidth = 6 * dying.shatterLife;
-      ctx.stroke();
+    const dying = gameState.dyingFrostfallBlessings[i];
+    dying.shatterLife -= 0.03;
 
-      // Dying runes spin extremely fast
-      ctx.translate(targetX, targetY);
-      const timeOffset = performance.now() * 0.005; // Fast spin
-      ctx.rotate(timeOffset);
-      
-      const numRunes = 8;
-      const runeRadius = expandRadius * 0.89;
-      
-      ctx.fillStyle = `rgba(100, 220, 255, ${dying.shatterLife})`;
-      ctx.strokeStyle = `rgba(100, 220, 255, ${dying.shatterLife})`;
-      ctx.lineWidth = 2.5 * dying.shatterLife;
-      
-      for (let j = 0; j < numRunes; j++) {
-        ctx.save();
-        ctx.rotate((j / numRunes) * Math.PI * 2);
-        ctx.translate(runeRadius, 0);
-        ctx.rotate(Math.PI / 2);
-        ctx.beginPath();
-        switch(j % 4) {
-          case 0: ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.moveTo(0, -10); ctx.lineTo(0, 10); ctx.stroke(); break;
-          case 1: ctx.arc(0, -5, 4, 0, Math.PI * 2); ctx.moveTo(0, -1); ctx.lineTo(0, 8); ctx.moveTo(-5, 2); ctx.lineTo(5, 2); ctx.stroke(); break;
-          case 2: ctx.moveTo(-7, 4); ctx.lineTo(7, 4); ctx.moveTo(-7, -2); ctx.bezierCurveTo(-3, -7, 3, 3, 7, -2); ctx.stroke(); break;
-          case 3: ctx.moveTo(0, -6); ctx.lineTo(0, 5); ctx.arc(0, 5, 5, 0, Math.PI); ctx.moveTo(-5, -3); ctx.lineTo(5, -3); ctx.stroke(); break;
-        }
-        ctx.restore();
+    const targetX = dying.c * C.CELL_SIZE + C.CELL_SIZE / 2;
+    const targetY = dying.r * C.CELL_SIZE + C.CELL_SIZE / 2;
+    const radiusPx = dying.radius * C.CELL_SIZE;
+
+    if (dying.shatterLife <= 0) {
+      gameState.dyingFrostfallBlessings.splice(i, 1);
+      // Final Burst
+      for (let j = 0; j < 25; j++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 8 + 4;
+        gameState.battleParticles.push({
+          x: targetX + Math.cos(angle) * (radiusPx * 0.8),
+          y: targetY + Math.sin(angle) * (radiusPx * 0.8),
+          vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+          alpha: 1, radius: Math.random() * 3 + 2, color: '150,220,255'
+        });
+      }
+      continue;
+    }
+
+    // Draw dying aura - expands, fades, spins fast
+    ctx.save();
+    const expandRadius = radiusPx * (1 + (1 - dying.shatterLife) * 0.3);
+
+    ctx.beginPath();
+    ctx.arc(targetX, targetY, expandRadius, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(100, 200, 255, ${dying.shatterLife})`;
+    ctx.shadowColor = 'rgba(100, 200, 255, 1.0)';
+    ctx.shadowBlur = 20;
+    ctx.lineWidth = 6 * dying.shatterLife;
+    ctx.stroke();
+
+    // Dying runes spin extremely fast
+    ctx.translate(targetX, targetY);
+    const timeOffset = performance.now() * 0.005; // Fast spin
+    ctx.rotate(timeOffset);
+
+    const numRunes = 8;
+    const runeRadius = expandRadius * 0.89;
+
+    ctx.fillStyle = `rgba(100, 220, 255, ${dying.shatterLife})`;
+    ctx.strokeStyle = `rgba(100, 220, 255, ${dying.shatterLife})`;
+    ctx.lineWidth = 2.5 * dying.shatterLife;
+
+    for (let j = 0; j < numRunes; j++) {
+      ctx.save();
+      ctx.rotate((j / numRunes) * Math.PI * 2);
+      ctx.translate(runeRadius, 0);
+      ctx.rotate(Math.PI / 2);
+      ctx.beginPath();
+      switch (j % 4) {
+        case 0: ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.moveTo(0, -10); ctx.lineTo(0, 10); ctx.stroke(); break;
+        case 1: ctx.arc(0, -5, 4, 0, Math.PI * 2); ctx.moveTo(0, -1); ctx.lineTo(0, 8); ctx.moveTo(-5, 2); ctx.lineTo(5, 2); ctx.stroke(); break;
+        case 2: ctx.moveTo(-7, 4); ctx.lineTo(7, 4); ctx.moveTo(-7, -2); ctx.bezierCurveTo(-3, -7, 3, 3, 7, -2); ctx.stroke(); break;
+        case 3: ctx.moveTo(0, -6); ctx.lineTo(0, 5); ctx.arc(0, 5, 5, 0, Math.PI); ctx.moveTo(-5, -3); ctx.lineTo(5, -3); ctx.stroke(); break;
       }
       ctx.restore();
+    }
+    ctx.restore();
   }
-  
+
   // Continuously spawn new shards for active abilities
   if (gameState.frostfallBlessings && gameState.frostfallBlessings.length > 0) {
     gameState.frostfallBlessings.forEach(blessing => {
@@ -991,7 +996,7 @@ export function drawFrostfallBlessingAnimations(ctx, gameState) {
 
       // Draw the magical aura boundary
       ctx.save();
-      
+
       // Faint frosted inner area
       ctx.beginPath();
       ctx.arc(targetX, targetY, radiusPx, 0, Math.PI * 2);
@@ -1018,22 +1023,22 @@ export function drawFrostfallBlessingAnimations(ctx, gameState) {
       ctx.translate(targetX, targetY);
       const timeOffset = performance.now() * 0.0004;
       ctx.rotate(timeOffset);
-      
+
       const numRunes = 8;
       const runeRadius = radiusPx * 0.89;
-      
+
       ctx.fillStyle = 'rgba(100, 220, 255, 0.9)';
       ctx.strokeStyle = 'rgba(100, 220, 255, 0.9)';
       ctx.lineWidth = 2.5;
-      
+
       for (let i = 0; i < numRunes; i++) {
         ctx.save();
         ctx.rotate((i / numRunes) * Math.PI * 2);
         ctx.translate(runeRadius, 0);
         ctx.rotate(Math.PI / 2); // Orient symbols tangentially
-        
+
         ctx.beginPath();
-        switch(i % 4) {
+        switch (i % 4) {
           case 0: // Circle with line (Phi)
             ctx.arc(0, 0, 7, 0, Math.PI * 2);
             ctx.moveTo(0, -10); ctx.lineTo(0, 10);
@@ -1060,15 +1065,15 @@ export function drawFrostfallBlessingAnimations(ctx, gameState) {
         }
         ctx.restore();
       }
-      
+
       ctx.restore();
 
       // Spawn 1 flake every few frames (40% chance per frame) to lessen density
       if (Math.random() < 0.4) {
         const angle = Math.random() * Math.PI * 2;
         // Concentrate more towards the center using sqrt, and slightly confine the max radius
-        const distance = Math.sqrt(Math.random()) * (radiusPx - C.CELL_SIZE * 0.3); 
-        
+        const distance = Math.sqrt(Math.random()) * (radiusPx - C.CELL_SIZE * 0.3);
+
         gameState.frostfallShards.push({
           cx: targetX,
           cy: targetY,
@@ -1089,48 +1094,48 @@ export function drawFrostfallBlessingAnimations(ctx, gameState) {
   // Animate existing shards
   for (let k = gameState.frostfallShards.length - 1; k >= 0; k--) {
     const s = gameState.frostfallShards[k];
-    s.x += s.vx; 
+    s.x += s.vx;
     s.y += s.vy;
-    
+
     // Constrain snow to not drift outside the boundary circle
     if (s.vy > 0 && Math.hypot(s.x - s.cx, s.targetY - s.cy) > s.maxRadius - s.size) {
-        s.vx *= -1; // Bounce back horizontally if drifting outside
-        s.x += s.vx;
+      s.vx *= -1; // Bounce back horizontally if drifting outside
+      s.x += s.vx;
     }
 
     if (!s.hitProcessed && s.y >= s.targetY) {
       s.hitProcessed = true;
-      
+
       let col = Math.floor(s.x / C.CELL_SIZE);
       let row = Math.floor(s.targetY / C.CELL_SIZE);
       const hitPiece = C.getPieceAt(row, col, gameState.pieces);
-      
+
       // Strict check to ensure the piece is formally within the true radius
       const isInsideRadius = hitPiece ? Math.hypot(hitPiece.row - Math.floor(s.cy / C.CELL_SIZE), hitPiece.col - Math.floor(s.cx / C.CELL_SIZE)) <= s.maxRadius / C.CELL_SIZE : false;
-      
+
       if (hitPiece && isInsideRadius) {
-          s.vy = 0;
-          s.vx = 0;
-          s.isPieceHit = true;
-          // Randomly position the dot slightly higher to look like it stuck to the unit
-          s.y -= Math.random() * C.CELL_SIZE * 0.6;
-          if (hitPiece.team !== 'snow') {
-              s.hitColor = '255, 255, 255'; // Enemy hit: white dot
-              s.hitType = 'enemy';
-              s.shatterOffsets = Array.from({length: 4}, () => ({
-                  dx: (Math.random() - 0.5) * 15,
-                  dy: (Math.random() - 0.5) * 15,
-                  flickerSpeed: Math.random() * 0.015 + 0.01
-              }));
-          } else {
-              s.hitColor = '100, 255, 100'; // Ally hit: green dot
-              s.hitType = 'ally';
-              s.starRotation = Math.random() * Math.PI;
-          }
+        s.vy = 0;
+        s.vx = 0;
+        s.isPieceHit = true;
+        // Randomly position the dot slightly higher to look like it stuck to the unit
+        s.y -= Math.random() * C.CELL_SIZE * 0.6;
+        if (hitPiece.team !== 'snow') {
+          s.hitColor = '255, 255, 255'; // Enemy hit: white dot
+          s.hitType = 'enemy';
+          s.shatterOffsets = Array.from({ length: 4 }, () => ({
+            dx: (Math.random() - 0.5) * 15,
+            dy: (Math.random() - 0.5) * 15,
+            flickerSpeed: Math.random() * 0.015 + 0.01
+          }));
+        } else {
+          s.hitColor = '100, 255, 100'; // Ally hit: green dot
+          s.hitType = 'ally';
+          s.starRotation = Math.random() * Math.PI;
+        }
       } else {
-          // Hit empty ground: stick to the floor
-          s.vy = 0;
-          s.vx = 0;
+        // Hit empty ground: stick to the floor
+        s.vy = 0;
+        s.vx = 0;
       }
     }
 
@@ -1138,79 +1143,80 @@ export function drawFrostfallBlessingAnimations(ctx, gameState) {
       gameState.frostfallShards.splice(k, 1);
       continue;
     }
-    
+
     ctx.save();
     if (s.vy === 0) {
-        if (s.isPieceHit) {
-            // Dot stuck to a piece
-            s.alpha -= 0.04; // Fade out relatively quickly
-            if (s.hitType === 'enemy') {
-                // Flickering particles for enemies
-                ctx.shadowColor = `rgba(${s.hitColor}, 1.0)`;
-                ctx.shadowBlur = 12; // Add strong glow for visibility
-                s.shatterOffsets.forEach(off => {
-                    off.dy -= 0.3; // Drift upward slightly faster
-                    // Higher baseline alpha for more visibility
-                    const flickerAlpha = Math.max(0, s.alpha * (0.7 + 0.5 * Math.sin(performance.now() * off.flickerSpeed)));
-                    ctx.fillStyle = `rgba(${s.hitColor}, ${flickerAlpha})`;
-                    ctx.beginPath();
-                    // Increased particle size
-                    ctx.arc(s.x + off.dx, s.y + off.dy, s.size / 1.5, 0, Math.PI * 2);
-                    ctx.fill();
-                });
-            } else {
-                // Rotating star shines for allies
-                // Lower baseline alpha for subtler effect
-                const starAlpha = s.alpha * 0.5;
-                ctx.fillStyle = `rgba(${s.hitColor}, ${starAlpha})`;
-                ctx.save();
-                ctx.translate(s.x, s.y);
-                ctx.rotate(s.starRotation + performance.now() * 0.001);
-                const spikes = 4;
-                // Reduced star size
-                const outerRadius = s.size * 1.5;
-                const innerRadius = s.size * 0.4;
-                ctx.beginPath();
-                for (let i = 0; i < spikes * 2; i++) {
-                    const radius = i % 2 === 0 ? outerRadius : innerRadius;
-                    const angle = (i * Math.PI) / spikes;
-                    if (i === 0) ctx.moveTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
-                    else ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
-                }
-                ctx.closePath();
-                ctx.fill();
-                ctx.restore();
-            }
-        } else {
-            // Baked snow on the floor
-            s.alpha -= 0.0015; // Fade out very slowly to stay longer
-            ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
+      if (s.isPieceHit) {
+        // Dot stuck to a piece
+        s.alpha -= 0.04; // Fade out relatively quickly
+        if (s.hitType === 'enemy') {
+          // Flickering particles for enemies
+          ctx.shadowColor = `rgba(${s.hitColor}, 1.0)`;
+          ctx.shadowBlur = 12; // Add strong glow for visibility
+          s.shatterOffsets.forEach(off => {
+            off.dy -= 0.3; // Drift upward slightly faster
+            // Higher baseline alpha for more visibility
+            const flickerAlpha = Math.max(0, s.alpha * (0.7 + 0.5 * Math.sin(performance.now() * off.flickerSpeed)));
+            ctx.fillStyle = `rgba(${s.hitColor}, ${flickerAlpha})`;
             ctx.beginPath();
-            ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+            // Increased particle size
+            ctx.arc(s.x + off.dx, s.y + off.dy, s.size / 1.5, 0, Math.PI * 2);
             ctx.fill();
+          });
+        } else {
+          // Rotating star shines for allies with green glow
+          const starAlpha = s.alpha * 0.7;
+          ctx.save();
+          ctx.shadowColor = `rgba(${s.hitColor}, 1.0)`;
+          ctx.shadowBlur = 10;
+          ctx.fillStyle = `rgba(${s.hitColor}, ${starAlpha})`;
+          ctx.translate(s.x, s.y);
+          ctx.rotate(s.starRotation + performance.now() * 0.001);
+          const spikes = 4;
+          // Reduced star size
+          const outerRadius = s.size * 1.5;
+          const innerRadius = s.size * 0.4;
+          ctx.beginPath();
+          for (let i = 0; i < spikes * 2; i++) {
+            const radius = i % 2 === 0 ? outerRadius : innerRadius;
+            const angle = (i * Math.PI) / spikes;
+            if (i === 0) ctx.moveTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+            else ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
         }
-    } else {
-        // Falling snow - rendered as a beautiful rotating crystal snowflake
-        ctx.save();
-        ctx.translate(s.x, s.y);
-        ctx.rotate(performance.now() * 0.003 + s.size); // gentle spin
-        ctx.fillStyle = `rgba(220, 245, 255, ${s.alpha})`;
-        ctx.shadowColor = '#88ddff';
-        ctx.shadowBlur = 6;
-        
+      } else {
+        // Baked snow on the floor
+        s.alpha -= 0.0015; // Fade out very slowly to stay longer
+        ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
         ctx.beginPath();
-        // 8-point crystalline star shape
-        ctx.moveTo(0, -s.size * 1.4);
-        ctx.lineTo(s.size * 0.35, -s.size * 0.35);
-        ctx.lineTo(s.size * 1.4, 0);
-        ctx.lineTo(s.size * 0.35, s.size * 0.35);
-        ctx.lineTo(0, s.size * 1.4);
-        ctx.lineTo(-s.size * 0.35, s.size * 0.35);
-        ctx.lineTo(-s.size * 1.4, 0);
-        ctx.lineTo(-s.size * 0.35, -s.size * 0.35);
-        ctx.closePath();
+        ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
         ctx.fill();
-        ctx.restore();
+      }
+    } else {
+      // Falling snow - rendered as a beautiful rotating crystal snowflake
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      ctx.rotate(performance.now() * 0.003 + s.size); // gentle spin
+      ctx.fillStyle = `rgba(220, 245, 255, ${s.alpha})`;
+      ctx.shadowColor = '#88ddff';
+      ctx.shadowBlur = 6;
+
+      ctx.beginPath();
+      // 8-point crystalline star shape
+      ctx.moveTo(0, -s.size * 1.4);
+      ctx.lineTo(s.size * 0.35, -s.size * 0.35);
+      ctx.lineTo(s.size * 1.4, 0);
+      ctx.lineTo(s.size * 0.35, s.size * 0.35);
+      ctx.lineTo(0, s.size * 1.4);
+      ctx.lineTo(-s.size * 0.35, s.size * 0.35);
+      ctx.lineTo(-s.size * 1.4, 0);
+      ctx.lineTo(-s.size * 0.35, -s.size * 0.35);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
     }
     ctx.restore();
   }
@@ -1219,7 +1225,7 @@ export function drawFrostfallBlessingAnimations(ctx, gameState) {
 export function spawnFateLinkCast(src, dst, gameState) {
   if (!gameState.fateLinkAnimations) gameState.fateLinkAnimations = [];
   if (!src || !dst) return;
-  
+
   const sx = src.col * C.CELL_SIZE + C.CELL_SIZE / 2;
   const sy = src.row * C.CELL_SIZE + C.CELL_SIZE / 2;
   const dx = dst.col * C.CELL_SIZE + C.CELL_SIZE / 2;
@@ -1248,7 +1254,7 @@ export function drawFateLinkAnimations(ctx, gameState) {
     ctx.shadowBlur = 15;
     ctx.setLineDash([10, 10]);
     ctx.lineDashOffset = -anim.ticks;
-    
+
     ctx.beginPath();
     ctx.moveTo(anim.sx, anim.sy);
     ctx.lineTo(anim.sx + (anim.dx - anim.sx) * progress, anim.sy + (anim.dy - anim.sy) * progress);
@@ -1271,192 +1277,171 @@ export function spawnGuardianSaveEffect(piece, gameState) {
 
   gameState.guardianAnimations = gameState.guardianAnimations || [];
   gameState.guardianAnimations.push({
-      x: piece.col * C.CELL_SIZE + C.CELL_SIZE / 2,
-      y: piece.row * C.CELL_SIZE + C.CELL_SIZE / 2,
-      pieceId: piece.id,
-      life: 1.0,
-      rays: [],
-      raysSpawned: false
+    x: piece.col * C.CELL_SIZE + C.CELL_SIZE / 2,
+    y: piece.row * C.CELL_SIZE + C.CELL_SIZE / 2,
+    pieceId: piece.id,
+    life: 1.0,
+    rays: [],
+    raysSpawned: false
   });
 }
 
 export function drawGuardianSaveAnimations(ctx, gameState) {
   if (!gameState.guardianAnimations) return;
   for (let i = gameState.guardianAnimations.length - 1; i >= 0; i--) {
-      const anim = gameState.guardianAnimations[i];
-      anim.life -= 0.006; // Slower decay (was 0.012) for a more epic feel
+    const anim = gameState.guardianAnimations[i];
+    anim.life -= 0.006; // Slower decay (was 0.012) for a more epic feel
 
-      const cx = anim.x;
-      const cy = anim.y;
+    const cx = anim.x;
+    const cy = anim.y;
 
-      // Phase 1: Divine Light Column (life between 1.0 and 0.4)
-      if (anim.life > 0.4) {
-          ctx.save();
-          ctx.globalCompositeOperation = 'lighter';
+    // Phase 1: Divine Light Column (life between 1.0 and 0.4)
+    if (anim.life > 0.4) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
 
-          // Draw vertical beams of light descending from top
-          const beamWidth = C.CELL_SIZE * 1.5;
-          const beamAlpha = Math.min(1.0, (anim.life - 0.4) / 0.6);
+      // Draw vertical beams of light descending from top
+      const beamWidth = C.CELL_SIZE * 1.5;
+      const beamAlpha = Math.min(1.0, (anim.life - 0.4) / 0.6);
 
-          // 1. Center intense white-gold core
-          const coreGrad = ctx.createLinearGradient(cx - beamWidth/2, 0, cx + beamWidth/2, 0);
-          coreGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
-          coreGrad.addColorStop(0.5, `rgba(255, 245, 200, ${0.8 * beamAlpha})`);
-          coreGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-          
-          ctx.fillStyle = coreGrad;
-          ctx.fillRect(cx - beamWidth, 0, beamWidth * 2, cy);
+      // 1. Center intense white-gold core
+      const coreGrad = ctx.createLinearGradient(cx - beamWidth / 2, 0, cx + beamWidth / 2, 0);
+      coreGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
+      coreGrad.addColorStop(0.5, `rgba(255, 245, 200, ${0.8 * beamAlpha})`);
+      coreGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
 
-          // 2. Wide glowing cyan/blue shroud
-          const outerGrad = ctx.createLinearGradient(cx - beamWidth, 0, cx + beamWidth, 0);
-          outerGrad.addColorStop(0, 'rgba(0, 240, 255, 0)');
-          outerGrad.addColorStop(0.5, `rgba(0, 220, 255, ${0.4 * beamAlpha})`);
-          outerGrad.addColorStop(1, 'rgba(0, 240, 255, 0)');
-          
-          ctx.fillStyle = outerGrad;
-          ctx.fillRect(cx - beamWidth * 2, 0, beamWidth * 4, cy);
+      ctx.fillStyle = coreGrad;
+      ctx.fillRect(cx - beamWidth, 0, beamWidth * 2, cy);
 
-          // 3. Ground energy flare around the Frost Lord
-          const radialGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, C.CELL_SIZE * 1.8);
-          radialGrad.addColorStop(0, `rgba(255, 255, 255, ${0.9 * beamAlpha})`);
-          radialGrad.addColorStop(0.3, `rgba(0, 230, 255, ${0.6 * beamAlpha})`);
-          radialGrad.addColorStop(0.7, `rgba(0, 150, 255, ${0.25 * beamAlpha})`);
-          radialGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      // 2. Wide glowing cyan/blue shroud
+      const outerGrad = ctx.createLinearGradient(cx - beamWidth, 0, cx + beamWidth, 0);
+      outerGrad.addColorStop(0, 'rgba(0, 240, 255, 0)');
+      outerGrad.addColorStop(0.5, `rgba(0, 220, 255, ${0.4 * beamAlpha})`);
+      outerGrad.addColorStop(1, 'rgba(0, 240, 255, 0)');
 
-          ctx.fillStyle = radialGrad;
+      ctx.fillStyle = outerGrad;
+      ctx.fillRect(cx - beamWidth * 2, 0, beamWidth * 4, cy);
+
+      // 3. Ground energy flare around the Frost Lord
+      const radialGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, C.CELL_SIZE * 1.8);
+      radialGrad.addColorStop(0, `rgba(255, 255, 255, ${0.9 * beamAlpha})`);
+      radialGrad.addColorStop(0.3, `rgba(0, 230, 255, ${0.6 * beamAlpha})`);
+      radialGrad.addColorStop(0.7, `rgba(0, 150, 255, ${0.25 * beamAlpha})`);
+      radialGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+      ctx.fillStyle = radialGrad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, C.CELL_SIZE * 1.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 4. Floating sparks/particles rising inside the light
+      if (Math.random() < 0.4) {
+        anim.rays.push({
+          type: 'spark',
+          x: cx + (Math.random() - 0.5) * C.CELL_SIZE * 1.2,
+          y: cy,
+          vy: -(Math.random() * 1.5 + 1.0), // Slower sparks (was random * 3 + 2)
+          alpha: 1.0,
+          size: Math.random() * 3 + 2
+        });
+      }
+
+      ctx.restore();
+    }
+
+    // Phase 2: Ray Breakdown Trigger
+    // When life drops to 0.4, trigger the rays shooting towards nearby pieces
+    if (anim.life <= 0.4 && !anim.raysSpawned) {
+      anim.raysSpawned = true;
+    }
+
+    // Update and draw spark and projectile particles
+    let activeParticles = 0;
+    anim.rays.forEach(r => {
+      if (r.type === 'spark') {
+        r.y += r.vy;
+        r.alpha -= 0.02;
+        if (r.alpha > 0) {
+          activeParticles++;
+          ctx.fillStyle = `rgba(255, 235, 150, ${r.alpha})`;
           ctx.beginPath();
-          ctx.arc(cx, cy, C.CELL_SIZE * 1.8, 0, Math.PI * 2);
+          ctx.arc(r.x, r.y, r.size, 0, Math.PI * 2);
           ctx.fill();
+        }
+      } else if (r.type === 'projectile') {
+        const targetPiece = gameState.pieces.find(p => p.id === r.targetPieceId);
+        if (targetPiece) {
+          if (!r.arrived) {
+            r.progress += r.speed;
+            if (r.progress < 1.0) {
+              activeParticles++;
+              const vis = UI.getPieceVisualState(targetPiece);
+              const tx = vis.x + C.CELL_SIZE / 2 + vis.offsetX;
+              const ty = vis.y + C.CELL_SIZE / 2 + vis.offsetY;
 
-          // 4. Floating sparks/particles rising inside the light
-          if (Math.random() < 0.4) {
-              anim.rays.push({
-                  type: 'spark',
-                  x: cx + (Math.random() - 0.5) * C.CELL_SIZE * 1.2,
-                  y: cy,
-                  vy: -(Math.random() * 1.5 + 1.0), // Slower sparks (was random * 3 + 2)
-                  alpha: 1.0,
-                  size: Math.random() * 3 + 2
-              });
-          }
+              const rx = cx + (tx - cx) * r.progress;
+              const ry = cy + (ty - cy) * r.progress;
 
-          ctx.restore();
-      }
+              // Record trail
+              r.trail.push({ x: rx, y: ry });
+              if (r.trail.length > 8) r.trail.shift();
 
-      // Phase 2: Ray Breakdown Trigger
-      // When life drops to 0.4, trigger the rays shooting towards nearby pieces
-      if (anim.life <= 0.4 && !anim.raysSpawned) {
-          anim.raysSpawned = true;
-          const fl = gameState.pieces.find(p => p.id === anim.pieceId);
-          if (fl) {
-              // Find Snow team pieces within radius 1.5 (adjacent/diagonal)
-              const allies = gameState.pieces.filter(p => 
-                  p.id !== fl.id && 
-                  p.team === fl.team && 
-                  p.currentHp > 0 &&
-                  Math.hypot(p.row - fl.row, p.col - fl.col) <= 1.5
-              );
+              ctx.save();
+              ctx.globalCompositeOperation = 'lighter';
 
-              allies.forEach(ally => {
-                  anim.rays.push({
-                      type: 'projectile',
-                      targetPieceId: ally.id,
-                      progress: 0.0,
-                      speed: 0.02 + Math.random() * 0.01, // Slower travel (was 0.05 + random * 0.02)
-                      trail: [],
-                      arrived: false
-                  });
-              });
-          }
-      }
-
-      // Update and draw spark and projectile particles
-      let activeParticles = 0;
-      anim.rays.forEach(r => {
-          if (r.type === 'spark') {
-              r.y += r.vy;
-              r.alpha -= 0.02;
-              if (r.alpha > 0) {
-                  activeParticles++;
-                  ctx.fillStyle = `rgba(255, 235, 150, ${r.alpha})`;
-                  ctx.beginPath();
-                  ctx.arc(r.x, r.y, r.size, 0, Math.PI * 2);
-                  ctx.fill();
+              // Draw trail line
+              ctx.beginPath();
+              if (r.trail.length > 0) {
+                ctx.moveTo(r.trail[0].x, r.trail[0].y);
+                for (let ti = 1; ti < r.trail.length; ti++) {
+                  ctx.lineTo(r.trail[ti].x, r.trail[ti].y);
+                }
               }
-          } else if (r.type === 'projectile') {
-              const targetPiece = gameState.pieces.find(p => p.id === r.targetPieceId);
-              if (targetPiece) {
-                  if (!r.arrived) {
-                      r.progress += r.speed;
-                      if (r.progress < 1.0) {
-                          activeParticles++;
-                          const vis = UI.getPieceVisualState(targetPiece);
-                          const tx = vis.x + C.CELL_SIZE / 2 + vis.offsetX;
-                          const ty = vis.y + C.CELL_SIZE / 2 + vis.offsetY;
+              ctx.strokeStyle = 'rgba(255, 220, 100, 0.6)';
+              ctx.lineWidth = 3;
+              ctx.stroke();
 
-                          const rx = cx + (tx - cx) * r.progress;
-                          const ry = cy + (ty - cy) * r.progress;
+              // Draw glowing projectile head
+              ctx.shadowColor = '#ffd700';
+              ctx.shadowBlur = 12;
+              ctx.fillStyle = '#ffffff';
+              ctx.beginPath();
+              ctx.arc(rx, ry, 6, 0, Math.PI * 2);
+              ctx.fill();
 
-                          // Record trail
-                          r.trail.push({ x: rx, y: ry });
-                          if (r.trail.length > 8) r.trail.shift();
+              ctx.restore();
+            } else {
+              // Ray arrived!
+              r.arrived = true;
+              targetPiece.helpFromAboveVisualActive = true;
+              targetPiece.helpFromAboveGlowMultiplier = 0.0; // trigger fade-in
 
-                          ctx.save();
-                          ctx.globalCompositeOperation = 'lighter';
-                          
-                          // Draw trail line
-                          ctx.beginPath();
-                          if (r.trail.length > 0) {
-                              ctx.moveTo(r.trail[0].x, r.trail[0].y);
-                              for (let ti = 1; ti < r.trail.length; ti++) {
-                                  ctx.lineTo(r.trail[ti].x, r.trail[ti].y);
-                              }
-                          }
-                          ctx.strokeStyle = 'rgba(255, 220, 100, 0.6)';
-                          ctx.lineWidth = 3;
-                          ctx.stroke();
+              // Draw a flash impact spark
+              ctx.save();
+              ctx.globalCompositeOperation = 'lighter';
+              const vis = UI.getPieceVisualState(targetPiece);
+              const tx = vis.x + C.CELL_SIZE / 2 + vis.offsetX;
+              const ty = vis.y + C.CELL_SIZE / 2 + vis.offsetY;
 
-                          // Draw glowing projectile head
-                          ctx.shadowColor = '#ffd700';
-                          ctx.shadowBlur = 12;
-                          ctx.fillStyle = '#ffffff';
-                          ctx.beginPath();
-                          ctx.arc(rx, ry, 6, 0, Math.PI * 2);
-                          ctx.fill();
-                          
-                          ctx.restore();
-                      } else {
-                          // Ray arrived!
-                          r.arrived = true;
-                          targetPiece.helpFromAboveVisualActive = true;
-                          targetPiece.helpFromAboveGlowMultiplier = 0.0; // trigger fade-in
-                          
-                          // Draw a flash impact spark
-                          ctx.save();
-                          ctx.globalCompositeOperation = 'lighter';
-                          const vis = UI.getPieceVisualState(targetPiece);
-                          const tx = vis.x + C.CELL_SIZE / 2 + vis.offsetX;
-                          const ty = vis.y + C.CELL_SIZE / 2 + vis.offsetY;
-                          
-                          const radialGrad = ctx.createRadialGradient(tx, ty, 0, tx, ty, C.CELL_SIZE * 0.8);
-                          radialGrad.addColorStop(0, 'rgba(255, 240, 150, 0.9)');
-                          radialGrad.addColorStop(0.5, 'rgba(255, 200, 50, 0.4)');
-                          radialGrad.addColorStop(1, 'rgba(255, 200, 50, 0)');
-                          ctx.fillStyle = radialGrad;
-                          ctx.beginPath();
-                          ctx.arc(tx, ty, C.CELL_SIZE * 0.8, 0, Math.PI * 2);
-                          ctx.fill();
-                          ctx.restore();
-                      }
-                  }
-              }
+              const radialGrad = ctx.createRadialGradient(tx, ty, 0, tx, ty, C.CELL_SIZE * 0.8);
+              radialGrad.addColorStop(0, 'rgba(255, 240, 150, 0.9)');
+              radialGrad.addColorStop(0.5, 'rgba(255, 200, 50, 0.4)');
+              radialGrad.addColorStop(1, 'rgba(255, 200, 50, 0)');
+              ctx.fillStyle = radialGrad;
+              ctx.beginPath();
+              ctx.arc(tx, ty, C.CELL_SIZE * 0.8, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.restore();
+            }
           }
-      });
-
-      // Remove the entire animation if life is over and all particles are dead
-      if (anim.life <= 0 && activeParticles === 0) {
-          gameState.guardianAnimations.splice(i, 1);
+        }
       }
+    });
+
+    // Remove the entire animation if life is over and all particles are dead
+    if (anim.life <= 0 && activeParticles === 0) {
+      gameState.guardianAnimations.splice(i, 1);
+    }
   }
 }
 
@@ -1543,7 +1528,7 @@ export function drawReignOfFireAnimations(ctx, gameState) {
 
       if (dist < Math.hypot(st.vx, st.vy) + 2) {
         st.impacted = true;
-        
+
         // Localized impact visual at flare destination
         gameState.shockwaves = gameState.shockwaves || [];
         gameState.shockwaves.push({ x: st.targetX, y: st.targetY, radius: C.CELL_SIZE * 0.8, life: 0.8, color: '255, 100, 0' });
@@ -1686,7 +1671,7 @@ export function drawDeathMeteorAnimations(ctx, gameState) {
     if (anim.phase === 'eclipse') {
       anim.eclipseLife = Math.min(1, anim.ticks / 20);
       ctx.save();
-      const g = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, W*0.7);
+      const g = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, W * 0.7);
       g.addColorStop(0, `rgba(25, 0, 0, ${anim.eclipseLife * 0.45})`);
       g.addColorStop(0.5, `rgba(5, 0, 0, ${anim.eclipseLife * 0.72})`);
       g.addColorStop(1, `rgba(0, 0, 0, ${anim.eclipseLife * 0.88})`);
@@ -1695,7 +1680,7 @@ export function drawDeathMeteorAnimations(ctx, gameState) {
 
     } else if (anim.phase === 'fall') {
       ctx.save();
-      const g = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, W*0.7);
+      const g = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, W * 0.7);
       g.addColorStop(0, 'rgba(25, 0, 0, 0.45)'); g.addColorStop(0.5, 'rgba(5, 0, 0, 0.72)'); g.addColorStop(1, 'rgba(0, 0, 0, 0.88)');
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore();
 
@@ -1705,55 +1690,60 @@ export function drawDeathMeteorAnimations(ctx, gameState) {
       if (dist > speed + 2) {
         anim.meteorX += (dx / dist) * speed; anim.meteorY += (dy / dist) * speed;
         for (let e = 0; e < 5; e++) {
-          anim.emberTrail.push({ x: anim.meteorX + (Math.random()-0.5)*18, y: anim.meteorY + (Math.random()-0.5)*18, vx: (Math.random()-0.5)*2, vy: Math.random()*3-0.5, alpha: 1, size: Math.random()*8+4 });
+          anim.emberTrail.push({ x: anim.meteorX + (Math.random() - 0.5) * 18, y: anim.meteorY + (Math.random() - 0.5) * 18, vx: (Math.random() - 0.5) * 2, vy: Math.random() * 3 - 0.5, alpha: 1, size: Math.random() * 8 + 4 });
         }
+        ctx.save();
+        // High performance ember trail (shadowBlur removed)
         for (let t = anim.emberTrail.length - 1; t >= 0; t--) {
           const tp = anim.emberTrail[t]; tp.x += tp.vx; tp.y += tp.vy; tp.alpha -= 0.05;
           if (tp.alpha <= 0) { anim.emberTrail.splice(t, 1); continue; }
-          ctx.fillStyle = `rgba(${tp.alpha > 0.6 ? '255, 200, 50' : '255, 80, 0'}, ${tp.alpha})`; ctx.shadowColor = 'rgba(255, 100, 0, 0.9)'; ctx.shadowBlur = 14;
+          ctx.fillStyle = `rgba(${tp.alpha > 0.6 ? '255, 200, 50' : '255, 80, 0'}, ${tp.alpha})`;
           ctx.beginPath(); ctx.arc(tp.x, tp.y, tp.size, 0, Math.PI * 2); ctx.fill();
         }
-        ctx.shadowBlur = 0;
+        ctx.restore();
         ctx.save(); ctx.translate(anim.meteorX, anim.meteorY);
-        const mAngle = Math.atan2(dy, dx); ctx.rotate(mAngle + Math.PI/4);
+        const mAngle = Math.atan2(dy, dx); ctx.rotate(mAngle + Math.PI / 4);
         const mS = C.CELL_SIZE * 0.7;
-        const mg = ctx.createRadialGradient(0, 0, mS*0.1, 0, 0, mS);
+        const mg = ctx.createRadialGradient(0, 0, mS * 0.1, 0, 0, mS);
         mg.addColorStop(0, 'rgba(255,255,220,1)'); mg.addColorStop(0.3, 'rgba(255,140,0,0.9)'); mg.addColorStop(0.7, 'rgba(180,30,0,0.5)'); mg.addColorStop(1, 'rgba(80,0,0,0)');
         ctx.fillStyle = mg; ctx.shadowColor = '#ff5500'; ctx.shadowBlur = 40;
-        ctx.beginPath(); ctx.arc(0, 0, mS, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0, 0, mS, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = '#111'; ctx.shadowBlur = 0;
-        ctx.beginPath(); ctx.moveTo(-mS*0.4,-mS*0.5); ctx.lineTo(mS*0.3,-mS*0.3); ctx.lineTo(mS*0.5,mS*0.2); ctx.lineTo(0,mS*0.5); ctx.lineTo(-mS*0.45,mS*0.3); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(-mS * 0.4, -mS * 0.5); ctx.lineTo(mS * 0.3, -mS * 0.3); ctx.lineTo(mS * 0.5, mS * 0.2); ctx.lineTo(0, mS * 0.5); ctx.lineTo(-mS * 0.45, mS * 0.3); ctx.closePath(); ctx.fill();
         ctx.restore();
       } else {
         anim.phase = 'impact'; anim.impactTick = 0;
         if (!anim.shakeTriggered) { anim.shakeTriggered = true; if (UI.triggerScreenshake) UI.triggerScreenshake(18, 450); }
         gameState.shockwaves = gameState.shockwaves || [];
-        gameState.shockwaves.push({ x: anim.cx, y: anim.cy, radius: C.CELL_SIZE*2.5, life: 1, color: '255, 120, 0' });
-        gameState.shockwaves.push({ x: anim.cx, y: anim.cy, radius: C.CELL_SIZE*4.0, life: 0.7, color: '220, 40, 0' });
+        gameState.shockwaves.push({ x: anim.cx, y: anim.cy, radius: C.CELL_SIZE * 2.5, life: 1, color: '255, 120, 0' });
+        gameState.shockwaves.push({ x: anim.cx, y: anim.cy, radius: C.CELL_SIZE * 4.0, life: 0.7, color: '220, 40, 0' });
         for (let e = 0; e < 60; e++) {
-          const angle = Math.random()*Math.PI*2; const sp = Math.random()*15+5;
-          anim.impactParticles.push({ x: anim.cx, y: anim.cy, vx: Math.cos(angle)*sp, vy: Math.sin(angle)*sp-4, alpha: 1, size: Math.random()*7+3, color: Math.random() > 0.4 ? '255, 100, 10' : '255, 220, 80' });
+          const angle = Math.random() * Math.PI * 2; const sp = Math.random() * 15 + 5;
+          anim.impactParticles.push({ x: anim.cx, y: anim.cy, vx: Math.cos(angle) * sp, vy: Math.sin(angle) * sp - 4, alpha: 1, size: Math.random() * 7 + 3, color: Math.random() > 0.4 ? '255, 100, 10' : '255, 220, 80' });
         }
       }
 
     } else if (anim.phase === 'impact') {
       anim.impactTick = (anim.impactTick || 0) + 1;
       const fe = Math.max(0, 1 - anim.impactTick / 30);
-      if (fe > 0) { ctx.save(); ctx.fillStyle = `rgba(0,0,0,${fe*0.75})`; ctx.fillRect(0,0,W,H); ctx.restore(); }
+      if (fe > 0) { ctx.save(); ctx.fillStyle = `rgba(0,0,0,${fe * 0.75})`; ctx.fillRect(0, 0, W, H); ctx.restore(); }
       if (anim.impactTick < 20) {
-        const ga = Math.max(0, 1 - anim.impactTick/20);
-        const ig = ctx.createRadialGradient(anim.cx, anim.cy, 0, anim.cx, anim.cy, C.CELL_SIZE*3);
-        ig.addColorStop(0, `rgba(255,240,100,${ga*0.9})`); ig.addColorStop(0.3, `rgba(255,80,0,${ga*0.7})`); ig.addColorStop(0.7, `rgba(180,20,0,${ga*0.4})`); ig.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = ig; ctx.beginPath(); ctx.arc(anim.cx, anim.cy, C.CELL_SIZE*3, 0, Math.PI*2); ctx.fill(); ctx.restore();
+        const ga = Math.max(0, 1 - anim.impactTick / 20);
+        const ig = ctx.createRadialGradient(anim.cx, anim.cy, 0, anim.cx, anim.cy, C.CELL_SIZE * 3);
+        ig.addColorStop(0, `rgba(255,240,100,${ga * 0.9})`); ig.addColorStop(0.3, `rgba(255,80,0,${ga * 0.7})`); ig.addColorStop(0.7, `rgba(180,20,0,${ga * 0.4})`); ig.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = ig; ctx.beginPath(); ctx.arc(anim.cx, anim.cy, C.CELL_SIZE * 3, 0, Math.PI * 2); ctx.fill(); ctx.restore();
       }
-      for (let k = anim.impactParticles.length-1; k >= 0; k--) {
-        const p = anim.impactParticles[k]; p.x+=p.vx; p.y+=p.vy; p.vx*=0.90; p.vy+=0.3; p.alpha-=0.018;
-        if (p.alpha<=0) { anim.impactParticles.splice(k,1); continue; }
-        ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.fillStyle=`rgba(${p.color},${p.alpha})`; ctx.shadowColor=`rgba(${p.color},1)`; ctx.shadowBlur=12;
-        ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill(); ctx.restore();
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      // High performance impact particles (shadowBlur removed)
+      for (let k = anim.impactParticles.length - 1; k >= 0; k--) {
+        const p = anim.impactParticles[k]; p.x += p.vx; p.y += p.vy; p.vx *= 0.90; p.vy += 0.3; p.alpha -= 0.018;
+        if (p.alpha <= 0) { anim.impactParticles.splice(k, 1); continue; }
+        ctx.fillStyle = `rgba(${p.color},${p.alpha})`;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
       }
-      ctx.shadowBlur=0;
-      if (anim.impactTick > 40 && anim.impactParticles.length === 0) gameState.deathMeteorAnimations.splice(i,1);
+      ctx.restore();
+      if (anim.impactTick > 40 && anim.impactParticles.length === 0) gameState.deathMeteorAnimations.splice(i, 1);
     }
   }
 }
@@ -1778,12 +1768,12 @@ export function drawDeathMeteorShield(ctx, piece, gameState) {
   const innerRadius = C.CELL_SIZE * 0.48;
 
   ctx.save();
-  ctx.beginPath(); ctx.arc(cx, cy, outerRadius, 0, Math.PI*2);
+  ctx.beginPath(); ctx.arc(cx, cy, outerRadius, 0, Math.PI * 2);
   ctx.strokeStyle = `rgba(220, 30, 0, ${life * (0.75 + 0.2 * pulse)})`;
   ctx.shadowColor = `rgba(255, 50, 0, ${life})`; ctx.shadowBlur = 20 + 10 * pulse;
   ctx.lineWidth = 4 * life; ctx.stroke();
 
-  ctx.beginPath(); ctx.arc(cx, cy, innerRadius, 0, Math.PI*2);
+  ctx.beginPath(); ctx.arc(cx, cy, innerRadius, 0, Math.PI * 2);
   ctx.strokeStyle = `rgba(255, 120, 0, ${life * (0.5 + 0.2 * pulse)})`;
   ctx.lineWidth = 2 * life; ctx.shadowBlur = 10; ctx.stroke();
 
@@ -1792,13 +1782,13 @@ export function drawDeathMeteorShield(ctx, piece, gameState) {
   sg.addColorStop(0.6, `rgba(180, 20, 0, ${life * 0.10})`);
   sg.addColorStop(1, 'rgba(80, 0, 0, 0)');
   ctx.fillStyle = sg; ctx.shadowBlur = 0;
-  ctx.beginPath(); ctx.arc(cx, cy, innerRadius, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, cy, innerRadius, 0, Math.PI * 2); ctx.fill();
 
   const NUM_ORBLETS = 5;
   for (let j = 0; j < NUM_ORBLETS; j++) {
     const orbAngle = (j / NUM_ORBLETS) * Math.PI * 2 + t * 2.2;
     ctx.beginPath();
-    ctx.arc(cx + Math.cos(orbAngle)*outerRadius, cy + Math.sin(orbAngle)*outerRadius, 3.5*life, 0, Math.PI*2);
+    ctx.arc(cx + Math.cos(orbAngle) * outerRadius, cy + Math.sin(orbAngle) * outerRadius, 3.5 * life, 0, Math.PI * 2);
     ctx.fillStyle = `rgba(255, 180, 50, ${life * 0.9})`;
     ctx.shadowColor = 'rgba(255, 80, 0, 0.9)'; ctx.shadowBlur = 12; ctx.fill();
   }

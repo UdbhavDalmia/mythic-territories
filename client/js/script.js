@@ -354,10 +354,17 @@ function setupCanvas() {
     if (menuBtnMobile) menuBtnMobile.onclick = () => { window.location.href = 'index.html'; };
 
     const testModeToggle = document.getElementById('testModeToggle');
+    const testModeToggleMobile = document.getElementById('testModeToggle-mobile');
+    const handleTestModeToggle = (enabled) => {
+        if (testModeToggle) testModeToggle.checked = enabled;
+        if (testModeToggleMobile) testModeToggleMobile.checked = enabled;
+        window.sendAction('TOGGLE_TEST_MODE', { enabled });
+    };
     if (testModeToggle) {
-        testModeToggle.onchange = () => {
-            window.sendAction('TOGGLE_TEST_MODE', { enabled: testModeToggle.checked });
-        };
+        testModeToggle.onchange = () => handleTestModeToggle(testModeToggle.checked);
+    }
+    if (testModeToggleMobile) {
+        testModeToggleMobile.onchange = () => handleTestModeToggle(testModeToggleMobile.checked);
     }
 
     if (startBtn) startBtn.onclick = window.handleStartReset;
@@ -1346,7 +1353,7 @@ window.addEventListener('keydown', e => {
                 } else {
                     // Frost Lord passive visuals (Guardian Save / Help From Above)
                     frostLord.hasHelpFromAboveActive = true;
-                    frostLord.helpFromAboveActiveTurns = 5;
+                    frostLord.helpFromAboveActiveTurns = 4;
                     Effects.spawnGuardianSaveEffect(frostLord, gameState);
                 }
             }
@@ -1384,38 +1391,5 @@ window.addEventListener('keydown', e => {
             }
         }
         return;
-    }
-
-    if (e.key.toLowerCase() === 'k') {
-        const tyrant = gameState.pieces.find(p => p.key === 'ashAshTyrant');
-        if (tyrant) {
-            const targetR = tyrant.row;
-            const targetC = Math.min(7, tyrant.col + 2);
-            Effects.spawnReignOfFireEffect(tyrant, targetR, targetC, gameState);
-            
-            // Add temporary strength boost for local test visual feedback
-            const radius = 2;
-            gameState.pieces.forEach(p => {
-                const dist = Math.hypot(p.row - targetR, p.col - targetC);
-                if (dist <= radius && p.team === tyrant.team) {
-                    gameState.temporaryBoosts = gameState.temporaryBoosts || [];
-                    if (!gameState.temporaryBoosts.some(b => b.pieceId === p.id && b.name === "ReignOfFireStr")) {
-                        gameState.temporaryBoosts.push({
-                            pieceId: p.id,
-                            duration: 3,
-                            amount: 2,
-                            name: "ReignOfFireStr"
-                        });
-                    }
-                }
-            });
-        }
-    } else if (e.key.toLowerCase() === 'l') {
-        const tyrant = gameState.pieces.find(p => p.key === 'ashAshTyrant');
-        if (tyrant) {
-            tyrant.deathMeteorCooldown = 15;
-            tyrant.hasTriggeredDeathMeteor = true;
-            Effects.spawnDeathMeteorEffect(tyrant, gameState);
-        }
     }
 });

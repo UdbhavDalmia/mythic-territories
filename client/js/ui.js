@@ -13,12 +13,13 @@ import {
   drawIcyGroundBlock,
   drawDeathMeteorShield
 } from './effects.js';
+import * as Effects from './effects.js';
 let boardCtx;
 let ctx;
 let offCanvas = null;
 let _terrCacheCanvas = null;
-let _terrCacheKey    = '';
-let _terrFrameSkip   = 0;
+let _terrCacheKey = '';
+let _terrFrameSkip = 0;
 const TERR_SKIP_FRAMES = 2;
 
 const buildBadges = team => Array.from({ length: 8 }, (_, i) => {
@@ -307,26 +308,26 @@ export function drawAbilityHighlights(gameState) {
   if (ability.radius && gameState.hoverRow !== undefined && gameState.hoverCol !== undefined) {
     let isValidTarget = false;
     const distance = ability.circularRange
-        ? Math.hypot(piece.row - gameState.hoverRow, piece.col - gameState.hoverCol)
-        : Math.max(Math.abs(piece.row - gameState.hoverRow), Math.abs(piece.col - gameState.hoverCol));
+      ? Math.hypot(piece.row - gameState.hoverRow, piece.col - gameState.hoverCol)
+      : Math.max(Math.abs(piece.row - gameState.hoverRow), Math.abs(piece.col - gameState.hoverCol));
     if (ability.range < 0 || distance <= ability.range) {
-        if (ability.specialTargeting) {
-            isValidTarget = ability.specialTargeting(piece, {r: gameState.hoverRow, c: gameState.hoverCol}, gameState);
-        } else {
-            const hoverP = C.getPieceAt(gameState.hoverRow, gameState.hoverCol, gameState.pieces);
-            switch(ability.targetType) {
-                case 'enemy': isValidTarget = hoverP && hoverP.team !== piece.team && !hoverP.hasDefensiveWard; break;
-                case 'friendly': isValidTarget = hoverP && hoverP.team === piece.team; break;
-                case 'empty': isValidTarget = !hoverP; break;
-                case 'any': isValidTarget = true; break;
-            }
+      if (ability.specialTargeting) {
+        isValidTarget = ability.specialTargeting(piece, { r: gameState.hoverRow, c: gameState.hoverCol }, gameState);
+      } else {
+        const hoverP = C.getPieceAt(gameState.hoverRow, gameState.hoverCol, gameState.pieces);
+        switch (ability.targetType) {
+          case 'enemy': isValidTarget = hoverP && hoverP.team !== piece.team && !hoverP.hasDefensiveWard; break;
+          case 'friendly': isValidTarget = hoverP && hoverP.team === piece.team; break;
+          case 'empty': isValidTarget = !hoverP; break;
+          case 'any': isValidTarget = true; break;
         }
+      }
     }
     if (isValidTarget) {
       const hx = gameState.hoverCol * C.CELL_SIZE + C.CELL_SIZE / 2;
       const hy = gameState.hoverRow * C.CELL_SIZE + C.CELL_SIZE / 2;
       ctx.save();
-      
+
       ctx.shadowBlur = 6;
       ctx.shadowColor = 'rgba(255, 255, 255, 0.3)';
       ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
@@ -357,7 +358,7 @@ export function drawAbilityHighlights(gameState) {
         ctx.fill();
         ctx.stroke();
       }
-      
+
       ctx.restore();
     }
   }
@@ -388,7 +389,7 @@ export function calculateDynamicTerritoryAreas(gameState) {
       }
     }
   });
-  const checkCover = (x, y, bases, trails, team) => 
+  const checkCover = (x, y, bases, trails, team) =>
     bases.some(b => Math.hypot(x - b.cx, y - b.cy) <= radius) ||
     trails.some(t => t.team === team && Math.hypot(x - (t.col + 0.5), y - (t.row + 0.5)) <= radius);
   for (let r = 0; r < 10; r++) {
@@ -603,14 +604,14 @@ export function generateAbilitiesInfoString(piece) {
   return info;
 }
 function getAbilityDescription(abilityKey) {
-    const descriptions = {
-        'FrostfallBlessing': 'AOE (Range 2.5, Rad 2) deals 2 damage to enemies and heals allies for 1 HP for 5 turns.',
-        'ReignOfFire': 'AOE (Range 2.5, Rad 2) deals 2 damage to enemies; deals 1 damage to allies but grants them +2 Strength for 3 turns.',
-        'FateLink': 'Binds an ally and enemy (Range 3) for 4 turns; any damage taken by the ally is mirrored exactly to the enemy.',
-        "TheReapersToll": 'Steals 1 Defence and 0.4 Agility from an enemy (Range 3) for 4 turns, transferring the stats to self.',
-        'GlacialFracture': 'AOE (Range 2.5, Rad 2) deals 2 damage, creates Snow territory, and summons 1 Ice Wisp furthest from caught enemies (Max 2).'
-    };
-    return descriptions[abilityKey] || '';
+  const descriptions = {
+    'FrostfallBlessing': 'AOE (Range 2.5, Rad 2) deals 2 damage to enemies and heals allies for 1 HP for 5 turns.',
+    'ReignOfFire': 'AOE (Range 2.5, Rad 2) deals 2 damage to enemies; deals 1 damage to allies but grants them +2 Strength for 3 turns.',
+    'FateLink': 'Binds an ally and enemy (Range 3) for 4 turns; any damage taken by the ally is mirrored exactly to the enemy.',
+    "TheReapersToll": 'Steals 1 Defence and 0.4 Agility from an enemy (Range 3) for 4 turns, transferring the stats to self.',
+    'GlacialFracture': 'AOE (Range 2.5, Rad 2) deals 2 damage, creates Snow territory, and summons 1 Ice Wisp furthest from caught enemies (Max 2).'
+  };
+  return descriptions[abilityKey] || '';
 }
 const PASSIVE_INFO = {
   snowFrostLord: p => {
@@ -678,6 +679,15 @@ export function getPieceVisualState(p) {
       key: p.key
     };
     visualStates.set(p.id, vis);
+  }
+  if (vis && !vis.ambientParticles && (p.key === 'snowFrostLord' || p.key === 'ashAshTyrant')) {
+    vis.ambientParticles = Array.from({ length: 12 }, () => ({
+      x: (Math.random() - 0.5) * C.CELL_SIZE * 0.7,
+      y: (Math.random() - 0.5) * C.CELL_SIZE * 0.7,
+      vy: -(Math.random() * 0.35 + 0.15),
+      size: Math.random() * 2 + 1,
+      alpha: Math.random() * 0.5 + 0.3
+    }));
   }
   return vis;
 }
@@ -881,6 +891,22 @@ export function drawPiece(p, targetCtx, gameState) {
         drawCtx.restore();
       }
 
+      // Draw shield visual ring around the token if unit has a shield (pale yellow)
+      const hasShield = (gameState.shields || []).some(s => s.pieceId === p.id);
+      if (hasShield) {
+        drawCtx.save();
+        const pulse = 0.5 + 0.5 * Math.sin(time * 4);
+        drawCtx.globalCompositeOperation = 'lighter';
+        drawCtx.strokeStyle = 'rgba(255, 255, 180, 0.85)';
+        drawCtx.lineWidth = 3.5 + pulse * 1.5;
+        drawCtx.shadowColor = 'rgba(255, 255, 150, 0.7)';
+        drawCtx.shadowBlur = 10 + pulse * 5;
+        drawCtx.beginPath();
+        drawCtx.arc(0, 0, drawSize * 0.52, 0, Math.PI * 2);
+        drawCtx.stroke();
+        drawCtx.restore();
+      }
+
       // Leader/King visual enhancements: premium rotating sigils behind leaders
       if (p.key === 'snowFrostLord') {
         drawCtx.save();
@@ -893,7 +919,7 @@ export function drawPiece(p, targetCtx, gameState) {
         drawCtx.beginPath();
         drawCtx.arc(0, 0, drawSize * 0.58, 0, Math.PI * 2);
         drawCtx.stroke();
-        
+
         drawCtx.rotate(-rot * 2);
         drawCtx.strokeStyle = `rgba(100, 240, 255, ${0.5 + 0.2 * Math.sin(time * 3.5)})`;
         drawCtx.lineWidth = 2.2;
@@ -922,7 +948,7 @@ export function drawPiece(p, targetCtx, gameState) {
         drawCtx.beginPath();
         drawCtx.arc(0, 0, drawSize * 0.58, 0, Math.PI * 2);
         drawCtx.stroke();
-        
+
         drawCtx.rotate(-rot * 1.8);
         drawCtx.strokeStyle = `rgba(255, 140, 0, ${0.5 + 0.2 * Math.cos(time * 4.0)})`;
         drawCtx.lineWidth = 1.8;
@@ -955,8 +981,7 @@ export function drawPiece(p, targetCtx, gameState) {
         }
       } else {
         isFrostLordActive = p.key === 'snowFrostLord' && p.hasHelpFromAboveActive;
-        isBuffed = (gameState.temporaryBoosts?.some(b => b.pieceId === p.id && b.name === "HelpFromAboveAura")) ||
-                   (frostLord?.hasHelpFromAboveActive && p.id !== frostLord.id && p.team === frostLord.team && p.currentHp > 0 && Math.hypot(p.row - frostLord.row, p.col - frostLord.col) <= 1.5);
+        isBuffed = false;
       }
       if ((isBuffed || isFrostLordActive) && (!isIntroAnimating || p.id !== frostLord?.id)) {
         p.helpFromAboveGlowMultiplier = Math.min(1.0, (p.helpFromAboveGlowMultiplier || 0.0) + 0.08);
@@ -975,7 +1000,7 @@ export function drawPiece(p, targetCtx, gameState) {
             drawCtx.shadowBlur = (isFrostLordActive ? 18 + 12 * pulse : 12 + 8 * pulse) * mult;
           }
           drawCtx.drawImage(img, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
-          
+
           if (isReignOfFireBuffed) {
             // Draw floating magmatic ember particles rising from the piece
             drawCtx.save();
@@ -986,12 +1011,12 @@ export function drawPiece(p, targetCtx, gameState) {
               const rangeX = 15 + (seed % 15);
               const phaseOffset = seed * 0.1;
               const tCycle = (performance.now() * 0.001 * speedY + phaseOffset) % 1.0;
-              
+
               const px = Math.sin(tCycle * Math.PI * 2 + seed) * rangeX;
               const py = drawSize * 0.5 - tCycle * drawSize * 1.1;
               const size = (1.5 + (seed % 3) * 0.8) * (1.0 - tCycle);
               const alpha = (1.0 - tCycle) * 0.8;
-              
+
               drawCtx.fillStyle = `rgba(255, ${100 + (seed % 10) * 12}, 10, ${alpha})`;
               drawCtx.shadowColor = 'rgba(255, 100, 0, 0.8)';
               drawCtx.shadowBlur = 6;
@@ -1012,16 +1037,16 @@ export function drawPiece(p, targetCtx, gameState) {
               const rangeX = 12 + (seed % 12);
               const phaseOffset = seed * 0.15;
               const tCycle = (performance.now() * 0.001 * speedY + phaseOffset) % 1.0;
-              
+
               const px = Math.sin(tCycle * Math.PI * 2 + seed) * rangeX;
               const py = drawSize * 0.5 - tCycle * drawSize * 1.1;
               const size = (1.2 + (seed % 3) * 0.6) * (1.0 - tCycle);
               const alpha = (1.0 - tCycle) * 0.85;
-              
+
               drawCtx.fillStyle = `rgba(${135 + (seed % 5) * 20}, 235, 255, ${alpha})`;
               drawCtx.shadowColor = 'rgba(0, 200, 255, 0.8)';
               drawCtx.shadowBlur = 5;
-              
+
               // Draw small diamond/crystal shape
               drawCtx.beginPath();
               drawCtx.moveTo(px, py - size * 1.5);
@@ -1038,6 +1063,23 @@ export function drawPiece(p, targetCtx, gameState) {
         } else {
           drawCtx.drawImage(img, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
         }
+      }
+      if (vis.ambientParticles) {
+        drawCtx.save();
+        drawCtx.globalCompositeOperation = 'lighter';
+        vis.ambientParticles.forEach(part => {
+          part.y += part.vy;
+          // Loop back if drift goes out of bounds
+          if (part.y < -C.CELL_SIZE * 0.6) {
+            part.y = C.CELL_SIZE * 0.5;
+            part.x = (Math.random() - 0.5) * C.CELL_SIZE * 0.7;
+          }
+          drawCtx.fillStyle = p.team === 'snow' ? `rgba(135, 206, 255, ${part.alpha * vis.opacity})` : `rgba(255, 100, 20, ${part.alpha * vis.opacity})`;
+          drawCtx.beginPath();
+          drawCtx.arc(part.x, part.y, part.size, 0, Math.PI * 2);
+          drawCtx.fill();
+        });
+        drawCtx.restore();
       }
       drawSlashLocal();
       drawCtx.restore();
@@ -1332,18 +1374,18 @@ export function renderBoard(gameState) {
       boardCtx.restore();
     });
   }
-  const snowSet  = gameState.snowTerritory  || new Set();
-  const ashSet   = gameState.ashTerritory   || new Set();
+  const snowSet = gameState.snowTerritory || new Set();
+  const ashSet = gameState.ashTerritory || new Set();
   const trailLen = (gameState.territoryTrails || []).length;
   let hash = trailLen;
   snowSet.forEach(v => { hash += v.charCodeAt(0) * 10 + v.charCodeAt(2); });
   ashSet.forEach(v => { hash -= v.charCodeAt(0) * 10 + v.charCodeAt(2); });
-  const newKey   = snowSet.size + '/' + ashSet.size + '/' + hash;
+  const newKey = snowSet.size + '/' + ashSet.size + '/' + hash;
   if ((newKey !== _terrCacheKey) || !_terrCacheCanvas) {
-    _terrCacheKey  = newKey;
+    _terrCacheKey = newKey;
     if (!_terrCacheCanvas) {
       _terrCacheCanvas = document.createElement('canvas');
-      _terrCacheCanvas.width  = C.CANVAS_SIZE;
+      _terrCacheCanvas.width = C.CANVAS_SIZE;
       _terrCacheCanvas.height = C.CANVAS_SIZE;
     }
     const tCtx = _terrCacheCanvas.getContext('2d');
@@ -1461,6 +1503,106 @@ export function renderBoard(gameState) {
         boardCtx.beginPath();
         boardCtx.arc(x + C.CELL_SIZE / 2, y + C.CELL_SIZE / 2, C.CELL_SIZE / 3, 0, Math.PI * 2);
         boardCtx.stroke();
+      } else if (t.type === 'crater') {
+        // Permanent impassable crater block
+        boardCtx.save();
+        const cx = x + C.CELL_SIZE / 2;
+        const cy = y + C.CELL_SIZE / 2;
+        const rOuter = C.CELL_SIZE * 0.45;
+        const rInner = C.CELL_SIZE * 0.28;
+        const rHole = C.CELL_SIZE * 0.16;
+
+        // 1. Scorched earth underlay / debris radius (large, low-opacity dark/ashy gradient)
+        const ashGrad = boardCtx.createRadialGradient(cx, cy, rInner, cx, cy, C.CELL_SIZE * 0.6);
+        ashGrad.addColorStop(0, 'rgba(10, 5, 2, 0.9)');
+        ashGrad.addColorStop(0.5, 'rgba(30, 15, 5, 0.6)');
+        ashGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        boardCtx.fillStyle = ashGrad;
+        boardCtx.beginPath();
+        boardCtx.arc(cx, cy, C.CELL_SIZE * 0.6, 0, Math.PI * 2);
+        boardCtx.fill();
+
+        // 2. Draw radial cracks extending from the center
+        boardCtx.strokeStyle = 'rgba(210, 70, 0, 0.6)';
+        boardCtx.lineWidth = 1.5;
+        const numCracks = 6;
+        const seed = (Math.round(t.row) * 13 + Math.round(t.col) * 37); // stable seed for each crater cell
+        for (let j = 0; j < numCracks; j++) {
+          const angle = (j / numCracks) * Math.PI * 2 + (seed * 0.1);
+          const dist1 = rInner + (Math.abs((seed + j) % 5) / 5) * 5;
+          const dist2 = C.CELL_SIZE * (0.45 + (Math.abs((seed * j) % 4) / 10));
+          
+          boardCtx.beginPath();
+          boardCtx.moveTo(cx + Math.cos(angle) * dist1, cy + Math.sin(angle) * dist1);
+          // Add a jagged vertex to make it look cracked
+          const midAngle = angle + (j % 2 === 0 ? 0.1 : -0.1);
+          const midDist = (dist1 + dist2) / 2;
+          boardCtx.lineTo(cx + Math.cos(midAngle) * midDist, cy + Math.sin(midAngle) * midDist);
+          boardCtx.lineTo(cx + Math.cos(angle) * dist2, cy + Math.sin(angle) * dist2);
+          boardCtx.stroke();
+        }
+
+        // 3. Crater Outer Rim (textured ridge)
+        boardCtx.shadowColor = 'rgba(230, 60, 0, 0.4)';
+        boardCtx.shadowBlur = 8;
+        boardCtx.fillStyle = 'rgba(25, 12, 5, 0.95)';
+        boardCtx.strokeStyle = 'rgba(230, 80, 0, 0.85)';
+        boardCtx.lineWidth = 3.5;
+        boardCtx.beginPath();
+        boardCtx.arc(cx, cy, rOuter, 0, Math.PI * 2);
+        boardCtx.fill();
+        boardCtx.stroke();
+        boardCtx.shadowBlur = 0; // reset shadow
+
+        // 4. Highlight on top-left of the rim to give a 3D look
+        boardCtx.strokeStyle = 'rgba(255, 160, 80, 0.35)';
+        boardCtx.lineWidth = 2.0;
+        boardCtx.beginPath();
+        boardCtx.arc(cx, cy, rOuter, Math.PI * 0.75, Math.PI * 1.75);
+        boardCtx.stroke();
+
+        // 5. Shadow on bottom-right of the rim
+        boardCtx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+        boardCtx.lineWidth = 2.5;
+        boardCtx.beginPath();
+        boardCtx.arc(cx, cy, rOuter, Math.PI * 1.75, Math.PI * 2.75);
+        boardCtx.stroke();
+
+        // 6. Slope gradient towards the deep center hole
+        const slopeGrad = boardCtx.createRadialGradient(cx, cy, rHole, cx, cy, rOuter);
+        slopeGrad.addColorStop(0, '#0a0301');
+        slopeGrad.addColorStop(0.3, '#1f0d05');
+        slopeGrad.addColorStop(0.8, '#30180c');
+        slopeGrad.addColorStop(1, '#251205');
+        boardCtx.fillStyle = slopeGrad;
+        boardCtx.beginPath();
+        boardCtx.arc(cx, cy, rOuter - 1.5, 0, Math.PI * 2);
+        boardCtx.fill();
+
+        // 7. Glowing magma core at the bottom of the crater
+        const pulse = 0.85 + 0.15 * Math.sin(performance.now() * 0.003 + seed);
+        const glowGrad = boardCtx.createRadialGradient(cx, cy, 0, cx, cy, rHole * 1.2);
+        glowGrad.addColorStop(0, `rgba(255, 200, 50, ${pulse})`);
+        glowGrad.addColorStop(0.4, `rgba(255, 90, 0, ${pulse * 0.9})`);
+        glowGrad.addColorStop(0.8, `rgba(120, 20, 0, ${pulse * 0.6})`);
+        glowGrad.addColorStop(1, 'rgba(10, 3, 0, 0.8)');
+        
+        boardCtx.save();
+        boardCtx.shadowColor = 'rgba(255, 90, 0, 0.7)';
+        boardCtx.shadowBlur = 12 * pulse;
+        boardCtx.fillStyle = glowGrad;
+        boardCtx.beginPath();
+        boardCtx.arc(cx, cy, rHole * 1.1, 0, Math.PI * 2);
+        boardCtx.fill();
+        boardCtx.restore();
+
+        // 8. Dark center depth overlay (the absolute abyss at the bottom)
+        boardCtx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        boardCtx.beginPath();
+        boardCtx.arc(cx, cy, rHole * 0.55, 0, Math.PI * 2);
+        boardCtx.fill();
+
+        boardCtx.restore();
       }
     });
   }
@@ -1476,13 +1618,15 @@ export function renderBoard(gameState) {
   if (gameState.deathMeteors && gameState.deathMeteors.length > 0) {
     gameState.deathMeteors.forEach(m => {
       const radius = 2;
+      const dur = m.duration !== undefined ? m.duration : 6;
+      const decay = dur / 6;
       for (let dr = -radius; dr <= radius; dr++) {
         for (let dc = -radius; dc <= radius; dc++) {
           const dist = Math.hypot(dr, dc);
           if (dist > radius) continue;
           const tr = m.r + dr, tc = m.c + dc;
           if (tr < 0 || tr >= 10 || tc < 0 || tc >= 10) continue;
-          const alpha = Math.max(0.15, 0.55 - dist * 0.12);
+          const alpha = Math.max(0.05, (0.55 - dist * 0.12) * decay);
           boardCtx.save();
           boardCtx.fillStyle = `rgba(20,8,0,${alpha})`;
           boardCtx.fillRect(tc * C.CELL_SIZE, tr * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
@@ -1597,6 +1741,47 @@ export function resetMobileAbilityBar() {
   }
   removeMobileOverflow();
 }
+const visualTestTriggers = {
+  snowFrostLord: [
+    { text: 'Test Active', action: (p, gs) => { if (Effects.spawnFrostfallBlessingEffect) Effects.spawnFrostfallBlessingEffect(p.row, p.col, gs); } },
+    { text: 'Test Passive', action: (p, gs) => { p.hasHelpFromAboveActive = true; p.helpFromAboveActiveTurns = 5; if (Effects.spawnGuardianSaveEffect) Effects.spawnGuardianSaveEffect(p, gs); } }
+  ],
+  ashAshTyrant: [
+    { text: 'Test Active', action: (p, gs) => { if (Effects.spawnReignOfFireEffect) Effects.spawnReignOfFireEffect(p, p.row, Math.min(9, p.col + 2), gs); } },
+    { text: 'Test Passive', action: (p, gs) => { p.deathMeteorCooldown = 15; p.hasTriggeredDeathMeteor = true; if (Effects.spawnDeathMeteorEffect) Effects.spawnDeathMeteorEffect(p, gs); } }
+  ],
+  ashAshStrider: [
+    { text: 'Test Active', action: (p, gs) => { if (Effects.spawnScorchedRetreatEffect) Effects.spawnScorchedRetreatEffect(p, p.row, p.col, p.row, Math.min(9, p.col + 1), gs); } }
+  ],
+  ashMagmaProwler: [
+    { text: 'Test Active', action: (p, gs) => { if (Effects.spawnFrenziedDashEffect) Effects.spawnFrenziedDashEffect(p, p.row, p.col, p.row, Math.min(9, p.col + 2), gs); } }
+  ],
+  ashMagmaSpitter: [
+    { text: 'Test Active', action: (p, gs) => { if (Effects.spawnLavaGlobEffect) Effects.spawnLavaGlobEffect(p.row, p.col, p.row, Math.min(9, p.col + 2), gs); } }
+  ],
+  snowArcticTrapper: [
+    { text: 'Test Active', action: (p, gs) => { if (Effects.spawnTrapDeploymentEffect) Effects.spawnTrapDeploymentEffect(p.row, p.col, p.row, Math.min(9, p.col + 1), gs); } }
+  ],
+  snowGlacialMage: [
+    { text: 'Test Active', action: (p, gs) => { if (Effects.spawnGlacialFractureEffect) Effects.spawnGlacialFractureEffect(p.row, p.col, gs); } }
+  ],
+  snowHoarfrostMystic: [
+    { text: 'Test Active', action: (p, gs) => { if (Effects.spawnFrigidPathEffect) Effects.spawnFrigidPathEffect(p.row, p.col, p.row, Math.min(9, p.col + 2), gs); } }
+  ],
+  snowIceWeaver: [
+    { text: 'Test Active', action: (p, gs) => { if (Effects.spawnGlacialWallEffect) Effects.spawnGlacialWallEffect(p.row, Math.min(9, p.col + 1), gs); } }
+  ],
+  snowRampagingYeti: [
+    { text: 'Test Active', action: (p, gs) => { if (Effects.spawnPummelKnockbackEffect) Effects.spawnPummelKnockbackEffect(p, p.row, p.col, p.row, p.col, p.row, Math.min(9, p.col + 1), gs); } }
+  ],
+  snowSoulLinker: [
+    { text: 'Test Active', action: (p, gs) => { if (Effects.spawnFateLinkCast) Effects.spawnFateLinkCast(p, { row: p.row, col: Math.min(9, p.col + 2) }, gs); } }
+  ],
+  snowIceWisp: [
+    { text: 'Test Active', action: (p, gs) => { if (Effects.spawnAColdFarewellEffect) Effects.spawnAColdFarewellEffect(p.row, p.col, gs); } }
+  ]
+};
+
 export function showAbilityPanel(piece, gameState) {
   const panel = $('ability-info-panel');
   if (!panel) return;
@@ -1735,6 +1920,13 @@ export function showAbilityPanel(piece, gameState) {
       btns.despawn.onclick = () => window.sendAction('DESPAWN', { pieceId: piece.id });
       addMobileBtn('Despawn', () => window.sendAction('DESPAWN', { pieceId: piece.id }));
     }
+  }
+  if (gameState.testMode && visualTestTriggers[piece.key]) {
+    visualTestTriggers[piece.key].forEach(test => {
+      addMobileBtn(test.text, () => {
+        test.action(piece, gameState);
+      });
+    });
   }
   try {
     if (_mobileOverflowMenu && _mobileOverflowMenu.length > 0) {

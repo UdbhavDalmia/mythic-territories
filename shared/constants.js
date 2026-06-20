@@ -158,7 +158,7 @@ export const ABILITY_VALUES = {
   VolatileForge: { places: 2 },
   MagmaAnchor: { powerBoost: 1 },
   SpikeRain: { cooldown: 11, duration: 5, range: 2.5, radius: 2, damage: 2, heal: 1 },
-  HelpFromAbove: { cooldown: 10, radius: 1.5, strengthBoost: 1 },
+  HelpFromAbove: { cooldown: 10, radius: 1.5, strengthBoost: 1, activeDuration: 4 },
   FateLink: { cooldown: 7, range: 3, duration: 4 },
   TheReapersToll: { cooldown: 7, range: 3, duration: 4 },
   ReignOfFire: { cooldown: 11, duration: 3, range: 2.5, radius: 2, damage: 2, allyDamage: 1, strengthBoost: 2 },
@@ -1023,15 +1023,30 @@ export const ABILITIES = {
     targetType: "any",
     effect: (p, t, gs) => {
       if (!gs.frostfallBlessings) gs.frostfallBlessings = [];
+      const radius = ABILITY_VALUES.FrostfallBlessing.radius;
       gs.frostfallBlessings.push({
         creatorId: p.id,
         team: p.team,
         r: t.r,
         c: t.c,
         duration: ABILITY_VALUES.FrostfallBlessing.duration,
-        radius: ABILITY_VALUES.FrostfallBlessing.radius,
+        radius: radius,
         damage: ABILITY_VALUES.FrostfallBlessing.damage,
         heal: ABILITY_VALUES.FrostfallBlessing.heal
+      });
+
+      // Glacial Shrouding: friendly units inside the circle receive a Frost Shield
+      gs.shields = gs.shields || [];
+      gs.pieces.forEach(ally => {
+        if (ally.team === p.team && cellIntersectsCircle(ally.row, ally.col, t.r, t.c, radius)) {
+          if (!gs.shields.some(s => s.pieceId === ally.id)) {
+            gs.shields.push({
+              pieceId: ally.id,
+              duration: 2,
+              name: 'FrostShield'
+            });
+          }
+        }
       });
     }
   }
