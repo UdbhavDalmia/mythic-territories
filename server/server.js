@@ -131,7 +131,7 @@ io.on('connection', (socket) => {
                     if (!gs.originalPieces) {
                         gs.originalPieces = JSON.parse(JSON.stringify(gs.pieces));
                     }
-                    gs.pieces = gs.pieces.filter(p => p.key === 'snowFrostLord' || p.key === 'ashAshTyrant');
+                    gs.pieces = gs.pieces.filter(p => p.key === 'snowFrostLord' || p.key === 'ashAshTyrant' || p.key === 'ashMagmaShaper');
                 } else {
                     if (gs.originalPieces) {
                         gs.pieces = JSON.parse(JSON.stringify(gs.originalPieces));

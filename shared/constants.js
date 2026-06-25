@@ -30,12 +30,13 @@ export const IMAGES = {
   ashCinderScout: "units/cinder-scout.png",
   ashMagmaProwler: "units/magma-prowler.png",
   ashMagmaSpitter: "units/magma-spitter.png",
-  ashObsidianShaper: "units/obsidian-shaper.png",
+  ashMagmaShaper: "units/magma-shaper.png",
   ashRiftForger: "units/rift-forger.png",
   ashAshReaper: "units/ash-reaper.png",
   ashScorchPriest: "units/scorch-priest.png",
   gameBackgroundAsh: "images/bg-game2.png",
   gameBackgroundSnow: "images/bg-game.png",
+  obsidianPillar: "images/obsidian-pillar.png",
   snowArcticTrapper: "units/arctic-trapper.png",
   snowGlacialMage: "units/cryomancer.png",
   snowFrostLord: "units/frost-lord.png",
@@ -127,7 +128,7 @@ export const ABILITY_VALUES = {
   KindleArmor: { range: 1, duration: 3, cooldown: 3, powerBoost: 1 },
   KingsEdict: { duration: 4, powerDebuff: 1 },
   LavaGlob: { cooldown: 10, range: 4, damage: 1, maxTargetPower: 2 },
-  MagmaShield: { range: 2, duration: 2, cooldown: 5 },
+  ObsidianPillar: { range: 2, duration: 2, cooldown: 5 },
   MarkOfCinder: { cooldown: 4, range: 2, duration: 3, powerDebuff: 1 },
   PowerInfusion: { powerBoost: 4, duration: 5 },
   Pummel: { range: 1, cooldown: 3 },
@@ -148,7 +149,6 @@ export const ABILITY_VALUES = {
   IcyShift: { cooldown: 5, range: 2, duration: 2 },
   SiphonCharge: { permDamageCost: 1, cooldownReset: "FrenziedDash" },
   BlazeLunge: { cooldown: 4, range: 2 },
-  EruptionLink: { cooldown: 5, range: 1, duration: 2, powerBoost: 2 },
   VolatileCinder: { cooldown: 4, range: 3, damage: 1 },
   SoulfireBurst: { cooldown: 6, range: 3, damage: 1 },
   TacticalSwapAsh: { cooldown: 4, range: 2, duration: 2 },
@@ -171,6 +171,11 @@ export const ABILITY_VALUES = {
    ========================================================================== */
 export const getPieceAt = (r, c, pieces) => pieces ? pieces.find(p => Math.hypot(p.col - c, p.row - r) < 0.7) || null : null;
 export const inBounds = (r, c) => r >= 0 && r < ROWS && c >= 0 && c < COLS;
+
+export function emit(gs, eventPayload) {
+  if (!gs.events) gs.events = [];
+  gs.events.push(eventPayload);
+}
 
 export function applyDebuff(gs, debuff) {
   if (!gs) return;
@@ -460,20 +465,102 @@ export const ABILITIES = {
       }
     }
   },
-  MagmaShield: {
-    name: "Magma Shield",
-    cooldown: ABILITY_VALUES.MagmaShield.cooldown,
-    range: ABILITY_VALUES.MagmaShield.range,
-    targetType: "friendly",
-    canBeBlocked: false,
+  ObsidianPillar: {
+    name: "Obsidian Pillar",
+    cooldown: ABILITY_VALUES.ObsidianPillar.cooldown,
+    range: ABILITY_VALUES.ObsidianPillar.range,
+    targetType: "any",
+    canBeBlocked: true,
     requiresTargeting: true,
     effect: (p, t, gs) => {
       const tp = getPieceAt(t.r, t.c, gs.pieces);
-      if (tp && !gs.shields.some((s) => s.pieceId === tp.id))
-        gs.shields.push({
-          pieceId: tp.id,
-          duration: ABILITY_VALUES.MagmaShield.duration
+      if (!tp) {
+        const hasWall = (gs.glacialWalls || []).some(w => w.row === t.r && w.col === t.c);
+        const hasVoid = (gs.voidSquares || []).some(v => v.row === t.r && v.col === t.c);
+        const hasCrater = (gs.specialTerrains || []).some(st => st.type === 'crater' && Math.round(st.row) === t.r && Math.round(st.col) === t.c);
+        if (hasWall || hasVoid || hasCrater) return;
+
+        gs.glacialWalls = gs.glacialWalls || [];
+        gs.glacialWalls.push({
+          row: t.r,
+          col: t.c,
+          duration: 4,
+          type: 'obsidianPillar'
         });
+        return;
+      }
+      if (tp.team === p.team) {
+        gs.shields = gs.shields || [];
+        if (!gs.shields.some((s) => s.pieceId === tp.id)) {
+          gs.shields.push({
+            pieceId: tp.id,
+            duration: ABILITY_VALUES.ObsidianPillar.duration,
+            hp: 2,
+            maxHp: 2,
+            name: "ObsidianPillarShield"
+          });
+        }
+      } else {
+        const dmg = 1;
+        tp.power = Math.max(0, tp.power - dmg);
+        if (typeof tp.currentHp === "number") {
+          if (!(tp.key === 'snowFrostLord' && tp.hasHelpFromAboveActive)) {
+            tp.currentHp = Math.max(0, tp.currentHp - dmg);
+          }
+        }
+
+        const dr = tp.row - p.row;
+        const dc = tp.col - p.col;
+        const maxDist = Math.max(Math.abs(dr), Math.abs(dc));
+        const stepR = maxDist > 0 ? Math.round(dr / maxDist) : 0;
+        const stepC = maxDist > 0 ? Math.round(dc / maxDist) : 0;
+
+        const destR = tp.row + stepR;
+        const destC = tp.col + stepC;
+
+        const isValid = inBounds(destR, destC) &&
+          !getPieceAt(destR, destC, gs.pieces) &&
+          !gs.glacialWalls.some(w => w.row === destR && w.col === destC) &&
+          !(gs.voidSquares || []).some(v => v.row === destR && v.col === destC);
+
+        if (isValid) {
+          emit(gs, {
+            type: "ANIMATION",
+            name: "PummelKnockback",
+            targetPieceId: tp.id,
+            attackerR: p.row,
+            attackerC: p.col,
+            oldRow: tp.row,
+            oldCol: tp.col,
+            newRow: destR,
+            newCol: destC
+          });
+          tp.row = destR;
+          tp.col = destC;
+
+          const pos = `${destR},${destC}`;
+          (tp.team === "snow" ? gs.snowTerritory : gs.ashTerritory).add(pos);
+          (tp.team === "snow" ? gs.ashTerritory : gs.snowTerritory).delete(pos);
+          gs.territoryCaptureTurn[pos] = gs.turnCount;
+
+          gs.glacialWalls = gs.glacialWalls || [];
+          gs.glacialWalls.push({
+            row: t.r,
+            col: t.c,
+            duration: 4,
+            type: 'obsidianPillar'
+          });
+        } else {
+          tp.isDazed = true;
+          tp.dazedFor = Math.max(tp.dazedFor || 0, 2);
+
+          const blocker = getPieceAt(destR, destC, gs.pieces);
+          if (blocker && !blocker.isSteadfast) {
+            blocker.isDazed = true;
+            blocker.dazedFor = Math.max(blocker.dazedFor || 0, 2);
+          }
+        }
+      }
     }
   },
   MarkOfCinder: {
@@ -786,28 +873,6 @@ export const ABILITIES = {
       gs.territoryCaptureTurn[pos] = gs.turnCount;
     }
   },
-  EruptionLink: {
-    name: "Eruption Link",
-    cooldown: ABILITY_VALUES.EruptionLink.cooldown,
-    requiresTargeting: true,
-    range: ABILITY_VALUES.EruptionLink.range,
-    targetType: "friendly",
-    effect: (p, t, gs) => {
-      const tp = getPieceAt(t.r, t.c, gs.pieces);
-      if (!tp) return;
-      if (!gs.shields.some((s) => s.pieceId === tp.id))
-        gs.shields.push({
-          pieceId: tp.id,
-          duration: ABILITY_VALUES.EruptionLink.duration
-        });
-      gs.temporaryBoosts.push({
-        pieceId: tp.id,
-        amount: ABILITY_VALUES.EruptionLink.powerBoost,
-        duration: ABILITY_VALUES.EruptionLink.duration,
-        name: "EruptionLink"
-      });
-    }
-  },
   VolatileForge: {
     name: "Volatile Forge",
     cooldown: ABILITY_VALUES.UnstableGround.cooldown,
@@ -976,7 +1041,7 @@ export const ABILITIES = {
       const radius = ABILITY_VALUES.ReignOfFire.radius;
       const strBoost = ABILITY_VALUES.ReignOfFire.strengthBoost;
       const duration = ABILITY_VALUES.ReignOfFire.duration;
-      
+
       const toRemove = [];
       gs.pieces.forEach(target => {
         if (cellIntersectsSector(target.row, target.col, p.row, p.col, t.r, t.c, ABILITY_VALUES.ReignOfFire.range, Math.PI / 3)) {
@@ -1111,15 +1176,12 @@ export const PIECE_TYPES = {
       cooldown: ABILITY_VALUES.VolatileCinder.cooldown
     }
   },
-  ashObsidianShaper: {
-    name: "Obsidian Shaper",
+  ashMagmaShaper: {
+    name: "Magma Shaper",
     power: 2,
-    stats: { hp: 7, def: 1, strength: 2, range: 2, agility: 2, control: 0.1 },
-    ability: { name: "Magma Shield", key: "MagmaShield" },
-    veteranAbility: {
-      key: "EruptionLink",
-      cooldown: ABILITY_VALUES.EruptionLink.cooldown
-    }
+    stats: { hp: 7, def: 1, strength: 2, range: 2, agility: 2, control: 0.6 },
+    ability: { name: "Obsidian Pillar", key: "ObsidianPillar" },
+    veteranAbility: null
   },
   ashRiftForger: {
     name: "Rift Forger",
@@ -1260,7 +1322,7 @@ export const PIECE_VALUES = {
   ashCinderScout: 150,
   ashMagmaProwler: 300,
   ashMagmaSpitter: 500,
-  ashObsidianShaper: 250,
+  ashMagmaShaper: 250,
   ashRiftForger: 250,
   ashAshReaper: 700,
   ashScorchPriest: 450,
@@ -1281,7 +1343,7 @@ export const TEAM_PIECES = {
   ash: {
     Brawler: "ashBlazeboundBeast",
     Mage: "ashMagmaSpitter",
-    Mystic: "ashObsidianShaper",
+    Mystic: "ashMagmaShaper",
     Priest: "ashScorchPriest",
     Shaper: "ashRiftForger",
     Siphoner: "ashAshReaper",

@@ -572,7 +572,11 @@ function scoreActionHeuristically(action, gameState, aiTeam) {
 
         if ((gameState.specialTerrains || []).some(t => t.row === target.row && t.col === target.col)) {
             const trap = gameState.specialTerrains.find(t => t.row === target.row && t.col === target.col);
-            if (trap.type !== 'icyGround' || piece.team !== 'snow') {
+            if (trap.type === 'magmaShards') {
+                if (piece.team === 'snow') {
+                    score -= 1000;
+                }
+            } else if (trap.type !== 'icyGround' || piece.team !== 'snow') {
                 score -= 1000;
             }
         }
@@ -673,6 +677,20 @@ function simulateMove(gameState, piece, target) {
                 simPiece.isDazed = true;
                 simPiece.dazedFor = 2;
                 tempState.specialTerrains.splice(trapIndex, 1);
+            }
+        } else if (trap.type === 'magmaShards') {
+            if (simPiece.team === 'snow') {
+                const dmg = 1;
+                simPiece.power = Math.max(0, simPiece.power - dmg);
+                if (typeof simPiece.currentHp === "number") {
+                    if (!(simPiece.key === 'snowFrostLord' && simPiece.hasHelpFromAboveActive)) {
+                        simPiece.currentHp = Math.max(0, simPiece.currentHp - dmg);
+                    }
+                }
+                tempState.specialTerrains.splice(trapIndex, 1);
+                if (typeof simPiece.currentHp === 'number' && simPiece.currentHp <= 0) {
+                    tempState.pieces = tempState.pieces.filter(p => p.id !== simPiece.id);
+                }
             }
         }
     }

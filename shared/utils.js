@@ -301,15 +301,35 @@ export function dealDamage(attacker, defender, gameState) {
   if (defender.key === 'ashAshTyrant' && defender.hasDeathMeteorInvincibility) {
     actualDmg = 0;
   }
-  
+
   // Passives triggering on Lethal Strike are now handled centrally in handlePieceCapture 
   // via applyAoeLethalPassives so they trigger identically across movement and AoE.
-  
-  // Check if defender has Magma Shield (blocks 1 damage)
+
+  // Check if defender has a shield
   const shieldIdx = (gameState.shields || []).findIndex(s => s.pieceId === defender.id);
   if (shieldIdx !== -1 && actualDmg > 0) {
-    actualDmg = Math.max(0, actualDmg - 1);
-    gameState.shields.splice(shieldIdx, 1); // consume the shield
+    const shield = gameState.shields[shieldIdx];
+    if (shield.name === 'ObsidianPillarShield') {
+      const hp = typeof shield.hp === 'number' ? shield.hp : 2;
+      const absorbed = Math.min(actualDmg, hp);
+      shield.hp = hp - absorbed;
+      actualDmg = Math.max(0, actualDmg - absorbed);
+      if (shield.hp <= 0) {
+        gameState.shields.splice(shieldIdx, 1); // consume the shield
+        // Spawn Magma Shards trap terrain
+        gameState.specialTerrains = gameState.specialTerrains || [];
+        gameState.specialTerrains.push({
+          row: defender.row,
+          col: defender.col,
+          type: 'magmaShards',
+          duration: 2,
+          age: 0
+        });
+      }
+    } else {
+      actualDmg = Math.max(0, actualDmg - 1);
+      gameState.shields.splice(shieldIdx, 1); // consume the shield
+    }
   }
 
   defender.currentHp = Math.max(0, defender.currentHp - actualDmg);
@@ -327,7 +347,7 @@ export function dealDamage(attacker, defender, gameState) {
       }
     });
   }
-  
+
   attacker.damageDealt = (attacker.damageDealt || 0) + actualDmg;
 
   return dmg;
@@ -407,14 +427,14 @@ export function previewDamage(attacker, defender, gameState) {
  */
 export function getPieceMoveRadius(piece, gameState) {
   if (!piece) return 2;
-  
+
   if (gameState?.testMode) {
-    if (piece.key === 'snowFrostLord' || piece.key === 'ashAshTyrant') {
+    if (piece.key === 'snowFrostLord' || piece.key === 'ashAshTyrant' || piece.key === 'ashMagmaShaper') {
       return 10;
     }
     return 0;
   }
-  
+
   let agi = 2;
   // New stat-based radius — agility IS the move budget
   if (typeof piece.agility === "number") {
@@ -435,7 +455,7 @@ export function getPieceMoveRadius(piece, gameState) {
       agi = 3;
     }
   }
-  
+
   // Apply Frost Duo bonus
   if (piece.key === "snowGlacialMage" && gameState) {
     const wisps = (gameState.pieces || []).filter(p => p.key === "snowIceWisp" && p.team === piece.team && p.currentHp > 0);
@@ -482,18 +502,26 @@ export function getValidMoves(piece, gameState) {
     const gridC = Math.round(c);
     const hasCrater = (gameState.specialTerrains || []).some(t => t.type === 'crater' && Math.round(t.row) === gridR && Math.round(t.col) === gridC);
     return !walls.some((w) => w.row === gridR && w.col === gridC) &&
-           !voids.some((v) => v.row === gridR && v.col === gridC) &&
-           !hasCrater;
+      !voids.some((v) => v.row === gridR && v.col === gridC) &&
+      !hasCrater;
   };
 
   // Returns true if landing here triggers an enemy trap (BFS halts expansion)
   const isHostileTrap = (r, c) => {
     const gridR = Math.round(r);
     const gridC = Math.round(c);
+    const hasBeacon = (gameState.specialTerrains || []).some(
+      (t) => t.type === "beacon" && piece.team !== "snow" && Math.round(t.row) === gridR && Math.round(t.col) === gridC
+    );
+    const hasMagmaShards = (gameState.specialTerrains || []).some(
+      (t) => t.type === "magmaShards" && piece.team === "snow" && Math.round(t.row) === gridR && Math.round(t.col) === gridC
+    );
     return snares.some((t) => t.row === gridR && t.col === gridC) ||
       hazards.some(
         (g) => g.row === gridR && g.col === gridC && g.creator?.team !== piece.team
-      );
+      ) ||
+      hasBeacon ||
+      hasMagmaShards;
   };
 
   // 1. Conduit Link Anchor Teleports

@@ -285,10 +285,10 @@ window.handleStartReset = function () {
 
         if (isLocal) {
             gameState.gameStarted = true;
-            try { 
+            try {
                 gameState.ashParticles = [];
                 gameState.frostfallShards = [];
-                Effects.initParticles(gameState); 
+                Effects.initParticles(gameState);
             } catch (e) { }
             try { UI.startTimer(gameState); } catch (e) { }
             updateControlButtons();
@@ -303,7 +303,7 @@ window.handleStartReset = function () {
             try {
                 Logic.resetGame();
                 gameState = Logic.getGameState();
-                try { UI.clearMessageLog(); } catch (e) {}
+                try { UI.clearMessageLog(); } catch (e) { }
                 attachImagesToState();
                 Effects.initParticles(gameState);
                 UI.resetTimers(gameState);
@@ -369,19 +369,19 @@ function setupCanvas() {
 
     if (startBtn) startBtn.onclick = window.handleStartReset;
     if (startBtnMobile) startBtnMobile.onclick = window.handleStartReset;
-    
+
     const restartBtn = document.getElementById('restartBtn');
     if (restartBtn) restartBtn.onclick = () => {
         const vs = document.getElementById('victoryScreen');
         if (vs) vs.style.display = 'none';
         window.handleStartReset();
     };
-    
+
     const victoryMenuBtn = document.getElementById('victoryMenuBtn');
     if (victoryMenuBtn) victoryMenuBtn.onclick = () => {
         window.location.href = 'index.html';
     };
-    
+
     updateControlButtons();
 
     const drawerHandle = document.querySelector('.drawer-handle');
@@ -402,7 +402,7 @@ function setupCanvas() {
     if (drawerPeek) drawerPeek.addEventListener('click', window.toggleMobileDrawer);
 
     if (canvas && piecePopup) {
-    canvas.addEventListener('mousemove', (e) => {
+        canvas.addEventListener('mousemove', (e) => {
             if (!gameState) { piecePopup.style.display = 'none'; return; }
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
@@ -413,7 +413,7 @@ function setupCanvas() {
 
             let col = Math.floor(x / C.CELL_SIZE);
             let row = Math.floor(y / C.CELL_SIZE);
-            
+
             gameState.hoverCol = col;
             gameState.hoverRow = row;
 
@@ -552,12 +552,12 @@ function setupCanvas() {
             } else {
                 const targetRow = clickedPiece ? clickedPiece.row : logicRow;
                 const targetCol = clickedPiece ? clickedPiece.col : logicCol;
-                
+
                 const dist = Math.hypot(targetRow - gameState.selectedPiece.row, targetCol - gameState.selectedPiece.col);
                 const maxRadius = E.getPieceMoveRadius ? E.getPieceMoveRadius(gameState.selectedPiece, gameState) : (gameState.selectedPiece.agility || 2);
-                
+
                 const isTargetAlly = clickedPiece && clickedPiece.team === gameState.selectedPiece.team;
-                
+
                 if (dist <= maxRadius + 0.1 && !isTargetAlly) {
                     executeMove(gameState.selectedPiece, targetRow, targetCol);
                     deselectPiece();
@@ -736,15 +736,15 @@ function playAnimation(animData) {
             const dst = gameState.pieces.find(p => p.id === animData.targetId);
             Effects.spawnFateLinkCast(src, dst, gameState);
             break;
-        case 'GlacialFracture': 
+        case 'GlacialFracture':
             Effects.spawnGlacialFractureEffect(animData.targetR, animData.targetC, gameState);
             if (animData.wispId) {
                 const wisp = gameState.pieces.find(p => p.id === animData.wispId);
                 Effects.spawnSummonWispEffect(wisp.row, wisp.col, wisp, gameState);
             }
             break;
-        case 'AColdFarewell': 
-            Effects.spawnAColdFarewellEffect(animData.r, animData.c, gameState); 
+        case 'AColdFarewell':
+            Effects.spawnAColdFarewellEffect(animData.r, animData.c, gameState);
             break;
         case 'ReignOfFire': {
             const tyrant = gameState.pieces.find(p => p.id === animData.pieceId);
@@ -878,7 +878,7 @@ function getAbilityDescription(abilityKey) {
         'GlacialWall': 'Creates two impassable walls on adjacent empty squares. Lasts 3 turns.',
         'FrenziedDash': 'Move 2 squares in a straight line to an empty square. Cannot capture.',
         'LavaGlob': 'Deals 1 permanent damage to an enemy with base power 1 or 2, within 4 squares.',
-        'MagmaShield': 'Place a shield on an ally for 2 rounds. Next attacker takes 1 damage.',
+        'ObsidianPillar': 'Spawns an Obsidian Pillar: deals damage and pushback to enemies, works as cover, and forms an Obsidian Shield when targeting allies.',
         'Pummel': 'Pushes an adjacent enemy back 1 square. Deals no damage.',
         'UnstableGround': 'Make an empty square within 4 squares hazardous.',
         'MarkOfCinder': 'Mark an enemy within 2 squares, reducing its power by 1. Lasts 3 turns.',
@@ -890,7 +890,6 @@ function getAbilityDescription(abilityKey) {
         'FrostStomp': 'Daze any adjacent enemy unit for 1 turn.',
         'GlacialBeacon': 'Target empty square within 3; next enemy there is Dazed 1 turn.',
         'VolatileCinder': 'Deals 1 permanent damage to an enemy within 3 squares Marked by Cinder.',
-        'EruptionLink': 'Grants an adjacent ally Magma Shield and +2 Power for 1 turn.',
         'HardenedIce': 'Grants an adjacent ally Steadfast for 2 full rounds.',
         'SoulfireBurst': 'Detonates a nearby Unstable Ground, dealing 1 damage to adjacent units.',
         'Siphon': 'Link units to transfer power or absorb debuffs.'
@@ -977,14 +976,18 @@ export function applyActionLogic(actionType, data, gs) {
                 const defender = C.getPieceAt(data.r, data.c, gs.pieces);
                 if (defender && defender.team !== mp.team) {
                     try {
-                        UI.triggerLunge(mp.id, data.r, data.c);
+                        if (mp.key === 'ashMagmaShaper') {
+                            UI.triggerObsidianProjectile(mp.id, data.r, data.c, gs);
+                        } else {
+                            UI.triggerLunge(mp.id, data.r, data.c);
+                        }
 
                         const preview = E.previewDamage(mp, defender, gs);
                         if (preview.isFatal) {
                             UI.triggerPieceDissolve(defender);
 
                         }
-                    } catch (e) {}
+                    } catch (e) { }
                 }
                 turnEnded = Logic.movePiece(mp, data.r, data.c, data.isHighway);
             }
@@ -997,7 +1000,7 @@ export function applyActionLogic(actionType, data, gs) {
                     try {
                         UI.triggerPulse(cp.id);
 
-                    } catch (e) {}
+                    } catch (e) { }
                     turnEnded = Logic.executeAbility(cp, data.target, data.abilityKey, gs);
                 } else {
                     turnEnded = Logic.activateAbility(cp, data.abilityKey || data.unleashCostOrKey || 0);
@@ -1014,7 +1017,7 @@ export function applyActionLogic(actionType, data, gs) {
                 try {
                     UI.triggerPulse(vp.id);
 
-                } catch (e) {}
+                } catch (e) { }
             }
             turnEnded = Logic.ventOverload(vp);
             break;
@@ -1032,7 +1035,7 @@ export function applyActionLogic(actionType, data, gs) {
                 try {
                     UI.triggerPulse(rp.id);
 
-                } catch (e) {}
+                } catch (e) { }
             }
             turnEnded = Logic.executeRiftPulse(rp);
             break;
@@ -1046,7 +1049,7 @@ export function applyActionLogic(actionType, data, gs) {
                 if (!gs.originalPieces) {
                     gs.originalPieces = JSON.parse(JSON.stringify(gs.pieces));
                 }
-                gs.pieces = gs.pieces.filter(p => p.key === 'snowFrostLord' || p.key === 'ashAshTyrant');
+                gs.pieces = gs.pieces.filter(p => p.key === 'snowFrostLord' || p.key === 'ashAshTyrant' || p.key === 'ashMagmaShaper');
             } else {
                 if (gs.originalPieces) {
                     gs.pieces = JSON.parse(JSON.stringify(gs.originalPieces));
@@ -1134,11 +1137,11 @@ function animationLoop(time) {
     lastAnimTime = time;
 
     if (!gameState) { requestAnimationFrame(animationLoop); return; }
-    
+
     try { UI.updateVisualStates(gameState, dt); } catch (e) { }
 
     ctx.clearRect(0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
-    
+
     ctx.save();
     try { UI.applyScreenshake(ctx); } catch (e) { }
 
@@ -1166,7 +1169,7 @@ function animationLoop(time) {
 
             ctx.save();
             ctx.globalCompositeOperation = 'lighter';
-            
+
             const fillGrad = ctx.createRadialGradient(cx, cy, radiusPx * 0.4, cx, cy, radiusPx);
             if (piece.team === 'snow') {
                 fillGrad.addColorStop(0, 'rgba(0, 191, 255, 0.08)');
@@ -1198,7 +1201,7 @@ function animationLoop(time) {
             ctx.beginPath();
             ctx.arc(cx, cy, radiusPx + 6, 0, Math.PI * 2);
             ctx.stroke();
-            
+
             ctx.restore();
         }
     } catch (e) { /* non-fatal */ }
@@ -1226,6 +1229,7 @@ function animationLoop(time) {
     if (Effects.drawParticles) Effects.drawParticles(gameState);
     if (Effects.drawGroundEffectParticles) Effects.drawGroundEffectParticles(gameState);
     if (Effects.drawSiphonParticles) Effects.drawSiphonParticles(gameState);
+    if (Effects.drawProjectiles) Effects.drawProjectiles(gameState);
 
     if (Effects.drawHelpFromAboveFog) Effects.drawHelpFromAboveFog(ctx, gameState);
 
@@ -1301,22 +1305,22 @@ try {
 function scaleGame() {
     const wrapper = document.getElementById('game-wrapper');
     if (!wrapper) return;
-    
+
     if (window.innerWidth <= 1024) {
         wrapper.style.transform = 'none';
         return;
     }
-    
+
     const baseWidth = 1460;
     const baseHeight = 1020;
     const padding = 20;
-    
+
     const winWidth = window.innerWidth - padding;
     const winHeight = window.innerHeight - padding;
-    
+
     let scale = Math.min(winWidth / baseWidth, winHeight / baseHeight);
-    if (scale > 1) scale = 1; 
-    
+    if (scale > 1) scale = 1;
+
     wrapper.style.transform = `scale(${scale})`;
 }
 
@@ -1343,7 +1347,7 @@ window.addEventListener('keydown', e => {
     if ((key === '1' || key === '2') && lastDebugKey && (now - lastDebugKeyTime < 2000)) {
         const prefix = lastDebugKey;
         lastDebugKey = null; // consume
-        
+
         if (prefix === 'f') {
             const frostLord = gameState.pieces.find(p => p.key === 'snowFrostLord');
             if (frostLord) {
@@ -1365,7 +1369,7 @@ window.addEventListener('keydown', e => {
                     const targetR = tyrant.row;
                     const targetC = Math.min(7, tyrant.col + 2);
                     Effects.spawnReignOfFireEffect(tyrant, targetR, targetC, gameState);
-                    
+
                     // Add temporary strength boost for local test visual feedback
                     const radius = 2;
                     gameState.pieces.forEach(p => {

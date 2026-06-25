@@ -133,3 +133,5 @@ export const drawReignOfFireAnimations = gs => Anim.drawReignOfFireAnimations(ct
 export const spawnDeathMeteorEffect = (...a) => Anim.spawnDeathMeteorEffect(...a)
 export const drawDeathMeteorAnimations = gs => Anim.drawDeathMeteorAnimations(ctx, gs)
 export const drawDeathMeteorShield = (ctxParam, piece, gs) => Anim.drawDeathMeteorShield(ctxParam, piece, gs)
+export const drawMagmaShardsBlock = (...a) => Terrain.drawMagmaShardsBlock(...a)
+

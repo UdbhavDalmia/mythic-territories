@@ -70,6 +70,23 @@ export function checkSpecialTerrains(p, r, c, gs) {
       p.dazedFor = Math.max(p.dazedFor || 0, 3);
       flash(`${C.PIECE_TYPES[p.key].name} slipped on Ice!`, "neutral", gs);
       gs.specialTerrains.splice(trapIndex, 1);
+    } else if (trap.type === "beacon" && p.team !== "snow") {
+      p.isDazed = true;
+      p.dazedFor = Math.max(p.dazedFor || 0, 2);
+      flash(`${C.PIECE_TYPES[p.key].name} triggered a Glacial Beacon and is Dazed!`, "neutral", gs);
+      gs.specialTerrains.splice(trapIndex, 1);
+      emit(gs, { type: "ANIMATION", name: "TrapTrigger", r: Math.round(r), c: Math.round(c), pieceId: p.id });
+    } else if (trap.type === "magmaShards" && p.team === "snow") {
+      const dmg = 1;
+      p.power = Math.max(0, p.power - dmg);
+      if (typeof p.currentHp === "number") {
+        if (!(p.key === 'snowFrostLord' && p.hasHelpFromAboveActive)) {
+          p.currentHp = Math.max(0, p.currentHp - dmg);
+        }
+      }
+      flash(`${C.PIECE_TYPES[p.key].name} stepped on Magma Shards and took 1 damage!`, "neutral", gs);
+      gs.specialTerrains.splice(trapIndex, 1);
+      emit(gs, { type: "ANIMATION", name: "TrapTrigger", r: Math.round(r), c: Math.round(c), pieceId: p.id });
     }
   }
 }
@@ -133,7 +150,7 @@ export function applyAoeLethalPassives(piece, gameState) {
       piece.helpFromAboveCooldown = C.ABILITY_VALUES.HelpFromAbove?.cooldown || 15;
       piece.hasHelpFromAboveActive = true;
       piece.helpFromAboveActiveTurns = C.ABILITY_VALUES.HelpFromAbove?.activeDuration || 4;
-      
+
       // Emit the animation trigger for the client
       if (typeof window === 'undefined' || gameState.isLocalSimulation !== true) {
         if (!gameState.events) gameState.events = [];
@@ -336,7 +353,7 @@ export function handlePieceCapture(capturedPiece, attacker, gs) {
     const rad = C.ABILITY_VALUES.AColdFarewell?.radius || 1.5;
     gs.temporaryBoosts = gs.temporaryBoosts || [];
     gs.debuffs = gs.debuffs || [];
-    
+
     gs.pieces.forEach(p => {
       if (p.id !== capturedPiece.id && p.currentHp > 0) {
         if (Math.hypot(p.row - capturedPiece.row, p.col - capturedPiece.col) <= rad) {
@@ -350,7 +367,7 @@ export function handlePieceCapture(capturedPiece, attacker, gs) {
         }
       }
     });
-    
+
     gs.blizzardStorms = gs.blizzardStorms || [];
     gs.blizzardStorms.push({
       r: capturedPiece.row,
@@ -359,8 +376,22 @@ export function handlePieceCapture(capturedPiece, attacker, gs) {
       radius: rad,
       team: capturedPiece.team
     });
-    
+
     emit(gs, { type: "ANIMATION", name: "AColdFarewell", r: capturedPiece.row, c: capturedPiece.col });
+  }
+
+  // Drop Magma Shards if captured unit has ObsidianPillarShield
+  const activeShield = gs.shields && gs.shields.find(s => s.pieceId === capturedPiece.id && s.name === 'ObsidianPillarShield');
+  if (activeShield) {
+    gs.specialTerrains = gs.specialTerrains || [];
+    gs.specialTerrains.push({
+      row: capturedPiece.row,
+      col: capturedPiece.col,
+      type: 'magmaShards',
+      duration: 2,
+      age: 0
+    });
+    gs.shields = gs.shields.filter(s => s !== activeShield);
   }
 
   // 4. Remove piece
@@ -370,7 +401,7 @@ export function handlePieceCapture(capturedPiece, attacker, gs) {
   if (capturedPiece.key.includes("Lord") || capturedPiece.key.includes("Tyrant")) {
     endGame(attacker ? attacker.team : (capturedPiece.team === "snow" ? "ash" : "snow"));
   }
-  
+
   flash(`${C.PIECE_TYPES[capturedPiece.key]?.name || 'Unit'} was captured!`, attacker ? attacker.team : 'neutral', gs);
   return true;
 }
@@ -565,7 +596,7 @@ export function executeAbility(
             if (inBounds(tr, tc)) {
               gameStateLocal.snowTerritory.add(`${tr},${tc}`);
               gameStateLocal.ashTerritory.delete(`${tr},${tc}`);
-              
+
               // 2. Damage enemies
               const p = C.getPieceAt(tr, tc, gameStateLocal.pieces);
               if (p && p.team !== piece.team && p.currentHp > 0) {
@@ -576,27 +607,27 @@ export function executeAbility(
           }
         }
       }
-      
+
       // 3. Check wisp resonance limit
       const currentWisps = gameStateLocal.pieces.filter(p => p.key === "snowIceWisp" && p.team === piece.team && p.currentHp > 0);
       if (currentWisps.length >= C.ABILITY_VALUES.GlacialFracture.wispCap) {
         flash("Glacial Mage Resonance Maxed: No further Wisps can be sustained", "snow", gameStateLocal);
         return false; // Preserves turn action
       }
-      
+
       // 4. Spawn Ice Wisp logic
       let bestTile = null;
       let maxDistSum = -1;
       let closestToMage = Infinity;
-      
+
       for (let r = -Math.floor(rad); r <= Math.ceil(rad); r++) {
         for (let c = -Math.floor(rad); c <= Math.ceil(rad); c++) {
           if (Math.hypot(r, c) <= rad) {
             const tr = Math.round(target.r + r);
             const tc = Math.round(target.c + c);
-            if (inBounds(tr, tc) && !C.getPieceAt(tr, tc, gameStateLocal.pieces) && 
-                !C.getPieceAt(tr - 0.5, tc - 0.5, gameStateLocal.pieces)) {
-              
+            if (inBounds(tr, tc) && !C.getPieceAt(tr, tc, gameStateLocal.pieces) &&
+              !C.getPieceAt(tr - 0.5, tc - 0.5, gameStateLocal.pieces)) {
+
               if (enemiesCaught.length > 0) {
                 let distSum = 0;
                 enemiesCaught.forEach(ep => {
@@ -604,20 +635,20 @@ export function executeAbility(
                 });
                 if (distSum > maxDistSum) {
                   maxDistSum = distSum;
-                  bestTile = {r: tr, c: tc};
+                  bestTile = { r: tr, c: tc };
                 }
               } else {
                 let distToMage = Math.hypot(piece.row - tr, piece.col - tc);
                 if (distToMage < closestToMage) {
                   closestToMage = distToMage;
-                  bestTile = {r: tr, c: tc};
+                  bestTile = { r: tr, c: tc };
                 }
               }
             }
           }
         }
       }
-      
+
       if (bestTile && createPiece) {
         let isPower1 = false;
         if (piece.isVeteran && C.PIECE_TYPES[piece.key]?.veteranAbility?.key === "WispEnhancement") {
@@ -908,7 +939,11 @@ function isTargetValid(piece, target, ability, gameStateLocal) {
   } else {
     distance = Math.max(Math.abs(piece.row - r), Math.abs(piece.col - c));
   }
-  if (ability.range > 0 && distance > ability.range) return false;
+  let abilityRange = ability.range;
+  if (gameStateLocal?.testMode && (piece.key === 'ashMagmaShaper' || piece.key === 'snowFrostLord' || piece.key === 'ashAshTyrant')) {
+    abilityRange = 10;
+  }
+  if (abilityRange > 0 && distance > abilityRange) return false;
   if (targetPiece?.hasDefensiveWard && ability.canBeBlocked) return false;
 
   switch (ability.targetType) {
@@ -1088,25 +1123,25 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
 
 function paintTerritoryPath(piece, startRow, startCol, endRow, endCol, gameState) {
   if (!gameState.territoryTrails) gameState.territoryTrails = [];
-  
+
   const dist = Math.hypot(endCol - startCol, endRow - startRow);
   const radius = piece ? getEffectiveControl(piece, gameState) : 1;
   const team = piece ? piece.team : 'snow';
   const steps = dist === 0 ? 0 : Math.max(1, Math.ceil(dist / 0.5));
   const newPoints = [];
-  
+
   for (let i = 0; i <= steps; i++) {
     const t = steps === 0 ? 0 : i / steps;
     const r = startRow + (endRow - startRow) * t;
     const c = startCol + (endCol - startCol) * t;
-    
+
     const isRedundant = gameState.territoryTrails.some(oldT => {
       if (oldT.team !== team || oldT.radius < radius) return false;
       const dx = oldT.col - c;
       const dy = oldT.row - r;
       return (dx * dx + dy * dy) < 0.04;
     });
-    
+
     if (!isRedundant) {
       newPoints.push({
         row: r,
@@ -1116,12 +1151,12 @@ function paintTerritoryPath(piece, startRow, startCol, endRow, endCol, gameState
         time: Date.now()
       });
     }
-    
+
     const minR = Math.max(0, Math.floor(r - radius));
     const maxR = Math.min(9, Math.ceil(r + radius));
     const minC = Math.max(0, Math.floor(c - radius));
     const maxC = Math.min(9, Math.ceil(c + radius));
-    
+
     for (let gr = minR; gr <= maxR; gr++) {
       for (let gc = minC; gc <= maxC; gc++) {
         const dx = gr - r;
@@ -1161,7 +1196,7 @@ function paintTerritoryPath(piece, startRow, startCol, endRow, endCol, gameState
 
   // Push new points to trails AFTER pruning so they don't self-prune
   gameState.territoryTrails.push(...newPoints);
-  
+
   // Hard cap to prevent runaway array growth causing massive network and render lag
   if (gameState.territoryTrails.length > 500) {
     gameState.territoryTrails = gameState.territoryTrails.slice(-500);
@@ -1684,7 +1719,7 @@ export function executeSacrifice(piece) {
     snowArcticTrapper: "Skirmisher",
     ashAshStrider: "Skirmisher",
     snowHoarfrostMystic: "Mystic",
-    ashObsidianShaper: "Mystic",
+    ashMagmaShaper: "Mystic",
     // Bug 1.4 fix: Updated from deprecated snowVoidChanter/ashRiftWarden
     snowSoulLinker: "Siphoner",
     ashAshReaper: "Siphoner",
@@ -2279,6 +2314,29 @@ function endOfTurnUpkeep() {
   });
 
   const aliveIds = new Set(gameState.pieces.map((p) => p.id));
+
+  // Spawn magma shards when ObsidianPillarShield expires
+  if (gameState.shields) {
+    gameState.shields.forEach((s) => {
+      if (s.name === 'ObsidianPillarShield') {
+        const pId = s.pieceId;
+        const p = gameState.pieces.find((piece) => piece.id === pId);
+        if (p && p.team === gameState.currentTurn) {
+          if (s.duration - 1 <= 0) {
+            gameState.specialTerrains = gameState.specialTerrains || [];
+            gameState.specialTerrains.push({
+              row: p.row,
+              col: p.col,
+              type: 'magmaShards',
+              duration: 2,
+              age: 0
+            });
+          }
+        }
+      }
+    });
+  }
+
   const filterByTurn = (arr) =>
     arr.filter((item) => {
       const pId = item.pieceId !== undefined ? item.pieceId : item.targetId;
@@ -2301,6 +2359,16 @@ function endOfTurnUpkeep() {
         r: w.row,
         c: w.col
       });
+      if (w.type === 'obsidianPillar') {
+        gameState.specialTerrains = gameState.specialTerrains || [];
+        gameState.specialTerrains.push({
+          row: w.row,
+          col: w.col,
+          type: 'magmaShards',
+          duration: 2,
+          age: 0
+        });
+      }
       return false;
     }
     return true;
@@ -2324,7 +2392,7 @@ function endOfTurnUpkeep() {
   }
   if (gameState.blizzardStorms) {
     gameState.blizzardStorms = gameState.blizzardStorms.filter((s) => {
-      s.duration -= 1; 
+      s.duration -= 1;
       // Apply healing only on the caster's turn
       if (s.duration > 0 && gameState.currentTurn === s.team) {
         gameState.pieces.forEach(p => {
@@ -2666,7 +2734,7 @@ export function initGame() {
   // Base territories are seeded entirely by the pieces' starting positions
 
   if (isTestMode) {
-    gameState.pieces = gameState.pieces.filter(p => p.key === 'snowFrostLord' || p.key === 'ashAshTyrant');
+    gameState.pieces = gameState.pieces.filter(p => p.key === 'snowFrostLord' || p.key === 'ashAshTyrant' || p.key === 'ashMagmaShaper');
   }
 
   gameState.pieces.forEach((p) => {

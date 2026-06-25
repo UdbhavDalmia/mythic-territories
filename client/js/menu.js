@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         let lastSpawn = 0;
-        window.addEventListener('mousemove', e => { 
+        window.addEventListener('mousemove', e => {
             const now = performance.now();
             if (now - lastSpawn > 50 && Math.random() > 0.4) {
                 spawn(e.clientX, e.clientY);

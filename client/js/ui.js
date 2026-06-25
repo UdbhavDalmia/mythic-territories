@@ -11,7 +11,8 @@ import {
   drawBurningGroundBlock,
   drawSnareTrapBlock,
   drawIcyGroundBlock,
-  drawDeathMeteorShield
+  drawDeathMeteorShield,
+  drawMagmaShardsBlock
 } from './effects.js';
 import * as Effects from './effects.js';
 let boardCtx;
@@ -272,9 +273,13 @@ export function drawAbilityHighlights(gameState) {
   const ability = C.ABILITIES[abilityKey];
   if (!ability) return;
   ctx.save();
+  let abilityRange = ability.range;
+  if (gameState.testMode && (piece.key === 'ashMagmaShaper' || piece.key === 'snowFrostLord' || piece.key === 'ashAshTyrant')) {
+    abilityRange = 10;
+  }
   if (ability.circularRange) {
     ctx.beginPath();
-    ctx.arc(piece.col * C.CELL_SIZE + C.CELL_SIZE / 2, piece.row * C.CELL_SIZE + C.CELL_SIZE / 2, ability.range * C.CELL_SIZE, 0, Math.PI * 2);
+    ctx.arc(piece.col * C.CELL_SIZE + C.CELL_SIZE / 2, piece.row * C.CELL_SIZE + C.CELL_SIZE / 2, abilityRange * C.CELL_SIZE, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(0, 255, 0, 0.15)';
     ctx.fill();
     ctx.lineWidth = 2;
@@ -284,7 +289,7 @@ export function drawAbilityHighlights(gameState) {
     for (let r = 0; r < C.ROWS; r++) {
       for (let c = 0; c < C.COLS; c++) {
         let distance = Math.max(Math.abs(piece.row - r), Math.abs(piece.col - c));
-        if (ability.range >= 0 && distance > ability.range) continue;
+        if (abilityRange >= 0 && distance > abilityRange) continue;
         let isValid = false;
         if (ability.specialTargeting) {
           isValid = ability.specialTargeting(piece, { r, c }, gameState);
@@ -294,7 +299,17 @@ export function drawAbilityHighlights(gameState) {
             case 'enemy': isValid = targetPiece && targetPiece.team !== piece.team && !targetPiece.hasDefensiveWard; break;
             case 'friendly': isValid = targetPiece && targetPiece.team === piece.team; break;
             case 'empty': isValid = !targetPiece; break;
-            case 'any': isValid = true; break;
+            case 'any': {
+              if (abilityKey === 'ObsidianPillar' && !targetPiece) {
+                const hasWall = (gameState.glacialWalls || []).some(w => w.row === r && w.col === c);
+                const hasVoid = (gameState.voidSquares || []).some(v => v.row === r && v.col === c);
+                const hasCrater = (gameState.specialTerrains || []).some(st => st.type === 'crater' && Math.round(st.row) === r && Math.round(st.col) === c);
+                isValid = !hasWall && !hasVoid && !hasCrater;
+              } else {
+                isValid = true;
+              }
+              break;
+            }
           }
         }
         if (isValid) {
@@ -310,7 +325,7 @@ export function drawAbilityHighlights(gameState) {
     const distance = ability.circularRange
       ? Math.hypot(piece.row - gameState.hoverRow, piece.col - gameState.hoverCol)
       : Math.max(Math.abs(piece.row - gameState.hoverRow), Math.abs(piece.col - gameState.hoverCol));
-    if (ability.range < 0 || distance <= ability.range) {
+    if (abilityRange < 0 || distance <= abilityRange) {
       if (ability.specialTargeting) {
         isValidTarget = ability.specialTargeting(piece, { r: gameState.hoverRow, c: gameState.hoverCol }, gameState);
       } else {
@@ -319,7 +334,17 @@ export function drawAbilityHighlights(gameState) {
           case 'enemy': isValidTarget = hoverP && hoverP.team !== piece.team && !hoverP.hasDefensiveWard; break;
           case 'friendly': isValidTarget = hoverP && hoverP.team === piece.team; break;
           case 'empty': isValidTarget = !hoverP; break;
-          case 'any': isValidTarget = true; break;
+          case 'any': {
+            if (abilityKey === 'ObsidianPillar' && !hoverP) {
+              const hasWall = (gameState.glacialWalls || []).some(w => w.row === gameState.hoverRow && w.col === gameState.hoverCol);
+              const hasVoid = (gameState.voidSquares || []).some(v => v.row === gameState.hoverRow && v.col === gameState.hoverCol);
+              const hasCrater = (gameState.specialTerrains || []).some(st => st.type === 'crater' && Math.round(st.row) === gameState.hoverRow && Math.round(st.col) === gameState.hoverCol);
+              isValidTarget = !hasWall && !hasVoid && !hasCrater;
+            } else {
+              isValidTarget = true;
+            }
+            break;
+          }
         }
       }
     }
@@ -495,7 +520,7 @@ export function drawSelection(gameState) {
     ctx.save();
     const maxRadius = (typeof getPieceMoveRadius === 'function') ? getPieceMoveRadius(p, gameState) : (p.agility || 2);
     const moveRadiusPx = maxRadius * C.CELL_SIZE;
-    const pulseRadius = moveRadiusPx + Math.sin(performance.now() * 0.005) * 3;
+    const pulseRadius = Math.max(0.1, moveRadiusPx + Math.sin(performance.now() * 0.005) * 3);
     ctx.strokeStyle = p.team === 'snow' ? 'rgba(0, 220, 255, 0.75)' : 'rgba(255, 90, 30, 0.75)';
     ctx.lineWidth = 2.5;
     ctx.shadowColor = ctx.strokeStyle;
@@ -508,7 +533,7 @@ export function drawSelection(gameState) {
     ctx.setLineDash([4, 6]);
     ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.arc(cx, cy, pulseRadius + 6, -time * 0.5, -time * 0.5 + Math.PI * 2);
+    ctx.arc(cx, cy, Math.max(0.1, pulseRadius + 6), -time * 0.5, -time * 0.5 + Math.PI * 2);
     ctx.stroke();
     ctx.restore();
   }
@@ -575,7 +600,16 @@ export function generatePieceInfoString(piece, gameState) {
   if (piece.hasDefensiveWard) statuses.push('Ward (Immune)');
   if (piece.canRiftPulse) statuses.push('Rift Pulse Ready');
   if (piece.isTrapped) statuses.push('Trapped by Shrine');
-  if ((gameState.shields || []).some(s => s.pieceId === piece.id)) statuses.push('Magma Shield');
+  const activeShield = (gameState.shields || []).find(s => s.pieceId === piece.id);
+  if (activeShield) {
+    if (activeShield.name === 'ObsidianPillarShield') {
+      statuses.push(`Obsidian Pillar Shield (${activeShield.hp} HP)`);
+    } else if (activeShield.name === 'FrostShield') {
+      statuses.push('Frost Shield');
+    } else {
+      statuses.push('Shield');
+    }
+  }
   if (piece.isSteadfast) statuses.push('Steadfast');
   if (piece.hasPriestsWard) statuses.push("Priest's Ward");
   if (statuses.length > 0) info += `<i>${statuses.join(', ')}</i><br>`;
@@ -605,10 +639,36 @@ export function generateAbilitiesInfoString(piece) {
 }
 function getAbilityDescription(abilityKey) {
   const descriptions = {
+    'SetSnare': 'Create a trap on an adjacent empty square. The first enemy to enter is Stuck for 2 turns.',
+    'ScorchedRetreat': 'Move 1 square backward and create an Unstable Ground hazard on the square you left.',
+    'HuntersRage': 'Gain +1 Power (attacking only) for 2 rounds.',
+    'KindleArmor': 'Grants an adjacent ally +1 Power (defending only) for 2 rounds.',
+    'SummonIceWisp': 'Summons a Power 0 wisp to an empty square within 4 squares.',
+    'Hamstring': 'An adjacent enemy cannot move diagonally for 1 round.',
+    'FrostArmor': 'Gain +2 Power (defending only) for 2 rounds.',
+    'FrigidPath': 'Creates a 1x3 line of IcyGround. First enemy to enter is Dazed.',
+    'GlacialWall': 'Creates two impassable walls on adjacent empty squares. Lasts 3 turns.',
+    'FrenziedDash': 'Move 2 squares in a straight line to an empty square. Cannot capture.',
+    'LavaGlob': 'Deals 1 permanent damage to an enemy with base power 1 or 2, within 4 squares.',
+    'ObsidianPillar': 'Spawns an Obsidian Pillar: deals damage and pushback to enemies, works as cover, and forms an Obsidian Shield when targeting allies.',
+    'Pummel': 'Pushes an adjacent enemy back 1 square. Deals no damage.',
+    'UnstableGround': 'Make an empty square within 4 squares hazardous.',
+    'MarkOfCinder': 'Mark an enemy within 2 squares, reducing its power by 1. Lasts 3 turns.',
+    'ChillingAura': 'Activates an aura that reduces the power of adjacent enemies by 1. Lasts 3 turns.',
+    'DistractingRoar': 'Reduce effective power of an adjacent enemy by 1 for 1 round.',
+    'BlazeLunge': 'Move up to 2 squares in a straight line to an empty square adjacent to an enemy.',
+    'CinderSurge': 'Removes all debuffs from an adjacent friendly unit.',
+    'IcyShift': 'Swap positions with any unit within 2 squares; both are Dazed for 1 turn.',
+    'FrostStomp': 'Daze any adjacent enemy unit for 1 turn.',
+    'GlacialBeacon': 'Target empty square within 3; next enemy there is Dazed 1 turn.',
+    'VolatileCinder': 'Deals 1 permanent damage to an enemy within 3 squares Marked by Cinder.',
+    'HardenedIce': 'Grants an adjacent ally Steadfast for 2 full rounds.',
+    'SoulfireBurst': 'Detonates a nearby Unstable Ground, dealing 1 damage to adjacent units.',
+    'Siphon': 'Link units to transfer power or absorb debuffs.',
     'FrostfallBlessing': 'AOE (Range 2.5, Rad 2) deals 2 damage to enemies and heals allies for 1 HP for 5 turns.',
     'ReignOfFire': 'AOE (Range 2.5, Rad 2) deals 2 damage to enemies; deals 1 damage to allies but grants them +2 Strength for 3 turns.',
     'FateLink': 'Binds an ally and enemy (Range 3) for 4 turns; any damage taken by the ally is mirrored exactly to the enemy.',
-    "TheReapersToll": 'Steals 1 Defence and 0.4 Agility from an enemy (Range 3) for 4 turns, transferring the stats to self.',
+    'TheReapersToll': 'Steals 1 Defence and 0.4 Agility from an enemy (Range 3) for 4 turns, transferring the stats to self.',
     'GlacialFracture': 'AOE (Range 2.5, Rad 2) deals 2 damage, creates Snow territory, and summons 1 Ice Wisp furthest from caught enemies (Max 2).'
   };
   return descriptions[abilityKey] || '';
@@ -798,6 +858,43 @@ export function triggerLunge(pieceId, targetR, targetC) {
     vis.lungeProgress = 0.0;
   }
 }
+export function triggerObsidianProjectile(pieceId, targetR, targetC, gameState) {
+  const p = gameState.pieces.find(pc => pc.id === pieceId);
+  if (!p) return;
+  const startX = p.col * C.CELL_SIZE + C.CELL_SIZE / 2;
+  const startY = p.row * C.CELL_SIZE + C.CELL_SIZE / 2;
+  const targetX = targetC * C.CELL_SIZE + C.CELL_SIZE / 2;
+  const targetY = targetR * C.CELL_SIZE + C.CELL_SIZE / 2;
+
+  gameState.projectiles = gameState.projectiles || [];
+  gameState.projectiles.push({
+    x: startX,
+    y: startY,
+    targetCol: targetC,
+    targetRow: targetR,
+    speed: 9,
+    size: 5,
+    color: '#3d1d4d',
+    target: null,
+    onHit: () => {
+      gameState.battleParticles = gameState.battleParticles || [];
+      for (let i = 0; i < 18; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 2.5 + 1.0;
+        const radius = Math.random() * 4 + 2;
+        gameState.battleParticles.push({
+          x: targetX,
+          y: targetY,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          alpha: 1.0,
+          radius,
+          color: Math.random() > 0.4 ? '60, 20, 95' : '25, 10, 40'
+        });
+      }
+    }
+  });
+}
 export function triggerPulse(pieceId) {
   const vis = visualStates.get(pieceId);
   if (vis) vis.pulseProgress = 0.0;
@@ -891,16 +988,27 @@ export function drawPiece(p, targetCtx, gameState) {
         drawCtx.restore();
       }
 
-      // Draw shield visual ring around the token if unit has a shield (pale yellow)
-      const hasShield = (gameState.shields || []).some(s => s.pieceId === p.id);
-      if (hasShield) {
+      // Draw shield visual ring around the token if unit has a shield (pale yellow, or obsidian purple)
+      const activeShield = (gameState.shields || []).find(s => s.pieceId === p.id);
+      if (activeShield) {
         drawCtx.save();
         const pulse = 0.5 + 0.5 * Math.sin(time * 4);
         drawCtx.globalCompositeOperation = 'lighter';
-        drawCtx.strokeStyle = 'rgba(255, 255, 180, 0.85)';
-        drawCtx.lineWidth = 3.5 + pulse * 1.5;
-        drawCtx.shadowColor = 'rgba(255, 255, 150, 0.7)';
-        drawCtx.shadowBlur = 10 + pulse * 5;
+
+        if (activeShield.name === 'ObsidianPillarShield') {
+          const hp = typeof activeShield.hp === 'number' ? activeShield.hp : 2;
+          const shieldOpacity = hp === 1 ? 0.35 : 0.75;
+          drawCtx.strokeStyle = `rgba(130, 20, 200, ${shieldOpacity})`;
+          drawCtx.lineWidth = 4.5 + pulse * 1.5;
+          drawCtx.shadowColor = 'rgba(100, 10, 150, 0.9)';
+          drawCtx.shadowBlur = (hp === 1 ? 6 : 14) + pulse * 4;
+        } else {
+          drawCtx.strokeStyle = 'rgba(255, 255, 180, 0.85)';
+          drawCtx.lineWidth = 3.5 + pulse * 1.5;
+          drawCtx.shadowColor = 'rgba(255, 255, 150, 0.7)';
+          drawCtx.shadowBlur = 10 + pulse * 5;
+        }
+
         drawCtx.beginPath();
         drawCtx.arc(0, 0, drawSize * 0.52, 0, Math.PI * 2);
         drawCtx.stroke();
@@ -1496,6 +1604,8 @@ export function renderBoard(gameState) {
         drawSnareTrapBlock(boardCtx, t.row, t.col, C.CELL_SIZE, t.age, t.team, gameState.playerTeam);
       } else if (t.type === 'icyGround') {
         drawIcyGroundBlock(boardCtx, t.row, t.col, C.CELL_SIZE);
+      } else if (t.type === 'magmaShards') {
+        drawMagmaShardsBlock(boardCtx, t.row, t.col, C.CELL_SIZE, t.duration);
       } else if (t.type === 'beacon') {
         boardCtx.fillStyle = `rgba(135, 206, 250, ${0.3 + Math.sin(performance.now() * 0.005) * 0.2})`;
         boardCtx.fillRect(x, y, C.CELL_SIZE, C.CELL_SIZE);
@@ -1531,7 +1641,7 @@ export function renderBoard(gameState) {
           const angle = (j / numCracks) * Math.PI * 2 + (seed * 0.1);
           const dist1 = rInner + (Math.abs((seed + j) % 5) / 5) * 5;
           const dist2 = C.CELL_SIZE * (0.45 + (Math.abs((seed * j) % 4) / 10));
-          
+
           boardCtx.beginPath();
           boardCtx.moveTo(cx + Math.cos(angle) * dist1, cy + Math.sin(angle) * dist1);
           // Add a jagged vertex to make it look cracked
@@ -1586,7 +1696,7 @@ export function renderBoard(gameState) {
         glowGrad.addColorStop(0.4, `rgba(255, 90, 0, ${pulse * 0.9})`);
         glowGrad.addColorStop(0.8, `rgba(120, 20, 0, ${pulse * 0.6})`);
         glowGrad.addColorStop(1, 'rgba(10, 3, 0, 0.8)');
-        
+
         boardCtx.save();
         boardCtx.shadowColor = 'rgba(255, 90, 0, 0.7)';
         boardCtx.shadowBlur = 12 * pulse;
@@ -1779,6 +1889,27 @@ const visualTestTriggers = {
   ],
   snowIceWisp: [
     { text: 'Test Active', action: (p, gs) => { if (Effects.spawnAColdFarewellEffect) Effects.spawnAColdFarewellEffect(p.row, p.col, gs); } }
+  ],
+  ashMagmaShaper: [
+    { text: 'Test Active', action: (p, gs) => { triggerObsidianProjectile(p.id, p.row, Math.min(9, p.col + 2), gs); } },
+    {
+      text: 'Test Shield',
+      action: (p, gs) => {
+        gs.shields = gs.shields || [];
+        const existing = gs.shields.find(s => s.pieceId === p.id);
+        if (existing) {
+          existing.hp = existing.hp === 2 ? 1 : 2;
+        } else {
+          gs.shields.push({
+            pieceId: p.id,
+            duration: 2,
+            hp: 2,
+            maxHp: 2,
+            name: "ObsidianPillarShield"
+          });
+        }
+      }
+    }
   ]
 };
 

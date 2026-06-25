@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Wheel of Destiny - Mythic Territories</title>
+  <meta name="description"
+    content="Spin the elemental wheel to select the next unit to work on or train in Mythic Territories.">
+  <link rel="stylesheet" href="styles/wheel.css">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@700&family=Exo+2:wght@400;600;700&family=Rajdhani:wght@600;700&display=swap"
+    rel="stylesheet">
+</head>
+
+<body class="wheel-page">
+  <button class="back-nexus-btn" id="backBtn">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12"></line>
+      <polyline points="12 19 5 12 12 5"></polyline>
+    </svg>
+    Return to Menu
+  </button>
+
+  <div class="wheel-header">
+    <h1 class="wheel-title">Wheel of Destiny</h1>
+    <div class="wheel-subtitle">The Elemental Path of Unit Selection</div>
+  </div>
+
+  <div class="wheel-container">
+    <!-- Left Column: Interactive Wheel -->
+    <div class="wheel-area">
+      <div class="wheel-pointer" id="wheelPointer"></div>
+      <div class="wheel-outer-ring">
+        <canvas id="wheel-canvas" width="960" height="960"></canvas>
+        <button class="spin-center-btn" id="spinBtn">SPIN</button>
+      </div>
+    </div>
+
+    <!-- Right Column: Selected Unit Details -->
+    <div class="result-area">
+      <div class="result-glass-card" id="resultCard">
+        <div class="result-placeholder" id="resultPlaceholder">
+          <div class="mystic-icon">✦</div>
+          <p>SPIN THE WHEEL OF DESTINY TO CHOOSE YOUR NEXT UNIT</p>
+        </div>
+        
+        <div class="result-winner" id="resultWinner" style="display: none;">
+          <div class="winner-header">
+            <div class="winner-portrait-container">
+              <img id="winnerPortrait" src="" alt="Unit Portrait">
+            </div>
+            <div class="winner-title-group">
+              <h2 class="winner-name" id="winnerName">UNIT NAME</h2>
+              <div class="winner-role" id="winnerRole">CLASS / ROLE</div>
+            </div>
+          </div>
+
+          <div class="winner-stats">
+            <div class="stat-row">
+              <div class="stat-label">Health</div>
+              <div class="stat-bar-container">
+                <div class="stat-bar-fill" id="stat-hp" style="width: 0%"></div>
+              </div>
+              <div class="stat-value" id="val-hp">0</div>
+            </div>
+            <div class="stat-row">
+              <div class="stat-label">Strength</div>
+              <div class="stat-bar-container">
+                <div class="stat-bar-fill" id="stat-strength" style="width: 0%"></div>
+              </div>
+              <div class="stat-value" id="val-strength">0</div>
+            </div>
+            <div class="stat-row">
+              <div class="stat-label">Defense</div>
+              <div class="stat-bar-container">
+                <div class="stat-bar-fill" id="stat-def" style="width: 0%"></div>
+              </div>
+              <div class="stat-value" id="val-def">0</div>
+            </div>
+            <div class="stat-row">
+              <div class="stat-label">Range</div>
+              <div class="stat-bar-container">
+                <div class="stat-bar-fill" id="stat-range" style="width: 0%"></div>
+              </div>
+              <div class="stat-value" id="val-range">0</div>
+            </div>
+            <div class="stat-row">
+              <div class="stat-label">Agility</div>
+              <div class="stat-bar-container">
+                <div class="stat-bar-fill" id="stat-agility" style="width: 0%"></div>
+              </div>
+              <div class="stat-value" id="val-agility">0</div>
+            </div>
+            <div class="stat-row">
+              <div class="stat-label">Control</div>
+              <div class="stat-bar-container">
+                <div class="stat-bar-fill" id="stat-control" style="width: 0%"></div>
+              </div>
+              <div class="stat-value" id="val-control">0</div>
+            </div>
+          </div>
+
+          <div class="winner-abilities">
+            <div class="ability-block" id="activeAbilityBlock">
+              <div class="ability-type active">Active Ability</div>
+              <div class="ability-name" id="activeAbilityName">Ability Name</div>
+              <div class="ability-desc" id="activeAbilityDesc">Ability Description</div>
+            </div>
+            <div class="ability-block" id="passiveAbilityBlock">
+              <div class="ability-type passive">Passive Ability</div>
+              <div class="ability-name" id="passiveAbilityName">Passive Name</div>
+              <div class="ability-desc" id="passiveAbilityDesc">Passive Description</div>
+            </div>
+            <div class="ability-block" id="vetAbilityBlock">
+              <div class="ability-type veteran">Veteran Ascension</div>
+              <div class="ability-name" id="vetAbilityName">Veteran Ability</div>
+              <div class="ability-desc" id="vetAbilityDesc">Veteran Description</div>
+            </div>
+          </div>
+
+          <div class="lock-in-container">
+            <button class="action-btn" id="lockInBtn">Lock in Unit</button>
+            <button class="action-btn secondary-btn" id="spinAgainBtn">Spin Again</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="wheel-bg-canvas"></canvas>
+
+  <!-- Load Constants and Core Data Dynamically from the server-exposed Shared modules -->
+  <script type="module">
+    import { TEAM_PIECES, PIECE_TYPES, IMAGES } from '../shared/constants.js';
+
+    // Descriptions lookup for active abilities
+    const ACTIVE_DESCS = {
+      'ScorchedRetreat': 'Retreats 1 square backwards, leaving a burning trail that turns the old square into Unstable Ground for 2 turns.',
+      'ReignOfFire': 'AOE (Range 2.5, Radius 2) deals 2 damage to enemies, and 1 damage to allies caught in it while boosting allies\' Strength by +2 for 3 turns.',
+      'HuntersRage': 'Roars in fury, boosting own power and combat damage (grants +1 Power for 3 turns).',
+      'KindleArmor': 'Kindles the armor of an adjacent ally (Range 1), granting them +1 Power for 3 turns.',
+      'LavaGlob': 'Hurls a glob of magma (Range 4), dealing 1 damage to an enemy with power <= 2 or that is marked.',
+      'ObsidianPillar': 'Spawns an Obsidian Pillar: deals damage and pushback to enemies, works as cover, and forms an Obsidian Shield when targeting allies.',
+      'MarkOfCinder': 'Marks an enemy (Range 2) for 3 turns, reducing their power by 1 and making them vulnerable to Lava Glob.',
+      'Pummel': 'Pummels an adjacent enemy, dealing high impact and pushing them back up to 2 squares. Dazes them for 2 turns.',
+      'UnstableGround': 'Sears a targeted empty tile (Range 4) for 3 turns, dealing 1 damage to units standing on it.',
+      'TheReapersToll': 'Siphons stats from an enemy (Range 3) for 4 turns, stealing 1 Defense and 0.4 Agility.',
+      'SetSnare': 'Places a trap snare (Range 2) on an empty tile. Traps and halts the next unit that enters it.',
+      'GlacialFracture': 'Fractures the ground (Range 2.5, Radius 2), dealing 2 damage to enemies, creating ice terrain, and summoning up to 2 Ice Wisps.',
+      'Hamstring': 'Hamstrings an adjacent enemy, locking their movement (0 Agility) for 2 turns.',
+      'FrostArmor': 'Coats self in frost armor, gaining +1 Power for 3 turns.',
+      'FrigidPath': 'Creates a path of ice (Range 4) for 4 turns. Moving on ice costs 0 Agility.',
+      'GlacialWall': 'Erects a solid wall of ice (Range 1) on an adjacent empty tile for 3 turns, blocking all movement and projectiles.',
+      'FateLink': 'Links the souls of two units (Range 3) for 4 turns; any damage taken by the first unit is mirrored to the second.',
+      'FrostfallBlessing': 'Calls down an icy blessing (Range 2.5, Radius 2) that deals 2 damage to enemies and heals allies for 1 HP per turn for 5 turns.',
+      'SummonIceWisp': 'Summons a helper Ice Wisp (Range 4) that can scout and explode on death.',
+      'ChillingAura': 'Surrounds self with freezing cold, debuffing adjacent enemies\' Power by 1 for 3 turns.'
+    };
+
+    // Descriptions lookup for veteran/passive abilities
+    const VET_DESCS = {
+      'TacticalSwapAsh': 'Tactical Swap: Swap places with a friendly unit (Range 2) for 2 turns.',
+      'BlazeLunge': 'Blaze Lunge: Lunges up to 2 squares away adjacent to an enemy.',
+      'CinderSurge': 'Cinder Surge: Cleanses all dazed, stuck, and frost effects from an adjacent ally.',
+      'SiphonCharge': 'Siphon Charge: Permanently reduces power by 1 to reset the cooldown of Frenzied Dash.',
+      'VolatileCinder': 'Volatile Cinder: Target a marked enemy (Range 3) to deal 1 damage.',
+      'VolatileForge': 'Volatile Forge: Unstable Ground now places up to 2 burning hazards.',
+      'SoulfireBurst': 'Soulfire Burst: Explodes an Unstable Ground tile (Range 3), dealing 1 damage to all adjacent units.',
+      'DistractingRoar': 'Distracting Roar: Roars at an enemy (Range 1), debuffing their Power by 1 for 2 turns.',
+      'WispEnhancement': 'Wisp Enhancement: Summoned Ice Wisps are spawned with +1 Power.',
+      'IcyShift': 'Icy Shift: Teleports to a target square (Range 2) for 2 turns.',
+      'FrostStomp': 'Frost Stomp: Stomps the ground, dazing adjacent enemies for 2 turns.',
+      'GlacialBeacon': 'Glacial Beacon: Places a beacon (Range 3) that freezes the surrounding tiles.',
+      'GlacialFortress': 'Glacial Fortress: Increases the duration of Glacial Wall and expands its radius.',
+      'HardenedIce': 'Hardened Ice: Encases a friendly unit in hardened ice, granting steadfast status for 4 turns.',
+      'FrostbiteCurse': 'Frostbite Curse: Removes temporary boosts from an enemy (Range 2) and debuffs their power by 1.'
+    };
+
+    const PASSIVE_DESCS = {
+      'snowFrostLord': {
+        name: 'Help From Above',
+        desc: 'Lethal damage is negated; becomes invulnerable for 5 turns and grants nearby allies (Rad 1.5) +1 Strength.'
+      },
+      'ashAshTyrant': {
+        name: 'Death Meteor',
+        desc: 'Lethal damage is negated; survives at 1 HP and triggers an explosion (Rad 2) dealing 4 damage to enemies and 2 damage to allies.'
+      },
+      'snowSoulLinker': {
+        name: 'Cold Snap',
+        desc: 'If the bound enemy dies, the Soul Linker heals 2 HP; excess healing is converted into a 1-damage absorb shield.'
+      },
+      'ashAshReaper': {
+        name: 'Ashes To Ashes',
+        desc: 'When The Reaper\'s Toll expires, the stolen stats return and the enemy has a 50% chance to take 1 unavoidable damage.'
+      },
+      'snowGlacialMage': {
+        name: 'Frost Duo',
+        desc: 'Gains +0.2 Control and +0.2 Agility per active Ice Wisp; gains an additional +1 Strength if both Wisps are active.'
+      }
+    };
+
+    // Set up back button
+    document.getElementById('backBtn').addEventListener('click', () => {
+      window.location.href = 'index.html';
+    });
+
+    // Extract units from constants, filtering out Tyrants (Kings) and Magma Shaper (ashMagmaShaper)
+    const filteredAsh = Object.entries(TEAM_PIECES.ash).filter(([role, key]) => {
+      return key !== 'ashAshTyrant' && key !== 'ashMagmaShaper';
+    });
+    const filteredSnow = Object.entries(TEAM_PIECES.snow).filter(([role, key]) => {
+      return key !== 'snowFrostLord';
+    });
+
+    const unitsList = [];
+    const maxLen = Math.max(filteredAsh.length, filteredSnow.length);
+    for (let i = 0; i < maxLen; i++) {
+      if (i < filteredAsh.length) {
+        unitsList.push({
+          faction: 'ash',
+          role: filteredAsh[i][0],
+          key: filteredAsh[i][1],
+          ...PIECE_TYPES[filteredAsh[i][1]]
+        });
+      }
+      if (i < filteredSnow.length) {
+        unitsList.push({
+          faction: 'snow',
+          role: filteredSnow[i][0],
+          key: filteredSnow[i][1],
+          ...PIECE_TYPES[filteredSnow[i][1]]
+        });
+      }
+    }
+
+    const canvas = document.getElementById('wheel-canvas');
+    const ctx = canvas.getContext('2d');
+    const pointer = document.getElementById('wheelPointer');
+    const spinBtn = document.getElementById('spinBtn');
+    const spinAgainBtn = document.getElementById('spinAgainBtn');
+    const resultPlaceholder = document.getElementById('resultPlaceholder');
+    const resultWinner = document.getElementById('resultWinner');
+    const resultCard = document.getElementById('resultCard');
+
+    const totalSlices = unitsList.length;
+    const sliceAngle = (Math.PI * 2) / totalSlices;
+    let currentRotation = 0;
+    let isSpinning = false;
+    let audioCtx = null;
+    let lastTickAngle = 0;
+
+    // Build color scheme
+    const colors = {
+      ash: {
+        bgStart: '#5C1502',
+        bgEnd: '#C12C04',
+        text: '#FFEBE0',
+        factionName: 'Faction of Ash',
+        themeColor: '#ff2e00',
+        themeColorDark: '#7a1100'
+      },
+      snow: {
+        bgStart: '#05234A',
+        bgEnd: '#0077FF',
+        text: '#E5F4FF',
+        factionName: 'Faction of Snow',
+        themeColor: '#0077ff',
+        themeColorDark: '#003a80'
+      }
+    };
+
+    // Play tick sound synthesized via Web Audio API
+    function playTickSound() {
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(900, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.04);
+        
+        gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+        
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.04);
+      } catch (e) {
+        console.error('Audio play blocked or failed', e);
+      }
+    }
+
+    // Render Wheel function
+    function drawWheel() {
+      const radius = canvas.width / 2;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      ctx.translate(radius, radius);
+
+      // Draw sectors
+      for (let i = 0; i < totalSlices; i++) {
+        const angle = i * sliceAngle;
+        const u = unitsList[i];
+        const c = colors[u.faction];
+
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, radius - 15, angle, angle + sliceAngle);
+        ctx.closePath();
+
+        // Create gradient fill
+        const grad = ctx.createRadialGradient(0, 0, 80, 0, 0, radius - 15);
+        grad.addColorStop(0, c.bgStart);
+        grad.addColorStop(1, c.bgEnd);
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Slice borders
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        // Draw Text inside slices
+        ctx.save();
+        ctx.rotate(angle + sliceAngle / 2);
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = c.text;
+        
+        // Font setup
+        ctx.font = 'bold 24px "Rajdhani", sans-serif';
+        
+        // Translate close to edge to write text
+        ctx.fillText(u.name.toUpperCase(), radius - 45, 0);
+        ctx.restore();
+      }
+
+      // Draw Center Outer Border Ring
+      ctx.beginPath();
+      ctx.arc(0, 0, 95, 0, Math.PI * 2);
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = '#ffd700';
+      ctx.fillStyle = '#080501';
+      ctx.fill();
+      ctx.stroke();
+
+      // Outer rim gold overlay
+      ctx.beginPath();
+      ctx.arc(0, 0, radius - 12, 0, Math.PI * 2);
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = '#ffd700';
+      ctx.stroke();
+
+      // Draw decorative gold ticks/pegs at border angles
+      for (let i = 0; i < totalSlices; i++) {
+        const angle = i * sliceAngle;
+        const px = Math.cos(angle) * (radius - 12);
+        const py = Math.sin(angle) * (radius - 12);
+        ctx.beginPath();
+        ctx.arc(px, py, 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffd700';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    // Initial Wheel Draw
+    drawWheel();
+
+    // Trigger slice animation tick indicator
+    function checkTick(currentAngle) {
+      // Normalize angle to 0 - 2PI
+      let normAngle = (currentAngle % (Math.PI * 2));
+      if (normAngle < 0) normAngle += Math.PI * 2;
+
+      // Pointer is at top center (which is 270 degrees or 1.5 * Math.PI relative to canvas zero angle)
+      // Standardize zero point: top center is Math.PI * 1.5
+      const pointerTargetAngle = (Math.PI * 1.5 - normAngle + Math.PI * 4) % (Math.PI * 2);
+
+      // Determine which slice is passing
+      const sliceIdx = Math.floor(pointerTargetAngle / sliceAngle) % totalSlices;
+      
+      if (sliceIdx !== lastTickAngle) {
+        lastTickAngle = sliceIdx;
+        playTickSound();
+
+        // Apply physical pointer bounce animation class
+        pointer.classList.remove('tick-animate');
+        void pointer.offsetWidth; // Trigger reflow
+        pointer.classList.add('tick-animate');
+      }
+    }
+
+    // Dynamic rotation animator
+    let spinAnimationId = null;
+    function spinWheelTo(targetAngle) {
+      const startAngle = currentRotation;
+      const angleDiff = targetAngle - startAngle;
+      const duration = 7500; // 7.5 seconds spin
+      const startTime = performance.now();
+
+      function update(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Custom easing out (Quart) for realistic mechanical wheel friction decay
+        const easeOut = 1 - Math.pow(1 - progress, 4);
+        
+        currentRotation = startAngle + angleDiff * easeOut;
+        canvas.style.transform = `rotate(${currentRotation * (180 / Math.PI)}deg)`;
+
+        // Check ticks for sound effects
+        checkTick(currentRotation);
+
+        if (progress < 1) {
+          spinAnimationId = requestAnimationFrame(update);
+        } else {
+          isSpinning = false;
+          spinBtn.disabled = false;
+          
+          // Calculate winning segment
+          let finalAngle = (currentRotation % (Math.PI * 2));
+          if (finalAngle < 0) finalAngle += Math.PI * 2;
+          
+          // top arrow at Math.PI * 1.5
+          const winnerIndex = Math.floor((Math.PI * 1.5 - finalAngle + Math.PI * 4) % (Math.PI * 2) / sliceAngle) % totalSlices;
+          showWinner(unitsList[winnerIndex]);
+        }
+      }
+
+      spinAnimationId = requestAnimationFrame(update);
+    }
+
+    function triggerSpin() {
+      if (isSpinning) return;
+      
+      // Initialize AudioContext on user interaction
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+
+      isSpinning = true;
+      spinBtn.disabled = true;
+      resultPlaceholder.style.display = 'flex';
+      resultWinner.style.display = 'none';
+      resultCard.className = 'result-glass-card';
+
+      // Pick a random index and add multiple full revolutions (5 to 8 full spins)
+      const randomIdx = Math.floor(Math.random() * totalSlices);
+      const extraSpins = 5 + Math.floor(Math.random() * 4);
+      
+      // Calculate target angle
+      const targetAngle = currentRotation + (extraSpins * Math.PI * 2) + (randomIdx * sliceAngle) + (sliceAngle / 2);
+      
+      spinWheelTo(targetAngle);
+    }
+
+    spinBtn.addEventListener('click', triggerSpin);
+    spinAgainBtn.addEventListener('click', triggerSpin);
+
+    // Displays the winner details panel
+    function showWinner(unit) {
+      // Trigger visual particles burst
+      triggerConfetti(unit.faction);
+
+      const theme = colors[unit.faction];
+      
+      // Update Card Styling
+      resultCard.className = `result-glass-card ${unit.faction}-selected`;
+      resultCard.style.setProperty('--faction-color', theme.themeColor);
+      resultCard.style.setProperty('--faction-color-dark', theme.themeColorDark);
+      
+      // Show Winner panel, hide placeholder
+      resultPlaceholder.style.display = 'none';
+      resultWinner.style.display = 'flex';
+
+      // Set Unit Details
+      document.getElementById('winnerName').textContent = unit.name;
+      document.getElementById('winnerRole').textContent = `${unit.role} • ${theme.factionName}`;
+      
+      // Portrait
+      const imgPath = IMAGES[unit.key] || `units/yeti.png`;
+      document.getElementById('winnerPortrait').src = imgPath;
+
+      // Reset & animate stat bars
+      const stats = unit.stats || { hp: 5, strength: 3, def: 1, range: 1, agility: 2, control: 0.1 };
+      
+      const animateStat = (id, val, maxVal = 12) => {
+        const pct = Math.min(100, Math.max(5, (val / maxVal) * 100));
+        const fill = document.getElementById(`stat-${id}`);
+        const valueLabel = document.getElementById(`val-${id}`);
+        fill.style.width = '0%';
+        valueLabel.textContent = val;
+        setTimeout(() => {
+          fill.style.width = `${pct}%`;
+        }, 100);
+      };
+
+      animateStat('hp', stats.hp, 12);
+      animateStat('strength', stats.strength, 6);
+      animateStat('def', stats.def, 4);
+      animateStat('range', stats.range, 5);
+      animateStat('agility', stats.agility, 5);
+      animateStat('control', stats.control, 1.5);
+
+      // Active Ability
+      const activeBlock = document.getElementById('activeAbilityBlock');
+      if (unit.ability?.key) {
+        activeBlock.style.display = 'block';
+        document.getElementById('activeAbilityName').textContent = unit.ability.name;
+        document.getElementById('activeAbilityDesc').textContent = ACTIVE_DESCS[unit.ability.key] || 'Triggers special ability effect.';
+      } else {
+        activeBlock.style.display = 'none';
+      }
+
+      // Passive Ability
+      const passiveBlock = document.getElementById('passiveAbilityBlock');
+      const passiveInfo = PASSIVE_DESCS[unit.key];
+      if (passiveInfo) {
+        passiveBlock.style.display = 'block';
+        document.getElementById('passiveAbilityName').textContent = passiveInfo.name;
+        document.getElementById('passiveAbilityDesc').textContent = passiveInfo.desc;
+      } else {
+        passiveBlock.style.display = 'none';
+      }
+
+      // Veteran Ability
+      const vetBlock = document.getElementById('vetAbilityBlock');
+      if (unit.veteranAbility?.key) {
+        vetBlock.style.display = 'block';
+        const rawVet = unit.veteranAbility;
+        const vetName = rawVet.key.replace(/([A-Z])/g, ' $1').trim();
+        document.getElementById('vetAbilityName').textContent = vetName;
+        document.getElementById('vetAbilityDesc').textContent = VET_DESCS[rawVet.key] || 'Ascends the unit with special upgrades.';
+      } else {
+        vetBlock.style.display = 'none';
+      }
+
+      // Lock in button listener
+      const lockInBtn = document.getElementById('lockInBtn');
+      // Clone lock in button to clear previous event listeners
+      const newLockInBtn = lockInBtn.cloneNode(true);
+      lockInBtn.parentNode.replaceChild(newLockInBtn, lockInBtn);
+      
+      newLockInBtn.addEventListener('click', () => {
+        alert(`Unit Selected: ${unit.name} locked in! Starting your work focus.`);
+      });
+    }
+
+    // --- Background Ambient FX & Confetti Burst ---
+    const bgCanvas = document.getElementById('wheel-bg-canvas');
+    const bgCtx = bgCanvas.getContext('2d');
+    let bgParticles = [];
+    let confettiParticles = [];
+
+    function resizeBg() {
+      bgCanvas.width = window.innerWidth;
+      bgCanvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeBg);
+    resizeBg();
+
+    class AmbientParticle {
+      constructor() {
+        this.reset();
+        this.y = Math.random() * bgCanvas.height;
+      }
+      reset() {
+        this.x = Math.random() * bgCanvas.width;
+        this.y = bgCanvas.height + 20;
+        this.size = Math.random() * 2.5 + 0.5;
+        this.speedY = -(Math.random() * 0.8 + 0.3);
+        this.speedX = (Math.random() - 0.5) * 0.4;
+        this.alpha = Math.random() * 0.5 + 0.15;
+        // left is snow blue, right is ash red
+        this.color = this.x < bgCanvas.width / 2 ? 'rgba(0, 119, 255,' : 'rgba(255, 46, 0,';
+      }
+      update() {
+        this.y += this.speedY;
+        this.x += this.speedX;
+        if (this.y < -10 || this.x < -10 || this.x > bgCanvas.width + 10) {
+          this.reset();
+        }
+      }
+      draw() {
+        bgCtx.fillStyle = `${this.color}${this.alpha})`;
+        bgCtx.beginPath();
+        bgCtx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        bgCtx.fill();
+      }
+    }
+
+    // Init ambient background
+    for (let i = 0; i < 70; i++) {
+      bgParticles.push(new AmbientParticle());
+    }
+
+    class Confetti {
+      constructor(faction) {
+        this.faction = faction;
+        const rect = canvas.getBoundingClientRect();
+        // Spawns from the center of the wheel
+        this.x = rect.left + rect.width / 2;
+        this.y = rect.top + rect.height / 2;
+        
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 8 + 4;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed - (Math.random() * 3);
+        
+        this.size = Math.random() * 5 + 3;
+        this.alpha = 1.0;
+        this.decay = Math.random() * 0.015 + 0.01;
+        this.gravity = 0.18;
+      }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vy += this.gravity;
+        this.alpha -= this.decay;
+      }
+      draw() {
+        const color = this.faction === 'ash' 
+          ? `rgba(255, ${80 + Math.random() * 100}, 0, ${this.alpha})`
+          : `rgba(0, ${150 + Math.random() * 100}, 255, ${this.alpha})`;
+        bgCtx.fillStyle = color;
+        bgCtx.beginPath();
+        bgCtx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        bgCtx.fill();
+      }
+    }
+
+    function triggerConfetti(faction) {
+      confettiParticles = [];
+      for (let i = 0; i < 120; i++) {
+        confettiParticles.push(new Confetti(faction));
+      }
+    }
+
+    function animate() {
+      bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+      
+      // Update ambient
+      for (let p of bgParticles) {
+        p.update();
+        p.draw();
+      }
+
+      // Update confetti
+      for (let i = confettiParticles.length - 1; i >= 0; i--) {
+        const c = confettiParticles[i];
+        c.update();
+        c.draw();
+        if (c.alpha <= 0) {
+          confettiParticles.splice(i, 1);
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+  </script>
+</body>
+
+</html>
