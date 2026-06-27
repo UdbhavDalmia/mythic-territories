@@ -29,6 +29,16 @@ const buildBadges = team => Array.from({ length: 8 }, (_, i) => {
   return im;
 });
 
+let currentGameState = null;
+
+export function getDrawCoords(r, c, gameState) {
+  const state = gameState || currentGameState;
+  if (state && state.playerTeam === 'ash') {
+    return { r: C.ROWS - 1 - r, c: c };
+  }
+  return { r, c };
+}
+
 const badgeImgs = {
   ice: buildBadges('ice'),
   ash: buildBadges('ash')
@@ -235,7 +245,8 @@ export function drawAbilityHighlights(gameState) {
         if (r === firstRow && c === firstCol) continue;
         if (!C.getPieceAt(r, c, gameState.pieces)) {
           ctx.fillStyle = 'rgba(0,255,0,0.4)';
-          ctx.fillRect(c * C.CELL_SIZE, r * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
+          const draw = getDrawCoords(r, c, gameState);
+          ctx.fillRect(draw.c * C.CELL_SIZE, draw.r * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
         }
       }
     }
@@ -262,7 +273,8 @@ export function drawAbilityHighlights(gameState) {
         }
         if (isValid) {
           ctx.fillStyle = 'rgba(0,255,0,0.4)';
-          ctx.fillRect(c * C.CELL_SIZE, r * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
+          const draw = getDrawCoords(r, c, gameState);
+          ctx.fillRect(draw.c * C.CELL_SIZE, draw.r * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
         }
       }
     }
@@ -279,7 +291,8 @@ export function drawAbilityHighlights(gameState) {
   }
   if (ability.circularRange) {
     ctx.beginPath();
-    ctx.arc(piece.col * C.CELL_SIZE + C.CELL_SIZE / 2, piece.row * C.CELL_SIZE + C.CELL_SIZE / 2, abilityRange * C.CELL_SIZE, 0, Math.PI * 2);
+    const draw = getDrawCoords(piece.row, piece.col, gameState);
+    ctx.arc(draw.c * C.CELL_SIZE + C.CELL_SIZE / 2, draw.r * C.CELL_SIZE + C.CELL_SIZE / 2, abilityRange * C.CELL_SIZE, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(0, 255, 0, 0.15)';
     ctx.fill();
     ctx.lineWidth = 2;
@@ -314,7 +327,8 @@ export function drawAbilityHighlights(gameState) {
         }
         if (isValid) {
           ctx.fillStyle = 'rgba(0,255,0,0.3)';
-          ctx.fillRect(c * C.CELL_SIZE, r * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
+          const draw = getDrawCoords(r, c, gameState);
+          ctx.fillRect(draw.c * C.CELL_SIZE, draw.r * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
         }
       }
     }
@@ -362,8 +376,9 @@ export function drawAbilityHighlights(gameState) {
       ctx.lineDashOffset = performance.now() * 0.01;
 
       if (abilityKey === 'ReignOfFire') {
-        const px = piece.col * C.CELL_SIZE + C.CELL_SIZE / 2;
-        const py = piece.row * C.CELL_SIZE + C.CELL_SIZE / 2;
+        const draw = getDrawCoords(piece.row, piece.col, gameState);
+        const px = draw.c * C.CELL_SIZE + C.CELL_SIZE / 2;
+        const py = draw.r * C.CELL_SIZE + C.CELL_SIZE / 2;
         const theta = Math.atan2(hy - py, hx - px);
         const angleWidth = Math.PI / 3; // 60 degrees
         const startAngle = theta - angleWidth / 2;
@@ -395,7 +410,8 @@ function drawFlashEffects(gameState) {
     e.life -= 0.04;
     if (e.life <= 0) { gameState.flashEffects.splice(i, 1); continue; }
     boardCtx.fillStyle = `rgba(${e.color},${Math.max(0, e.life * 0.7)})`;
-    boardCtx.fillRect(e.c * C.CELL_SIZE, e.r * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
+    const draw = getDrawCoords(e.r, e.c, gameState);
+    boardCtx.fillRect(draw.c * C.CELL_SIZE, draw.r * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
   }
 }
 export function calculateDynamicTerritoryAreas(gameState) {
@@ -481,9 +497,10 @@ export function drawLastMoveIndicator(gameState) {
     ctx.strokeStyle = 'yellow';
     ctx.lineWidth = 3;
     ctx.beginPath();
+    const draw = getDrawCoords(i.row, i.col, gameState);
     ctx.arc(
-      i.col * C.CELL_SIZE + C.CELL_SIZE / 2,
-      i.row * C.CELL_SIZE + C.CELL_SIZE / 2,
+      draw.c * C.CELL_SIZE + C.CELL_SIZE / 2,
+      draw.r * C.CELL_SIZE + C.CELL_SIZE / 2,
       C.CELL_SIZE / 2 * (1.0 - i.life),
       0,
       Math.PI * 2
@@ -500,8 +517,9 @@ export function drawSelection(gameState) {
   if (currentState === GameState.ASCENSION_CHOICE) return;
   if (gameState.selectedPiece && !isState(GameState.ABILITY_TARGETING) && !isState(GameState.TETHER_TARGETING)) {
     const p = gameState.selectedPiece;
-    const cx = p.col * C.CELL_SIZE + C.CELL_SIZE / 2;
-    const cy = p.row * C.CELL_SIZE + C.CELL_SIZE / 2;
+    const draw = getDrawCoords(p.row, p.col, gameState);
+    const cx = draw.c * C.CELL_SIZE + C.CELL_SIZE / 2;
+    const cy = draw.r * C.CELL_SIZE + C.CELL_SIZE / 2;
     const time = performance.now() * 0.003;
     ctx.save();
     ctx.strokeStyle = p.team === 'snow' ? 'rgba(0, 191, 255, 0.85)' : 'rgba(255, 69, 0, 0.85)';
@@ -943,8 +961,7 @@ export function drawPiece(p, targetCtx, gameState) {
       const cy = vis.y + yOffset + C.CELL_SIZE / 2 + vis.offsetY;
       const drawSlashLocal = () => {
         if (vis.lungeProgress < 0.6) {
-          const f = (gameState.playerTeam === 'ash') ? -1 : 1;
-          const attackAngle = Math.atan2(vis.lungeDy * f, vis.lungeDx * f);
+          const attackAngle = Math.atan2(vis.lungeDy, vis.lungeDx);
           const arcRadius = C.CELL_SIZE * 0.65;
           const slashProgress = vis.lungeProgress / 0.6;
           drawCtx.save();
@@ -1208,17 +1225,9 @@ export function drawPiece(p, targetCtx, gameState) {
           const pad = Math.max(2, Math.floor(C.CELL_SIZE * 0.02));
           const bx = vis.x + C.CELL_SIZE - badgeSize - pad + vis.offsetX;
           const by = vis.y + pad + vis.offsetY;
-          if (gameState.playerTeam === 'ash') {
-            drawCtx.save();
-            drawCtx.translate(bx + badgeSize / 2, by + badgeSize / 2);
-            drawCtx.rotate(Math.PI);
-            drawCtx.drawImage(badge, -badgeSize / 2, -badgeSize / 2, badgeSize, badgeSize);
-            drawCtx.restore();
-          } else {
-            drawCtx.drawImage(badge, bx, by, badgeSize, badgeSize);
-          }
+          drawCtx.drawImage(badge, bx, by, badgeSize, badgeSize);
           if ((gameState.debuffs || []).some(d => d.pieceId === p.id && d.name === "ColdFarewellControlLock")) {
-            drawIceRing(drawCtx, bx + badgeSize / 2, by + badgeSize / 2, badgeSize / 1.5, gameState.playerTeam === 'ash');
+            drawIceRing(drawCtx, bx + badgeSize / 2, by + badgeSize / 2, badgeSize / 1.5, false);
           }
         }
       }
@@ -1232,11 +1241,6 @@ export function drawPiece(p, targetCtx, gameState) {
       const barX = vis.x + (C.CELL_SIZE - barW) / 2 + vis.offsetX;
       const barY = vis.y + C.CELL_SIZE - barH - 4 + vis.offsetY;
       drawCtx.save();
-      if (gameState.playerTeam === 'ash') {
-        drawCtx.translate(barX + barW / 2, barY + barH / 2);
-        drawCtx.rotate(Math.PI);
-        drawCtx.translate(-(barX + barW / 2), -(barY + barH / 2));
-      }
       drawCtx.fillStyle = 'rgba(0,0,0,0.7)';
       drawCtx.beginPath();
       if (drawCtx.roundRect) {
@@ -1288,11 +1292,6 @@ export function drawPiece(p, targetCtx, gameState) {
       const defX = vis.x + 4 + vis.offsetX;
       const defY = vis.y + 4 + vis.offsetY;
       drawCtx.save();
-      if (gameState.playerTeam === 'ash') {
-        drawCtx.translate(defX + defSize / 2, defY + defSize / 2);
-        drawCtx.rotate(Math.PI);
-        drawCtx.translate(-(defX + defSize / 2), -(defY + defSize / 2));
-      }
       drawCtx.beginPath();
       drawCtx.moveTo(defX + defSize / 2, defY);
       drawCtx.lineTo(defX + defSize, defY + defSize * 0.3);
@@ -1331,13 +1330,7 @@ export function drawPiece(p, targetCtx, gameState) {
         drawCtx.font = `${Math.max(10, Math.floor(overlaySize * 0.9))}px sans-serif`;
         drawCtx.textAlign = 'center';
         drawCtx.textBaseline = 'middle';
-        if (gameState.playerTeam === 'ash') {
-          drawCtx.translate(ox + overlaySize / 2, oy + overlaySize / 2);
-          drawCtx.rotate(Math.PI);
-          drawCtx.fillText(String(p.overloadPoints), 0, 1);
-        } else {
-          drawCtx.fillText(String(p.overloadPoints), ox + overlaySize / 2, oy + overlaySize / 2 + 1);
-        }
+        drawCtx.fillText(String(p.overloadPoints), ox + overlaySize / 2, oy + overlaySize / 2 + 1);
         drawCtx.restore();
       }
     } catch (e) { }
@@ -1377,25 +1370,19 @@ export function drawDyingPieces(targetCtx, gameState) {
         drawCtx.globalAlpha = vis.opacity;
         const cx = vis.x + C.CELL_SIZE / 2 + vis.offsetX;
         const cy = vis.y + C.CELL_SIZE / 2 + vis.offsetY;
-        if (gameState.playerTeam === 'ash') {
-          drawCtx.translate(cx, cy);
-          drawCtx.rotate(Math.PI + vis.rotation);
-          drawCtx.scale(vis.scale, vis.scale);
-          drawCtx.drawImage(img, -C.CELL_SIZE / 2, -C.CELL_SIZE / 2, C.CELL_SIZE, C.CELL_SIZE);
-        } else {
-          drawCtx.translate(cx, cy);
-          drawCtx.rotate(vis.rotation);
-          drawCtx.scale(vis.scale, vis.scale);
-          drawCtx.drawImage(img, -C.CELL_SIZE / 2, -C.CELL_SIZE / 2, C.CELL_SIZE, C.CELL_SIZE);
-        }
+        drawCtx.translate(cx, cy);
+        drawCtx.rotate(vis.rotation);
+        drawCtx.scale(vis.scale, vis.scale);
+        drawCtx.drawImage(img, -C.CELL_SIZE / 2, -C.CELL_SIZE / 2, C.CELL_SIZE, C.CELL_SIZE);
         drawCtx.restore();
       }
     }
   }
 }
 export function renderBoard(gameState) {
+  currentGameState = gameState;
   boardCtx.clearRect(0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
-  const bgKey = gameState.playerTeam === 'snow' ? 'gameBackgroundSnow' : 'gameBackgroundAsh';
+  const bgKey = (gameState.playerTeam === 'ash') ? 'gameBackgroundAsh' : 'gameBackgroundSnow';
   const backgroundImg = gameState.boardImgs?.[bgKey];
   if (backgroundImg?.complete) {
     boardCtx.drawImage(backgroundImg, 0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
@@ -1417,7 +1404,8 @@ export function renderBoard(gameState) {
   if (gameState.voidSquares && gameState.voidSquares.length > 0) {
     boardCtx.fillStyle = '#05000a';
     gameState.voidSquares.forEach(v => {
-      boardCtx.fillRect(v.col * C.CELL_SIZE, v.row * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
+      const draw = getDrawCoords(v.row, v.col, gameState);
+      boardCtx.fillRect(draw.c * C.CELL_SIZE, draw.r * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
     });
   }
   let riftColor = C.RIFT_COLORS.VOID;
@@ -1426,9 +1414,10 @@ export function renderBoard(gameState) {
   let riftPulse = 0;
   if (gameState.conduit?.consecutiveTurnsHeld >= 2) riftPulse = Math.sin(performance.now() * 0.005) * 0.3;
   const riftRadius = C.CELL_SIZE * 1.35;
+  const isAsh = (gameState && gameState.playerTeam === 'ash');
   const riftCenters = [
-    [1.5 * C.CELL_SIZE, 1.5 * C.CELL_SIZE],
-    [8.5 * C.CELL_SIZE, 8.5 * C.CELL_SIZE]
+    [1.5 * C.CELL_SIZE, (isAsh ? 8.5 : 1.5) * C.CELL_SIZE],
+    [8.5 * C.CELL_SIZE, (isAsh ? 1.5 : 8.5) * C.CELL_SIZE]
   ];
   riftCenters.forEach(([rx, ry]) => {
     boardCtx.save();
@@ -1448,10 +1437,12 @@ export function renderBoard(gameState) {
   });
   if (gameState.conduitLinkActive && gameState.dynamicRifts && gameState.dynamicRifts.length >= 2) {
     const [rift1, rift2] = gameState.dynamicRifts;
-    const startX = (rift1.cells[4][1] + 0.5) * C.CELL_SIZE;
-    const startY = (rift1.cells[4][0] + 0.5) * C.CELL_SIZE;
-    const endX = (rift2.cells[4][1] + 0.5) * C.CELL_SIZE;
-    const endY = (rift2.cells[4][0] + 0.5) * C.CELL_SIZE;
+    const draw1 = getDrawCoords(rift1.cells[4][0], rift1.cells[4][1], gameState);
+    const startX = (draw1.c + 0.5) * C.CELL_SIZE;
+    const startY = (draw1.r + 0.5) * C.CELL_SIZE;
+    const draw2 = getDrawCoords(rift2.cells[4][0], rift2.cells[4][1], gameState);
+    const endX = (draw2.c + 0.5) * C.CELL_SIZE;
+    const endY = (draw2.r + 0.5) * C.CELL_SIZE;
     updateConduitParticles(gameState, startX, startY, endX, endY);
     boardCtx.strokeStyle = gameState.conduitTeam === 'snow' ? 'rgba(100,200,255,0.7)' : 'rgba(255,100,80,0.7)';
     boardCtx.lineWidth = 2 + 1.5 * Math.sin(performance.now() * 0.005);
@@ -1463,8 +1454,9 @@ export function renderBoard(gameState) {
   if (gameState.spikeRains && gameState.spikeRains.length > 0) {
     gameState.spikeRains.forEach(s => {
       boardCtx.save();
-      const cx = s.c * C.CELL_SIZE + C.CELL_SIZE / 2;
-      const cy = s.r * C.CELL_SIZE + C.CELL_SIZE / 2;
+      const draw = getDrawCoords(s.r, s.c, gameState);
+      const cx = draw.c * C.CELL_SIZE + C.CELL_SIZE / 2;
+      const cy = draw.r * C.CELL_SIZE + C.CELL_SIZE / 2;
       const centerX = s.c * C.CELL_SIZE + C.CELL_SIZE / 2;
       const centerY = s.r * C.CELL_SIZE + C.CELL_SIZE / 2;
       const rPx = s.radius * C.CELL_SIZE;
@@ -1561,18 +1553,20 @@ export function renderBoard(gameState) {
   if (gameState.unstableGrounds) {
     gameState.unstableGrounds.forEach(g => {
       const isBurning = g.isBurningGround;
+      const draw = getDrawCoords(g.row, g.col, gameState);
       if (isBurning) {
-        drawBurningGroundBlock(boardCtx, g.row, g.col, C.CELL_SIZE, g.duration, 2);
+        drawBurningGroundBlock(boardCtx, draw.r, draw.c, C.CELL_SIZE, g.duration, 2);
       } else {
         boardCtx.fillStyle = `rgba(205, 92, 92, 0.4)`;
-        boardCtx.fillRect(g.col * C.CELL_SIZE, g.row * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
+        boardCtx.fillRect(draw.c * C.CELL_SIZE, draw.r * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
       }
     });
   }
   if (gameState.blizzardStorms) {
     gameState.blizzardStorms.forEach(s => {
-      const cx = s.c * C.CELL_SIZE + C.CELL_SIZE / 2;
-      const cy = s.r * C.CELL_SIZE + C.CELL_SIZE / 2;
+      const draw = getDrawCoords(s.r, s.c, gameState);
+      const cx = draw.c * C.CELL_SIZE + C.CELL_SIZE / 2;
+      const cy = draw.r * C.CELL_SIZE + C.CELL_SIZE / 2;
       const radiusPx = s.radius * C.CELL_SIZE;
       boardCtx.save();
       boardCtx.fillStyle = 'rgba(10, 20, 30, 0.5)';
@@ -1593,19 +1587,21 @@ export function renderBoard(gameState) {
   }
   if (gameState.glacialWalls) {
     gameState.glacialWalls.forEach(wall => {
-      drawGlacialWallBlock(boardCtx, wall.row, wall.col, C.CELL_SIZE, gameState, wall.duration);
+      const draw = getDrawCoords(wall.row, wall.col, gameState);
+      drawGlacialWallBlock(boardCtx, draw.r, draw.c, C.CELL_SIZE, gameState, wall.duration);
     });
   }
   if (gameState.specialTerrains) {
     gameState.specialTerrains.forEach(t => {
-      const x = t.col * C.CELL_SIZE;
-      const y = t.row * C.CELL_SIZE;
+      const draw = getDrawCoords(t.row, t.col, gameState);
+      const x = draw.c * C.CELL_SIZE;
+      const y = draw.r * C.CELL_SIZE;
       if (t.type === 'snare') {
-        drawSnareTrapBlock(boardCtx, t.row, t.col, C.CELL_SIZE, t.age, t.team, gameState.playerTeam);
+        drawSnareTrapBlock(boardCtx, draw.r, draw.c, C.CELL_SIZE, t.age, t.team, gameState.playerTeam);
       } else if (t.type === 'icyGround') {
-        drawIcyGroundBlock(boardCtx, t.row, t.col, C.CELL_SIZE);
+        drawIcyGroundBlock(boardCtx, draw.r, draw.c, C.CELL_SIZE);
       } else if (t.type === 'magmaShards') {
-        drawMagmaShardsBlock(boardCtx, t.row, t.col, C.CELL_SIZE, t.duration);
+        drawMagmaShardsBlock(boardCtx, draw.r, draw.c, C.CELL_SIZE, t.duration);
       } else if (t.type === 'beacon') {
         boardCtx.fillStyle = `rgba(135, 206, 250, ${0.3 + Math.sin(performance.now() * 0.005) * 0.2})`;
         boardCtx.fillRect(x, y, C.CELL_SIZE, C.CELL_SIZE);
@@ -1719,7 +1715,8 @@ export function renderBoard(gameState) {
   if (gameState.voidScarSquares) {
     gameState.voidScarSquares.forEach(([r, c]) => {
       boardCtx.fillStyle = `rgba(75, 0, 130, ${0.4 + Math.sin(performance.now() * 0.01) * 0.2})`;
-      boardCtx.fillRect(c * C.CELL_SIZE, r * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
+      const draw = getDrawCoords(r, c, gameState);
+      boardCtx.fillRect(draw.c * C.CELL_SIZE, draw.r * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
     });
   }
   drawElementalCores(gameState);
@@ -1739,11 +1736,12 @@ export function renderBoard(gameState) {
           const alpha = Math.max(0.05, (0.55 - dist * 0.12) * decay);
           boardCtx.save();
           boardCtx.fillStyle = `rgba(20,8,0,${alpha})`;
-          boardCtx.fillRect(tc * C.CELL_SIZE, tr * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
+          const draw = getDrawCoords(tr, tc, gameState);
+          boardCtx.fillRect(draw.c * C.CELL_SIZE, draw.r * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
           boardCtx.strokeStyle = `rgba(180,50,0,${alpha * 0.7})`;
           boardCtx.lineWidth = 1.5;
-          const cx = tc * C.CELL_SIZE + C.CELL_SIZE / 2;
-          const cy = tr * C.CELL_SIZE + C.CELL_SIZE / 2;
+          const cx = draw.c * C.CELL_SIZE + C.CELL_SIZE / 2;
+          const cy = draw.r * C.CELL_SIZE + C.CELL_SIZE / 2;
           for (let si = 0; si < 3; si++) {
             const ang = (si / 3) * Math.PI * 2 + (tc * 1.3 + tr * 0.7);
             boardCtx.beginPath();
@@ -1763,8 +1761,9 @@ export function renderBoard(gameState) {
       if (!source || !target) return;
       const t = performance.now() * 0.003;
       [source, target].forEach(p => {
-        const cx = p.col * C.CELL_SIZE + C.CELL_SIZE / 2;
-        const cy = p.row * C.CELL_SIZE + C.CELL_SIZE / 2;
+        const draw = getDrawCoords(p.row, p.col, gameState);
+        const cx = draw.c * C.CELL_SIZE + C.CELL_SIZE / 2;
+        const cy = draw.r * C.CELL_SIZE + C.CELL_SIZE / 2;
         boardCtx.save();
         boardCtx.globalAlpha = 0.75 + 0.2 * Math.sin(t * 2);
         boardCtx.strokeStyle = '#88ddff';
@@ -1808,8 +1807,9 @@ export function drawTethers(gameState) {
   boardCtx.lineCap = 'round';
   gameState.pieces.forEach(siphoner => {
     if (siphoner.ability?.key !== 'Siphon' || !Array.isArray(siphoner.tethers) || siphoner.tethers.length === 0) return;
-    const sx = siphoner.col * C.CELL_SIZE + C.CELL_SIZE / 2;
-    const sy = siphoner.row * C.CELL_SIZE + C.CELL_SIZE / 2;
+    const drawS = getDrawCoords(siphoner.row, siphoner.col, gameState);
+    const sx = drawS.c * C.CELL_SIZE + C.CELL_SIZE / 2;
+    const sy = drawS.r * C.CELL_SIZE + C.CELL_SIZE / 2;
     siphoner.tethers.forEach(t => {
       const ally = t.allyId !== null ? gameState.pieces.find(p => p.id === t.allyId) : null;
       const enemy = t.enemyId !== null ? gameState.pieces.find(p => p.id === t.enemyId) : null;
@@ -1817,8 +1817,9 @@ export function drawTethers(gameState) {
       if (ally) targets.push({ p: ally, mode: t.mode });
       if (enemy) targets.push({ p: enemy, mode: t.mode });
       targets.forEach(({ p: target, mode }) => {
-        const tx = target.col * C.CELL_SIZE + C.CELL_SIZE / 2;
-        const ty = target.row * C.CELL_SIZE + C.CELL_SIZE / 2;
+        const drawT = getDrawCoords(target.row, target.col, gameState);
+        const tx = drawT.c * C.CELL_SIZE + C.CELL_SIZE / 2;
+        const ty = drawT.r * C.CELL_SIZE + C.CELL_SIZE / 2;
         const color = siphoner.team === 'snow' ? 'rgba(0,204,255,0.85)' : 'rgba(255,80,20,0.85)';
         boardCtx.strokeStyle = color;
         boardCtx.lineWidth = 2.5 + ((siphoner.overloadPoints || 0) * 0.4);
@@ -2087,8 +2088,9 @@ export function drawElementalCores(gameState) {
   const time = performance.now() * 0.003;
   const pulse = 0.8 + 0.2 * Math.sin(time);
   gameState.elementalCores.forEach(core => {
-    const cx = core.col * C.CELL_SIZE + C.CELL_SIZE / 2;
-    const cy = core.row * C.CELL_SIZE + C.CELL_SIZE / 2 + Math.sin(time + core.col) * 5;
+    const draw = getDrawCoords(core.row, core.col, gameState);
+    const cx = draw.c * C.CELL_SIZE + C.CELL_SIZE / 2;
+    const cy = draw.r * C.CELL_SIZE + C.CELL_SIZE / 2 + Math.sin(time + core.col) * 5;
     const size = C.CELL_SIZE * 0.35;
     const color = coreColors[core.type] || '#ffffff';
     boardCtx.save();

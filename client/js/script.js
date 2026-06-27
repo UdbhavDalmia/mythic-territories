@@ -30,7 +30,9 @@ function checkAITurn() {
     if (!isLocal) return;
     if (!vsAI) return;
     if (!gameState || gameState.gameOver) return;
-    if (gameState.currentTurn !== 'ash') return;
+    
+    const aiTeam = myTeam === 'snow' ? 'ash' : 'snow';
+    if (gameState.currentTurn !== aiTeam) return;
 
     try {
         if (aiWorker) aiWorker.terminate();
@@ -55,45 +57,116 @@ function checkAITurn() {
     }
 }
 
-E.preloadImages(C.IMAGES, (imgs) => {
-    loadedImages = imgs;
+let currentRoomPlayers = [];
 
-    if (isLocal) {
+function initFactionSelection() {
+    const overlay = document.getElementById('factionSelectionOverlay');
+    if (overlay) overlay.style.display = 'none';
+
+    // Pass & Play (Local play, not vs AI) -> Skip faction selection completely!
+    if (isLocal && !vsAI) {
         myTeam = 'snow';
-        Logic.initGameState({});
-        Logic.initGame();
-        gameState = Logic.getGameState();
-        attachImagesToState();
+        if (gameState) {
+            gameState.gameStarted = true;
+        }
+        return;
+    }
 
-        setTimeout(() => {
-            setupCanvas();
-            requestAnimationFrame(animationLoop);
-            if (vsAI) setTimeout(checkAITurn, 0);
-        }, 100);
+    const teamParam = urlParams.get('team');
+    if (vsAI) {
+        if (teamParam === 'snow' || teamParam === 'ash') {
+            myTeam = teamParam;
+            if (gameState) {
+                gameState.gameStarted = true;
+            }
+        } else {
+            window.location.href = 'index.html';
+        }
     } else {
-        socket = io();
-        try { document.body.classList.add('multiplayer'); } catch (e) { }
-        socket.on('connect', () => socket.emit('joinRoom', roomId));
-
-        socket.on('init', (data) => {
-            gameState = data.state;
-            myTeam = data.team;
+        // Online mode
+        if (gameState && !gameState.gameStarted && !myTeam) {
+            window.location.href = 'index.html';
+        } else if (myTeam) {
             const teamDisplay = document.getElementById('yourTeamDisplay');
             if (teamDisplay) {
                 teamDisplay.style.display = 'block';
                 teamDisplay.textContent = `YOU ARE TEAM ${myTeam.toUpperCase()}`;
             }
+        }
+    }
+}
+
+E.preloadImages(C.IMAGES, (imgs) => {
+    loadedImages = imgs;
+
+    if (isLocal) {
+        Logic.initGameState({});
+        Logic.initGame();
+        gameState = Logic.getGameState();
+        attachImagesToState();
+
+        if (!vsAI) {
+            myTeam = 'snow';
+            gameState.gameStarted = true;
+        } else {
+            const teamParam = urlParams.get('team');
+            if (teamParam === 'snow' || teamParam === 'ash') {
+                myTeam = teamParam;
+                gameState.gameStarted = true;
+            } else {
+                myTeam = null;
+            }
+        }
+
+        setTimeout(() => {
+            setupCanvas();
+            requestAnimationFrame(animationLoop);
+            initFactionSelection();
+            if (vsAI && gameState.gameStarted) setTimeout(checkAITurn, 0);
+        }, 100);
+    } else {
+        const connectionUrl = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
+        socket = io(connectionUrl);
+        try { document.body.classList.add('multiplayer'); } catch (e) { }
+        let playerId = sessionStorage.getItem('mythic_playerId');
+        if (!playerId) {
+            playerId = 'p_' + Math.random().toString(36).substr(2, 9);
+            sessionStorage.setItem('mythic_playerId', playerId);
+        }
+        socket.on('connect', () => socket.emit('joinRoom', { roomId, playerId }));
+
+        socket.on('init', (data) => {
+            gameState = data.state;
+            myTeam = data.team;
+            currentRoomPlayers = data.players || [];
+
+            const teamDisplay = document.getElementById('yourTeamDisplay');
+            if (teamDisplay) {
+                teamDisplay.style.display = myTeam ? 'block' : 'none';
+                if (myTeam) {
+                    teamDisplay.textContent = `YOU ARE TEAM ${myTeam.toUpperCase()}`;
+                }
+            }
             updatePlayerCountUI(data.playerCount);
             attachImagesToState();
             E.updateBoardMap(gameState);
             setupCanvas();
-            UI.showFlashMessage(`Joined room ${roomId} as Team ${myTeam.toUpperCase()}`, 'neutral', gameState);
+            requestAnimationFrame(animationLoop);
+
+            if (myTeam) {
+                UI.showFlashMessage(`Joined room ${roomId} as Team ${myTeam.toUpperCase()}`, 'neutral', gameState);
+            } else {
+                UI.showFlashMessage(`Joined room ${roomId}. Select a faction!`, 'neutral', gameState);
+            }
 
             try { clearInterval(disconnectInterval); } catch (e) { }
             const timerEl = document.getElementById('disconnectTimerDisplay');
             const timerElMobile = document.getElementById('disconnectTimerDisplay-mobile');
             if (timerEl) timerEl.style.display = 'none';
             if (timerElMobile) timerElMobile.style.display = 'none';
+
+            initFactionSelection();
+
             if (gameState && gameState.pendingAscension && !gameState.factionPassives[gameState.pendingAscension.team].ascension.isChosen) {
                 if (isLocal || gameState.pendingAscension.team === myTeam) {
                     UI.showAscensionPopup(gameState);
@@ -109,8 +182,10 @@ E.preloadImages(C.IMAGES, (imgs) => {
         });
 
         socket.on('playerJoined', (data) => {
-            UI.showFlashMessage(`An opponent has joined as Team ${data.team.toUpperCase()}!`, 'neutral', gameState);
+            UI.showFlashMessage(`An opponent has joined!`, 'neutral', gameState);
             updatePlayerCountUI(data.playerCount);
+            currentRoomPlayers = data.players || [];
+            initFactionSelection();
 
             try { clearInterval(disconnectInterval); } catch (e) { }
             const modal = document.getElementById('disconnectModal');
@@ -188,6 +263,18 @@ E.preloadImages(C.IMAGES, (imgs) => {
             if (!isLocal && gameState?.gameStarted) {
                 try { UI.startTimer(gameState); } catch (e) { }
             }
+
+            const overlay = document.getElementById('factionSelectionOverlay');
+            if (overlay) {
+                if (isLocal && !vsAI) {
+                    overlay.style.display = 'none';
+                } else if (gameState && gameState.gameStarted) {
+                    overlay.style.display = 'none';
+                } else {
+                    overlay.style.display = 'flex';
+                }
+            }
+
             updateControlButtons();
             UI.renderBoard(gameState);
             UI.drawLabels(gameState);
@@ -210,6 +297,21 @@ E.preloadImages(C.IMAGES, (imgs) => {
 
             alert(msg);
             window.location.href = 'index.html';
+        });
+
+        socket.on('teamAssigned', (faction) => {
+            myTeam = faction;
+            const teamDisplay = document.getElementById('yourTeamDisplay');
+            if (teamDisplay) {
+                teamDisplay.style.display = 'block';
+                teamDisplay.textContent = `YOU ARE TEAM ${myTeam.toUpperCase()}`;
+            }
+            initFactionSelection();
+        });
+
+        socket.on('roomUpdate', (data) => {
+            currentRoomPlayers = data.players || [];
+            initFactionSelection();
         });
     }
 });
@@ -418,7 +520,6 @@ function setupCanvas() {
             gameState.hoverRow = row;
 
             if (!isLocal && myTeam === 'ash') {
-                col = C.COLS - 1 - col;
                 row = C.ROWS - 1 - row;
             }
 
@@ -502,9 +603,7 @@ function setupCanvas() {
         let decimalCol = x / C.CELL_SIZE;
         let decimalRow = y / C.CELL_SIZE;
         if (!isLocal && myTeam === 'ash') {
-            col = C.COLS - 1 - col;
             row = C.ROWS - 1 - row;
-            decimalCol = C.COLS - decimalCol;
             decimalRow = C.ROWS - decimalRow;
         }
 
@@ -636,7 +735,6 @@ function setupCanvas() {
             let col = Math.floor(x / C.CELL_SIZE);
             let row = Math.floor(y / C.CELL_SIZE);
             if (!isLocal && myTeam === 'ash') {
-                col = C.COLS - 1 - col;
                 row = C.ROWS - 1 - row;
             }
 

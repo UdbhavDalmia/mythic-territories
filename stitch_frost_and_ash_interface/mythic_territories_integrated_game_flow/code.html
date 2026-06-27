@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en" style=""><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Realm Clash: Mythic Territories</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&amp;family=Fira+Sans:wght@300;400;600&amp;family=Space+Grotesk:wght@300;400;600;700&amp;display=swap" rel="stylesheet"/><link class="" href="https://fonts.googleapis.com/css2?family=Rye&amp;display=swap" rel="stylesheet"/><link class="" href="https://fonts.googleapis.com/css2?family=Almendra+SC:wght@400;700&amp;family=Inter:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary-fixed": "#ffdf95",
+                      "surface-container-highest": "#30353f",
+                      "on-error-container": "#ffdad6",
+                      "on-tertiary": "#3e2e00",
+                      "on-secondary-fixed-variant": "#842500",
+                      "magma-core": "#EF4444",
+                      "on-background": "#dee2f0",
+                      "on-secondary-container": "#ffe7e0",
+                      "tertiary-container": "#ba9738",
+                      "pure-snow": "#FFFFFF",
+                      "tertiary": "#e9c25f",
+                      "inverse-primary": "#006591",
+                      "surface-container-lowest": "#090e17",
+                      "secondary-fixed-dim": "#ffb59e",
+                      "secondary-fixed": "#ffdbd0",
+                      "inverse-on-surface": "#2c303b",
+                      "surface-bright": "#343944",
+                      "secondary": "#ffb59e",
+                      "primary": "#89ceff",
+                      "void-black": "#0B1019",
+                      "surface-container": "#1b2029",
+                      "on-secondary-fixed": "#3a0b00",
+                      "outline-variant": "#3e4850",
+                      "on-error": "#690005",
+                      "error": "#ffb4ab",
+                      "error-container": "#93000a",
+                      "tertiary-fixed-dim": "#e9c25f",
+                      "secondary-container": "#c23b02",
+                      "surface-tint": "#89ceff",
+                      "surface-dim": "#0e131d",
+                      "primary-container": "#0ea5e9",
+                      "surface-container-low": "#171c25",
+                      "ice-light": "#A5F3FC",
+                      "on-surface-variant": "#bec8d2",
+                      "on-tertiary-fixed-variant": "#594400",
+                      "ember-gold": "#E8C15E",
+                      "on-primary-fixed": "#001e2f",
+                      "on-tertiary-fixed": "#251a00",
+                      "on-tertiary-container": "#413100",
+                      "surface-container-high": "#252a34",
+                      "outline": "#88929b",
+                      "on-surface": "#dee2f0",
+                      "primary-fixed": "#c9e6ff",
+                      "inverse-surface": "#dee2f0",
+                      "background": "#0e131d",
+                      "on-primary": "#00344d",
+                      "surface": "#0e131d",
+                      "on-primary-fixed-variant": "#004c6e",
+                      "on-primary-container": "#003751",
+                      "surface-variant": "#30353f",
+                      "primary-fixed-dim": "#89ceff",
+                      "on-secondary": "#5e1700"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "margin-mobile": "16px",
+                      "unit": "4px",
+                      "gutter": "24px",
+                      "container-max": "1440px",
+                      "margin-desktop": "48px"
+              },
+              "fontFamily": {
+                      "display-lg": ["Cinzel Decorative"],
+                      "stat-value": ["Space Grotesk"],
+                      "body-lg": ["Fira Sans"],
+                      "headline-md": ["Cinzel Decorative"],
+                      "label-caps": ["Space Grotesk"],
+                      "body-md": ["Fira Sans"],
+                      "display-lg-mobile": ["Cinzel Decorative"]
+              },
+              "fontSize": {
+                      "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "0.02em", "fontWeight": "700"}],
+                      "stat-value": ["20px", {"lineHeight": "24px", "fontWeight": "600"}],
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.1em", "fontWeight": "700"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "display-lg-mobile": ["32px", {"lineHeight": "40px", "fontWeight": "700"}]
+              }
+            },
+          },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-obsidian {
+            background: rgba(11, 16, 25, 0.7);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+        }
+        
+        /* Float Animation */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        /* Pulse Glow Effect */
+        @keyframes pulse-glow {
+            0%, 100% { 
+                box-shadow: 0 0 20px rgba(137, 206, 255, 0.3), 0 0 40px rgba(232, 193, 94, 0.2);
+                border-color: rgba(232, 193, 94, 0.3);
+            }
+            50% { 
+                box-shadow: 0 0 40px rgba(137, 206, 255, 0.5), 0 0 60px rgba(232, 193, 94, 0.4);
+                border-color: rgba(232, 193, 94, 0.6);
+            }
+        }
+        .animate-pulse-glow {
+            animation: pulse-glow 3s infinite ease-in-out;
+        }
+
+        /* Background Zoom */
+        @keyframes slow-zoom {
+            0% { transform: scale(1.05); }
+            100% { transform: scale(1.15); }
+        }
+        .animate-slow-zoom {
+            animation: slow-zoom 20s ease-in-out infinite alternate;
+        }
+
+        body {
+            background-color: #0B1019;
+            overflow: hidden;
+        }
+        .modal-overlay {
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 60;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-content {
+            transform: translateY(40px) scale(0.95);
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .modal-overlay.active .modal-content {
+            transform: translateY(0) scale(1);
+        }
+        
+        .card-frost:hover {
+            box-shadow: 0 0 30px rgba(165, 243, 252, 0.3);
+            border-color: #A5F3FC;
+            background: rgba(165, 243, 252, 0.15);
+            transform: translateY(-5px);
+        }
+        .card-fire:hover {
+            box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);
+            border-color: #EF4444;
+            background: rgba(239, 68, 68, 0.15);
+            transform: translateY(-5px);
+        }
+        .card-gold:hover {
+            box-shadow: 0 0 30px rgba(232, 193, 94, 0.3);
+            border-color: #E8C15E;
+            background: rgba(232, 193, 94, 0.15);
+            transform: translateY(-5px);
+        }
+
+        canvas#particleCanvas {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .screen-transition {
+            transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out;
+        }
+        .screen-hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(1.05);
+            position: absolute;
+        }
+    </style>
+</head>
+<body class="text-on-surface select-none">
+<!-- Main Background -->
+<div class="fixed inset-0 z-0">
+<div class="w-full h-full bg-cover bg-center animate-slow-zoom" style='background-image: url("https://lh3.googleusercontent.com/aida/AP1WRLuSZIiABHQBStyZIQI7s5jPYCCcqg7f2ihSyqNXiOI6RG1DQkKpjt7Hg-Y5mHR3KlhYBKSd-_YULqTgrh0ibwK7_Zomb9-IRSZlXgC4_G0cOWxXDMjC8k2qm85KQkLloDHj62QU4gcBHcooP3_iD4Tg3UaGwDgQUDWh7kz7iWl_1NtWkZiD9Q_US_veCRQeCLTi_CVZkQCUnqXvmIWKxfuYWvwJGyBuT7SBuP5cza3Cf2YfXsNrmT6i_Vo"); transform-origin: center;'></div>
+<!-- Darkening Gradients -->
+<div class="absolute inset-0 bg-gradient-to-t from-void-black via-transparent to-void-black/60"></div>
+<div class="absolute inset-0 bg-void-black/20"></div>
+</div>
+<!-- Particle Shader Overlay -->
+<canvas id="particleCanvas"></canvas>
+<!-- SCREEN 1: MAIN MENU -->
+<main class="screen-transition relative z-10 w-full h-screen flex flex-col items-center justify-center px-margin-mobile" id="screen-main">
+<div class="flex flex-col items-center mb-24 text-center animate-float">
+<h1 class="font-display-lg text-display-lg-mobile md:text-display-lg tracking-[0.2em] uppercase max-w-4xl leading-tight" style='background: linear-gradient(to right, rgb(137, 206, 255), rgb(245, 158, 11)) text; -webkit-text-fill-color: transparent; filter: drop-shadow(rgba(137, 206, 255, 0.4) 0px 0px 20px) drop-shadow(rgba(245, 158, 11, 0.4) 0px 0px 20px); font-family: "Almendra SC", serif; font-weight: 700; font-size: clamp(40px, 8vw, 72px);'>MYTHIC TERRITORIES</h1>
+</div>
+<div class="relative flex flex-col items-center animate-float" style="animation-delay: -1s;">
+<button class="animate-pulse-glow px-20 py-6 glass-obsidian transition-all duration-300 active:scale-95 group rounded-xl border border-ember-gold/30 hover:border-ember-gold/60 flex items-center justify-center" id="playBtn">
+<span class="relative font-display-lg text-display-lg-mobile md:text-display-lg text-ember-gold tracking-[0.4em] group-hover:scale-110 transition-transform block" style="font-family: Rye, cursive;">PLAY</span>
+</button>
+</div>
+</main>
+<!-- SCREEN 2: GAME MODES (MODAL-LIKE OVERLAY) -->
+<div class="modal-overlay fixed inset-0 flex items-center justify-center bg-void-black/80 backdrop-blur-md p-6" id="gameModesOverlay">
+<div class="modal-content w-full max-w-5xl">
+<div class="flex flex-col items-center">
+<h2 class="font-display-lg text-headline-md text-ember-gold tracking-widest mb-12 uppercase" style='font-family: "Almendra SC", serif; font-weight: 700;'>Select Game Mode</h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
+<!-- Pass & Play Card -->
+<button class="card-frost glass-obsidian border border-outline/20 p-8 rounded-xl flex flex-col items-center gap-6 group transition-all duration-500">
+<div class="w-16 h-16 rounded-full bg-ice-light/10 flex items-center justify-center border border-ice-light/30 group-hover:bg-ice-light/20 transition-colors">
+<span class="material-symbols-outlined text-ice-light text-3xl">groups</span>
+</div>
+<div class="text-center">
+<h3 class="font-label-caps text-pure-snow text-xl tracking-widest mb-2">PASS &amp; PLAY</h3>
+<p class="font-body-md text-on-surface-variant text-sm opacity-60">Local tabletop experience</p>
+</div>
+<div class="h-1 w-12 bg-ember-gold opacity-0 group-hover:opacity-100 transition-opacity"></div>
+</button>
+<!-- Online Multiplayer Card -->
+<button class="card-fire glass-obsidian border border-outline/20 p-8 rounded-xl flex flex-col items-center gap-6 group transition-all duration-500" id="onlineRealmBtn">
+<div class="w-16 h-16 rounded-full bg-magma-core/10 flex items-center justify-center border border-magma-core/30 group-hover:bg-magma-core/20 transition-colors">
+<span class="material-symbols-outlined text-magma-core text-3xl">language</span>
+</div>
+<div class="text-center">
+<h3 class="font-label-caps text-pure-snow text-xl tracking-widest mb-2">ONLINE REALM</h3>
+<p class="font-body-md text-on-surface-variant text-sm opacity-60">Challenge the world</p>
+</div>
+<div class="h-1 w-12 bg-ember-gold opacity-0 group-hover:opacity-100 transition-opacity"></div>
+</button>
+<!-- Play with AI Card -->
+<button class="card-gold glass-obsidian border border-outline/20 p-8 rounded-xl flex flex-col items-center gap-6 group transition-all duration-500" id="ancientTrialsBtn">
+<div class="w-16 h-16 rounded-full bg-ember-gold/10 flex items-center justify-center border border-ember-gold/30 group-hover:bg-ember-gold/20 transition-colors">
+<span class="material-symbols-outlined text-ember-gold text-3xl">memory</span>
+</div>
+<div class="text-center">
+<h3 class="font-label-caps text-pure-snow text-xl tracking-widest mb-2">ANCIENT TRIALS</h3>
+<p class="font-body-md text-on-surface-variant text-sm opacity-60">Hone your tactics vs AI</p>
+</div>
+<div class="h-1 w-12 bg-ember-gold opacity-0 group-hover:opacity-100 transition-opacity"></div>
+</button>
+</div>
+<!-- Back button -->
+<button class="mt-16 text-on-surface-variant hover:text-ember-gold transition-colors flex items-center gap-2 group" id="closeModesBtn">
+<span class="material-symbols-outlined text-xl group-hover:-translate-x-1 transition-transform">arrow_back</span>
+<span class="font-label-caps tracking-widest">RETURN TO MENU</span>
+</button>
+</div>
+</div>
+</div>
+<!-- MULTIPLAYER MODAL: ROOM CODE -->
+<div class="modal-overlay fixed inset-0 flex items-center justify-center bg-void-black/90 backdrop-blur-lg p-6" id="multiplayerModal">
+<div class="modal-content w-full max-w-md glass-obsidian border border-magma-core/30 p-10 rounded-2xl">
+<div class="flex flex-col items-center">
+<span class="material-symbols-outlined text-magma-core text-5xl mb-6">shield</span>
+<h2 class="font-display-lg text-2xl text-pure-snow tracking-widest mb-8 uppercase" style="font-family: 'Almendra SC', serif;">Enter Realm Code</h2>
+<div class="w-full mb-8">
+<input class="w-full bg-void-black/50 border border-outline/30 text-center text-4xl tracking-[0.5em] py-4 rounded-lg font-stat-value text-ember-gold focus:border-ember-gold outline-none uppercase" maxlength="4" placeholder="####" type="text"/>
+<p class="text-on-surface-variant text-xs mt-4 text-center font-body-md opacity-60">Enter the 4-digit code provided by the Realm host to begin your conquest.</p>
+</div>
+<button class="w-full py-4 bg-magma-core/20 border border-magma-core/50 hover:bg-magma-core/40 transition-all text-pure-snow font-display-lg tracking-widest rounded-lg mb-6" id="joinRealmBtn" style="font-family: Rye, cursive;">JOIN REALM</button>
+<button class="text-on-surface-variant hover:text-white transition-colors flex items-center gap-2 text-xs font-label-caps tracking-widest" id="closeMultiplayerBtn">
+                CANCEL
+            </button>
+</div>
+</div>
+</div>
+<!-- SCREEN 3: FACTION SELECTION -->
+<main class="screen-transition screen-hidden z-20 w-full h-screen flex flex-col items-center justify-center px-margin-mobile" id="screen-faction">
+<div class="w-full max-w-6xl">
+<div class="text-center mb-12">
+<h2 class="font-display-lg text-headline-md text-pure-snow tracking-widest uppercase mb-2" style="font-family: 'Almendra SC', serif; font-weight: 700;">Choose Your Legacy</h2>
+<p class="font-body-md text-on-surface-variant opacity-70">The balance of the realm rests upon your command.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-12 w-full">
+<!-- Frost Faction -->
+<button class="group relative overflow-hidden rounded-2xl border border-ice-light/20 bg-ice-light/5 transition-all duration-500 hover:border-ice-light/60 hover:bg-ice-light/10 text-left">
+<div class="aspect-video w-full overflow-hidden">
+<img alt="Frost Lord" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 scale-105 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida/AP1WRLuKJJQBBX1UWGMc8cLtu7aElXCzMeap5J60XypmYkLkpOv0hE0XZPCsCantkcVyvtq-4fqhUYCsb_7bn_jHMZAao6YZ_C1AtZTXnP0iv6cfOjdvn_tt9St2HSEdkwSEM2d7oj2I6RdKE5y5Y7Co0TD4CS_loNQC2hN44Jd_qjTpK-t4wON4Mey6Sx2jMZCe0eS_SJh3W6y_5jm9OJO4ZofLBT9w63iXl5qMFHZ7T2E0essmQJt6imjsHNd8"/>
+<div class="absolute inset-0 bg-gradient-to-t from-void-black via-void-black/20 to-transparent"></div>
+</div>
+<div class="p-8 relative">
+<div class="flex items-center gap-3 mb-4">
+<span class="material-symbols-outlined text-ice-light">ac_unit</span>
+<h3 class="font-display-lg text-2xl text-ice-light tracking-wider" style="font-family: 'Almendra SC', serif;">FROST LEGION</h3>
+</div>
+<p class="font-body-md text-on-surface-variant text-sm mb-6 leading-relaxed">Master of the eternal permafrost. High defense and tactical control. Freeze enemies in their tracks and endure the longest sieges.</p>
+<div class="flex gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="text-[10px] font-label-caps px-2 py-1 border border-ice-light/40 text-ice-light">DEFENSIVE</span>
+<span class="text-[10px] font-label-caps px-2 py-1 border border-ice-light/40 text-ice-light">CONTROL</span>
+</div>
+</div>
+</button>
+<!-- Ash Faction -->
+<button class="group relative overflow-hidden rounded-2xl border border-magma-core/20 bg-magma-core/5 transition-all duration-500 hover:border-magma-core/60 hover:bg-magma-core/10 text-left">
+<div class="aspect-video w-full overflow-hidden">
+<img alt="Ash Tyrant" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 scale-105 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida/AP1WRLu6u9br_DJJkYlG3oaekDOlfoJOnAlgt4735okcRAeHeen0OL1WEEoCT0OYcfzT2QDwXdDKDX0Kz33cl7FHK3D99k3qVF3t9T2ItUTv8xRR4sYfX0MZn3YMFMW3K27XtXRFA-PuBnCsrfYAbgqXewucGynq-PI1lwzKs7K0t6Vq71DHBYUeBDYSW_CyzHgVY2vjAfa9GCzpwa4iniqCP5FpcxiDy5P5vGfTfRWdz-CLXSUY6fzT8NuIO9JQ"/>
+<div class="absolute inset-0 bg-gradient-to-t from-void-black via-void-black/20 to-transparent"></div>
+</div>
+<div class="p-8 relative">
+<div class="flex items-center gap-3 mb-4">
+<span class="material-symbols-outlined text-magma-core">local_fire_department</span>
+<h3 class="font-display-lg text-2xl text-magma-core tracking-wider" style="font-family: 'Almendra SC', serif;">ASH OVERLORDS</h3>
+</div>
+<p class="font-body-md text-on-surface-variant text-sm mb-6 leading-relaxed">Born from the heart of the volcano. Aggressive strikes and destructive magic. Sacrifice units to unleash devastating magma bursts.</p>
+<div class="flex gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="text-[10px] font-label-caps px-2 py-1 border border-magma-core/40 text-magma-core">OFFENSIVE</span>
+<span class="text-[10px] font-label-caps px-2 py-1 border border-magma-core/40 text-magma-core">BURST</span>
+</div>
+</div>
+</button>
+</div>
+<div class="flex justify-center mt-12">
+<button class="text-on-surface-variant hover:text-ember-gold transition-colors flex items-center gap-2 group" id="backToModesBtn">
+<span class="material-symbols-outlined text-xl group-hover:-translate-x-1 transition-transform">arrow_back</span>
+<span class="font-label-caps tracking-widest">BACK TO GAME MODES</span>
+</button>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="fixed bottom-0 w-full z-50 flex flex-col md:flex-row justify-between items-center px-margin-mobile md:px-margin-desktop py-6 bg-gradient-to-t from-void-black to-transparent">
+<div class="font-body-md text-sm text-on-surface-variant mb-2 md:mb-0">© 2025 Mythic Territories. All Rights Reserved.</div>
+<div class="flex gap-8 items-center opacity-80">
+<a class="font-body-md text-sm text-on-surface-variant hover:text-ember-gold transition-colors duration-300" href="#">Patch Notes</a>
+<a class="font-body-md text-sm text-on-surface-variant hover:text-ember-gold transition-colors duration-300" href="#">Rulebook</a>
+</div>
+</footer>
+<!-- Interaction Script -->
+<script>
+    const screenMain = document.getElementById('screen-main');
+    const screenFaction = document.getElementById('screen-faction');
+    
+    const playBtn = document.getElementById('playBtn');
+    const gameModesOverlay = document.getElementById('gameModesOverlay');
+    const closeModesBtn = document.getElementById('closeModesBtn');
+    
+    const onlineRealmBtn = document.getElementById('onlineRealmBtn');
+    const multiplayerModal = document.getElementById('multiplayerModal');
+    const closeMultiplayerBtn = document.getElementById('closeMultiplayerBtn');
+    const joinRealmBtn = document.getElementById('joinRealmBtn');
+    
+    const ancientTrialsBtn = document.getElementById('ancientTrialsBtn');
+    const backToModesBtn = document.getElementById('backToModesBtn');
+
+    // Navigation logic
+    function showScreen(screen) {
+        // Hide both main containers first
+        screenMain.classList.add('screen-hidden');
+        screenFaction.classList.add('screen-hidden');
+        
+        // Show target
+        screen.classList.remove('screen-hidden');
+    }
+
+    // Main Menu -> Game Modes
+    playBtn.addEventListener('click', () => {
+        gameModesOverlay.classList.add('active');
+    });
+
+    closeModesBtn.addEventListener('click', () => {
+        gameModesOverlay.classList.remove('active');
+    });
+
+    // Online Realm -> Multiplayer Modal
+    onlineRealmBtn.addEventListener('click', () => {
+        multiplayerModal.classList.add('active');
+    });
+
+    closeMultiplayerBtn.addEventListener('click', () => {
+        multiplayerModal.classList.remove('active');
+    });
+
+    // Join Realm -> Faction Selection
+    joinRealmBtn.addEventListener('click', () => {
+        multiplayerModal.classList.remove('active');
+        gameModesOverlay.classList.remove('active');
+        showScreen(screenFaction);
+    });
+
+    // Ancient Trials -> Faction Selection
+    ancientTrialsBtn.addEventListener('click', () => {
+        gameModesOverlay.classList.remove('active');
+        showScreen(screenFaction);
+    });
+
+    // Back to Game Modes
+    backToModesBtn.addEventListener('click', () => {
+        showScreen(screenMain);
+        gameModesOverlay.classList.add('active');
+    });
+
+    // Close overlays on clicking background
+    gameModesOverlay.addEventListener('click', (e) => {
+        if (e.target === gameModesOverlay) gameModesOverlay.classList.remove('active');
+    });
+    multiplayerModal.addEventListener('click', (e) => {
+        if (e.target === multiplayerModal) multiplayerModal.classList.remove('active');
+    });
+
+    // Parallax
+    document.addEventListener('mousemove', (e) => {
+        const x = (e.clientX / window.innerWidth) - 0.5;
+        const y = (e.clientY / window.innerHeight) - 0.5;
+        const bg = document.querySelector('div[style*="background-image"]');
+        if (bg) {
+            bg.style.transform = `scale(1.1) translate(${x * 30}px, ${y * 30}px)`;
+        }
+    });
+
+    // Particle Shader Implementation
+    const canvas = document.getElementById('particleCanvas');
+    const gl = canvas.getContext('webgl');
+
+    const vertexShaderSource = `
+        attribute vec2 a_position;
+        varying vec2 v_texCoord;
+        void main() {
+            v_texCoord = a_position * 0.5 + 0.5;
+            v_texCoord.y = 1.0 - v_texCoord.y;
+            gl_Position = vec4(a_position, 0.0, 1.0);
+        }
+    `;
+
+    const fragmentShaderSource = `
+        precision highp float;
+        varying vec2 v_texCoord;
+        uniform float u_time;
+        uniform vec2 u_resolution;
+
+        float noise(vec2 p) {
+            return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+        }
+
+        void main() {
+            vec2 uv = v_texCoord;
+            vec3 color = vec3(0.0);
+            
+            float snow = 0.0;
+            for(float i = 1.0; i < 5.0; i++) {
+                vec2 snowUV = uv * (2.0 + i);
+                snowUV.y += u_time * (0.2 / i);
+                snowUV.x += sin(u_time * 0.5 + i) * 0.1;
+                float n = noise(floor(snowUV));
+                if(n > 0.98 && uv.x < 0.6) {
+                    float dist = length(fract(snowUV) - 0.5);
+                    snow += smoothstep(0.1, 0.0, dist) * (1.0 - uv.x);
+                }
+            }
+            
+            float embers = 0.0;
+            for(float i = 1.0; i < 5.0; i++) {
+                vec2 emberUV = uv * (3.0 + i);
+                emberUV.y -= u_time * (0.3 / i);
+                emberUV.x += cos(u_time * 0.4 + i) * 0.1;
+                float n = noise(floor(emberUV));
+                if(n > 0.97 && uv.x > 0.4) {
+                    float dist = length(fract(emberUV) - 0.5);
+                    embers += smoothstep(0.15, 0.0, dist) * uv.x;
+                }
+            }
+            
+            vec3 snowColor = vec3(0.8, 0.9, 1.0) * snow;
+            vec3 emberColor = vec3(1.0, 0.4, 0.1) * embers * (0.8 + 0.2 * sin(u_time * 2.0));
+            
+            color = snowColor + emberColor;
+            gl_FragColor = vec4(color, color.r + color.g + color.b);
+        }
+    `;
+
+    function createShader(gl, type, source) {
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        return shader;
+    }
+
+    const program = gl.createProgram();
+    gl.attachShader(program, createShader(gl, gl.VERTEX_SHADER, vertexShaderSource));
+    gl.attachShader(program, createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource));
+    gl.linkProgram(program);
+
+    const positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
+
+    const positionLocation = gl.getAttribLocation(program, "a_position");
+    const timeLocation = gl.getUniformLocation(program, "u_time");
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        gl.viewport(0, 0, canvas.width, canvas.height);
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    function render(time) {
+        gl.useProgram(program);
+        gl.enableVertexAttribArray(positionLocation);
+        gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+        gl.uniform1f(timeLocation, time * 0.001);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        requestAnimationFrame(render);
+    }
+    requestAnimationFrame(render);
+</script>
+</body></html>

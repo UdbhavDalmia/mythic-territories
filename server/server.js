@@ -11,7 +11,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 const httpServer = createServer(app);
-const io = new Server(httpServer);
+const io = new Server(httpServer, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
 
 const serializeState = (gs) => ({
     ...gs,
@@ -57,8 +62,14 @@ app.use(express.static(path.join(__dirname, '../client')));
 app.use('/shared', express.static(path.join(__dirname, '../shared')));
 
 io.on('connection', (socket) => {
-    socket.on('joinRoom', (roomId) => {
-        const result = RoomManager.joinRoom(roomId, socket.id);
+    socket.on('joinRoom', (data) => {
+        let roomId = data;
+        let playerId = null;
+        if (data && typeof data === 'object') {
+            roomId = data.roomId;
+            playerId = data.playerId;
+        }
+        const result = RoomManager.joinRoom(roomId, socket.id, playerId);
         if (!result.success) return socket.emit('error', result.error);
 
         socket.join(roomId);
@@ -67,13 +78,55 @@ io.on('connection', (socket) => {
         socket.emit('init', {
             state: initState,
             team: result.team,
-            playerCount: result.playerCount
+            playerCount: result.playerCount,
+            players: result.room.players
         });
 
         if (!result.isNew) {
             socket.to(roomId).emit('playerJoined', {
                 team: result.team,
-                playerCount: result.playerCount
+                playerCount: result.playerCount,
+                players: result.room.players
+            });
+        }
+    });
+
+    socket.on('selectFaction', ({ roomId, faction }) => {
+        const room = RoomManager.getRoom(roomId);
+        if (!room) return;
+
+        const player = room.players.find(p => p.socketId === socket.id);
+        if (!player) return;
+
+        if (faction !== 'snow' && faction !== 'ash') {
+            return socket.emit('error', 'Invalid faction selection.');
+        }
+
+        const isOccupied = room.players.some(p => p.socketId !== socket.id && p.team === faction);
+        if (isOccupied) {
+            return socket.emit('error', `Faction ${faction.toUpperCase()} is already occupied.`);
+        }
+
+        player.team = faction;
+
+        // Send back team confirmation to this player
+        socket.emit('teamAssigned', faction);
+
+        // Notify room about player list update
+        io.to(roomId).emit('roomUpdate', { players: room.players });
+
+        // If both players selected different teams, automatically start the game
+        const hasSnow = room.players.some(p => p.team === 'snow');
+        const hasAsh = room.players.some(p => p.team === 'ash');
+        if (room.players.length === 2 && hasSnow && hasAsh) {
+            Logic.withGameState(room.gameState, () => {
+                const gs = room.gameState;
+                if (!gs.gameStarted) {
+                    Logic.initGame();
+                    gs.gameStarted = true;
+                }
+                room.lastSentState = null;
+                emitStateUpdate(room);
             });
         }
     });
@@ -88,7 +141,7 @@ io.on('connection', (socket) => {
 
         Logic.withGameState(room.gameState, () => {
             const gs = room.gameState;
-            const player = room.players.find(p => p.id === socket.id);
+            const player = room.players.find(p => p.socketId === socket.id);
 
             const coordsOk = (obj) => {
                 if (!obj || typeof obj !== 'object') return false;
@@ -210,19 +263,43 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        const result = RoomManager.removePlayer(socket.id);
+        const result = RoomManager.getPlayerBySocketId(socket.id);
         if (result) {
-            const { roomId, room, removed } = result;
-            if (room.gameState.gameStarted) {
-                io.to(roomId).emit('playerLeft', { team: removed.team, playerCount: room.players.length });
-                room.gameState.events = [];
-                emitStateUpdate(room);
-            }
+            const { room, player } = result;
+            const roomId = room.id;
+            const playerId = player.id;
+            const removedTeam = player.team;
+
+            // Set a 4-second timeout to remove player
             const timer = setTimeout(() => {
-                io.to(roomId).emit('roomClosed', 'Opponent failed to reconnect.');
-                RoomManager.deleteRoom(roomId);
-            }, 60000);
-            RoomManager.setDisconnectTimer(roomId, timer);
+                const r = RoomManager.getRoom(roomId);
+                if (r) {
+                    const idx = r.players.findIndex(p => p.id === playerId);
+                    if (idx !== -1) {
+                        r.players.splice(idx, 1);
+                        if (r.gameState.gameStarted) {
+                            io.to(roomId).emit('playerLeft', { team: removedTeam, playerCount: r.players.length });
+                            r.gameState.events = [];
+                            emitStateUpdate(r);
+                        } else {
+                            io.to(roomId).emit('roomUpdate', { players: r.players });
+                            io.to(roomId).emit('playerLeft', { team: removedTeam, playerCount: r.players.length });
+                        }
+
+                        // If room is empty, delete it after 60s
+                        if (r.players.length === 0) {
+                            const roomTimer = setTimeout(() => {
+                                io.to(roomId).emit('roomClosed', 'Opponent failed to reconnect.');
+                                RoomManager.deleteRoom(roomId);
+                            }, 60000);
+                            RoomManager.setDisconnectTimer(roomId, roomTimer);
+                        }
+                    }
+                }
+                RoomManager.clearPlayerDisconnectTimer(playerId);
+            }, 4000);
+
+            RoomManager.setPlayerDisconnectTimer(playerId, timer);
         }
     });
 });

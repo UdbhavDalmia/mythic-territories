@@ -986,3 +986,239 @@ body.multiplayer #roomStatusOverlay {
       padding: 6px 10px !important;
    }
 }
+
+/* -------------------------
+   Faction Selection Overlay
+   ------------------------- */
+.faction-selection-overlay {
+   position: fixed;
+   top: 0;
+   left: 0;
+   width: 100vw;
+   height: 100vh;
+   background: rgba(11, 16, 25, 0.65);
+   backdrop-filter: blur(8px);
+   -webkit-backdrop-filter: blur(8px);
+   z-index: 9999;
+   display: flex;
+   justify-content: center;
+   align-items: center;
+   padding: 20px;
+   box-sizing: border-box;
+   animation: overlayFadeIn 0.6s ease-out forwards;
+}
+
+@keyframes overlayFadeIn {
+   from {
+      background: rgba(11, 16, 25, 0);
+      backdrop-filter: blur(0px);
+      -webkit-backdrop-filter: blur(0px);
+   }
+   to {
+      background: rgba(11, 16, 25, 0.65);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+   }
+}
+
+.faction-selection-content {
+   max-width: 1100px;
+   width: 100%;
+   display: flex;
+   flex-direction: column;
+   align-items: center;
+   opacity: 0;
+   animation: contentFadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.5s forwards;
+}
+
+@keyframes contentFadeIn {
+   from {
+      opacity: 0;
+      transform: translateY(20px) scale(0.96);
+   }
+   to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+   }
+}
+
+.faction-selection-title {
+   font-family: 'Cinzel', serif;
+   font-size: clamp(28px, 4vw, 48px);
+   color: #E8C15E;
+   text-align: center;
+   letter-spacing: 4px;
+   margin-bottom: 8px;
+   text-shadow: 0 0 15px rgba(232, 193, 94, 0.4);
+}
+
+.faction-selection-subtitle {
+   font-size: 16px;
+   color: #bec8d2;
+   opacity: 0.8;
+   margin-bottom: 40px;
+   text-align: center;
+}
+
+.faction-cards-container {
+   display: grid;
+   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+   gap: 40px;
+   width: 100%;
+   margin-bottom: 40px;
+}
+
+.faction-card {
+   background: rgba(14, 19, 29, 0.85);
+   border-radius: 16px;
+   overflow: hidden;
+   display: flex;
+   flex-direction: column;
+   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.faction-card.frost-card {
+   border: 1.5px solid rgba(165, 243, 252, 0.2);
+}
+
+.faction-card.frost-card:hover {
+   box-shadow: 0 0 30px rgba(165, 243, 252, 0.3);
+   border-color: #A5F3FC;
+   transform: translateY(-5px);
+}
+
+.faction-card.ash-card {
+   border: 1.5px solid rgba(239, 68, 68, 0.2);
+}
+
+.faction-card.ash-card:hover {
+   box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);
+   border-color: #EF4444;
+   transform: translateY(-5px);
+}
+
+.faction-card.occupied {
+   opacity: 0.4;
+   pointer-events: none;
+}
+
+.faction-portrait-wrapper {
+   width: 100%;
+   height: 240px;
+   overflow: hidden;
+   position: relative;
+}
+
+.faction-portrait-wrapper img {
+   width: 100%;
+   height: 100%;
+   object-fit: cover;
+   transition: transform 0.6s ease;
+}
+
+.faction-card:hover .faction-portrait-wrapper img {
+   transform: scale(1.05);
+}
+
+.faction-portrait-wrapper::after {
+   content: "";
+   position: absolute;
+   bottom: 0;
+   left: 0;
+   width: 100%;
+   height: 60%;
+   background: linear-gradient(to top, rgba(14, 19, 29, 1), rgba(14, 19, 29, 0));
+}
+
+.faction-details {
+   padding: 30px;
+   display: flex;
+   flex-direction: column;
+   flex-grow: 1;
+   justify-content: space-between;
+}
+
+.faction-details h3 {
+   font-family: 'Cinzel', serif;
+   font-size: 26px;
+   margin: 0 0 12px 0;
+   letter-spacing: 2px;
+}
+
+.frost-card .faction-details h3 {
+   color: #A5F3FC;
+}
+
+.ash-card .faction-details h3 {
+   color: #EF4444;
+}
+
+.faction-details p {
+   font-size: 15px;
+   line-height: 1.6;
+   color: #bec8d2;
+   margin: 0 0 24px 0;
+   height: 72px;
+   overflow: hidden;
+}
+
+.faction-btn-select {
+   font-family: 'Cinzel', serif;
+   padding: 14px 20px;
+   font-size: 16px;
+   font-weight: 700;
+   letter-spacing: 2px;
+   cursor: pointer;
+   border-radius: 8px;
+   transition: all 0.2s ease;
+   text-transform: uppercase;
+   text-align: center;
+}
+
+.frost-card .faction-btn-select {
+   background: rgba(165, 243, 252, 0.1);
+   border: 1.5px solid rgba(165, 243, 252, 0.3);
+   color: #A5F3FC;
+}
+
+.frost-card .faction-btn-select:hover:not(:disabled) {
+   background: rgba(165, 243, 252, 0.25);
+   box-shadow: 0 0 15px rgba(165, 243, 252, 0.4);
+}
+
+.ash-card .faction-btn-select {
+   background: rgba(239, 68, 68, 0.1);
+   border: 1.5px solid rgba(239, 68, 68, 0.3);
+   color: #EF4444;
+}
+
+.ash-card .faction-btn-select:hover:not(:disabled) {
+   background: rgba(239, 68, 68, 0.25);
+   box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+}
+
+.faction-btn-select:disabled {
+   background: rgba(40, 40, 50, 0.5) !important;
+   border: 1.5px solid rgba(255, 255, 255, 0.1) !important;
+   color: #666 !important;
+   cursor: not-allowed;
+}
+
+.faction-cancel-btn {
+   font-family: 'Exo 2', sans-serif;
+   background: none;
+   border: none;
+   color: #bec8d2;
+   font-size: 14px;
+   text-transform: uppercase;
+   letter-spacing: 2px;
+   cursor: pointer;
+   transition: color 0.2s ease;
+   display: flex;
+   align-items: center;
+   gap: 8px;
+}
+
+.faction-cancel-btn:hover {
+   color: #E8C15E;
+}
