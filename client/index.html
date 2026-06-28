@@ -124,166 +124,26 @@
       },
     }
   </script>
-  <style>
-    .material-symbols-outlined {
-      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-    }
-
-    .glass-obsidian {
-      background: rgba(14, 19, 29, 0.85);
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-    }
-
-    /* Float Animation */
-    @keyframes float {
-      0% {
-        transform: translateY(0px);
-      }
-
-      50% {
-        transform: translateY(-15px);
-      }
-
-      100% {
-        transform: translateY(0px);
-      }
-    }
-
-    .animate-float {
-      animation: float 6s ease-in-out infinite;
-    }
-
-    /* Pulse Glow Effect */
-    @keyframes pulse-glow {
-
-      0%,
-      100% {
-        box-shadow: 0 0 20px rgba(137, 206, 255, 0.3), 0 0 40px rgba(232, 193, 94, 0.2);
-        border-color: rgba(232, 193, 94, 0.3);
-      }
-
-      50% {
-        box-shadow: 0 0 40px rgba(137, 206, 255, 0.5), 0 0 60px rgba(232, 193, 94, 0.4);
-        border-color: rgba(232, 193, 94, 0.6);
-      }
-    }
-
-    .animate-pulse-glow {
-      animation: pulse-glow 3s infinite ease-in-out;
-    }
-
-    /* Background Zoom */
-    @keyframes slow-zoom {
-      0% {
-        transform: scale(1.05);
-      }
-
-      100% {
-        transform: scale(1.15);
-      }
-    }
-
-    .animate-slow-zoom {
-      animation: slow-zoom 20s ease-in-out infinite alternate;
-    }
-
-    body {
-      background-color: #0B1019;
-      overflow: hidden;
-    }
-
-    .modal-overlay {
-      opacity: 0;
-      pointer-events: none;
-      transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-      position: fixed;
-      inset: 0;
-      z-index: 60;
-    }
-
-    .modal-overlay.active {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .modal-content {
-      transform: translateY(40px) scale(0.95);
-      transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    .modal-overlay.active .modal-content {
-      transform: translateY(0) scale(1);
-    }
-
-    .card-frost:hover {
-      box-shadow: 0 0 30px rgba(165, 243, 252, 0.3);
-      border-color: #A5F3FC;
-      background: rgba(165, 243, 252, 0.1);
-    }
-
-    .card-fire:hover {
-      box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);
-      border-color: #EF4444;
-      background: rgba(239, 68, 68, 0.1);
-    }
-
-    .card-gold:hover {
-      box-shadow: 0 0 30px rgba(232, 193, 94, 0.3);
-      border-color: #E8C15E;
-      background: rgba(232, 193, 94, 0.15);
-      transform: translateY(-5px);
-    }
-
-    canvas#particleCanvas {
-      position: fixed;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 5;
-    }
-
-    .screen-transition {
-      transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out;
-    }
-
-    .screen-hidden {
-      opacity: 0;
-      pointer-events: none;
-      transform: scale(1.05);
-      position: absolute;
-    }
-
-    .rye-font {
-      font-family: 'Rye', cursive !important;
-    }
-
-    .almendra-font {
-      font-family: 'Almendra SC', serif !important;
-    }
-  </style>
+  <link rel="stylesheet" href="styles/menu.css" />
 </head>
 
 <body class="text-on-surface select-none font-body-md">
   <!-- Main Background -->
   <div class="fixed inset-0 z-0">
     <div class="w-full h-full bg-cover bg-center animate-slow-zoom"
-      style='background-image: url("https://lh3.googleusercontent.com/aida/AP1WRLuSZIiABHQBStyZIQI7s5jPYCCcqg7f2ihSyqNXiOI6RG1DQkKpjt7Hg-Y5mHR3KlhYBKSd-_YULqTgrh0ibwK7_Zomb9-IRSZlXgC4_G0cOWxXDMjC8k2qm85KQkLloDHj62QU4gcBHcooP3_iD4Tg3UaGwDgQUDWh7kz7iWl_1NtWkZiD9Q_US_veCRQeCLTi_CVZkQCUnqXvmIWKxfuYWvwJGyBuT7SBuP5cza3Cf2YfXsNrmT6i_Vo"); transform-origin: center;'>
+      style="background-image: url('images/menu-bg.png'); transform-origin: center;">
     </div>
     <!-- Darkening Gradients -->
     <div class="absolute inset-0 bg-gradient-to-t from-void-black via-transparent to-void-black/60"></div>
     <div class="absolute inset-0 bg-void-black/20"></div>
   </div>
 
-  <!-- Particle Shader Overlay -->
-  <canvas id="particleCanvas"></canvas>
 
   <!-- SCREEN 1: MAIN MENU -->
   <main
     class="screen-transition relative z-10 w-full h-screen flex flex-col items-center justify-center px-margin-mobile"
     id="screen-main">
-    <div class="flex flex-col items-center mb-24 text-center animate-float">
+    <div class="flex flex-col items-center mb-24 text-center">
       <h1
         class="font-display-lg text-display-lg-mobile md:text-display-lg tracking-[0.2em] uppercase max-w-4xl leading-tight"
         style='background: linear-gradient(to right, rgb(137, 206, 255), rgb(245, 158, 11)) text; -webkit-text-fill-color: transparent; filter: drop-shadow(rgba(137, 206, 255, 0.4) 0px 0px 20px) drop-shadow(rgba(245, 158, 11, 0.4) 0px 0px 20px); font-family: "Almendra SC", serif; font-weight: 700; font-size: clamp(40px, 8vw, 72px);'>
@@ -305,7 +165,8 @@
     id="gameModesOverlay">
     <div class="modal-content w-full max-w-5xl">
       <div class="flex flex-col items-center">
-        <h2 class="font-display-lg text-lg sm:text-2xl md:text-headline-md text-ember-gold tracking-widest mb-6 md:mb-12 uppercase"
+        <h2
+          class="font-display-lg text-lg sm:text-2xl md:text-headline-md text-ember-gold tracking-widest mb-6 md:mb-12 uppercase"
           style='font-family: "Almendra SC", serif; font-weight: 700;'>Select Game Mode</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6 w-full">
           <!-- Pass & Play Card -->
@@ -316,10 +177,14 @@
               <span class="material-symbols-outlined text-ice-light text-xl sm:text-3xl">groups</span>
             </div>
             <div class="flex flex-col items-start md:items-center">
-              <h3 class="font-label-caps text-pure-snow text-[12px] sm:text-base md:text-xl tracking-widest mb-0.5 md:mb-2">PASS &amp; PLAY</h3>
-              <p class="font-body-md text-on-surface-variant text-[10px] sm:text-xs md:text-sm opacity-60">Local tabletop experience</p>
+              <h3
+                class="font-label-caps text-pure-snow text-[12px] sm:text-base md:text-xl tracking-widest mb-0.5 md:mb-2">
+                PASS &amp; PLAY</h3>
+              <p class="font-body-md text-on-surface-variant text-[10px] sm:text-xs md:text-sm opacity-60">Local
+                tabletop experience</p>
             </div>
-            <div class="h-1 w-12 bg-ember-gold opacity-0 group-hover:opacity-100 transition-opacity hidden md:block"></div>
+            <div class="h-1 w-12 bg-ember-gold opacity-0 group-hover:opacity-100 transition-opacity hidden md:block">
+            </div>
           </button>
           <!-- Online Multiplayer Card -->
           <button id="onlineRealmBtn"
@@ -329,10 +194,14 @@
               <span class="material-symbols-outlined text-magma-core text-xl sm:text-3xl">language</span>
             </div>
             <div class="flex flex-col items-start md:items-center">
-              <h3 class="font-label-caps text-pure-snow text-[12px] sm:text-base md:text-xl tracking-widest mb-0.5 md:mb-2">ONLINE REALM</h3>
-              <p class="font-body-md text-on-surface-variant text-[10px] sm:text-xs md:text-sm opacity-60">Challenge the world</p>
+              <h3
+                class="font-label-caps text-pure-snow text-[12px] sm:text-base md:text-xl tracking-widest mb-0.5 md:mb-2">
+                ONLINE REALM</h3>
+              <p class="font-body-md text-on-surface-variant text-[10px] sm:text-xs md:text-sm opacity-60">Challenge the
+                world</p>
             </div>
-            <div class="h-1 w-12 bg-ember-gold opacity-0 group-hover:opacity-100 transition-opacity hidden md:block"></div>
+            <div class="h-1 w-12 bg-ember-gold opacity-0 group-hover:opacity-100 transition-opacity hidden md:block">
+            </div>
           </button>
           <!-- Play with AI Card -->
           <button id="ancientTrialsBtn"
@@ -342,10 +211,14 @@
               <span class="material-symbols-outlined text-ember-gold text-xl sm:text-3xl">memory</span>
             </div>
             <div class="flex flex-col items-start md:items-center">
-              <h3 class="font-label-caps text-pure-snow text-[12px] sm:text-base md:text-xl tracking-widest mb-0.5 md:mb-2">ANCIENT TRIALS</h3>
-              <p class="font-body-md text-on-surface-variant text-[10px] sm:text-xs md:text-sm opacity-60">Hone your tactics vs AI</p>
+              <h3
+                class="font-label-caps text-pure-snow text-[12px] sm:text-base md:text-xl tracking-widest mb-0.5 md:mb-2">
+                ANCIENT TRIALS</h3>
+              <p class="font-body-md text-on-surface-variant text-[10px] sm:text-xs md:text-sm opacity-60">Hone your
+                tactics vs AI</p>
             </div>
-            <div class="h-1 w-12 bg-ember-gold opacity-0 group-hover:opacity-100 transition-opacity hidden md:block"></div>
+            <div class="h-1 w-12 bg-ember-gold opacity-0 group-hover:opacity-100 transition-opacity hidden md:block">
+            </div>
           </button>
         </div>
         <!-- Back button -->
@@ -392,8 +265,11 @@
     id="factionSelectionOverlay">
     <div class="modal-content w-full max-w-4xl overflow-visible">
       <div class="flex flex-col items-center py-4 overflow-visible">
-        <h2 class="font-display-lg text-xl sm:text-2xl md:text-4xl text-ember-gold tracking-widest mb-4 md:mb-6 uppercase almendra-font">Choose Your Faction</h2>
-        <div id="roomStatusDisplay" class="text-ember-gold text-xs sm:text-sm tracking-wider mb-3 md:mb-4 opacity-80 font-label-caps"
+        <h2
+          class="font-display-lg text-xl sm:text-2xl md:text-4xl text-ember-gold tracking-widest mb-4 md:mb-6 uppercase almendra-font">
+          Choose Your Faction</h2>
+        <div id="roomStatusDisplay"
+          class="text-ember-gold text-xs sm:text-sm tracking-wider mb-3 md:mb-4 opacity-80 font-label-caps"
           style="display: none;"></div>
         <div class="grid grid-cols-2 gap-3 sm:gap-6 w-full p-2 overflow-visible">
           <!-- Frost Lord Card -->
@@ -406,11 +282,14 @@
               <div class="absolute inset-0 bg-gradient-to-t from-void-black via-transparent to-transparent"></div>
             </div>
             <div class="p-3 sm:p-6 flex flex-col gap-2 md:gap-3">
-              <h3 class="text-base sm:text-lg md:text-2xl text-ice-light tracking-widest uppercase almendra-font">FROST LORD</h3>
-              <p class="text-on-surface-variant text-[10px] sm:text-xs md:text-sm leading-relaxed h-12 sm:h-16">Absolute order and crystalline geometry.
+              <h3 class="text-base sm:text-lg md:text-2xl text-ice-light tracking-widest uppercase almendra-font">FROST
+                LORD</h3>
+              <p class="text-on-surface-variant text-[10px] sm:text-xs md:text-sm leading-relaxed h-12 sm:h-16">Absolute
+                order and crystalline geometry.
                 Freeze enemies and construct glacial barriers to outlast the storm.</p>
               <button id="selectSnowBtn"
-                class="mt-2 md:mt-4 py-2 sm:py-3 bg-ice-light/10 border border-ice-light/30 text-ice-light tracking-widest transition-all hover:bg-ice-light/20 active:scale-95 rye-font text-[10px] sm:text-xs md:text-base w-full">SELECT FACTION</button>
+                class="mt-2 md:mt-4 py-2 sm:py-3 bg-ice-light/10 border border-ice-light/30 text-ice-light tracking-widest transition-all hover:bg-ice-light/20 active:scale-95 rye-font text-[10px] sm:text-xs md:text-base w-full">SELECT
+                FACTION</button>
             </div>
           </div>
           <!-- Ash Tyrant Card -->
@@ -423,11 +302,14 @@
               <div class="absolute inset-0 bg-gradient-to-t from-void-black via-transparent to-transparent"></div>
             </div>
             <div class="p-3 sm:p-6 flex flex-col gap-2 md:gap-3">
-              <h3 class="text-base sm:text-lg md:text-2xl text-magma-core tracking-widest uppercase almendra-font">ASH TYRANT</h3>
-              <p class="text-on-surface-variant text-[10px] sm:text-xs md:text-sm leading-relaxed h-12 sm:h-16">Explosive violence and volcanic power.
+              <h3 class="text-base sm:text-lg md:text-2xl text-magma-core tracking-widest uppercase almendra-font">ASH
+                TYRANT</h3>
+              <p class="text-on-surface-variant text-[10px] sm:text-xs md:text-sm leading-relaxed h-12 sm:h-16">
+                Explosive violence and volcanic power.
                 Break enemy lines with raw lava projectiles and scorched-earth hazards.</p>
               <button id="selectAshBtn"
-                class="mt-2 md:mt-4 py-2 sm:py-3 bg-magma-core/10 border border-magma-core/30 text-magma-core tracking-widest transition-all hover:bg-magma-core/20 active:scale-95 rye-font text-[10px] sm:text-xs md:text-base w-full">SELECT FACTION</button>
+                class="mt-2 md:mt-4 py-2 sm:py-3 bg-magma-core/10 border border-magma-core/30 text-magma-core tracking-widest transition-all hover:bg-magma-core/20 active:scale-95 rye-font text-[10px] sm:text-xs md:text-base w-full">SELECT
+                FACTION</button>
             </div>
           </div>
         </div>
@@ -436,7 +318,7 @@
           id="factionCancelBtn">
           <span
             class="material-symbols-outlined text-base sm:text-xl group-hover:-translate-x-1 transition-transform">arrow_back</span>
-          <span class="font-label-caps tracking-widest uppercase text-xs sm:text-sm">Back to Main</span>
+          <span class="font-label-caps tracking-widest uppercase text-xs sm:text-sm">Back to Modes</span>
         </button>
       </div>
     </div>

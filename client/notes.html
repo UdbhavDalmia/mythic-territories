@@ -1,305 +1,685 @@
 <!DOCTYPE html>
-<html lang="en">
+<html class="dark" lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <link rel="icon" type="image/png" href="images/favicon.ico">
-    <title>Mythic Territories - Patch Notes</title>
+    <title>Patch Notes | Mythic Territories</title>
     <meta name="description"
         content="Read the latest patch notes and updates for Mythic Territories. Track balance changes, new features, multiplayer updates, and game versions.">
     <link rel="canonical" href="https://mythic-territories.xyz/notes.html">
-    <style>
-        body {
-            background-image: url('images/notes-bg.png');
-            background-repeat: no-repeat;
-            background-position: center;
-            background-size: cover;
-            background-attachment: fixed;
-            color: #f5f5ff;
-            font-family: "Exo 2", sans-serif;
-            margin: 0;
-            padding: 10px;
-            box-sizing: border-box;
-            scrollbar-width: none;
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Almendra+SC&amp;family=Fira+Sans:wght@400;500;600&amp;family=Libre+Caslon+Text:wght@400;700&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="styles/notes.css" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary": "#ffdf95",
+                        "on-secondary": "#68000a",
+                        "on-secondary-container": "#ffaea8",
+                        "surface-bright": "#343944",
+                        "ice-light": "#A5F3FC",
+                        "surface-tint": "#89ceff",
+                        "error-container": "#93000a",
+                        "on-surface": "#dee2f0",
+                        "outline": "#8a9299",
+                        "surface-container-lowest": "#090e17",
+                        "on-surface-variant": "#c0c7cf",
+                        "outline-variant": "#40484e",
+                        "on-secondary-fixed-variant": "#930013",
+                        "primary-container": "#89ceff",
+                        "on-secondary-fixed": "#410004",
+                        "on-primary-fixed": "#001e2f",
+                        "tertiary-fixed": "#ffdf95",
+                        "background": "#0e131d",
+                        "secondary": "#ffb3ad",
+                        "on-tertiary-fixed-variant": "#594400",
+                        "secondary-fixed": "#ffdad7",
+                        "on-error": "#690005",
+                        "primary-fixed-dim": "#89ceff",
+                        "surface-container-highest": "#30353f",
+                        "magma-core": "#EF4444",
+                        "on-error-container": "#ffdad6",
+                        "glass-surface": "rgba(11, 16, 25, 0.7)",
+                        "on-background": "#dee2f0",
+                        "inverse-on-surface": "#2c303b",
+                        "secondary-fixed-dim": "#ffb3ad",
+                        "inverse-surface": "#dee2f0",
+                        "tertiary-container": "#e9c25f",
+                        "tertiary-fixed-dim": "#e9c25f",
+                        "void-black": "#0B1019",
+                        "surface-variant": "#30353f",
+                        "on-primary-container": "#00587f",
+                        "error": "#ffb4ab",
+                        "inverse-primary": "#056490",
+                        "surface": "#0e131d",
+                        "surface-container-high": "#252a34",
+                        "primary-fixed": "#c9e6ff",
+                        "primary": "#c9e6ff",
+                        "on-tertiary-fixed": "#251a00",
+                        "ember-gold": "#E8C15E",
+                        "on-primary": "#00344d",
+                        "on-tertiary-container": "#684f00",
+                        "on-tertiary": "#3e2e00",
+                        "secondary-container": "#a40217",
+                        "on-primary-fixed-variant": "#004c6e",
+                        "surface-container": "#1b2029",
+                        "surface-dim": "#0e131d",
+                        "surface-container-low": "#171c25",
+                        "pure-snow": "#FFFFFF"
+                    },
+                    "spacing": {
+                        "unit": "4px",
+                        "gutter": "24px",
+                        "container-max": "1440px",
+                        "margin-mobile": "16px",
+                        "margin-desktop": "48px"
+                    },
+                    "fontFamily": {
+                        "stat-value": ["Space Grotesk"],
+                        "display-lg": ["Libre Caslon Text"],
+                        "body-md": ["Fira Sans"],
+                        "body-lg": ["Fira Sans"],
+                        "label-caps": ["Space Grotesk"],
+                        "headline-md": ["Libre Caslon Text"],
+                        "display-lg-mobile": ["Libre Caslon Text"]
+                    },
+                    "fontSize": {
+                        "stat-value": ["20px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "display-lg": ["72px", { "lineHeight": "1.1", "letterSpacing": "0.2em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.15em", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "0.1em", "fontWeight": "700" }],
+                        "display-lg-mobile": ["40px", { "lineHeight": "1.2", "letterSpacing": "0.15em", "fontWeight": "700" }]
+                    }
+                },
+            },
         }
-
-        body::-webkit-scrollbar {
-            display: none;
-        }
-    </style>
-    <link rel="stylesheet" href="styles/notes.css">
+    </script>
 </head>
 
-<body class="primal-notes">
-    <div class="notes-container dark-glass-container">
-        <h1 class="notes-title">📜 Patch Notes</h1>
+<body class="bg-surface text-on-surface font-body-md selection:bg-ember-gold/30 flex flex-col min-h-screen">
+    <!-- Hero Background Layer -->
+    <div class="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-[20000ms] ease-linear scale-110"
+            style="background-image: url('images/notes-bg.png')">
+        </div>
+        <div class="absolute inset-0 bg-void-black/40"></div>
+        <div class="absolute inset-0 hero-gradient"></div>
+    </div>
 
-        <div class="notes-content">
-            <div class="note-card" data-version="3.0" data-date="TBD" data-tier="diamond">
-                <div class="note-header">
-                    <div class="note-version">Version 3.0</div>
-                    <div class="note-card-title">The New Era of Tactics</div>
-                    <div class="note-date">Release Date: TBD</div>
-                </div>
-                <div class="note-detail">
-                    ✦ <b>Complete Game Overhaul:</b> The entire battlefield has been rebuilt from the ground up to
-                    support a new era of deep, tactical competitive play.
-                    <br>✦ <b>Total Unit & Ability Remaster:</b> Every single piece across the Factions of Snow and Ash
-                    has been completely reworked with modernized base stats, balanced ability sets, and strategic
-                    active/passive loops.
-                    <br>✦ <b>Overhauled Movement & Board Dynamics:</b> Redesigned spatial control, pathfinding grids,
-                    and core movement mechanics to reward positional play and calculated maneuvers.
-                    <br>✦ <b>High-Fidelity Visual Systems:</b> Upgraded animations, particle systems, and visual cues
-                    across combat, projectile trails, and status rings for a premium gameplay feel.
-                </div>
+    <!-- Navigation Shell (TopAppBar) -->
+    <header class="fixed top-0 left-0 w-full z-50 glass-obsidian border-b border-outline/20">
+        <div
+            class="flex justify-between items-center px-4 md:px-margin-desktop py-4 max-w-container-max mx-auto w-full">
+            <div class="font-label-caps text-label-caps tracking-widest text-ember-gold">
+                MYTHIC TERRITORIES
             </div>
-            <div class="note-card" data-version="2.3" data-date="12/05/2026" data-tier="silver">
-                <div class="note-header">
-                    <div class="note-version">Version 2.3</div>
-                    <div class="note-card-title">The Royal Overhaul</div>
-                    <div class="note-date">Release Date: 12/05/2026</div>
+            <nav class="flex gap-6 sm:gap-8 items-center">
+                <a class="font-label-caps text-xs sm:text-label-caps text-ember-gold border-b-2 border-transparent hover:border-ember-gold transition-all duration-300"
+                    href="index.html">
+                    BACK TO MENU
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content Canvas -->
+    <main class="relative z-10 pt-32 pb-24 px-4 md:px-margin-desktop max-w-container-max mx-auto flex-grow w-full">
+        <!-- Header Section -->
+        <header class="mb-16 text-center space-y-4">
+            <h1 class="font-almendra text-5xl md:text-7xl font-bold tracking-tight text-gradient-dual uppercase mb-4">
+                PATCH NOTES
+            </h1>
+            <p class="font-display-lg text-xl italic text-on-surface-variant max-w-2xl mx-auto">
+                Chronicles of the eternal conflict between Frost and Flame.
+            </p>
+        </header>
+
+        <!-- Patch Notes Timeline -->
+        <div class="space-y-12 max-w-4xl mx-auto">
+            <!-- VERSION 3.0 -->
+            <section
+                class="glass-obsidian p-8 md:p-12 border-l-4 border-ice-light glow-ice rounded-xl relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-4 flex flex-col items-end gap-1">
+                    <span
+                        class="text-[10px] font-label-caps px-2 py-0.5 bg-ice-light/10 text-ice-light border border-ice-light/30 rounded uppercase">Upcoming</span>
+                    <span
+                        class="text-[10px] font-label-caps px-2 py-0.5 bg-ember-gold/10 text-ember-gold border border-ember-gold/30 rounded uppercase">Major
+                        Overhaul</span>
                 </div>
-                <div class="note-detail">
-                    ✦ <b>Cinematic Menu Redesign:</b> New 3D perspective "Clash" layout for faction selection, creating
-                    an immersive arena feel.
-                    <br>✦ <b>Humanoid Leader Portraits:</b> High-fidelity humanoid forms for the Frost Lord and Ash
-                    Tyrant, replacing the generic unit cards.
-                    <br>✦ <b>Obsidian Void Aesthetics:</b> Complete visual overhaul of menu backgrounds and UI elements
-                    with the new Obsidian Void theme for a premium, darker look.
+                <header class="mb-8">
+                    <p class="font-label-caps text-label-caps text-ice-light tracking-widest mb-2">VERSION 3.0
+                        (UPCOMING)</p>
+                    <h2 class="font-almendra text-4xl md:text-5xl text-ember-gold mb-4 leading-tight">The New Era of
+                        Tactics</h2>
+                    <p class="text-on-surface-variant font-stat-value text-sm flex items-center gap-2">
+                        <span class="material-symbols-outlined text-sm">calendar_today</span>
+                        TBD
+                    </p>
+                </header>
+                <div class="grid md:grid-cols-1 gap-6 font-body-lg text-on-surface leading-relaxed">
+                    <div class="p-6 bg-void-black/40 border border-outline-variant/30 rounded-lg space-y-4">
+                        <div class="flex gap-4">
+                            <span class="material-symbols-outlined text-ice-light shrink-0">grid_view</span>
+                            <p><strong class="text-ice-light">Complete Game Overhaul:</strong> The entire battlefield
+                                has been rebuilt from the ground up to support a new era of deep, tactical competitive
+                                play.</p>
+                        </div>
+                        <div class="flex gap-4">
+                            <span class="material-symbols-outlined text-ember-gold shrink-0">military_tech</span>
+                            <p><strong class="text-ember-gold">Total Unit & Ability Remaster:</strong> Every single
+                                piece across the Factions of Snow and Ash has been completely reworked with modernized
+                                base stats, balanced ability sets, and strategic active/passive loops.</p>
+                        </div>
+                        <div class="flex gap-4">
+                            <span class="material-symbols-outlined text-secondary shrink-0">grid_on</span>
+                            <p><strong class="text-secondary">Overhauled Movement & Board Dynamics:</strong> Redesigned
+                                spatial control, pathfinding grids, and core movement mechanics to reward positional
+                                play and calculated maneuvers.</p>
+                        </div>
+                        <div class="flex gap-4">
+                            <span class="material-symbols-outlined text-magma-core shrink-0">auto_awesome</span>
+                            <p><strong class="text-magma-core">High-Fidelity Visual Systems:</strong> Upgraded
+                                animations, particle systems, and visual cues across combat, projectile trails, and
+                                status rings for a premium gameplay feel.</p>
+                        </div>
+                    </div>
                 </div>
+            </section>
+
+            <!-- VERSION 2.3 -->
+            <section class="glass-obsidian p-8 md:p-12 glow-ice rounded-xl relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-4 flex flex-col items-end gap-1">
+                    <span
+                        class="text-[10px] font-label-caps px-2 py-0.5 bg-ice-light/10 text-ice-light border border-ice-light/30 rounded uppercase">Latest</span>
+                    <span
+                        class="text-[10px] font-label-caps px-2 py-0.5 bg-ice-light/10 text-ice-light border border-ice-light/30 rounded uppercase">Update</span>
+                </div>
+                <header class="mb-8">
+                    <p class="font-label-caps text-label-caps text-ice-light tracking-widest mb-2">VERSION 2.3</p>
+                    <h2 class="font-almendra text-4xl md:text-5xl text-ember-gold mb-4 leading-tight">The Royal Primal
+                        Overhaul</h2>
+                    <p class="text-on-surface-variant font-stat-value text-sm flex items-center gap-2">
+                        <span class="material-symbols-outlined text-sm">calendar_today</span>
+                        12/05/2026
+                    </p>
+                </header>
+                <div class="space-y-6 font-headline-md text-body-lg text-on-surface leading-relaxed">
+                    <div class="flex gap-4">
+                        <span class="text-ice-light font-bold">✦</span>
+                        <p><strong class="text-ice-light">Cinematic Menu Redesign:</strong> New 3D perspective "Clash"
+                            layout for faction selection, creating an immersive arena feel.</p>
+                    </div>
+                    <div class="flex gap-4">
+                        <span class="text-ice-light font-bold">✦</span>
+                        <p><strong class="text-ice-light">Humanoid Leader Portraits:</strong> High-fidelity humanoid
+                            forms for the Frost Lord and Ash Tyrant, replacing the generic unit cards.</p>
+                    </div>
+                    <div class="flex gap-4">
+                        <span class="text-ice-light font-bold">✦</span>
+                        <p><strong class="text-ice-light">Obsidian Void Aesthetics:</strong> Complete visual overhaul of
+                            menu backgrounds and UI elements with the new Obsidian Void theme for a premium, darker
+                            look.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VERSION 2.2 -->
+            <section class="glass-obsidian p-8 md:p-10 glow-magma rounded-xl relative overflow-hidden group">
+                <header class="mb-8">
+                    <p class="font-label-caps text-label-caps text-magma-core tracking-widest mb-2">VERSION 2.2</p>
+                    <h2 class="font-almendra text-3xl md:text-4xl text-ember-gold mb-4 leading-tight">Multiplayer Added;
+                        AI Temporarily Removed</h2>
+                    <p class="text-on-surface-variant font-stat-value text-sm flex items-center gap-2">
+                        <span class="material-symbols-outlined text-sm">calendar_today</span>
+                        29/04/2026
+                    </p>
+                </header>
+                <div class="grid md:grid-cols-2 gap-8 font-body-md text-on-surface">
+                    <div class="space-y-4">
+                        <div class="flex gap-3">
+                            <span class="text-magma-core font-bold">✦</span>
+                            <p><strong class="text-magma-core">Multiplayer (MP):</strong> Full multiplayer support has
+                                been introduced — invite friends and battle online.</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <span class="text-magma-core font-bold">✦</span>
+                            <p><strong class="text-magma-core">AI:</strong> The single-player AI has been temporarily
+                                removed for a major rework to improve balance and strategic behavior. It will return in
+                                a future update.</p>
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex gap-3">
+                            <span class="text-magma-core font-bold">✦</span>
+                            <p><strong class="text-magma-core">Notes:</strong> This is an early release of multiplayer
+                                features; expect follow-up patches to polish matchmaking and latency handling.</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <span class="text-magma-core font-bold">✦</span>
+                            <p><strong class="text-magma-core">Mobile Menu:</strong> Mobile menu fully redesigned and
+                                polished for a smoother, more intuitive on-device experience.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VERSION 2.1 -->
+            <section class="glass-obsidian p-8 md:p-10 glow-ice rounded-xl relative overflow-hidden group">
+                <header class="mb-8">
+                    <p class="font-label-caps text-label-caps text-ice-light tracking-widest mb-2">VERSION 2.1</p>
+                    <h2 class="font-almendra text-3xl md:text-4xl text-ember-gold mb-4 leading-tight">Siphoner Rework
+                    </h2>
+                    <p class="text-on-surface-variant font-stat-value text-sm flex items-center gap-2">
+                        <span class="material-symbols-outlined text-sm">calendar_today</span>
+                        12/04/2026
+                    </p>
+                </header>
+                <div class="space-y-4 font-body-md text-on-surface">
+                    <div class="flex gap-3">
+                        <span class="text-ice-light font-bold">✦</span>
+                        <p><strong class="text-ice-light">Tether System:</strong> Siphoners can form persistent Tethers
+                            to shift Power between units and perform targeted drains. Tethers generate Overload which
+                            must be managed.</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <span class="text-ice-light font-bold">✦</span>
+                        <p><strong class="text-ice-light">Status Siphoning:</strong> Tethered allies can have debuffs
+                            intercepted by their Siphoner (the Siphoner absorbs the debuff and gains Overload).</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <span class="text-ice-light font-bold">✦</span>
+                        <p><strong class="text-ice-light">Venting:</strong> Siphoners can vent accumulated Overload into
+                            Rifts (triggers the Abyssal Forge) or into the Overloaded Shrine (adds shrine charge).</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <span class="text-ice-light font-bold">✦</span>
+                        <p><strong class="text-ice-light">Enhanced Ability Visuals:</strong> Few major abilities now
+                            feature distinct animations, such as FrenziedDash, LavaGlob, and many more.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VERSION 2.0 -->
+            <section
+                class="glass-obsidian p-8 md:p-12 border-l-4 border-ember-gold rounded-xl relative overflow-hidden group">
+                <header class="mb-8">
+                    <p class="font-label-caps text-label-caps text-ember-gold tracking-widest mb-2">MAJOR MILESTONE:
+                        VERSION 2.0</p>
+                    <h2 class="font-almendra text-4xl md:text-5xl text-pure-snow mb-4 leading-tight">The Architect's
+                        Rebirth</h2>
+                    <p class="text-on-surface-variant font-stat-value text-sm flex items-center gap-2">
+                        <span class="material-symbols-outlined text-sm">calendar_today</span>
+                        30/03/2026
+                    </p>
+                </header>
+                <div class="grid md:grid-cols-1 gap-6 font-body-lg text-on-surface leading-relaxed">
+                    <div class="p-6 bg-void-black/40 border border-outline-variant/30 rounded-lg space-y-4">
+                        <div class="flex gap-4">
+                            <span class="material-symbols-outlined text-ember-gold shrink-0">security</span>
+                            <p><strong class="text-ember-gold">The Abyssal Forge:</strong> Uncontested Conduit control
+                                now triggers the Forge, expanding Rift size or spawning <strong
+                                    class="text-ember-gold">Elemental Cores</strong> (Ruby, Topaz, Emerald, Sapphire)
+                                for permanent unit buffs.</p>
+                        </div>
+                        <div class="flex gap-4">
+                            <span class="material-symbols-outlined text-magma-core shrink-0">volcano</span>
+                            <p><strong class="text-magma-core">The Void Snap:</strong> Highly charged Conduits that
+                                remain contested for 3 turns will now collapse, triggering a <strong
+                                    class="text-magma-core">Void Snap</strong> that permanently deletes those squares
+                                from the map.</p>
+                        </div>
+                        <div class="flex gap-4">
+                            <span class="material-symbols-outlined text-ice-light shrink-0">star</span>
+                            <p><strong class="text-ice-light">Dynamic Ascension:</strong> Sacrificing a trapped unit at
+                                the Shrine now offers unique <strong class="text-ice-light">Ascension Paths</strong>
+                                (Path A or Path B) based specifically on that unit's role, such as Shaper, Brawler, or
+                                Siphoner.</p>
+                        </div>
+                        <div class="flex gap-4">
+                            <span class="material-symbols-outlined text-ember-gold shrink-0">military_tech</span>
+                            <p><strong class="text-ember-gold">Veteran Promotion:</strong> Specialist units that
+                                vanquish 2 enemies achieve <strong class="text-ember-gold">Veteran</strong> status,
+                                unlocking new permanent passives or secondary abilities like <strong
+                                    class="text-ember-gold">Glacial Fortress</strong> or <strong
+                                    class="text-ember-gold">Volatile Forge</strong>.</p>
+                        </div>
+                        <div class="flex gap-4">
+                            <span class="material-symbols-outlined text-secondary shrink-0">energy_savings_leaf</span>
+                            <p><strong class="text-secondary">Leader Ultimates:</strong> Leaders now channel their
+                                Ultimates to generate charges. Once active, they emit a persistent <strong
+                                    class="text-secondary">Aura</strong>, though the Leader remains locked down while
+                                channeling.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ARCHIVE TOGGLE -->
+            <div class="text-center py-8">
+                <button
+                    class="px-8 py-4 border border-ember-gold/30 rounded-full font-label-caps text-label-caps text-ember-gold hover:bg-ember-gold hover:text-void-black transition-all duration-300"
+                    id="showArchive">
+                    VIEW HISTORICAL ARCHIVES
+                </button>
             </div>
-            <div class="note-card" data-version="2.2" data-date="29/04/2026" data-tier="diamond">
-                <div class="note-header">
-                    <div class="note-version">Version 2.2</div>
-                    <div class="note-card-title">Multiplayer Added; AI Temporarily Removed</div>
-                    <div class="note-date">Release Date: 29/04/2026</div>
-                </div>
-                <div class="note-detail">
-                    ✦ <b>Multiplayer (MP):</b> Full multiplayer support has been introduced — invite friends and battle
-                    online.
-                    <br>✦ <b>AI:</b> The single-player AI has been temporarily removed for a major rework to improve
-                    balance and strategic behavior. It will return in a future update.
-                    <br>✦ <b>Notes:</b> This is an early release of multiplayer features; expect follow-up patches to
-                    polish matchmaking and latency handling.
-                    <br>✦ <b>Mobile Menu:</b> Mobile menu fully redesigned and polished for a smoother, more intuitive
-                    on-device experience.
-                </div>
-            </div>
-            <div class="note-card" data-version="2.1" data-date="12/04/2026" data-tier="gold">
-                <div class="note-header">
-                    <div class="note-version">Version 2.1</div>
-                    <div class="note-card-title">Siphoner Rework</div>
-                    <div class="note-date">Release Date: 12/04/2026</div>
-                </div>
-                <div class="note-detail">
-                    ✦ <b>Tether System:</b> Siphoners can form persistent Tethers to shift Power between units and
-                    perform targeted drains. Tethers generate Overload which must be managed.
-                    <br>✦ <b>Status Siphoning:</b> Tethered allies can have debuffs intercepted by their Siphoner (the
-                    Siphoner absorbs the debuff and gains Overload).
-                    <br>✦ <b>Venting:</b> Siphoners can vent accumulated Overload into Rifts (triggers the Abyssal
-                    Forge) or into the Overloaded Shrine (adds shrine charge).
-                    <br>✦ <b>Enhanced Ability Visuals:</b> Few major abilities now feature distinct animations, such as
-                    FrenziedDash, LavaGlob, and many more.
-                </div>
-            </div>
-            <div class="note-card" data-version="2.0" data-date="2026-03-30" data-tier="diamond">
-                <div class="note-header">
-                    <div class="note-version">Version 2.0</div>
-                    <div class="note-card-title">The Architect's Rebirth</div>
-                    <div class="note-date">Release Date: 30/03/2026</div>
-                </div>
-                <div class="note-detail">
-                    ✦ <b>The Abyssal Forge:</b> Uncontested Conduit control now triggers the Forge, expanding Rift size
-                    or spawning <b>Elemental Cores</b> (Ruby, Topaz, Emerald, Sapphire) for permanent unit buffs.
-                    <br>✦ <b>The Void Snap:</b> Highly charged Conduits that remain contested for 3 turns will now
-                    collapse, triggering a <b>Void Snap</b> that permanently deletes those squares from the map.
-                    <br>✦ <b>Dynamic Ascension:</b> Sacrificing a trapped unit at the Shrine now offers unique
-                    <b>Ascension Paths</b> (Path A or Path B) based specifically on that unit's role, such as Shaper,
-                    Brawler, or Siphoner.
-                    <br>✦ <b>Veteran Promotion:</b> Specialist units that vanquish 2 enemies achieve <b>Veteran</b>
-                    status, unlocking new permanent passives or secondary abilities like <b>Glacial Fortress</b> or
-                    <b>Volatile Forge</b>.
-                    <br>✦ <b>Leader Ultimates:</b> Leaders now channel their Ultimates to generate charges. Once active,
-                    they emit a persistent <b>Aura</b>, though the Leader remains locked down while channeling.
-                </div>
-            </div>
-            <div class="note-card" data-version="1.5" data-date="2025-11-12" data-tier="gold">
-                <div class="note-header">
-                    <div class="note-version">Version 1.5</div>
-                    <div class="note-card-title">The Specialist Update</div>
-                    <div class="note-date">Release Date: 12/11/2025</div>
-                </div>
-                <div class="note-detail">
-                    This major update overhauls the core tactical gameplay and AI. Standard units are replaced by a new
-                    roster of unique specialists, each bringing new active abilities and strategic roles to the
-                    battlefield.
-                    <br>✦ <b>New Mechanic - Contested Conduit:</b> The Conduit Link no longer breaks when an enemy steps
-                    on a rift. Instead, it becomes "Contested," reducing the Anchor power boost from +2 to +1 until the
-                    enemy is removed.
-                </div>
-            </div>
-            <div class="note-card" data-version="1.4.1" data-date="2025-11-08" data-tier="bronze">
-                <div class="note-header">
-                    <div class="note-version">Version 1.4.1</div>
-                    <div class="note-card-title">Primal Reckoning</div>
-                    <div class="note-date">Release Date: 08/11/2025</div>
-                </div>
-                <div class="note-detail">
-                    This update introduces powerful new mechanics for leaders, factions, and the Shrine.
-                    <br>✦ <b>Leader Ultimates:</b> Leaders gain a one-time-use Ultimate: <code>King's Edict</code>
-                    (Frost Lord). A new visual flair shows when the ultimate is ready.
-                    <br>✦ <b>Shrine Rework - The Primal Sacrifice:</b> The Overloaded Shrine now "Traps" a unit. The
-                    owner can then choose to "Sacrifice" it (faction-wide +1 Power buff) or "Release" it (-1 perm power
-                    & Daze).
-                    <br>✦ <b>New Mechanic - Steal the Sacrifice:</b> While a unit is Trapped, an opponent can move onto
-                    the Shrine to "Steal" the sacrifice, claiming the buff for their team.
-                    <br>✦ <b>New Synergies:</b> <code>Ignition Point</code> (Mark of Cinder + Lava Glob) and
-                    <code>Conduit of Frost</code> (Chilling Aura + Glacial Wall) have been discovered.
-                </div>
-            </div>
-            <div class="note-card" data-version="1.4" data-date="2025-10-30" data-tier="gold">
-                <div class="note-header">
-                    <div class="note-version">Version 1.4</div>
-                    <div class="note-card-title">The Maker's Gaze</div>
-                    <div class="note-date">Release Date: 30/10/2025</div>
-                </div>
-                <div class="note-detail">
-                    The endless wars have sent tremors through the very foundations of reality, awakening the ultimate
-                    consciousness: The Architect. This is the unseen, primordial energy that forged the realms, and it
-                    has stirred to scrutinize the flawed, passionate creations that battle upon its surface.
-                    <br>✦ <b>New Game Mode - Challenge the Architect:</b> Face the maker of your world! Test your
-                    strategies against a formidable AI opponent designed to push your tactical skills to the limit.
-                    <br>✦ <b>Enhanced Battlefield Visuals:</b> Witness the clash of elements like never before! Major
-                    abilities and game states now feature significantly upgraded animations and particle effects for a
-                    more immersive and visually striking experience.
-                    <br>✦ <b>Gameplay & Balance Refinements:</b> Key adjustments have been made to abilities and
-                    mechanics for improved strategic depth and fairness, including changes to Glacial Step, Shrine
-                    Overload, Lava Glob, and Unstable Ground cooldowns. Mobile UI has been enhanced for better
-                    information display.
-                </div>
-            </div>
-            <div class="note-card" data-version="1.3.1" data-date="2025-10-10" data-tier="bronze">
-                <div class="note-header">
-                    <div class="note-version">Version 1.3.1</div>
-                    <div class="note-card-title">QoL & Balance Pass</div>
-                    <div class="note-date">Release Date: 10/10/2025</div>
-                </div>
-                <div class="note-detail">
-                    This patch refines the gameplay experience with UI improvements and key balance adjustments based on
-                    player feedback.
-                    <br>✦ <b>Mobile UI Overhaul:</b> The mobile layout has been re-ordered for a more intuitive flow,
-                    with various UI bugs fixed.
-                    <br>✦ <b>Shrine Stalemate:</b> Added a 'Stalemate' outcome if the Shrine's 'Energy Nova' destroys
-                    both leaders at once. <i>(Note: This was later changed in V4.0)</i>
-                    <br>✦ <b>Balance Change - Rift Assault:</b> This ability now inflicts 'Rift Shock' on the user,
-                    leaving them 'Dazed' for one turn to add more strategic counter-play.
-                </div>
-            </div>
-            <div class="note-card" data-version="1.3" data-date="2025-10-07" data-tier="gold">
-                <div class="note-header">
-                    <div class="note-version">Version 1.3</div>
-                    <div class="note-card-title">The Awakened Conduit</div>
-                    <div class="note-date">Release Date: 07/10/2025</div>
-                </div>
-                <div class="note-detail">
-                    A total overhaul reshapes the Mythic Territories! Version 1.3 is our largest update yet, introducing
-                    a deep strategic evolution to the rift system, a completely remastered arsenal of warriors, and a
-                    fully responsive interface.
-                    <br>✦ <b>Total Visual Remaster:</b> Every warrior on the battlefield has been reborn with stunning,
-                    all-new high-quality artwork. Command a visually reimagined army and immerse yourself in the
-                    conflict like never before!
-                    <br>✦ <b>Play Anywhere Interface:</b> The game now fully supports all screen sizes, from mobile
-                    phones to desktops. The entire user interface has been redesigned for a seamless experience, no
-                    matter how you play.
-                    <br>✦ <b>New Mechanic - The Awakened Conduit:</b> The rifts are no longer passive zones of chance.
-                    By occupying both rifts, players can now form a Conduit Link, unlocking incredible new strategies:
-                    <ul>
-                        <li><b>Conduit Highway:</b> Teleport friendly units across the map between the two linked rifts.
-                        </li>
-                        <li><b>Empowered Anchors:</b> The two pieces holding the rifts gain +2 Power and unique
-                            defensive or tactical abilities.</li>
-                    </ul>
-                </div>
-            </div>
-            <div class="note-card" data-version="1.2" data-date="2025-09-28" data-tier="silver">
-                <div class="note-header">
-                    <div class="note-version">Version 1.2</div>
-                    <div class="note-card-title">Realms of Chaos</div>
-                    <div class="note-date">Release Date: 28/09/2025</div>
-                </div>
-                <div class="note-detail">
-                    A new era of warfare dawns! The very fabric of the battlefield has been warped by raw, untamed
-                    magic.
-                    <br>✦ Step into the chaos of the <b>Arcane Rifts</b>! Mysterious zones now pulse with unpredictable
-                    energy that evolves as the war wages on. Will you risk their grasp for a surge of power, or will
-                    your warriors be lost to the storm?
-                    <br>✦ The central <b>Shrine</b> is no longer a mere boon—it is a crucible of power that demands
-                    sacrifice. Spilled blood awakens the Shrine, and daring to step upon its Overloaded soil may infuse
-                    you with godlike power... or trigger a cataclysmic nova that will sunder all who stand near!
-                    <br>✦ Also added an event log to keep track of major game events.
-                </div>
-            </div>
-            <div class="note-card" data-version="1.1" data-date="2025-09-22" data-tier="silver">
-                <div class="note-header">
-                    <div class="note-version">Version 1.1</div>
-                    <div class="note-card-title">Winds of Time</div>
-                    <div class="note-date">Release Date: 22/9/2025</div>
-                </div>
-                <div class="note-detail">
-                    The winds of change sweep across the battlefield, bringing new challenges and a bold new look to the
-                    eternal conflict.
-                    <br>✦ The war is now a work of art! A stunning <b>visual theme update</b> enhances the battlefield,
-                    breathing new life into every clash.
-                    <br>✦ <b>Feel the pressure of eternity!</b> A new timer system for competitive play forces
-                    commanders to make split-second decisions where every moment counts.
-                </div>
-            </div>
-            <div class="note-card" data-version="1.0" data-date="2025-09-21" data-tier="gold">
-                <div class="note-header">
-                    <div class="note-version">Version 1.0</div>
-                    <div class="note-card-title">Awakening of the Realms</div>
-                    <div class="note-date">Release Date: 21/9/2025</div>
-                </div>
-                <div class="note-detail">
-                    The saga begins! The gates to the Mythic Territories have been thrown open, unleashing the
-                    foundational conflict between the elemental forces of Snow and Ash.
-                    <br>✦ The core of the eternal war is forged! Take command of <b>mythical armies</b> and clash for
-                    dominion over a realm where the very lands shift with the tides of battle.
-                </div>
+
+            <!-- Historical Container -->
+            <div class="hidden space-y-8" id="archiveSection">
+                <!-- VERSION 1.5 -->
+                <article
+                    class="glass-obsidian p-6 border border-outline-variant/20 rounded-lg opacity-80 hover:opacity-100 transition-opacity">
+                    <header class="mb-4">
+                        <p class="font-label-caps text-label-caps text-ice-light tracking-widest mb-1">VERSION 1.5</p>
+                        <h3 class="font-almendra text-2xl text-ember-gold mb-2">The Specialist Update</h3>
+                        <p class="text-on-surface-variant font-stat-value text-xs flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-xs">calendar_today</span>
+                            12/11/2025
+                        </p>
+                    </header>
+                    <div class="space-y-3 font-body-md text-on-surface text-sm">
+                        <p class="text-on-surface-variant italic">This major update overhauls the core tactical gameplay
+                            and AI. Standard units are replaced by a new roster of unique specialists, each bringing new
+                            active abilities and strategic roles to the battlefield.</p>
+                        <div class="flex gap-2">
+                            <span class="text-ice-light font-bold text-xs">✦</span>
+                            <p><strong class="text-ice-light">New Mechanic - Contested Conduit:</strong> The Conduit
+                                Link no longer breaks when an enemy steps on a rift. Instead, it becomes "Contested,"
+                                reducing the Anchor power boost from +2 to +1 until the enemy is removed.</p>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- VERSION 1.4.1 -->
+                <article
+                    class="glass-obsidian p-6 border border-outline-variant/20 rounded-lg opacity-80 hover:opacity-100 transition-opacity">
+                    <header class="mb-4">
+                        <p class="font-label-caps text-label-caps text-magma-core tracking-widest mb-1">VERSION 1.4.1
+                        </p>
+                        <h3 class="font-almendra text-2xl text-ember-gold mb-2">Primal Reckoning</h3>
+                        <p class="text-on-surface-variant font-stat-value text-xs flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-xs">calendar_today</span>
+                            08/11/2025
+                        </p>
+                    </header>
+                    <div class="space-y-3 font-body-md text-on-surface text-sm">
+                        <p class="text-on-surface-variant italic">This update introduces powerful new mechanics for
+                            leaders, factions, and the Shrine.</p>
+                        <div class="flex gap-2">
+                            <span class="text-magma-core font-bold text-xs">✦</span>
+                            <p><strong class="text-magma-core">Leader Ultimates:</strong> Leaders gain a one-time-use
+                                Ultimate: <code class="bg-void-black px-1.5 py-0.5 rounded text-xs">King's Edict</code>
+                                (Frost Lord). A new visual flair shows when the ultimate is ready.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <span class="text-magma-core font-bold text-xs">✦</span>
+                            <p><strong class="text-magma-core">Shrine Rework - The Primal Sacrifice:</strong> The
+                                Overloaded Shrine now "Traps" a unit. The owner can then choose to "Sacrifice" it
+                                (faction-wide +1 Power buff) or "Release" it (-1 perm power & Daze).</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <span class="text-magma-core font-bold text-xs">✦</span>
+                            <p><strong class="text-magma-core">Steal the Sacrifice:</strong> While a unit is Trapped, an
+                                opponent can move onto the Shrine to "Steal" the sacrifice, claiming the buff for their
+                                team.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <span class="text-magma-core font-bold text-xs">✦</span>
+                            <p><strong class="text-magma-core">New Synergies:</strong> <code
+                                    class="bg-void-black px-1.5 py-0.5 rounded text-xs">Ignition Point</code> (Mark of
+                                Cinder + Lava Glob) and <code
+                                    class="bg-void-black px-1.5 py-0.5 rounded text-xs">Conduit of Frost</code>
+                                (Chilling Aura + Glacial Wall) have been discovered.</p>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- VERSION 1.4 -->
+                <article
+                    class="glass-obsidian p-6 border border-outline-variant/20 rounded-lg opacity-80 hover:opacity-100 transition-opacity">
+                    <header class="mb-4">
+                        <p class="font-label-caps text-label-caps text-ember-gold tracking-widest mb-1">VERSION 1.4</p>
+                        <h3 class="font-almendra text-2xl text-ember-gold mb-2">The Maker's Gaze</h3>
+                        <p class="text-on-surface-variant font-stat-value text-xs flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-xs">calendar_today</span>
+                            30/10/2025
+                        </p>
+                    </header>
+                    <div class="space-y-3 font-body-md text-on-surface text-sm">
+                        <p class="text-on-surface-variant italic">The endless wars have sent tremors through the very
+                            foundations of reality, awakening the ultimate consciousness: The Architect. This is the
+                            unseen, primordial energy that forged the realms, and it has stirred to scrutinize the
+                            creations that battle upon its surface.</p>
+                        <div class="flex gap-2">
+                            <span class="text-ember-gold font-bold text-xs">✦</span>
+                            <p><strong class="text-ember-gold">New Game Mode - Challenge the Architect:</strong> Face
+                                the maker of your world! Test your strategies against a formidable AI opponent designed
+                                to push your tactical skills to the limit.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <span class="text-ember-gold font-bold text-xs">✦</span>
+                            <p><strong class="text-ember-gold">Enhanced Battlefield Visuals:</strong> Witness the clash
+                                of elements like never before! Major abilities and game states now feature significantly
+                                upgraded animations and particle effects.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <span class="text-ember-gold font-bold text-xs">✦</span>
+                            <p><strong class="text-ember-gold">Gameplay & Balance Refinements:</strong> Key adjustments
+                                have been made to abilities and mechanics for improved strategic depth, including
+                                changes to Glacial Step, Shrine Overload, Lava Glob, and Unstable Ground cooldowns.
+                                Mobile UI has been enhanced for better information display.</p>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- VERSION 1.3.1 -->
+                <article
+                    class="glass-obsidian p-6 border border-outline-variant/20 rounded-lg opacity-80 hover:opacity-100 transition-opacity">
+                    <header class="mb-4">
+                        <p class="font-label-caps text-label-caps text-ice-light tracking-widest mb-1">VERSION 1.3.1</p>
+                        <h3 class="font-almendra text-2xl text-ember-gold mb-2">QoL & Balance Pass</h3>
+                        <p class="text-on-surface-variant font-stat-value text-xs flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-xs">calendar_today</span>
+                            10/10/2025
+                        </p>
+                    </header>
+                    <div class="space-y-3 font-body-md text-on-surface text-sm">
+                        <p class="text-on-surface-variant italic">This patch refines the gameplay experience with UI
+                            improvements and key balance adjustments based on player feedback.</p>
+                        <div class="flex gap-2">
+                            <span class="text-ice-light font-bold text-xs">✦</span>
+                            <p><strong class="text-ice-light">Mobile UI Overhaul:</strong> The mobile layout has been
+                                re-ordered for a more intuitive flow, with various UI bugs fixed.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <span class="text-ice-light font-bold text-xs">✦</span>
+                            <p><strong class="text-ice-light">Shrine Stalemate:</strong> Added a 'Stalemate' outcome if
+                                the Shrine's 'Energy Nova' destroys both leaders at once.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <span class="text-ice-light font-bold text-xs">✦</span>
+                            <p><strong class="text-ice-light">Balance Change - Rift Assault:</strong> This ability now
+                                inflicts 'Rift Shock' on the user, leaving them 'Dazed' for one turn to add more
+                                strategic counter-play.</p>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- VERSION 1.3 -->
+                <article
+                    class="glass-obsidian p-6 border border-outline-variant/20 rounded-lg opacity-80 hover:opacity-100 transition-opacity">
+                    <header class="mb-4">
+                        <p class="font-label-caps text-label-caps text-ember-gold tracking-widest mb-1">VERSION 1.3</p>
+                        <h3 class="font-almendra text-2xl text-ember-gold mb-2">The Awakened Conduit</h3>
+                        <p class="text-on-surface-variant font-stat-value text-xs flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-xs">calendar_today</span>
+                            07/10/2025
+                        </p>
+                    </header>
+                    <div class="space-y-3 font-body-md text-on-surface text-sm">
+                        <p class="text-on-surface-variant italic">A total overhaul reshapes the Mythic Territories!
+                            Version 1.3 is our largest update yet, introducing a deep strategic evolution to the rift
+                            system, a completely remastered arsenal of warriors, and a fully responsive interface.</p>
+                        <div class="flex gap-2">
+                            <span class="text-ember-gold font-bold text-xs">✦</span>
+                            <p><strong class="text-ember-gold">Total Visual Remaster:</strong> Every warrior on the
+                                battlefield has been reborn with stunning, all-new high-quality artwork.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <span class="text-ember-gold font-bold text-xs">✦</span>
+                            <p><strong class="text-ember-gold">Play Anywhere Interface:</strong> The game now fully
+                                supports all screen sizes, from mobile phones to desktops. The entire user interface has
+                                been redesigned.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <span class="text-ember-gold font-bold text-xs">✦</span>
+                            <div class="space-y-1">
+                                <p><strong class="text-ember-gold">The Awakened Conduit:</strong> Occupying both rifts
+                                    forms a Conduit Link, unlocking incredible new strategies:</p>
+                                <ul class="list-disc pl-4 space-y-1 text-on-surface-variant">
+                                    <li><strong class="text-on-surface">Conduit Highway:</strong> Teleport friendly
+                                        units across the map between the two linked rifts.</li>
+                                    <li><strong class="text-on-surface">Empowered Anchors:</strong> The two pieces
+                                        holding the rifts gain +2 Power and unique defensive/tactical abilities.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- VERSION 1.2 -->
+                <article
+                    class="glass-obsidian p-6 border border-outline-variant/20 rounded-lg opacity-80 hover:opacity-100 transition-opacity">
+                    <header class="mb-4">
+                        <p class="font-label-caps text-label-caps text-magma-core tracking-widest mb-1">VERSION 1.2</p>
+                        <h3 class="font-almendra text-2xl text-ember-gold mb-2">Realms of Chaos</h3>
+                        <p class="text-on-surface-variant font-stat-value text-xs flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-xs">calendar_today</span>
+                            28/09/2025
+                        </p>
+                    </header>
+                    <div class="space-y-3 font-body-md text-on-surface text-sm">
+                        <p class="text-on-surface-variant italic">A new era of warfare dawns! The very fabric of the
+                            battlefield has been warped by raw, untamed magic.</p>
+                        <div class="flex gap-2">
+                            <span class="text-magma-core font-bold text-xs">✦</span>
+                            <p><strong class="text-magma-core">Arcane Rifts:</strong> Mysterious zones pulse with
+                                unpredictable energy that evolves as the war wages on.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <span class="text-magma-core font-bold text-xs">✦</span>
+                            <p><strong class="text-magma-core">The Shrine Crucible:</strong> The central Shrine now
+                                demands sacrifice. Spilled blood awakens it, and stepping on its Overloaded soil may
+                                infuse you with power or trigger a cataclysmic nova!</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <span class="text-magma-core font-bold text-xs">✦</span>
+                            <p><strong class="text-magma-core">Event Log:</strong> Added an in-game event log to keep
+                                track of major battlefield actions and history.</p>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- VERSION 1.1 -->
+                <article
+                    class="glass-obsidian p-6 border border-outline-variant/20 rounded-lg opacity-80 hover:opacity-100 transition-opacity">
+                    <header class="mb-4">
+                        <p class="font-label-caps text-label-caps text-ice-light tracking-widest mb-1">VERSION 1.1</p>
+                        <h3 class="font-almendra text-2xl text-ember-gold mb-2">Winds of Time</h3>
+                        <p class="text-on-surface-variant font-stat-value text-xs flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-xs">calendar_today</span>
+                            22/09/2025
+                        </p>
+                    </header>
+                    <div class="space-y-3 font-body-md text-on-surface text-sm">
+                        <p class="text-on-surface-variant italic">The winds of change sweep across the battlefield,
+                            bringing new challenges and a bold new look to the eternal conflict.</p>
+                        <div class="flex gap-2">
+                            <span class="text-ice-light font-bold text-xs">✦</span>
+                            <p><strong class="text-ice-light">Visual Theme Update:</strong> A stunning aesthetic upgrade
+                                enhances the battlefield, breathing new life into every clash.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <span class="text-ice-light font-bold text-xs">✦</span>
+                            <p><strong class="text-ice-light">Timer System:</strong> A new competitive play timer forces
+                                commanders to make split-second decisions where every moment counts.</p>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- VERSION 1.0 -->
+                <article
+                    class="glass-obsidian p-6 border border-outline-variant/20 rounded-lg opacity-80 hover:opacity-100 transition-opacity">
+                    <header class="mb-4">
+                        <p class="font-label-caps text-label-caps text-ember-gold tracking-widest mb-1">VERSION 1.0</p>
+                        <h3 class="font-almendra text-2xl text-ember-gold mb-2">Awakening of the Realms</h3>
+                        <p class="text-on-surface-variant font-stat-value text-xs flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-xs">calendar_today</span>
+                            21/09/2025
+                        </p>
+                    </header>
+                    <div class="space-y-3 font-body-md text-on-surface text-sm">
+                        <p class="text-on-surface-variant italic">The saga begins! The gates to the Mythic Territories
+                            have been thrown open, unleashing the foundational conflict between the elemental forces of
+                            Snow and Ash.</p>
+                        <div class="flex gap-2">
+                            <span class="text-ember-gold font-bold text-xs">✦</span>
+                            <p><strong class="text-ember-gold">Core War Forged:</strong> Take command of mythical armies
+                                and clash for dominion over shifting lands.</p>
+                        </div>
+                    </div>
+                </article>
             </div>
         </div>
-    </div>
-    <div class="sticky-footer-btn">
-        <button class="back-btn" onclick="window.location.href='index.html'">⬅ Back to Menu</button>
-    </div>
+    </main>
+
+    <!-- Footer Shell -->
+    <footer class="bg-void-black border-t border-outline/10 w-full py-8 mt-auto relative z-10">
+        <div
+            class="flex flex-col md:flex-row justify-between items-center px-4 md:px-margin-desktop gap-gutter max-w-container-max mx-auto w-full">
+            <div class="font-label-caps text-label-caps text-on-surface-variant">
+                Mythic Territories
+            </div>
+            <div class="font-body-md text-body-md text-on-surface-variant text-center md:text-left">
+                © 2025 Mythic Territories. All rights reserved. Ancient scripts protected.
+            </div>
+            <div class="flex gap-6">
+                <a class="font-label-caps text-label-caps text-on-surface-variant hover:text-ember-gold transition-colors duration-200"
+                    href="rules.html">Rulebook</a>
+                <a class="font-label-caps text-label-caps text-ember-gold font-bold transition-colors duration-200"
+                    href="#">Patch Notes</a>
+            </div>
+        </div>
+    </footer>
+
     <script>
-        const notesContainer = document.querySelector(".notes-content");
-        const cards = Array.from(notesContainer.children);
-
-        cards.sort((a, b) => {
-            const dateAStr = a.dataset.date;
-            const dateBStr = b.dataset.date;
-
-            if (dateAStr === 'TBD' && dateBStr === 'TBD') {
-                const versionA = a.dataset.version.split('.').map(Number);
-                const versionB = b.dataset.version.split('.').map(Number);
-                for (let i = 0; i < Math.max(versionA.length, versionB.length); i++) {
-                    const vA = versionA[i] || 0;
-                    const vB = versionB[i] || 0;
-                    if (vA !== vB) return vB - vA;
-                }
-                return 0;
+        document.getElementById('showArchive').addEventListener('click', function () {
+            const section = document.getElementById('archiveSection');
+            if (section.classList.contains('hidden')) {
+                section.classList.remove('hidden');
+                this.innerText = 'HIDE HISTORICAL ARCHIVES';
+                section.scrollIntoView({ behavior: 'smooth' });
+            } else {
+                section.classList.add('hidden');
+                this.innerText = 'VIEW HISTORICAL ARCHIVES';
             }
-            if (dateAStr === 'TBD') return -1;
-            if (dateBStr === 'TBD') return 1;
-
-            const dateA = new Date(dateAStr);
-            const dateB = new Date(dateBStr);
-            return dateB - dateA;
         });
 
-        cards.forEach(card => notesContainer.appendChild(card));
+        window.addEventListener('scroll', () => {
+            const scrolled = window.pageYOffset;
+            const bg = document.querySelector('.bg-cover');
+            if (bg) {
+                bg.style.transform = `scale(1.1) translateY(${scrolled * 0.05}px)`;
+            }
+        });
     </script>
 </body>
 

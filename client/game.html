@@ -1,9 +1,9 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html class="dark" lang="en">
 
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="utf-8" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
   <link rel="icon" type="image/png" href="images/favicon.ico">
   <title>Mythic Territories - Battle Arena</title>
   <meta name="description"
@@ -13,10 +13,100 @@
   <meta property="og:description" content="Join the elemental war. Play Mythic Territories online now.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://mythic-territories.xyz/game.html">
+
+  <!-- Google Fonts -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&amp;family=Fira+Sans:wght@300;400;600&amp;family=Space+Grotesk:wght@300;400;600;700&amp;family=Rye&amp;family=Almendra+SC:wght@400;700&amp;family=Inter:wght@400;700&amp;family=Libre+Caslon+Text:wght@400;700&amp;display=swap"
+    rel="stylesheet" />
+  <!-- Material Symbols -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+    rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface": "#0e131d",
+            "surface-dim": "#0e131d",
+            "surface-bright": "#343944",
+            "surface-container-lowest": "#090e17",
+            "surface-container-low": "#171c25",
+            "surface-container": "#1b2029",
+            "surface-container-high": "#252a34",
+            "surface-container-highest": "#30353f",
+            "on-surface": "#dee2f0",
+            "on-surface-variant": "#c0c7cf",
+            "inverse-surface": "#dee2f0",
+            "inverse-on-surface": "#2c303b",
+            "outline": "#8a9299",
+            "outline-variant": "#40484e",
+            "surface-tint": "#89ceff",
+            "primary": "#c9e6ff",
+            "on-primary": "#00344d",
+            "primary-container": "#89ceff",
+            "on-primary-container": "#00587f",
+            "inverse-primary": "#056490",
+            "secondary": "#ffb3ad",
+            "on-secondary": "#68000a",
+            "secondary-container": "#a40217",
+            "on-secondary-container": "#ffaea8",
+            "tertiary": "#ffdf95",
+            "on-tertiary": "#3e2e00",
+            "tertiary-container": "#e9c25f",
+            "on-tertiary-container": "#684f00",
+            "error": "#ffb4ab",
+            "on-error": "#690005",
+            "error-container": "#93000a",
+            "on-error-container": "#ffdad6",
+            "primary-fixed": "#c9e6ff",
+            "primary-fixed-dim": "#89ceff",
+            "on-primary-fixed": "#001e2f",
+            "on-primary-fixed-variant": "#004c6e",
+            "secondary-fixed": "#ffdad7",
+            "secondary-fixed-dim": "#ffb3ad",
+            "on-secondary-fixed": "#410004",
+            "on-secondary-fixed-variant": "#930013",
+            "tertiary-fixed": "#ffdf95",
+            "tertiary-fixed-dim": "#e9c25f",
+            "on-tertiary-fixed": "#251a00",
+            "on-tertiary-fixed-variant": "#594400",
+            "background": "#0e131d",
+            "on-background": "#dee2f0",
+            "surface-variant": "#30353f",
+            "ice-light": "#A5F3FC",
+            "magma-core": "#EF4444",
+            "ember-gold": "#E8C15E",
+            "void-black": "#0B1019",
+            "pure-snow": "#FFFFFF",
+            "glass-surface": "rgba(11, 16, 25, 0.7)"
+          },
+          "fontFamily": {
+            "display-lg": ["Cinzel Decorative", "Libre Caslon Text", "serif"],
+            "label-caps": ["Space Grotesk", "sans-serif"],
+            "headline-md": ["Cinzel Decorative", "Libre Caslon Text", "serif"],
+            "body-md": ["Fira Sans", "sans-serif"]
+          }
+        },
+      },
+    }
+  </script>
   <link rel="stylesheet" href="styles/game.css">
 </head>
 
-<body>
+<body class="text-on-surface select-none font-body-md overflow-x-hidden min-h-screen">
+  <!-- Main Background -->
+  <div class="fixed inset-0 z-0 pointer-events-none">
+    <div class="w-full h-full bg-cover bg-center animate-slow-zoom"
+      style="background-image: url('images/menu-bg.png'); transform-origin: center;">
+    </div>
+    <!-- Darkening Gradients -->
+    <div class="absolute inset-0 bg-gradient-to-t from-void-black via-transparent to-void-black/60"></div>
+    <div class="absolute inset-0 bg-void-black/20"></div>
+  </div>
   <div id="ascensionScreen" class="ascension-overlay" style="display:none">
     <div class="ascension-content dark-glass-container">
       <h2 id="ascension-role-title">PRIMAL ASCENSION: ROLE NAME</h2>
@@ -34,9 +124,13 @@
   <div id="game-wrapper">
     <div id="mobileHeader" class="mobile-only-header">
       <button id="menuButton-mobile" class="top-menu-btn icon-btn"> Menu</button>
-      <div id="testModeContainer-mobile" style="display: flex; align-items: center; gap: 4px; color: #fff; font-family: 'Exo 2', sans-serif;">
-        <input type="checkbox" id="testModeToggle-mobile" style="cursor: pointer; width: 14px; height: 14px; margin: 0;">
-        <label for="testModeToggle-mobile" style="cursor: pointer; font-size: 11px; user-select: none; font-weight: bold; white-space: nowrap;">Test Mode</label>
+      <div id="testModeContainer-mobile"
+        style="display: flex; align-items: center; gap: 4px; color: #fff; font-family: 'Exo 2', sans-serif;">
+        <input type="checkbox" id="testModeToggle-mobile"
+          style="cursor: pointer; width: 14px; height: 14px; margin: 0;">
+        <label for="testModeToggle-mobile"
+          style="cursor: pointer; font-size: 11px; user-select: none; font-weight: bold; white-space: nowrap;">Test
+          Mode</label>
       </div>
       <div class="mini-timer-block">
         <span id="miniTimerSnow" class="timer-tag snow">10:00</span>
@@ -54,9 +148,11 @@
             <div class="ui-header">TIME REMAINING</div>
             <div id="ashTimer" class="timer-display">10:00</div>
             <button id="startResetBtn">Start</button>
-            <div id="testModeContainer" style="margin: 10px 0; display: flex; align-items: center; justify-content: center; gap: 8px; color: #fff; font-family: 'Exo 2', sans-serif;">
+            <div id="testModeContainer"
+              style="margin: 10px 0; display: flex; align-items: center; justify-content: center; gap: 8px; color: #fff; font-family: 'Exo 2', sans-serif;">
               <input type="checkbox" id="testModeToggle" style="cursor: pointer; width: 16px; height: 16px; margin: 0;">
-              <label for="testModeToggle" style="cursor: pointer; font-size: 14px; user-select: none; font-weight: bold;">Test Mode</label>
+              <label for="testModeToggle"
+                style="cursor: pointer; font-size: 14px; user-select: none; font-weight: bold;">Test Mode</label>
             </div>
             <div id="snowTimer" class="timer-display">10:00</div>
           </div>
@@ -65,7 +161,8 @@
           <h3 id="ability-name"></h3>
           <p id="ability-description"></p>
           <div id="charge-container" style="display:none">Charges: <span id="charge-count">0/3</span></div>
-          <div id="ability-cooldown-container" style="display:none">Cooldown: <span id="ability-cooldown"></span> turns</div>
+          <div id="ability-cooldown-container" style="display:none">Cooldown: <span id="ability-cooldown"></span> turns
+          </div>
           <button id="abilityBtn">Use Ability</button>
           <button id="siphonBtn">Siphon</button>
           <button id="sacrificeBtn" style="display:none" class="unleash-btn">Sacrifice</button>
@@ -130,22 +227,25 @@
   </div>
 
   <div id="disconnectModal"
-    style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.65); z-index:10000; justify-content:center; align-items:center;">
+    class="fixed inset-0 z-[10000] hidden items-center justify-center bg-void-black/85 backdrop-blur-md p-4">
     <div
-      style="background:rgba(15,20,30,0.85); border:1px solid rgba(255,255,255,0.2); border-radius:16px; padding:30px 40px; text-align:center; color:#f0f0f0; font-family:'Exo 2', sans-serif; box-shadow:0 12px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1); max-width:400px; width:90%; box-sizing:border-box;">
-      <div id="disconnectMessage" style="font-size:18px; font-weight:600; margin-bottom:20px;">Opponent disconnected. Closing in 60s</div>
-      <button id="mainMenuBtn" class="action-btn" style="display:none;" onclick="window.location.href='index.html'">Go
-        to Main Menu</button>
+      class="w-full max-w-md glass-obsidian border border-magma-core/30 p-8 rounded-2xl text-center shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
+      <span class="material-symbols-outlined text-magma-core text-5xl mb-4">wifi_off</span>
+      <div id="disconnectMessage" class="font-display-lg text-lg text-pure-snow tracking-widest mb-6 uppercase">Opponent
+        disconnected. Closing in 60s</div>
+      <button id="mainMenuBtn"
+        class="action-btn w-full py-3 bg-magma-core/20 border border-magma-core/50 hover:bg-magma-core/40 transition-all text-pure-snow font-label-caps tracking-widest rounded-lg"
+        style="display:none;" onclick="window.location.href='index.html'">Go to Main Menu</button>
     </div>
   </div>
 
   <div id="victoryScreen">
     <div class="victory-content">
       <img id="victory-character-art" src="" alt="Winning Faction Leader">
-      <h2 id="victory-title"></h2>
-      <p id="victory-quote"></p>
-      <button id="restartBtn">Play Again</button>
-      <button id="victoryMenuBtn" class="menu-btn small-btn" style="margin-top: 10px;">Main Menu</button>
+      <h2 id="victory-title" class="font-almendra"></h2>
+      <p id="victory-quote" class="font-libre"></p>
+      <button id="restartBtn" class="font-label-caps">Play Again</button>
+      <button id="victoryMenuBtn" class="menu-btn small-btn mt-4 font-label-caps">Main Menu</button>
     </div>
   </div>
 

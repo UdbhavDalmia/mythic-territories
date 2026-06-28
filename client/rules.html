@@ -1,298 +1,710 @@
 <!DOCTYPE html>
-<html lang="en">
+<html class="dark" lang="en">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/png" href="images/favicon.ico">
+  <meta charset="utf-8" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <link class="icon" rel="icon" type="image/png" href="images/favicon.ico">
   <title>Mythic Territories - Game Guide</title>
   <meta name="description"
-    content="Learn how to play Mythic Territories. Master the core mechanics, Primal Ascension paths, the Awakened Conduit, and unit abilities to claim victory.">
+    content="Learn how to play Mythic Territories. Master the core mechanics, Primal Ascension paths, the Awakened Conduit, and unit profiles to claim victory.">
   <link rel="canonical" href="https://mythic-territories.xyz/rules.html">
   <meta property="og:title" content="Mythic Territories Guidebook">
   <meta property="og:description"
-    content="Master the mechanics of Mythic Territories with the official gameplay rules and abilities guide.">
+    content="Master the mechanics of Mythic Territories with the official gameplay rules and unit profiles guide.">
   <meta property="og:type" content="article">
   <meta property="og:url" content="https://mythic-territories.xyz/rules.html">
-  <link rel="stylesheet" href="styles/rules.css">
-  <style>
-    body {
-      background-image: url('images/rules-bg.png');
-      background-repeat: no-repeat;
-      background-position: center;
-      background-size: cover;
-      background-attachment: fixed;
-      font-family: "Exo 2", sans-serif;
+
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:wght@400;700&amp;family=Space+Grotesk:wght@400;600;700&amp;family=Almendra+SC:wght@400;700&amp;family=Fira+Sans:wght@400;500&amp;display=swap"
+    rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="styles/rules.css" />
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "inverse-on-surface": "#2c303b",
+            "void-black": "#0B1019",
+            "secondary": "#ffb3ad",
+            "on-secondary-fixed": "#410004",
+            "secondary-container": "#a40217",
+            "surface-variant": "#30353f",
+            "on-tertiary-container": "#684f00",
+            "surface-container-high": "#252a34",
+            "on-secondary-container": "#ffaea8",
+            "surface-container-lowest": "#090e17",
+            "surface-container": "#1b2029",
+            "on-secondary": "#68000a",
+            "on-primary-container": "#00587f",
+            "on-background": "#dee2f0",
+            "on-error-container": "#ffdad6",
+            "on-tertiary": "#3e2e00",
+            "ice-light": "#A5F3FC",
+            "inverse-primary": "#056490",
+            "tertiary-fixed": "#ffdf95",
+            "on-secondary-fixed-variant": "#930013",
+            "surface-tint": "#89ceff",
+            "inverse-surface": "#dee2f0",
+            "background": "#0e131d",
+            "outline": "#8a9299",
+            "tertiary": "#ffdf95",
+            "tertiary-fixed-dim": "#e9c25f",
+            "on-error": "#690005",
+            "primary-fixed-dim": "#89ceff",
+            "glass-surface": "rgba(11, 16, 25, 0.7)",
+            "on-surface": "#dee2f0",
+            "primary": "#c9e6ff",
+            "on-tertiary-fixed-variant": "#594400",
+            "surface-bright": "#343944",
+            "on-tertiary-fixed": "#251a00",
+            "ember-gold": "#E8C15E",
+            "error": "#ffb4ab",
+            "secondary-fixed": "#ffdad7",
+            "magma-core": "#EF4444",
+            "surface-container-low": "#171c25",
+            "pure-snow": "#FFFFFF",
+            "primary-fixed": "#c9e6ff",
+            "on-primary-fixed-variant": "#004c6e",
+            "error-container": "#93000a",
+            "secondary-fixed-dim": "#ffb3ad",
+            "primary-container": "#89ceff",
+            "surface-container-highest": "#30353f",
+            "on-primary": "#00344d",
+            "surface": "#0e131d",
+            "on-surface-variant": "#c0c7cf",
+            "surface-dim": "#0e131d",
+            "on-primary-fixed": "#001e2f",
+            "tertiary-container": "#e9c25f",
+            "outline-variant": "#40484e"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "margin-desktop": "48px",
+            "gutter": "24px",
+            "margin-mobile": "16px",
+            "unit": "4px",
+            "container-max": "1440px"
+          },
+          "fontFamily": {
+            "display-lg": ["Libre Caslon Text"],
+            "label-caps": ["Space Grotesk"],
+            "headline-md": ["Libre Caslon Text"],
+            "body-md": ["Fira Sans"]
+          },
+          "fontSize": {
+            "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.15em", "fontWeight": "700" }],
+            "display-lg": ["72px", { "lineHeight": "1.1", "letterSpacing": "0.2em", "fontWeight": "700" }],
+            "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "0.1em", "fontWeight": "700" }],
+            "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+          }
+        }
+      }
     }
-  </style>
+  </script>
 </head>
 
-<body class="primal-rules">
-  <main class="container dark-glass-container">
-    <header>
-      <h1>Game Guidebook</h1>
+<body
+  class="bg-void-black text-on-surface selection:bg-ember-gold selection:text-void-black min-h-screen flex flex-col font-body-md text-body-md overflow-x-hidden">
+  <!-- Ambient Background -->
+  <div
+    class="fixed inset-0 z-[-1] opacity-50 bg-cover bg-center bg-no-repeat transition-transform duration-[20s] hover:scale-110"
+    style="background-image: url('images/rules-bg.png')">
+  </div>
+  <div
+    class="fixed inset-0 z-[-1] bg-gradient-to-b from-void-black/40 via-transparent to-void-black/90 pointer-events-none">
+  </div>
+
+  <!-- Navigation -->
+  <nav class="fixed top-0 w-full z-50 glass-obsidian border-b border-outline/20 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+    <div class="flex justify-between items-center w-full px-4 md:px-margin-desktop py-4 max-w-container-max mx-auto">
+      <div class="font-display-lg text-lg sm:text-headline-md tracking-wider sm:tracking-widest text-ember-gold dark:text-tertiary"
+        style="font-variant: small-caps;">
+        Mythic Territories
+      </div>
+      <div class="flex gap-4 sm:gap-8 items-center">
+        <a class="font-label-caps text-xs sm:text-label-caps text-ember-gold border-b-2 border-transparent hover:border-ember-gold font-bold transition-all duration-300 whitespace-nowrap"
+          href="index.html">Back to Menu</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="flex-grow pt-32 pb-20 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto w-full">
+    <header class="text-center mb-12 sm:mb-16 space-y-4">
+      <h1 class="font-almendra text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight text-gradient-dual uppercase">
+        Game Guidebook
+      </h1>
+      <p class="font-libre text-lg sm:text-xl italic text-on-surface-variant max-w-2xl mx-auto">
+        Master the elemental forces of Snow and Ash. A comprehensive guide to survival, conquest, and ascension in the
+        Mythic Territories.
+      </p>
     </header>
 
-    <section id="objective">
-      <h2>1. The Objective</h2>
-      <p>Command the elemental forces of Snow or Ash. Win by:</p>
-      <ul>
-        <li><b>Vanquishing the enemy leader</b> (capture Ash Tyrant or Frost Lord).</li>
-      </ul>
-    </section>
-
-    <section id="core-mechanics">
-      <h2>2. Core Gameplay</h2>
-      <h3>Turns & Movement</h3>
-      <ul>
-        <li>One unit moves per turn. A full round = Snow turn + Ash turn.</li>
-        <li>Most units move 1 square (orthogonal or diagonal) unless restricted (Hamstrung, Stuck).</li>
-      </ul>
-      <h3>Combat & Territory</h3>
-      <ul>
-        <li>Move onto an enemy square to initiate combat. Higher Effective Power wins and captures the enemy.</li>
-        <li>If tied, the player with more Territory wins the tie.</li>
-        <li>Moving to an empty square converts it to your territory (important for tie-breakers and some abilities).
-        </li>
-      </ul>
-      <details class="compact">
-        <summary>Some combat notes</summary>
-        <p>Abilities, status effects, and terrain modifiers (Unstable Ground, IcyGround, Void Scars) modify Effective
-          Power. Many specialist and veteran effects interact with combat resolution — consult Section 6 for specifics.
-        </p>
-      </details>
-    </section>
-
-    <section id="map-objectives">
-      <h2>3. The Map Objectives</h2>
-      <h3>The Awakened Conduit (Rifts)</h3>
-      <p>Two corner Rift areas can link into the Conduit. Anchors, teleports, charges, and Forge events make this a
-        high-value objective.</p>
-      <details class="compact">
-        <summary>Conduit full mechanics</summary>
-        <p>The Conduit forms when one faction holds both Rift areas; anchors get power boosts, and friendly units near
-          anchors can use the Conduit highway to teleport between anchors. The Abyssal Forge periodically either expands
-          the Rift area or spawns Elemental Cores. If highly charged it may Void Snap into permanent Void Scars.</p>
-        <h4>Elemental Cores</h4>
-        <ul>
-          <li><b>Ruby:</b> offensive charges.</li>
-          <li><b>Topaz:</b> movement/cooldown benefits.</li>
-          <li><b>Emerald:</b> defensive/heal effects.</li>
-          <li><b>Sapphire:</b> siphon/utility effects.</li>
-        </ul>
-      </details>
-
-      <h3>The Unstable Shrine</h3>
-      <p>Capturing a Shrine gives a permanent +1 Power and adds a charge. At 2 charges the Shrine Overloads and the next
-        entrant becomes Trapped.</p>
-      <details class="compact">
-        <summary>Shrine full rules</summary>
-        <p>A Trapped unit's owner chooses either Primal Ascension (sacrifice the unit for a permanent upgrade) or
-          Release (free the unit with -1 permanent Power and Dazed 3). Opponents can "steal" trapped sacrifices by
-          moving onto the Shrine.</p>
-      </details>
-    </section>
-
-    <section id="ascension-paths">
-      <h2>4. Primal Ascension Paths</h2>
-      <p>Sacrificing a unit grants a permanent faction upgrade. Key: each unit category has two paths — pick one when
-        you activate Ascension.</p>
-      <div class="ascension-paths">
-        <div class="unit-category">
-          <h4>Shaper (Ice Weaver / Rift Forger)</h4>
-          <div class="path-full">
-            <div class="path-choice"><b>Path A: [Master of Creation]</b> — Leader gains a one-time wall/hazard placement
-              ability.</div>
-            <div class="path-choice"><b>Path B: [Territorial Claim]</b> — Vanquishing an enemy captures two adjacent
-              empty squares.</div>
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
+      <!-- The Objective Section -->
+      <section class="lg:col-span-12 glass-obsidian rounded-xl p-6 sm:p-8 border border-outline/10 mb-8">
+        <div class="flex flex-col md:flex-row items-center gap-8">
+          <div class="flex-1">
+            <h2 class="font-almendra text-3xl font-bold text-ember-gold mb-4 flex items-center gap-3">
+              <span class="material-symbols-outlined">flag</span>The Objective
+            </h2>
+            <div class="divider-ice mb-6"></div>
+            <p class="font-libre text-lg leading-relaxed text-on-surface-variant">
+              Command the elemental forces of Snow or Ash. The primary victory condition is simple yet daunting: <span
+                class="text-ember-gold font-bold">Vanquish the enemy leader</span>. Capture the enemy's Frost Lord or
+              Ash Tyrant to secure your dominion.
+            </p>
           </div>
-        </div>
-
-        <div class="unit-category">
-          <h4>Priest (Soul Freeze / Scorch Priest)</h4>
-          <div class="path-full">
-            <div class="path-choice"><b>Path A: [Leader's Ward]</b> — Leader gains a one-time Priest's Ward that blocks
-              the next enemy ability targeting them.</div>
-            <div class="path-choice"><b>Path B: [Martyrdom]</b> — When one of your units is vanquished, the attacking
-              enemy is Dazed for 2 turns.</div>
-          </div>
-        </div>
-
-        <div class="unit-category">
-          <h4>Striker (Frostbite Stalker / Cinder Scout)</h4>
-          <div class="path-full">
-            <div class="path-choice"><b>Path A: [Lethal Precision]</b> — Skirmisher unit permanently gains +1 Base
-              Power.</div>
-            <div class="path-choice"><b>Path B: [Targeted Weakness]</b> — Units attacking a debuffed enemy gain +1 Power
-              (attacking only).</div>
-          </div>
-        </div>
-
-        <div class="unit-category">
-          <h4>Warrior (Glacial Brute / Magma Prowler)</h4>
-          <div class="path-full">
-            <div class="path-choice"><b>Path A: [Unstoppable Force]</b> — Brawler gains "Steadfast" (immune to Daze,
-              Stuck, push/pull).</div>
-            <div class="path-choice"><b>Path B: [Home-Field Advantage]</b> — Units defending on starting squares gain +1
-              Power.</div>
-          </div>
-        </div>
-
-        <div class="unit-category">
-          <h4>Siphoner (Void Chanter / Rift Warden)</h4>
-          <div class="path-full">
-            <div class="path-choice"><b>Path A: [Primal Power]</b> — Mage ability upgraded (Wisp Power 1 / Lava Glob
-              reach).</div>
-            <div class="path-choice"><b>Path B: [Energy Siphon]</b> — Capturing an empty square adjacent to an enemy
-              Dazes them for 1 turn.</div>
-          </div>
-        </div>
-
-        <div class="unit-category">
-          <h4>Mage (Cryomancer / Magma Spitter)</h4>
-          <div class="path-full">
-            <div class="path-choice"><b>Path A: [Elemental Harmony]</b> — Priest ability upgraded (extra effects such as
-              Hamstring on Soul Freeze).</div>
-            <div class="path-choice"><b>Path B: [Magical Supremacy]</b> — Losing a tie results in Banishment instead of
-              vanquish (teleport away, -1 permanent Power, Dazed 1).</div>
-          </div>
-        </div>
-
-        <div class="unit-category">
-          <h4>Brawler (Rampaging Yeti / Blazebound Beast)</h4>
-          <div class="path-full">
-            <div class="path-choice"><b>Path A: [Rampage]</b> — Permanent upgrade to Warrior primary ability.</div>
-            <div class="path-choice"><b>Path B: [Vengeance]</b> — If an enemy vanquishes your unit, the attacker is
-              Marked for 2 turns.</div>
-          </div>
-        </div>
-
-        <div class="unit-category">
-          <h4>Skirmisher (Arctic Trapper / Ash Strider)</h4>
-          <div class="path-full">
-            <div class="path-choice"><b>Path A: [Acrobatic Tactics]</b> — Striker gains Acrobat (can jump over allied
-              units).</div>
-            <div class="path-choice"><b>Path B: [Hit and Run]</b> — Units that end their turn on newly captured squares
-              gain Entrenched (wins tie-breakers until your next turn).</div>
-          </div>
-        </div>
-
-        <div class="unit-category">
-          <h4>Mystic (Hoarfrost Mystic / Magma Shaper)</h4>
-          <div class="path-full">
-            <div class="path-choice"><b>Path A: [Arcane Attunement]</b> — Siphoners can use Siphon on any friendly
-              territory square.</div>
-            <div class="path-choice"><b>Path B: [Rift Reinforcement]</b> — Anchors always receive the full +2 Power
-              boost even if the link is Contested.</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="tether-system">
-      <h2>5. The Tether System & Overload (Siphoners)</h2>
-      <p>Siphoners can form Tethers to shift Power and absorb debuffs for allies; Overload points accumulate and can be
-        vented on map objectives.</p>
-      <details class="compact">
-        <summary>Full Tether rules and modes</summary>
-        <ul>
-          <li><b>Tether (Action):</b> Link units within 2 squares (4 on Rift). Modes: Benevolent, Hostile, Parasitic,
-            Resonance — each transfers 1 Power and generates Overload Points.</li>
-          <li><b>Status Siphoning:</b> Tethered ally debuffs can be absorbed by the Siphoner (Siphoner gains 1 Overload
-            Point).</li>
-          <li><b>Overload:</b> Permanent points; 1–3 safe, 4 destroys the Siphoner.</li>
-          <li><b>Venting:</b> Spend a turn to vent all Overload on a Power Rift (triggers Abyssal Forge) or Overloaded
-            Shrine (adds Shrine charge).</li>
-        </ul>
-      </details>
-    </section>
-
-    <section id="abilities-reference">
-      <h2>6. Unit Abilities Reference</h2>
-      <div class="abilities-full">
-
-        <h3>Specialist & Veteran Abilities</h3>
-        <p>See list below for primary abilities and veteran upgrades; these are technical and long so expand to read.
-        </p>
-        <div class="specialists-veterans">
-          <div class="ability-split">
-            <div>
-              <h4>Specialists</h4>
-              <ul>
-                <li><b>Arctic Trapper</b> — Set Snare: Create a trap on an adjacent empty square. The first enemy to
-                  enter is <b>Stuck</b> for 2 turns. (CD: 4)</li>
-                <li><b>Ash Strider</b> — Scorched Retreat: Move 1 square backward and create an
-                  <code>Unstable Ground</code> hazard on the square you left (next entrant takes 1 permanent damage).
-                  (CD: 3)</li>
-                <li><b>Blazebound Beast</b> — Hunter's Rage: Gain <b>+1 Power (attacking only)</b> for 2 rounds. (CD: 4)
-                </li>
-                <li><b>Cinder Scout</b> — Kindle Armor: Grants an adjacent ally <b>+1 Power (defending only)</b> for 2
-                  rounds. (CD: 3)</li>
-                <li><b>Cryomancer</b> — Summon Ice Wisp: Summons a Power 0 wisp to an empty square within 4 squares.
-                  (CD: 4)</li>
-                <li><b>Frostbite Stalker</b> — Hamstring: An adjacent enemy cannot move diagonally for 1 round. (CD: 3)
-                </li>
-                <li><b>Glacial Brute</b> — Frost Armor: Gain <b>+2 Power (defending only)</b> for 2 rounds. (CD: 4)</li>
-                <li><b>Hoarfrost Mystic</b> — Frigid Path: Creates a 1x3 line of <code>IcyGround</code>, claiming
-                  territory. The first enemy to enter is <code>Dazed</code>. (CD: 5)</li>
-                <li><b>Ice Weaver</b> — Glacial Wall: Creates two impassable walls on adjacent empty squares. Lasts 3
-                  turns. (CD: 6)</li>
-                <li><b>Magma Prowler</b> — Frenzied Dash: Move 2 squares in a straight line to an empty square. Cannot
-                  capture. (CD: 3)</li>
-                <li><b>Magma Spitter</b> — Lava Glob: Deals 1 permanent damage to an enemy with a <i>base power</i> of 1
-                  or 2, within 4 squares. (CD: 10)</li>
-                <li><b>Magma Shaper</b> — Obsidian Pillar: Spawns an Obsidian Pillar: deals damage and pushback to enemies, works as cover, and forms an Obsidian Shield when targeting allies. (CD: 5)</li>
-                <li><b>Rampaging Yeti</b> — Pummel: Pushes an adjacent enemy back 1 square. Deals no damage. (CD: 3)
-                </li>
-                <li><b>Rift Forger</b> — Unstable Ground: Make an empty square within 4 squares hazardous. The next
-                  piece to enter takes 1 permanent damage. (CD: 4)</li>
-                <li><b>Scorch Priest</b> — Mark of Cinder: Mark an enemy within 2 squares, reducing its power by 1.
-                  Lasts 3 turns. (CD: 4)</li>
-                <li><b>Soul Freeze</b> — Chilling Aura: Activates an aura that reduces the power of adjacent enemies by
-                  1. Lasts 3 turns. (CD: 4)</li>
-              </ul>
+          <div class="flex gap-4">
+            <div
+              class="w-32 h-32 rounded-lg border-2 border-ice-light overflow-hidden shadow-[0_0_15px_rgba(165,243,252,0.3)]">
+              <img alt="Frost Lord" class="w-full h-full object-cover grayscale-[30%] hover:grayscale-0 transition-all"
+                src="units/frost-lord.png" />
             </div>
-            <div>
-              <h4>Veteran Rewards</h4>
-              <ul>
-                <li><b>Arctic Trapper</b> — <code>Distracting Roar</code> (Active). Reduce the effective power of an
-                  adjacent enemy by <b>1</b> for 1 full round. (CD: 2)</li>
-                <li><b>Blazebound Beast</b> — <code>Blaze Lunge</code> (Active). Move up to 2 squares in a straight line
-                  to an empty square adjacent to an enemy unit. (CD: 4)</li>
-                <li><b>Cinder Scout</b> — <code>Cinder Surge</code> (Active). Removes all debuffs (Daze, Stuck,
-                  Hamstrung) from an adjacent friendly unit. (CD: 4)</li>
-                <li><b>Cryomancer</b> — <b>Permanent Upgrade: Wisp Enhancement.</b> Summoned Ice Wisp now has <b>1 Base
-                    Power</b>.</li>
-                <li><b>Frostbite Stalker</b> — <code>Icy Shift</code> (Active). Swap positions with any unit (friendly
-                  or enemy) within 2 squares; both units are <b>Dazed for 1 turn</b>. (CD: 5)</li>
-                <li><b>Glacial Brute</b> — <code>Frost Stomp</code> (Active). Daze any adjacent enemy unit for 1 turn.
-                  (CD: 3)</li>
-                <li><b>Hoarfrost Mystic</b> — <code>Glacial Beacon</code> (Active). Target an empty square within 3
-                  squares; the next enemy to move onto it is <b>Dazed for 1 turn</b>. (CD: 4)</li>
-                <li><b>Ice Weaver</b> — <b>Permanent Upgrade: Glacial Fortress.</b> Primary ability now places <b>three
-                    (3)</b> walls instead of two.</li>
-                <li><b>Magma Prowler</b> — <b>Permanent Upgrade: Siphon Charge.</b> Sacrifice <b>1 permanent Power</b>
-                  to instantly reset the cooldown of <code>Frenzied Dash</code>. (No CD, uses ability slot)</li>
-                <li><b>Magma Spitter</b> — <code>Volatile Cinder</code> (Active). Deals <b>1 permanent damage</b> to an
-                  enemy within 3 squares that is currently <b>Marked by Cinder</b>. (CD: 4)</li>
-                <li><b>Rampaging Yeti</b> — <code>Hardened Ice</code> (Active). Grants an adjacent ally <b>Steadfast</b>
-                  (immune to control effects) for <b>2 full rounds</b>. (CD: 5)</li>
-                <li><b>Rift Forger</b> — <b>Permanent Upgrade: Volatile Forge.</b> Primary ability now places <b>two
-                    (2)</b> adjacent hazards instead of one.</li>
-                <li><b>Scorch Priest</b> — <code>Soulfire Burst</code> (Active). Detonates a nearby <b>Unstable
-                    Ground</b> square, dealing <b>1 permanent damage</b> to all adjacent units (friendly and enemy).
-                  (CD: 6)</li>
-              </ul>
+            <div
+              class="w-32 h-32 rounded-lg border-2 border-magma-core overflow-hidden shadow-[0_0_15px_rgba(239,68,68,0.3)]">
+              <img alt="Ash Tyrant" class="w-full h-full object-cover grayscale-[30%] hover:grayscale-0 transition-all"
+                src="units/ash-tyrant.png" />
             </div>
           </div>
         </div>
+      </section>
+
+      <!-- Gameplay & Mechanics Grid -->
+      <section class="lg:col-span-7 glass-obsidian rounded-xl p-6 sm:p-8 border border-outline/10">
+        <h2 class="font-almendra text-3xl font-bold text-ice-light mb-4 flex items-center gap-3">
+          <span class="material-symbols-outlined">swords</span>Core Gameplay
+        </h2>
+        <div class="divider-ice mb-6"></div>
+        <div class="space-y-6">
+          <div>
+            <h3 class="font-label-caps text-label-caps text-ice-light mb-2">Turns &amp; Movement</h3>
+            <p class="text-on-surface-variant mb-4">
+              Only one unit may be moved per turn. A full round consists of a Snow turn followed by an Ash turn. Most
+              units move 1 square orthogonally or diagonally, unless restricted by <span
+                class="text-ice-light italic">Hamstrung</span> or <span class="text-ice-light italic">Stuck</span>
+              status effects.
+            </p>
+          </div>
+          <div>
+            <h3 class="font-label-caps text-label-caps text-magma-core mb-2">Combat &amp; Territory</h3>
+            <p class="text-on-surface-variant">
+              Move onto an enemy unit's square to initiate combat. The unit with the higher <span
+                class="text-ember-gold font-bold">Effective Power</span> wins and captures the enemy. In the event of a
+              tie, the player who controls more territory wins. Moving into an empty square automatically converts it to
+              your faction's territory (crucial for tie-breakers and ability mechanics).
+            </p>
+          </div>
+          <div class="bg-void-black/40 border-l-4 border-ember-gold p-4 mt-4 italic text-sm">
+            Abilities, status effects, and special terrain modifiers (such as Unstable Ground, Icy Ground, and Void
+            Scars) directly affect Effective Power. Many specialist and legendary effects interact with combat
+            resolution — see the Unit Profiles section below for details.
+          </div>
+        </div>
+      </section>
+
+      <!-- Sidebar Items -->
+      <div class="lg:col-span-5 grid grid-cols-1 gap-gutter">
+        <!-- The Awakened Conduit -->
+        <div
+          class="glass-obsidian rounded-xl p-6 border border-outline/10 elemental-card-ice transition-all duration-300 flex flex-col justify-between">
+          <div>
+            <h2 class="font-almendra text-2xl font-bold text-ice-light mb-2 flex items-center gap-2">
+              <span class="material-symbols-outlined">hub</span>
+              The Awakened Conduit (Rifts)
+            </h2>
+            <p class="text-sm text-on-surface-variant leading-relaxed mb-4">
+              Two power rifts located in opposite corners can link to activate the Conduit, enabling anchors, teleports,
+              charges, and Abyssal Forge events.
+            </p>
+          </div>
+          <div class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div class="flex flex-col gap-1 text-xs bg-secondary-container/20 p-2 rounded">
+                <span class="font-label-caps text-magma-core font-bold">RUBY</span>
+                <span class="text-[11px] text-on-surface-variant">Empowers offensive charges</span>
+              </div>
+              <div class="flex flex-col gap-1 text-xs bg-tertiary-container/20 p-2 rounded">
+                <span class="font-label-caps text-ember-gold font-bold">TOPAZ</span>
+                <span class="text-[11px] text-on-surface-variant">Grants movement &amp; CD benefits</span>
+              </div>
+              <div class="flex flex-col gap-1 text-xs bg-green-500/10 p-2 rounded">
+                <span class="font-label-caps text-green-400 font-bold">EMERALD</span>
+                <span class="text-[11px] text-on-surface-variant">Provides defensive &amp; healing</span>
+              </div>
+              <div class="flex flex-col gap-1 text-xs bg-blue-500/10 p-2 rounded">
+                <span class="font-label-caps text-ice-light font-bold">SAPPHIRE</span>
+                <span class="text-[11px] text-on-surface-variant">Enables siphon &amp; utility</span>
+              </div>
+            </div>
+
+            <details class="group border-t border-outline/10 pt-4">
+              <summary
+                class="flex justify-between items-center font-label-caps text-xs text-ember-gold cursor-pointer hover:text-white transition-colors duration-200">
+                <span>View Conduit Full Mechanics</span>
+                <span
+                  class="material-symbols-outlined transition-transform duration-200 group-open:rotate-180">expand_more</span>
+              </summary>
+              <div class="mt-2 text-xs text-on-surface-variant space-y-2 leading-relaxed">
+                <p>The Conduit becomes active when one faction controls both Rift areas. While linked, anchors receive a
+                  power boost, and friendly units nearby can utilize the Conduit highway to instantly teleport between
+                  anchors.</p>
+                <p>The Abyssal Forge periodically expands the Rift area or spawns valuable Elemental Cores. Under heavy
+                  charges, the Forge may trigger a Void Snap, leaving behind permanent Void Scars.</p>
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <!-- The Unstable Shrine -->
+        <div
+          class="glass-obsidian rounded-xl p-6 border border-outline/10 elemental-card-ash transition-all duration-300 flex flex-col justify-between">
+          <div>
+            <h2 class="font-almendra text-2xl font-bold text-magma-core mb-2 flex items-center gap-2">
+              <span class="material-symbols-outlined">temple_hindu</span>
+              The Unstable Shrine
+            </h2>
+            <p class="text-sm text-on-surface-variant leading-relaxed">
+              Capturing the Shrine grants a permanent <span class="text-ember-gold font-bold">+1 Power upgrade</span>
+              and adds a charge to the Shrine. Upon reaching 2 charges, the Shrine overloads, trapping the next unit
+              that enters it.
+            </p>
+          </div>
+          <div>
+            <details class="group border-t border-outline/10 pt-4 mt-4">
+              <summary
+                class="flex justify-between items-center font-label-caps text-xs text-ember-gold cursor-pointer hover:text-white transition-colors duration-200">
+                <span>View Sacrifices &amp; Releases</span>
+                <span
+                  class="material-symbols-outlined transition-transform duration-200 group-open:rotate-180">expand_more</span>
+              </summary>
+              <div class="mt-2 text-xs text-on-surface-variant space-y-2 leading-relaxed">
+                <p>The owner of a trapped unit must choose between two outcomes:</p>
+                <ul class="list-disc pl-4 space-y-1">
+                  <li><strong class="text-ember-gold">Primal Ascension:</strong> Sacrifice the unit for a permanent,
+                    powerful faction-wide upgrade.</li>
+                  <li><strong class="text-magma-core">Release:</strong> Free the unit with -1 permanent Power and Dazed
+                    for 3 turns.</li>
+                </ul>
+                <p class="italic text-[11px] mt-1">Be cautious: opponents can steal your trapped sacrifice by moving
+                  their own units onto the Shrine.</p>
+              </div>
+            </details>
+          </div>
+        </div>
       </div>
-    </section>
+
+      <!-- Ascension Paths -->
+      <section class="lg:col-span-12 mt-8">
+        <div class="flex items-center gap-4 mb-8">
+          <div class="h-[1px] flex-grow divider-ice"></div>
+          <h2 class="font-almendra text-4xl font-bold text-ember-gold px-4">Primal Ascension Paths</h2>
+          <div class="h-[1px] flex-grow divider-ash"></div>
+        </div>
+        <p class="font-libre text-lg text-center text-on-surface-variant max-w-3xl mx-auto mb-8">
+          Sacrificing a unit grants a permanent, powerful faction-wide upgrade. Each unit category offers a choice
+          between two paths when Ascension is activated. Below are the three primary paths:
+        </p>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          <!-- Shaper -->
+          <div class="glass-obsidian p-6 rounded-xl border border-outline/20 relative overflow-hidden">
+            <div class="absolute top-0 right-0 p-2 opacity-10">
+              <span class="material-symbols-outlined text-6xl">architecture</span>
+            </div>
+            <h4 class="font-label-caps text-ice-light mb-4 text-lg">Shaper (Ice Weaver / Rift Forger)</h4>
+            <div class="space-y-4">
+              <div class="group">
+                <div class="text-ember-gold font-bold text-sm mb-1">Path A: [Master of Creation]</div>
+                <p class="text-xs text-on-surface-variant">Leader gains a one-time wall or hazard placement ability.</p>
+              </div>
+              <div class="group">
+                <div class="text-ice-light font-bold text-sm mb-1">Path B: [Territorial Claim]</div>
+                <p class="text-xs text-on-surface-variant">Vanquishing an enemy unit automatically captures two adjacent
+                  empty squares.</p>
+              </div>
+            </div>
+          </div>
+          <!-- Priest -->
+          <div class="glass-obsidian p-6 rounded-xl border border-outline/20 relative overflow-hidden">
+            <div class="absolute top-0 right-0 p-2 opacity-10">
+              <span class="material-symbols-outlined text-6xl">shield</span>
+            </div>
+            <h4 class="font-label-caps text-magma-core mb-4 text-lg">Priest (Soul Freeze / Scorch Priest)</h4>
+            <div class="space-y-4">
+              <div class="group">
+                <div class="text-ember-gold font-bold text-sm mb-1">Path A: [Leader's Ward]</div>
+                <p class="text-xs text-on-surface-variant">Leader gains a one-time Priest's Ward that blocks the next
+                  enemy ability targeting them.</p>
+              </div>
+              <div class="group">
+                <div class="text-magma-core font-bold text-sm mb-1">Path B: [Martyrdom]</div>
+                <p class="text-xs text-on-surface-variant">When one of your units is vanquished, the attacking enemy
+                  becomes Dazed for 2 turns.</p>
+              </div>
+            </div>
+          </div>
+          <!-- Striker -->
+          <div class="glass-obsidian p-6 rounded-xl border border-outline/20 relative overflow-hidden">
+            <div class="absolute top-0 right-0 p-2 opacity-10">
+              <span class="material-symbols-outlined text-6xl">bolt</span>
+            </div>
+            <h4 class="font-label-caps text-ember-gold mb-4 text-lg">Striker (Frostbite Stalker / Cinder Scout)</h4>
+            <div class="space-y-4">
+              <div class="group">
+                <div class="text-ember-gold font-bold text-sm mb-1">Path A: [Lethal Precision]</div>
+                <p class="text-xs text-on-surface-variant">Skirmisher unit permanently gains +1 Base Power.</p>
+              </div>
+              <div class="group">
+                <div class="text-ice-light font-bold text-sm mb-1">Path B: [Targeted Weakness]</div>
+                <p class="text-xs text-on-surface-variant">Friendly units gain +1 Power when attacking a debuffed enemy.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Unit Profiles Section -->
+      <section class="lg:col-span-12 mt-12 mb-8">
+        <div class="flex items-center gap-4 mb-8">
+          <div class="h-[1px] flex-grow divider-ice"></div>
+          <h2 class="font-almendra text-4xl font-bold text-ember-gold px-4 text-center">Unit Profiles</h2>
+          <div class="h-[1px] flex-grow divider-ash"></div>
+        </div>
+        <p class="font-libre text-lg text-center text-on-surface-variant max-w-2xl mx-auto mb-12">
+          Detailed breakdown of stats, active abilities, and passive behaviors for the legendary leaders and key
+          elemental commandants.
+        </p>
+
+        <!-- Grid container for the 3 unit cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+          <!-- Frost Lord Card -->
+          <div
+            class="glass-obsidian rounded-xl border border-outline/10 elemental-card-ice transition-all duration-300 flex flex-col overflow-hidden">
+            <!-- Portrait Header -->
+            <div class="relative h-64 overflow-hidden border-b border-outline/10">
+              <img src="units/frost-lord.png" alt="Frost Lord"
+                class="w-full h-full object-cover grayscale-[20%] hover:grayscale-0 transition-all duration-500">
+              <div class="absolute inset-0 bg-gradient-to-t from-void-black via-void-black/20 to-transparent"></div>
+              <div class="absolute top-4 left-4">
+                <span
+                  class="bg-ice-light/20 text-ice-light border border-ice-light/30 px-3 py-1 rounded-full text-xs font-label-caps backdrop-blur-md">Snow
+                  Leader</span>
+              </div>
+            </div>
+
+            <!-- Info & Content -->
+            <div class="p-6 flex-grow flex flex-col space-y-6">
+              <div>
+                <h3 class="font-almendra text-3xl font-bold text-ice-light tracking-wide">Frost Lord</h3>
+                <p class="font-libre text-sm italic text-on-surface-variant mt-1">King of absolute order and cold
+                  geometry</p>
+              </div>
+
+              <!-- Stats Grid -->
+              <div class="grid grid-cols-5 gap-2">
+                <div class="bg-void-black/40 border border-outline/10 rounded p-2 text-center">
+                  <div class="text-[10px] font-label-caps text-on-surface-variant">HP</div>
+                  <div class="text-base font-bold text-white font-label-caps">12</div>
+                </div>
+                <div class="bg-void-black/40 border border-outline/10 rounded p-2 text-center">
+                  <div class="text-[10px] font-label-caps text-on-surface-variant">DEF</div>
+                  <div class="text-base font-bold text-white font-label-caps">3</div>
+                </div>
+                <div class="bg-void-black/40 border border-outline/10 rounded p-2 text-center">
+                  <div class="text-[10px] font-label-caps text-on-surface-variant">STR</div>
+                  <div class="text-base font-bold text-white font-label-caps">5</div>
+                </div>
+                <div class="bg-void-black/40 border border-outline/10 rounded p-2 text-center">
+                  <div class="text-[10px] font-label-caps text-on-surface-variant">RNG</div>
+                  <div class="text-base font-bold text-white font-label-caps">1.5</div>
+                </div>
+                <div class="bg-void-black/40 border border-outline/10 rounded p-2 text-center">
+                  <div class="text-[10px] font-label-caps text-on-surface-variant">AGI</div>
+                  <div class="text-base font-bold text-white font-label-caps">1.8</div>
+                </div>
+              </div>
+
+              <!-- Abilities -->
+              <div class="space-y-4 flex-grow">
+                <!-- Ability 1 -->
+                <div class="bg-void-black/25 border border-outline/5 rounded-lg p-4 space-y-2">
+                  <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                      <span
+                        class="bg-ember-gold/25 text-ember-gold border border-ember-gold/40 px-2 py-0.5 rounded text-[10px] font-label-caps">Active</span>
+                      <h4 class="font-label-caps text-sm font-bold text-white">Frostfall Blessing</h4>
+                    </div>
+                    <span
+                      class="text-[10px] font-label-caps text-on-surface-variant bg-void-black/50 px-2 py-0.5 rounded border border-outline/10">CD:
+                      11</span>
+                  </div>
+                  <p class="text-xs text-on-surface-variant leading-relaxed">
+                    Calls down an icy blessing (Range 2.5, Radius 2) that deals <strong class="text-ice-light">2
+                      damage</strong> to enemies and heals allies for <strong class="text-green-400">1 HP</strong> per
+                    turn for 5 turns.
+                  </p>
+                </div>
+
+                <!-- Ability 2 -->
+                <div class="bg-void-black/25 border border-outline/5 rounded-lg p-4 space-y-2">
+                  <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                      <span
+                        class="bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded text-[10px] font-label-caps">Passive</span>
+                      <h4 class="font-label-caps text-sm font-bold text-white">Help From Above</h4>
+                    </div>
+                    <span
+                      class="text-[10px] font-label-caps text-on-surface-variant bg-void-black/50 px-2 py-0.5 rounded border border-outline/10">CD:
+                      15</span>
+                  </div>
+                  <p class="text-xs text-on-surface-variant leading-relaxed">
+                    Upon receiving lethal damage, survives with <strong class="text-ice-light">1 HP</strong> and enters
+                    a protective active state where he is immune to all damage and death for 4 turns.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ash Tyrant Card -->
+          <div
+            class="glass-obsidian rounded-xl border border-outline/10 elemental-card-ash transition-all duration-300 flex flex-col overflow-hidden">
+            <!-- Portrait Header -->
+            <div class="relative h-64 overflow-hidden border-b border-outline/10">
+              <img src="units/ash-tyrant.png" alt="Ash Tyrant"
+                class="w-full h-full object-cover grayscale-[20%] hover:grayscale-0 transition-all duration-500">
+              <div class="absolute inset-0 bg-gradient-to-t from-void-black via-void-black/20 to-transparent"></div>
+              <div class="absolute top-4 left-4">
+                <span
+                  class="bg-magma-core/20 text-magma-core border border-magma-core/30 px-3 py-1 rounded-full text-xs font-label-caps backdrop-blur-md">Ash
+                  Leader</span>
+              </div>
+            </div>
+
+            <!-- Info & Content -->
+            <div class="p-6 flex-grow flex flex-col space-y-6">
+              <div>
+                <h3 class="font-almendra text-3xl font-bold text-magma-core tracking-wide">Ash Tyrant</h3>
+                <p class="font-libre text-sm italic text-on-surface-variant mt-1">King of explosive violence and
+                  volcanic power</p>
+              </div>
+
+              <!-- Stats Grid -->
+              <div class="grid grid-cols-5 gap-2">
+                <div class="bg-void-black/40 border border-outline/10 rounded p-2 text-center">
+                  <div class="text-[10px] font-label-caps text-on-surface-variant">HP</div>
+                  <div class="text-base font-bold text-white font-label-caps">12</div>
+                </div>
+                <div class="bg-void-black/40 border border-outline/10 rounded p-2 text-center">
+                  <div class="text-[10px] font-label-caps text-on-surface-variant">DEF</div>
+                  <div class="text-base font-bold text-white font-label-caps">3</div>
+                </div>
+                <div class="bg-void-black/40 border border-outline/10 rounded p-2 text-center">
+                  <div class="text-[10px] font-label-caps text-on-surface-variant">STR</div>
+                  <div class="text-base font-bold text-white font-label-caps">5</div>
+                </div>
+                <div class="bg-void-black/40 border border-outline/10 rounded p-2 text-center">
+                  <div class="text-[10px] font-label-caps text-on-surface-variant">RNG</div>
+                  <div class="text-base font-bold text-white font-label-caps">1.5</div>
+                </div>
+                <div class="bg-void-black/40 border border-outline/10 rounded p-2 text-center">
+                  <div class="text-[10px] font-label-caps text-on-surface-variant">AGI</div>
+                  <div class="text-base font-bold text-white font-label-caps">1.8</div>
+                </div>
+              </div>
+
+              <!-- Abilities -->
+              <div class="space-y-4 flex-grow">
+                <!-- Ability 1 -->
+                <div class="bg-void-black/25 border border-outline/5 rounded-lg p-4 space-y-2">
+                  <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                      <span
+                        class="bg-ember-gold/25 text-ember-gold border border-ember-gold/40 px-2 py-0.5 rounded text-[10px] font-label-caps">Active</span>
+                      <h4 class="font-label-caps text-sm font-bold text-white">Reign of Fire</h4>
+                    </div>
+                    <span
+                      class="text-[10px] font-label-caps text-on-surface-variant bg-void-black/50 px-2 py-0.5 rounded border border-outline/10">CD:
+                      11</span>
+                  </div>
+                  <p class="text-xs text-on-surface-variant leading-relaxed">
+                    Hurls a volcanic storm (Range 2.5, Radius 2) dealing <strong class="text-magma-core">2
+                      damage</strong> to enemies and <strong class="text-magma-core">1 damage</strong> to allies,
+                    boosting allies' Strength by <strong class="text-ember-gold">+2</strong> for 3 turns.
+                  </p>
+                </div>
+
+                <!-- Ability 2 -->
+                <div class="bg-void-black/25 border border-outline/5 rounded-lg p-4 space-y-2">
+                  <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                      <span
+                        class="bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded text-[10px] font-label-caps">Passive</span>
+                      <h4 class="font-label-caps text-sm font-bold text-white">Death Meteor</h4>
+                    </div>
+                    <span
+                      class="text-[10px] font-label-caps text-on-surface-variant bg-void-black/50 px-2 py-0.5 rounded border border-outline/10">CD:
+                      15</span>
+                  </div>
+                  <p class="text-xs text-on-surface-variant leading-relaxed">
+                    Upon lethal damage, survives with <strong class="text-magma-core">1 HP</strong>: triggers Death
+                    Meteor dealing <strong class="text-magma-core">4 damage</strong> to enemies and <strong
+                      class="text-magma-core">2 damage</strong> to allies in 2-square radius, converts area to Unstable
+                    Ground, and grants 2 turns of invincibility.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Magma Shaper Card -->
+          <div
+            class="glass-obsidian rounded-xl border border-outline/10 elemental-card-ash transition-all duration-300 flex flex-col overflow-hidden">
+            <!-- Portrait Header -->
+            <div class="relative h-64 overflow-hidden border-b border-outline/10">
+              <img src="units/magma-shaper.png" alt="Magma Shaper"
+                class="w-full h-full object-cover grayscale-[20%] hover:grayscale-0 transition-all duration-500">
+              <div class="absolute inset-0 bg-gradient-to-t from-void-black via-void-black/20 to-transparent"></div>
+              <div class="absolute top-4 left-4">
+                <span
+                  class="bg-magma-core/20 text-magma-core border border-magma-core/30 px-3 py-1 rounded-full text-xs font-label-caps backdrop-blur-md">Ash
+                  Mystic</span>
+              </div>
+            </div>
+
+            <!-- Info & Content -->
+            <div class="p-6 flex-grow flex flex-col space-y-6">
+              <div>
+                <h3 class="font-almendra text-3xl font-bold text-magma-core tracking-wide">Magma Shaper</h3>
+                <p class="font-libre text-sm italic text-on-surface-variant mt-1">Architect of molten obsidian and
+                  tectonic shards</p>
+              </div>
+
+              <!-- Stats Grid -->
+              <div class="grid grid-cols-5 gap-2">
+                <div class="bg-void-black/40 border border-outline/10 rounded p-2 text-center">
+                  <div class="text-[10px] font-label-caps text-on-surface-variant">HP</div>
+                  <div class="text-base font-bold text-white font-label-caps">7</div>
+                </div>
+                <div class="bg-void-black/40 border border-outline/10 rounded p-2 text-center">
+                  <div class="text-[10px] font-label-caps text-on-surface-variant">DEF</div>
+                  <div class="text-base font-bold text-white font-label-caps">1</div>
+                </div>
+                <div class="bg-void-black/40 border border-outline/10 rounded p-2 text-center">
+                  <div class="text-[10px] font-label-caps text-on-surface-variant">STR</div>
+                  <div class="text-base font-bold text-white font-label-caps">2</div>
+                </div>
+                <div class="bg-void-black/40 border border-outline/10 rounded p-2 text-center">
+                  <div class="text-[10px] font-label-caps text-on-surface-variant">RNG</div>
+                  <div class="text-base font-bold text-white font-label-caps">2</div>
+                </div>
+                <div class="bg-void-black/40 border border-outline/10 rounded p-2 text-center">
+                  <div class="text-[10px] font-label-caps text-on-surface-variant">AGI</div>
+                  <div class="text-base font-bold text-white font-label-caps">2</div>
+                </div>
+              </div>
+
+              <!-- Abilities -->
+              <div class="space-y-4 flex-grow flex flex-col justify-between">
+                <!-- Ability 1 -->
+                <div
+                  class="bg-void-black/25 border border-outline/5 rounded-lg p-4 space-y-2 flex flex-col justify-between flex-grow">
+                  <div>
+                    <div class="flex justify-between items-center mb-2">
+                      <div class="flex items-center gap-2">
+                        <span
+                          class="bg-ember-gold/25 text-ember-gold border border-ember-gold/40 px-2 py-0.5 rounded text-[10px] font-label-caps">Active</span>
+                        <h4 class="font-label-caps text-sm font-bold text-white">Obsidian Pillar</h4>
+                      </div>
+                      <span
+                        class="text-[10px] font-label-caps text-on-surface-variant bg-void-black/50 px-2 py-0.5 rounded border border-outline/10">CD:
+                        5</span>
+                    </div>
+                    <p class="text-xs text-on-surface-variant leading-relaxed">
+                      Targets tile within 2 squares:
+                    </p>
+                    <ul class="text-[11px] text-on-surface-variant space-y-1 list-disc pl-4 mt-1">
+                      <li><strong class="text-white">Empty:</strong> Spawns Obsidian Pillar wall (4 turns).</li>
+                      <li><strong class="text-white">Friendly:</strong> Grants 2 HP Obsidian Shield (2 turns).</li>
+                      <li><strong class="text-white">Enemy:</strong> Deals 1 dmg, reduces power by 1, knocks back 1 tile
+                        (Dazes target/blocker for 2 turns if path blocked), spawning an Obsidian Pillar.</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <!-- Ability 2 -->
+                <div class="bg-void-black/25 border border-outline/5 rounded-lg p-4 space-y-2 mt-4">
+                  <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                      <span
+                        class="bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded text-[10px] font-label-caps">Passive</span>
+                      <h4 class="font-label-caps text-sm font-bold text-white">Magma Shards</h4>
+                    </div>
+                    <span
+                      class="text-[10px] font-label-caps text-on-surface-variant bg-void-black/50 px-2 py-0.5 rounded border border-outline/10">Passive</span>
+                  </div>
+                  <p class="text-xs text-on-surface-variant leading-relaxed">
+                    When Obsidian Pillar expires or unit's Obsidian Shield expires/breaks, spawns <strong
+                      class="text-magma-core">Magma Shards</strong> on that tile for 2 turns. Any Snow unit entering
+                    takes <strong class="text-magma-core">1 damage</strong>, loses <strong class="text-magma-core">1
+                      Power</strong>, and consumes the shards.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </div>
 
   </main>
-  <div class="sticky-footer-btn">
-    <button class="back-btn" onclick="window.location.href='index.html'">⬅ Back to Menu</button>
-  </div>
+
+  <!-- Footer -->
+  <footer class="bg-void-black border-t border-outline/10 w-full py-8 mt-auto">
+    <div
+      class="flex flex-col md:flex-row justify-between items-center px-4 md:px-margin-desktop gap-gutter max-w-container-max mx-auto w-full">
+      <div class="font-label-caps text-label-caps text-on-surface-variant">
+        Mythic Territories
+      </div>
+      <div class="font-body-md text-body-md text-on-surface-variant text-center md:text-left">© 2025 Mythic Territories.
+        All rights reserved. Ancient scripts protected.</div>
+      <div class="flex gap-6">
+        <a class="font-label-caps text-label-caps text-on-surface-variant hover:text-ember-gold transition-colors duration-200"
+          href="notes.html">Patch Notes</a>
+        <a class="font-label-caps text-label-caps text-ember-gold font-bold transition-colors duration-200"
+          href="rules.html">Rulebook</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const cards = document.querySelectorAll('.glass-obsidian');
+      cards.forEach(card => {
+        card.addEventListener('mousemove', (e) => {
+          const rect = card.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          card.style.setProperty('--mouse-x', `${x}px`);
+          card.style.setProperty('--mouse-y', `${y}px`);
+        });
+      });
+    });
+  </script>
 </body>
 
 </html>

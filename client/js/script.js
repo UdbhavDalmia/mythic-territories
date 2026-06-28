@@ -519,8 +519,9 @@ function setupCanvas() {
             gameState.hoverCol = col;
             gameState.hoverRow = row;
 
-            if (!isLocal && myTeam === 'ash') {
+            if (myTeam === 'ash') {
                 row = C.ROWS - 1 - row;
+                col = C.COLS - 1 - col;
             }
 
             const hoverPiece = C.getPieceAt(row, col, gameState.pieces);
@@ -602,9 +603,11 @@ function setupCanvas() {
         let row = Math.floor(y / C.CELL_SIZE);
         let decimalCol = x / C.CELL_SIZE;
         let decimalRow = y / C.CELL_SIZE;
-        if (!isLocal && myTeam === 'ash') {
+        if (myTeam === 'ash') {
             row = C.ROWS - 1 - row;
+            col = C.COLS - 1 - col;
             decimalRow = C.ROWS - decimalRow;
+            decimalCol = C.COLS - decimalCol;
         }
 
         if (!gameState.gameStarted) {
@@ -734,8 +737,9 @@ function setupCanvas() {
             if (x < 0 || y < 0 || x > canvas.width || y > canvas.height) return;
             let col = Math.floor(x / C.CELL_SIZE);
             let row = Math.floor(y / C.CELL_SIZE);
-            if (!isLocal && myTeam === 'ash') {
+            if (myTeam === 'ash') {
                 row = C.ROWS - 1 - row;
+                col = C.COLS - 1 - col;
             }
 
             clearTimeout(touchTimer);

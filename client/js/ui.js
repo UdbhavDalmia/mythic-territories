@@ -32,10 +32,6 @@ const buildBadges = team => Array.from({ length: 8 }, (_, i) => {
 let currentGameState = null;
 
 export function getDrawCoords(r, c, gameState) {
-  const state = gameState || currentGameState;
-  if (state && state.playerTeam === 'ash') {
-    return { r: C.ROWS - 1 - r, c: c };
-  }
   return { r, c };
 }
 
@@ -1414,10 +1410,9 @@ export function renderBoard(gameState) {
   let riftPulse = 0;
   if (gameState.conduit?.consecutiveTurnsHeld >= 2) riftPulse = Math.sin(performance.now() * 0.005) * 0.3;
   const riftRadius = C.CELL_SIZE * 1.35;
-  const isAsh = (gameState && gameState.playerTeam === 'ash');
   const riftCenters = [
-    [1.5 * C.CELL_SIZE, (isAsh ? 8.5 : 1.5) * C.CELL_SIZE],
-    [8.5 * C.CELL_SIZE, (isAsh ? 1.5 : 8.5) * C.CELL_SIZE]
+    [1.5 * C.CELL_SIZE, 1.5 * C.CELL_SIZE],
+    [8.5 * C.CELL_SIZE, 8.5 * C.CELL_SIZE]
   ];
   riftCenters.forEach(([rx, ry]) => {
     boardCtx.save();
