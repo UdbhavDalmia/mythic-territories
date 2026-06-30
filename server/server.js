@@ -262,6 +262,33 @@ io.on('connection', (socket) => {
         });
     });
 
+    socket.on('leaveRoom', ({ roomId, playerId }) => {
+        const room = RoomManager.getRoom(roomId);
+        if (room) {
+            const idx = room.players.findIndex(p => p.id === playerId);
+            if (idx !== -1) {
+                const removedTeam = room.players[idx].team;
+                room.players.splice(idx, 1);
+
+                // Clear any pending disconnect timers for this player
+                RoomManager.clearPlayerDisconnectTimer(playerId);
+
+                if (room.gameState.gameStarted) {
+                    io.to(roomId).emit('playerLeft', { team: removedTeam, playerCount: room.players.length });
+                    room.gameState.events = [];
+                    emitStateUpdate(room);
+                } else {
+                    io.to(roomId).emit('roomUpdate', { players: room.players });
+                    io.to(roomId).emit('playerLeft', { team: removedTeam, playerCount: room.players.length });
+                }
+
+                if (room.players.length === 0) {
+                    RoomManager.deleteRoom(roomId);
+                }
+            }
+        }
+    });
+
     socket.on('disconnect', () => {
         const result = RoomManager.getPlayerBySocketId(socket.id);
         if (result) {
@@ -270,29 +297,44 @@ io.on('connection', (socket) => {
             const playerId = player.id;
             const removedTeam = player.team;
 
-            // Set a 4-second timeout to remove player
+            // Set a 4-second timeout to handle disconnect
             const timer = setTimeout(() => {
                 const r = RoomManager.getRoom(roomId);
                 if (r) {
                     const idx = r.players.findIndex(p => p.id === playerId);
                     if (idx !== -1) {
-                        r.players.splice(idx, 1);
                         if (r.gameState.gameStarted) {
+                            // If game started, do NOT remove them from the room yet.
+                            // Emit playerLeft to trigger the 60s countdown on the opponent's screen
                             io.to(roomId).emit('playerLeft', { team: removedTeam, playerCount: r.players.length });
                             r.gameState.events = [];
                             emitStateUpdate(r);
-                        } else {
-                            io.to(roomId).emit('roomUpdate', { players: r.players });
-                            io.to(roomId).emit('playerLeft', { team: removedTeam, playerCount: r.players.length });
-                        }
 
-                        // If room is empty, delete it after 60s
-                        if (r.players.length === 0) {
+                            // Set a 60-second timer to close the room and remove the player if they don't reconnect
                             const roomTimer = setTimeout(() => {
-                                io.to(roomId).emit('roomClosed', 'Opponent failed to reconnect.');
-                                RoomManager.deleteRoom(roomId);
+                                const activeRoom = RoomManager.getRoom(roomId);
+                                if (activeRoom) {
+                                    const pIdx = activeRoom.players.findIndex(p => p.id === playerId);
+                                    if (pIdx !== -1) activeRoom.players.splice(pIdx, 1);
+                                    io.to(roomId).emit('roomClosed', 'Opponent failed to reconnect.');
+                                    RoomManager.deleteRoom(roomId);
+                                }
                             }, 60000);
                             RoomManager.setDisconnectTimer(roomId, roomTimer);
+                        } else {
+                            // If game has NOT started, remove them after 4 seconds
+                            r.players.splice(idx, 1);
+                            io.to(roomId).emit('roomUpdate', { players: r.players });
+                            io.to(roomId).emit('playerLeft', { team: removedTeam, playerCount: r.players.length });
+
+                            // If room is empty, delete it after 60s
+                            if (r.players.length === 0) {
+                                const roomTimer = setTimeout(() => {
+                                    io.to(roomId).emit('roomClosed', 'Opponent failed to reconnect.');
+                                    RoomManager.deleteRoom(roomId);
+                                }, 60000);
+                                RoomManager.setDisconnectTimer(roomId, roomTimer);
+                            }
                         }
                     }
                 }

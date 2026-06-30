@@ -177,6 +177,8 @@ export function applyAoeLethalPassives(piece, gameState) {
       piece.deathMeteorCooldown = 15;
       piece.hasDeathMeteorInvincibility = true;
       piece.deathMeteorInvincibilityTurns = 2;
+      piece.hasTriggeredDeathMeteor = true;
+      emit(gameState, { type: 'ANIMATION', name: 'DeathMeteor', pieceId: piece.id });
       if (gameState.pieces) {
         gameState.pieces.forEach(p => {
           if (C.cellIntersectsCircle(p.row, p.col, piece.row, piece.col, 2) && p.id !== piece.id) {
@@ -263,11 +265,6 @@ export function handlePieceCapture(capturedPiece, attacker, gs) {
 
   // 0. Intercept deaths via passives (e.g. Ash Tyrant's Death Meteor)
   if (applyAoeLethalPassives(capturedPiece, gs)) {
-    // If the Ash Tyrant's Death Meteor just fired, emit the cinematic animation
-    if (capturedPiece.key === 'ashAshTyrant' && (capturedPiece.deathMeteorCooldown || 0) > 0) {
-      capturedPiece.hasTriggeredDeathMeteor = true;
-      emit(gs, { type: 'ANIMATION', name: 'DeathMeteor', pieceId: capturedPiece.id });
-    }
     return false; // Intercepted, piece survives
   }
 

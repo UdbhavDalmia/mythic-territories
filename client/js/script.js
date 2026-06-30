@@ -125,7 +125,9 @@ E.preloadImages(C.IMAGES, (imgs) => {
             if (vsAI && gameState.gameStarted) setTimeout(checkAITurn, 0);
         }, 100);
     } else {
-        const connectionUrl = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
+        const devPorts = ['5500', '5501', '5173', '8080', '8081', '3001'];
+        const isDevServer = devPorts.includes(window.location.port);
+        const connectionUrl = (window.location.protocol === 'file:' || isDevServer) ? 'http://localhost:3000' : '';
         socket = io(connectionUrl);
         try { document.body.classList.add('multiplayer'); } catch (e) { }
         let playerId = sessionStorage.getItem('mythic_playerId');
@@ -1246,6 +1248,27 @@ function animationLoop(time) {
 
     ctx.save();
     try { UI.applyScreenshake(ctx); } catch (e) { }
+
+    // Draw the background image directly on the main canvas (unrotated)
+    const bgKey = (gameState.playerTeam === 'ash') ? 'gameBackgroundAsh' : 'gameBackgroundSnow';
+    const backgroundImg = gameState.boardImgs?.[bgKey];
+    if (backgroundImg?.complete) {
+        ctx.drawImage(backgroundImg, 0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
+    } else {
+        const bgGrad = ctx.createRadialGradient(
+            C.CANVAS_SIZE / 2, C.CANVAS_SIZE / 2, 50,
+            C.CANVAS_SIZE / 2, C.CANVAS_SIZE / 2, C.CANVAS_SIZE * 0.75
+        );
+        if (gameState.playerTeam === 'snow') {
+            bgGrad.addColorStop(0, '#0a1226');
+            bgGrad.addColorStop(1, '#020308');
+        } else {
+            bgGrad.addColorStop(0, '#220c04');
+            bgGrad.addColorStop(1, '#060201');
+        }
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
+    }
 
     let didTransform = false;
     if (gameState.playerTeam === 'ash') {

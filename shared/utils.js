@@ -413,11 +413,24 @@ export function previewDamage(attacker, defender, gameState) {
   const str = getEffectiveStrength(attacker, gameState, defender);
   const def = getEffectiveDefense(defender, gameState);
   const dmg = Math.max(1, str - def);
+  let actualDmg = dmg;
+  const shieldIdx = (gameState.shields || []).findIndex(s => s.pieceId === defender.id);
+  if (shieldIdx !== -1) {
+    const shield = gameState.shields[shieldIdx];
+    if (shield.name === 'ObsidianPillarShield') {
+      const hp = typeof shield.hp === 'number' ? shield.hp : 2;
+      const absorbed = Math.min(actualDmg, hp);
+      actualDmg = Math.max(0, actualDmg - absorbed);
+    } else {
+      actualDmg = Math.max(0, actualDmg - 1);
+    }
+  }
+
   const defHp =
     typeof defender.currentHp === "number"
       ? defender.currentHp
       : C.PIECE_TYPES[defender.key]?.stats?.hp || 5;
-  return { dmg, isFatal: dmg >= defHp };
+  return { dmg: actualDmg, isFatal: actualDmg >= defHp };
 }
 
 /**

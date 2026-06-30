@@ -680,7 +680,7 @@ function getAbilityDescription(abilityKey) {
     'SoulfireBurst': 'Detonates a nearby Unstable Ground, dealing 1 damage to adjacent units.',
     'Siphon': 'Link units to transfer power or absorb debuffs.',
     'FrostfallBlessing': 'AOE (Range 2.5, Rad 2) deals 2 damage to enemies and heals allies for 1 HP for 5 turns.',
-    'ReignOfFire': 'AOE (Range 2.5, Rad 2) deals 2 damage to enemies; deals 1 damage to allies but grants them +2 Strength for 3 turns.',
+    'ReignOfFire': 'CONE (Range 2.5, Arc 60°) deals 2 damage to enemies; deals 1 damage to allies but grants them +2 Strength for 3 turns.',
     'FateLink': 'Binds an ally and enemy (Range 3) for 4 turns; any damage taken by the ally is mirrored exactly to the enemy.',
     'TheReapersToll': 'Steals 1 Defence and 0.4 Agility from an enemy (Range 3) for 4 turns, transferring the stats to self.',
     'GlacialFracture': 'AOE (Range 2.5, Rad 2) deals 2 damage, creates Snow territory, and summons 1 Ice Wisp furthest from caught enemies (Max 2).'
@@ -722,7 +722,7 @@ export function showVictoryScreen(winningTeam) {
   banner.style.display = 'flex';
   title.textContent = `${winningTeam.toUpperCase()} WINS!`;
   title.className = winningTeam === 'snow' ? 'snow-message' : 'ash-message';
-  if (art) { art.src = winningTeam === 'snow' ? 'images/leaders/snow_leader_clash.png' : 'images/leaders/ash_leader_clash.png'; art.style.display = 'block'; }
+  if (art) { art.src = winningTeam === 'snow' ? 'units/frost-lord.png' : 'units/ash-tyrant.png'; art.style.display = 'block'; }
 }
 
 const visualStates = new Map();
@@ -978,6 +978,9 @@ export function drawPiece(p, targetCtx, gameState) {
       const flipX = cx > centerX ? -1 : 1;
       const pieceRotation = vis.rotation;
       drawCtx.translate(cx, cy);
+      if (gameState.playerTeam === 'ash') {
+        drawCtx.rotate(Math.PI);
+      }
       drawCtx.rotate(pieceRotation);
       drawCtx.scale(vis.scale * flipX, vis.scale);
       let hasAura = false;
@@ -1206,6 +1209,16 @@ export function drawPiece(p, targetCtx, gameState) {
       drawCtx.restore();
     }
     const vis = getPieceVisualState(p);
+    
+    // Counter-rotated overlay block
+    drawCtx.save();
+    const cellCx = vis.x + C.CELL_SIZE / 2 + vis.offsetX;
+    const cellCy = vis.y + C.CELL_SIZE / 2 + vis.offsetY;
+    drawCtx.translate(cellCx, cellCy);
+    if (gameState.playerTeam === 'ash') {
+        drawCtx.rotate(Math.PI);
+    }
+
     try {
       const teamBadgeKey = p.team === 'snow' ? 'ice' : (p.team === 'ash' ? 'ash' : null);
       if (teamBadgeKey) {
@@ -1219,8 +1232,8 @@ export function drawPiece(p, targetCtx, gameState) {
           const scale = (idx === 0) ? baseScaleZero : Math.min(maxScale, baseScale + perTier * (idx - 1));
           const badgeSize = Math.floor(C.CELL_SIZE * scale);
           const pad = Math.max(2, Math.floor(C.CELL_SIZE * 0.02));
-          const bx = vis.x + C.CELL_SIZE - badgeSize - pad + vis.offsetX;
-          const by = vis.y + pad + vis.offsetY;
+          const bx = C.CELL_SIZE / 2 - badgeSize - pad;
+          const by = -C.CELL_SIZE / 2 + pad;
           drawCtx.drawImage(badge, bx, by, badgeSize, badgeSize);
           if ((gameState.debuffs || []).some(d => d.pieceId === p.id && d.name === "ColdFarewellControlLock")) {
             drawIceRing(drawCtx, bx + badgeSize / 2, by + badgeSize / 2, badgeSize / 1.5, false);
@@ -1228,14 +1241,15 @@ export function drawPiece(p, targetCtx, gameState) {
         }
       }
     } catch (e) { }
+
     try {
       const maxHp = C.PIECE_TYPES[p.key]?.stats?.hp || 5;
       const curHp = typeof p.currentHp === 'number' ? p.currentHp : maxHp;
       const hpPct = Math.max(0, Math.min(1, curHp / maxHp));
       const barW = C.CELL_SIZE * 0.7;
       const barH = 5;
-      const barX = vis.x + (C.CELL_SIZE - barW) / 2 + vis.offsetX;
-      const barY = vis.y + C.CELL_SIZE - barH - 4 + vis.offsetY;
+      const barX = -barW / 2;
+      const barY = C.CELL_SIZE / 2 - barH - 4;
       drawCtx.save();
       drawCtx.fillStyle = 'rgba(0,0,0,0.7)';
       drawCtx.beginPath();
@@ -1283,10 +1297,13 @@ export function drawPiece(p, targetCtx, gameState) {
         drawCtx.shadowBlur = 0;
       }
       drawCtx.restore();
+    } catch (e) { }
+
+    try {
       const defVal = p.def || C.PIECE_TYPES[p.key]?.stats?.def || 0;
       const defSize = C.CELL_SIZE * 0.22;
-      const defX = vis.x + 4 + vis.offsetX;
-      const defY = vis.y + 4 + vis.offsetY;
+      const defX = -C.CELL_SIZE / 2 + 4;
+      const defY = -C.CELL_SIZE / 2 + 4;
       drawCtx.save();
       drawCtx.beginPath();
       drawCtx.moveTo(defX + defSize / 2, defY);
@@ -1310,11 +1327,12 @@ export function drawPiece(p, targetCtx, gameState) {
       }
       drawCtx.restore();
     } catch (e) { }
+
     try {
       if ((p.overloadPoints || 0) > 0) {
         const overlaySize = Math.floor(C.CELL_SIZE * 0.22);
-        const ox = vis.x + 4 + vis.offsetX;
-        const oy = vis.y + 4 + vis.offsetY;
+        const ox = -C.CELL_SIZE / 2 + 4;
+        const oy = -C.CELL_SIZE / 2 + 4;
         drawCtx.save();
         drawCtx.beginPath();
         drawCtx.fillStyle = p.team === 'snow' ? 'rgba(0,204,255,0.95)' : 'rgba(255,80,20,0.95)';
@@ -1330,25 +1348,30 @@ export function drawPiece(p, targetCtx, gameState) {
         drawCtx.restore();
       }
     } catch (e) { }
+
     if (p.isAnchor) {
       const auraRadius = C.CELL_SIZE * 0.4 + Math.sin(time * 4) * 3;
       drawCtx.strokeStyle = p.team === 'snow' ? 'rgba(100,200,255,0.5)' : 'rgba(255,100,80,0.5)';
       drawCtx.lineWidth = 4 + Math.sin(time * 4) * 1.5;
       drawCtx.beginPath();
-      drawCtx.arc(vis.x + C.CELL_SIZE / 2 + vis.offsetX, vis.y + C.CELL_SIZE / 2 + vis.offsetY, auraRadius, 0, 2 * Math.PI);
+      drawCtx.arc(0, 0, auraRadius, 0, 2 * Math.PI);
       drawCtx.stroke();
     }
     if (p.hasDefensiveWard) {
       drawCtx.strokeStyle = `rgba(200,200,255,${0.7 + 0.3 * Math.sin(performance.now() * 0.008)})`;
       drawCtx.lineWidth = 3;
       drawCtx.beginPath();
-      drawCtx.arc(vis.x + C.CELL_SIZE / 2 + vis.offsetX, vis.y + C.CELL_SIZE / 2 + vis.offsetY, C.CELL_SIZE * 0.4, 0, 2 * Math.PI);
+      drawCtx.arc(0, 0, C.CELL_SIZE * 0.4, 0, 2 * Math.PI);
       drawCtx.stroke();
     }
-    drawSiphonRunes(p, gameState);
+
     p.powerBoosted = (gameState.temporaryBoosts || []).some(b => b.pieceId === p.id && b.amount > 0) || p.shrineBoost > 0 || p.anchorBoost > 0;
     p.isChilled = (gameState.debuffs || []).some(d => d.pieceId === p.id && d.amount > 0) || (gameState.markedPieces || []).some(m => m.targetId === p.id);
-    drawStatusIcons(drawCtx, p, vis.x + C.CELL_SIZE / 2 + vis.offsetX, vis.y + C.CELL_SIZE / 2 + vis.offsetY);
+    drawStatusIcons(drawCtx, p, 0, 0);
+
+    drawCtx.restore(); // end of counter-rotated overlay block
+
+    drawSiphonRunes(p, gameState);
     // Ash Tyrant reddish revival shield (Death Meteor passive)
     if (p.key === 'ashAshTyrant' && drawDeathMeteorShield) {
       drawDeathMeteorShield(drawCtx, p, gameState);
@@ -1367,6 +1390,9 @@ export function drawDyingPieces(targetCtx, gameState) {
         const cx = vis.x + C.CELL_SIZE / 2 + vis.offsetX;
         const cy = vis.y + C.CELL_SIZE / 2 + vis.offsetY;
         drawCtx.translate(cx, cy);
+        if (gameState.playerTeam === 'ash') {
+          drawCtx.rotate(Math.PI);
+        }
         drawCtx.rotate(vis.rotation);
         drawCtx.scale(vis.scale, vis.scale);
         drawCtx.drawImage(img, -C.CELL_SIZE / 2, -C.CELL_SIZE / 2, C.CELL_SIZE, C.CELL_SIZE);
@@ -1378,25 +1404,6 @@ export function drawDyingPieces(targetCtx, gameState) {
 export function renderBoard(gameState) {
   currentGameState = gameState;
   boardCtx.clearRect(0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
-  const bgKey = (gameState.playerTeam === 'ash') ? 'gameBackgroundAsh' : 'gameBackgroundSnow';
-  const backgroundImg = gameState.boardImgs?.[bgKey];
-  if (backgroundImg?.complete) {
-    boardCtx.drawImage(backgroundImg, 0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
-  } else {
-    const bgGrad = boardCtx.createRadialGradient(
-      C.CANVAS_SIZE / 2, C.CANVAS_SIZE / 2, 50,
-      C.CANVAS_SIZE / 2, C.CANVAS_SIZE / 2, C.CANVAS_SIZE * 0.75
-    );
-    if (gameState.playerTeam === 'snow') {
-      bgGrad.addColorStop(0, '#0a1226');
-      bgGrad.addColorStop(1, '#020308');
-    } else {
-      bgGrad.addColorStop(0, '#220c04');
-      bgGrad.addColorStop(1, '#060201');
-    }
-    boardCtx.fillStyle = bgGrad;
-    boardCtx.fillRect(0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
-  }
   if (gameState.voidSquares && gameState.voidSquares.length > 0) {
     boardCtx.fillStyle = '#05000a';
     gameState.voidSquares.forEach(v => {

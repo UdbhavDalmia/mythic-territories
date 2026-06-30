@@ -165,13 +165,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (typeof io !== 'undefined') {
-                const connectionUrl = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
+                const devPorts = ['5500', '5501', '5173', '8080', '8081', '3001'];
+                const isDevServer = devPorts.includes(window.location.port);
+                const connectionUrl = (window.location.protocol === 'file:' || isDevServer) ? 'http://localhost:3000' : '';
                 menuSocket = io(connectionUrl);
                 menuSocket.on('connect', () => {
                     menuSocket.emit('joinRoom', { roomId: code, playerId });
                 });
 
                 menuSocket.on('init', (data) => {
+                    showFactionSelection('online', code);
                     updateFactionUI(data.players || []);
                 });
 
@@ -201,8 +204,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('Socket.io client not loaded.');
                 return;
             }
-
-            showFactionSelection('online', code);
         } else {
             alert('Room code must be at least 3 characters.');
         }
@@ -245,6 +246,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (factionCancelBtn) {
         factionCancelBtn.onclick = () => {
             if (menuSocket) {
+                const playerId = sessionStorage.getItem('mythic_playerId');
+                menuSocket.emit('leaveRoom', { roomId: currentRoomId, playerId });
                 menuSocket.disconnect();
                 menuSocket = null;
             }
