@@ -23,6 +23,7 @@ let loadedImages = {};
 let disconnectInterval = null
 let isWaitingForServer = false; // Locks UI while waiting for server response in multiplayer
 const vsAI = urlParams.get('ai') === '1';
+let canvasListenersRegistered = false;
 
 let aiWorker = null;
 
@@ -30,7 +31,7 @@ function checkAITurn() {
     if (!isLocal) return;
     if (!vsAI) return;
     if (!gameState || gameState.gameOver) return;
-    
+
     const aiTeam = myTeam === 'snow' ? 'ash' : 'snow';
     if (gameState.currentTurn !== aiTeam) return;
 
@@ -502,90 +503,92 @@ function setupCanvas() {
             }
         };
     }
-    if (drawerHandle) drawerHandle.addEventListener('click', window.toggleMobileDrawer);
-    if (drawerPeek) drawerPeek.addEventListener('click', window.toggleMobileDrawer);
+    if (!canvasListenersRegistered) {
+        if (drawerHandle) drawerHandle.addEventListener('click', window.toggleMobileDrawer);
+        if (drawerPeek) drawerPeek.addEventListener('click', window.toggleMobileDrawer);
 
-    if (canvas && piecePopup) {
-        canvas.addEventListener('mousemove', (e) => {
-            if (!gameState) { piecePopup.style.display = 'none'; return; }
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            const x = (e.clientX - rect.left) * scaleX;
-            const y = (e.clientY - rect.top) * scaleY;
-            if (x < 0 || y < 0 || x > canvas.width || y > canvas.height) { piecePopup.style.display = 'none'; return; }
+        if (canvas && piecePopup) {
+            canvas.addEventListener('mousemove', (e) => {
+                if (!gameState) { piecePopup.style.display = 'none'; return; }
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const x = (e.clientX - rect.left) * scaleX;
+                const y = (e.clientY - rect.top) * scaleY;
+                if (x < 0 || y < 0 || x > canvas.width || y > canvas.height) { piecePopup.style.display = 'none'; return; }
 
-            let col = Math.floor(x / C.CELL_SIZE);
-            let row = Math.floor(y / C.CELL_SIZE);
+                let col = Math.floor(x / C.CELL_SIZE);
+                let row = Math.floor(y / C.CELL_SIZE);
 
-            gameState.hoverCol = col;
-            gameState.hoverRow = row;
+                gameState.hoverCol = col;
+                gameState.hoverRow = row;
 
-            if (myTeam === 'ash') {
-                row = C.ROWS - 1 - row;
-                col = C.COLS - 1 - col;
-            }
-
-            const hoverPiece = C.getPieceAt(row, col, gameState.pieces);
-            if (!hoverPiece) { piecePopup.style.display = 'none'; return; }
-
-            try {
-                let infoHtml = UI.generatePieceInfoString(hoverPiece, gameState) || '';
-                infoHtml = infoHtml.replace(/stary/gi, '');
-                infoHtml = infoHtml.replace(/★|\*/g, '');
-                infoHtml = infoHtml.replace(/\n{2,}/g, '\n').trim();
-
-                const sel = gameState.selectedPiece;
-                if (
-                    sel &&
-                    sel.team !== hoverPiece.team &&
-                    typeof E.previewDamage === 'function'
-                ) {
-                    try {
-                        const preview = E.previewDamage(sel, hoverPiece, gameState);
-                        const hpNow = typeof hoverPiece.currentHp === 'number' ? hoverPiece.currentHp : (hoverPiece.maxHp || '?');
-                        const hpMax = hoverPiece.maxHp || hpNow;
-                        let predHtml = `<div id="tacticalPredictor">`;
-                        predHtml += `<div>⚔ ${C.PIECE_TYPES[sel.key]?.name || sel.key} → ${C.PIECE_TYPES[hoverPiece.key]?.name || hoverPiece.key}</div>`;
-                        predHtml += `<div>HP: ${hpNow}/${hpMax} &nbsp;|&nbsp; `;
-                        predHtml += `DMG: <span class="pred-dmg">-${preview.dmg}</span></div>`;
-                        if (preview.isFatal) {
-                            predHtml += `<div class="pred-fatal">☠ LETHAL STRIKE</div>`;
-                        } else {
-                            const hpAfter = Math.max(0, hpNow - preview.dmg);
-                            predHtml += `<div>Remaining HP: <span class="pred-chip">${hpAfter}</span></div>`;
-                        }
-                        predHtml += `</div>`;
-                        infoHtml += predHtml;
-                    } catch (predErr) { /* non-fatal */ }
+                if (myTeam === 'ash') {
+                    row = C.ROWS - 1 - row;
+                    col = C.COLS - 1 - col;
                 }
 
-                piecePopup.innerHTML = infoHtml;
-            } catch (e) {
-                piecePopup.textContent = hoverPiece.name || '';
-            }
-            piecePopup.style.display = 'block';
+                const hoverPiece = C.getPieceAt(row, col, gameState.pieces);
+                if (!hoverPiece) { piecePopup.style.display = 'none'; return; }
 
-            const offsetX = 15;
-            const offsetY = 15;
+                try {
+                    let infoHtml = UI.generatePieceInfoString(hoverPiece, gameState) || '';
+                    infoHtml = infoHtml.replace(/stary/gi, '');
+                    infoHtml = infoHtml.replace(/★|\*/g, '');
+                    infoHtml = infoHtml.replace(/\n{2,}/g, '\n').trim();
 
-            let finalLeft = e.pageX + offsetX;
-            let finalTop = e.pageY + offsetY;
+                    const sel = gameState.selectedPiece;
+                    if (
+                        sel &&
+                        sel.team !== hoverPiece.team &&
+                        typeof E.previewDamage === 'function'
+                    ) {
+                        try {
+                            const preview = E.previewDamage(sel, hoverPiece, gameState);
+                            const hpNow = typeof hoverPiece.currentHp === 'number' ? hoverPiece.currentHp : (hoverPiece.maxHp || '?');
+                            const hpMax = hoverPiece.maxHp || hpNow;
+                            let predHtml = `<div id="tacticalPredictor">`;
+                            predHtml += `<div>⚔ ${C.PIECE_TYPES[sel.key]?.name || sel.key} → ${C.PIECE_TYPES[hoverPiece.key]?.name || hoverPiece.key}</div>`;
+                            predHtml += `<div>HP: ${hpNow}/${hpMax} &nbsp;|&nbsp; `;
+                            predHtml += `DMG: <span class="pred-dmg">-${preview.dmg}</span></div>`;
+                            if (preview.isFatal) {
+                                predHtml += `<div class="pred-fatal">☠ LETHAL STRIKE</div>`;
+                            } else {
+                                const hpAfter = Math.max(0, hpNow - preview.dmg);
+                                predHtml += `<div>Remaining HP: <span class="pred-chip">${hpAfter}</span></div>`;
+                            }
+                            predHtml += `</div>`;
+                            infoHtml += predHtml;
+                        } catch (predErr) { /* non-fatal */ }
+                    }
 
-            if (finalLeft + piecePopup.offsetWidth > document.documentElement.scrollWidth - 10) {
-                finalLeft = e.pageX - piecePopup.offsetWidth - 10;
-            }
-            if (finalTop + piecePopup.offsetHeight > document.documentElement.scrollHeight - 10) {
-                finalTop = e.pageY - piecePopup.offsetHeight - 10;
-            }
+                    piecePopup.innerHTML = infoHtml;
+                } catch (e) {
+                    piecePopup.textContent = hoverPiece.name || '';
+                }
+                piecePopup.style.display = 'block';
 
-            piecePopup.style.pointerEvents = 'none';
-            piecePopup.style.position = 'absolute';
-            piecePopup.style.left = finalLeft + 'px';
-            piecePopup.style.top = finalTop + 'px';
-        });
-        canvas.addEventListener('mouseleave', () => { piecePopup.style.display = 'none'; });
+                const offsetX = 15;
+                const offsetY = 15;
 
+                let finalLeft = e.pageX + offsetX;
+                let finalTop = e.pageY + offsetY;
+
+                if (finalLeft + piecePopup.offsetWidth > document.documentElement.scrollWidth - 10) {
+                    finalLeft = e.pageX - piecePopup.offsetWidth - 10;
+                }
+                if (finalTop + piecePopup.offsetHeight > document.documentElement.scrollHeight - 10) {
+                    finalTop = e.pageY - piecePopup.offsetHeight - 10;
+                }
+
+                piecePopup.style.pointerEvents = 'none';
+                piecePopup.style.position = 'absolute';
+                piecePopup.style.left = finalLeft + 'px';
+                piecePopup.style.top = finalTop + 'px';
+            });
+            canvas.addEventListener('mouseleave', () => { piecePopup.style.display = 'none'; });
+
+        }
     }
 
     function handleSelection(e) {
@@ -761,6 +764,7 @@ function setupCanvas() {
             clearTimeout(touchTimer);
             clearGhost();
         });
+        canvasListenersRegistered = true;
     }
 }
 
@@ -1038,23 +1042,6 @@ window.addEventListener('click', (e) => {
     try { gameState.selectedPiece = null; gameState.validMoves = []; } catch (e) { }
 });
 
-if (canvas) {
-    canvas.addEventListener('click', (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        try { handleSelection(ev); } catch (e) { }
-    }, { passive: false });
-
-    canvas.addEventListener('touchstart', (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        const t = ev.touches && ev.touches[0];
-        if (t) {
-            try { handleSelection(t); } catch (e) { }
-        }
-    }, { passive: false });
-}
-
 window.useAbility = function (abilityKey) {
     if (!gameState.selectedPiece) return;
     window.sendAction('ABILITY', { pieceId: gameState.selectedPiece.id, abilityKey, target: null });
@@ -1115,24 +1102,8 @@ export function applyActionLogic(actionType, data, gs) {
         case 'SWITCH_TURN': turnEnded = true; break;
         case 'ASCENSION_CHOICE': turnEnded = Logic.executeAscensionChoice(data.choice); break;
         case 'CANCEL_ASCENSION': Logic.cancelAscensionChoice(); break;
-        case 'VENT_OVERLOAD':
-            const vp = find(data.pieceId);
-            if (vp) {
-                try {
-                    UI.triggerPulse(vp.id);
-
-                } catch (e) { }
-            }
-            turnEnded = Logic.ventOverload(vp);
-            break;
         case 'SACRIFICE': turnEnded = Logic.executeSacrifice(find(data.pieceId)); break;
         case 'RELEASE': turnEnded = Logic.executeRelease(find(data.pieceId)); break;
-        case 'START_TETHER':
-            const tp = find(data.pieceId);
-            gs.abilityContext = { piece: tp, siphoner: tp, mode: data.mode, abilityKey: 'Tether' };
-            Logic.setCurrentState(Logic.GameState.TETHER_TARGETING);
-            Logic.emit(gs, { type: 'FLASH', message: `Select target for ${data.mode}`, team: tp.team });
-            break;
         case 'RIFT_PULSE':
             const rp = find(data.pieceId);
             if (rp) {

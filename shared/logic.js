@@ -98,27 +98,6 @@ function ensureSets(gs) {
   if (!gs.territoryTrails) gs.territoryTrails = [];
 }
 
-// Reverts power changes from a single tether object
-function revertTetherPower(t, gs) {
-  const siphoner = gs.pieces.find((p) => p.id === t.siphonerId);
-  const ally = t.allyId !== null ? gs.pieces.find((p) => p.id === t.allyId) : null;
-  const enemy = t.enemyId !== null ? gs.pieces.find((p) => p.id === t.enemyId) : null;
-
-  if (t.mode === "benevolent" && siphoner) {
-    siphoner.power += 1;
-    if (ally) ally.power = Math.max(0, ally.power - 1);
-  } else if (t.mode === "hostile" && siphoner) {
-    siphoner.power = Math.max(0, siphoner.power - 1);
-    if (enemy) enemy.power += 1;
-  } else if (t.mode === "parasitic" && siphoner) {
-    siphoner.power = Math.max(0, siphoner.power - 1);
-    if (ally) ally.power += 1;
-  } else if (t.mode === "resonance") {
-    if (ally) ally.power = Math.max(0, ally.power - 1);
-    if (enemy) enemy.power += 1;
-  }
-}
-
 export function resolveDeaths(gs, defaultAttacker = null) {
   let deathResolved = true;
   while (deathResolved) {
@@ -268,24 +247,6 @@ export function handlePieceCapture(capturedPiece, attacker, gs) {
     return false; // Intercepted, piece survives
   }
 
-  // 1. Revert tethers involving this piece
-  // If piece was the siphoner
-  if (Array.isArray(capturedPiece.tethers) && capturedPiece.tethers.length > 0) {
-    capturedPiece.tethers.forEach((t) => revertTetherPower(t, gs));
-    capturedPiece.tethers = [];
-  }
-  // If piece was the target of any other siphoner
-  gs.pieces.forEach((p) => {
-    if (Array.isArray(p.tethers)) {
-      p.tethers = p.tethers.filter((t) => {
-        if (t.allyId === capturedPiece.id || t.enemyId === capturedPiece.id) {
-          revertTetherPower(t, gs);
-          return false;
-        }
-        return true;
-      });
-    }
-  });
 
   // 1b. Revert magma grips involving this piece
   if (gs.TheReapersTolls) {
@@ -1113,7 +1074,6 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
 
   checkSpecialTerrains(piece, piece.row, piece.col, gameState);
   consumeCore(piece, piece.row, piece.col, gameState);
-  checkTetherSnaps(gameState);
   actionTaken();
   return true;
 }
@@ -1286,11 +1246,6 @@ export function createPiece(r, c, key, team) {
     canRiftPulse: false,
     hasUsedRiftPulse: false
   };
-  if (key.includes("Chanter") || key.includes("Warden") || key.includes("Linker") || key.includes("Reaper") || key.includes("Harvester")) {
-    piece.charges = 0;
-    piece.overloadPoints = 0;
-    piece.tethers = [];
-  }
   return piece;
 }
 
@@ -1303,7 +1258,6 @@ export function despawnPiece(piece) {
   updateBoardMap(gameState);
   updateConduitLink();
   checkTerritoryThresholds(gameState);
-  checkTetherSnaps(gameState);
 }
 
 export function promoteToVeteran(piece) {
@@ -2647,71 +2601,6 @@ export function initGame() {
   gameState.siphonParticles = [];
   gameState.shrineParticles = [];
 
-  gameState.tryInterceptDebuff = function (debuff) {
-    const targetId = debuff.pieceId;
-    const targetPiece = gameState.pieces.find((p) => p.id === targetId);
-    if (!targetPiece) {
-      gameState.debuffs.push(debuff);
-      return;
-    }
-
-    const siphoner = gameState.pieces.find(
-      (p) =>
-        p.ability?.key === "Siphon" &&
-        p.team === targetPiece.team &&
-        Array.isArray(p.tethers) &&
-        p.tethers.some((t) => t.allyId === targetId)
-    );
-    if (!siphoner) {
-      gameState.debuffs.push(debuff);
-      return;
-    }
-
-    debuff.pieceId = siphoner.id;
-    gameState.debuffs.push(debuff);
-    siphoner.overloadPoints = (siphoner.overloadPoints || 0) + 1;
-    flash(
-      `${C.PIECE_TYPES[siphoner.key].name} absorbs a debuff intended for ${C.PIECE_TYPES[targetPiece.key].name
-      } and gains Overload.`,
-      siphoner.team,
-      gameState
-    );
-
-    if (siphoner.overloadPoints >= 4) {
-      siphoner.tethers.forEach((t) => {
-        const ally =
-          t.allyId !== null
-            ? gameState.pieces.find((p) => p.id === t.allyId)
-            : null;
-        const enemy =
-          t.enemyId !== null
-            ? gameState.pieces.find((p) => p.id === t.enemyId)
-            : null;
-        if (t.mode === "benevolent" && ally)
-          ally.power = Math.max(0, ally.power - 1);
-        else if (t.mode === "hostile" && enemy) enemy.power += 1;
-        else if (t.mode === "parasitic" && ally) ally.power += 1;
-        else if (t.mode === "resonance") {
-          if (ally) ally.power = Math.max(0, ally.power - 1);
-          if (enemy) enemy.power = (enemy.power || 0) + 1;
-        }
-      });
-      siphoner.tethers = [];
-      gameState.pieces = gameState.pieces.filter((p) => p.id !== siphoner.id);
-      flash(
-        `${C.PIECE_TYPES[siphoner.key].name
-        } reaches critical Overload and is destroyed by feedback!`,
-        siphoner.team,
-        gameState
-      );
-      gameState.pieces.forEach((p) => {
-        if (p.tethers)
-          p.tethers = p.tethers.filter((t) => t.siphonerId !== siphoner.id);
-      });
-      updateBoardMap(gameState);
-      updateConduitLink();
-    }
-  };
 
   setCurrentState(GameState.AWAITING_PIECE_SELECTION);
 

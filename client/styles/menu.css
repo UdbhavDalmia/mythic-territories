@@ -76,19 +76,21 @@ body {
   box-shadow: 0 0 30px rgba(165, 243, 252, 0.3);
   border-color: #A5F3FC;
   background: rgba(165, 243, 252, 0.1);
+  transform: translateY(-8px) scale(1.03);
 }
 
 .card-fire:hover {
   box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);
   border-color: #EF4444;
   background: rgba(239, 68, 68, 0.1);
+  transform: translateY(-8px) scale(1.03);
 }
 
-.card-gold:hover {
+.card-gold:hover:not(:disabled) {
   box-shadow: 0 0 30px rgba(232, 193, 94, 0.3);
   border-color: #E8C15E;
   background: rgba(232, 193, 94, 0.15);
-  transform: translateY(-5px);
+  transform: translateY(-8px) scale(1.03);
 }
 
 

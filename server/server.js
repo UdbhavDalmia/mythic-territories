@@ -233,17 +233,6 @@ io.on('connection', (socket) => {
                 case 'ASCENSION_CHOICE': turnEnded = Logic.executeAscensionChoice(data.choice); break;
                 case 'CANCEL_ASCENSION': Logic.cancelAscensionChoice(); break;
 
-                // CRITICAL FIX: Added missing START_TETHER and secured VENT_OVERLOAD
-                case 'VENT_OVERLOAD':
-                    if (p && p.team === player.team) turnEnded = Logic.ventOverload(p);
-                    break;
-                case 'START_TETHER':
-                    if (p && p.team === player.team) {
-                        gs.abilityContext = { piece: p, siphoner: p, mode: data.mode, abilityKey: 'Tether' };
-                        Logic.setCurrentState(Logic.GameState.TETHER_TARGETING);
-                        Logic.emit(gs, { type: 'FLASH', message: `Select target for ${data.mode}`, team: p.team });
-                    }
-                    break;
 
                 case 'SACRIFICE': if (p && p.team === player.team) turnEnded = Logic.executeSacrifice(p); break;
                 case 'RELEASE': if (p && p.team === player.team) turnEnded = Logic.executeRelease(p); break;

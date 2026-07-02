@@ -183,7 +183,7 @@
               <p class="font-body-md text-on-surface-variant text-[10px] sm:text-xs md:text-sm opacity-60">Local
                 tabletop experience</p>
             </div>
-            <div class="h-1 w-12 bg-ember-gold opacity-0 group-hover:opacity-100 transition-opacity hidden md:block">
+            <div class="h-1 w-12 bg-ice-light opacity-0 group-hover:opacity-100 transition-opacity hidden md:block">
             </div>
           </button>
           <!-- Online Multiplayer Card -->
@@ -200,12 +200,16 @@
               <p class="font-body-md text-on-surface-variant text-[10px] sm:text-xs md:text-sm opacity-60">Challenge the
                 world</p>
             </div>
-            <div class="h-1 w-12 bg-ember-gold opacity-0 group-hover:opacity-100 transition-opacity hidden md:block">
+            <div class="h-1 w-12 bg-magma-core opacity-0 group-hover:opacity-100 transition-opacity hidden md:block">
             </div>
           </button>
           <!-- Play with AI Card -->
-          <button id="ancientTrialsBtn"
-            class="card-gold glass-obsidian border border-outline/20 p-3 sm:p-6 md:p-8 rounded-xl flex flex-row md:flex-col items-center text-left md:text-center justify-start md:justify-center gap-4 sm:gap-6 group transition-all duration-500 w-full">
+          <button id="ancientTrialsBtn" disabled
+            class="relative overflow-hidden card-gold glass-obsidian border border-outline/20 p-3 sm:p-6 md:p-8 rounded-xl flex flex-row md:flex-col items-center text-left md:text-center justify-start md:justify-center gap-4 sm:gap-6 group transition-all duration-500 w-full cursor-not-allowed opacity-40">
+            <!-- Disabled Black Overlay -->
+            <div class="absolute inset-0 bg-black/70 z-10 flex items-center justify-center rounded-xl pointer-events-none">
+              <span class="font-label-caps text-pure-snow/60 tracking-widest text-[10px] sm:text-xs">DISABLED</span>
+            </div>
             <div
               class="w-10 h-10 sm:w-16 sm:h-16 rounded-full bg-ember-gold/10 flex items-center justify-center border border-ember-gold/30 group-hover:bg-ember-gold/20 transition-colors shrink-0">
               <span class="material-symbols-outlined text-ember-gold text-xl sm:text-3xl">memory</span>

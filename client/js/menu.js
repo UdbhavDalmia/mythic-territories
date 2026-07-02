@@ -174,6 +174,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 menuSocket.on('init', (data) => {
+                    if (data.state && data.state.gameStarted) {
+                        const storedPlayerId = sessionStorage.getItem('mythic_playerId');
+                        const p = (data.players || []).find(player => player.id === storedPlayerId);
+                        const team = p ? p.team : null;
+                        if (team) {
+                            window.location.href = `game.html?room=${encodeURIComponent(code)}&team=${encodeURIComponent(team)}`;
+                            return;
+                        }
+                    }
                     showFactionSelection('online', code);
                     updateFactionUI(data.players || []);
                 });

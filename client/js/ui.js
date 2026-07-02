@@ -1984,8 +1984,7 @@ export function showAbilityPanel(piece, gameState) {
     }
     return;
   }
-  const isSiphoner = piece.ability?.key === 'Siphon';
-  const hasActiveAbility = piece.ability && piece.ability.name && piece.ability.key !== 'Siphon';
+  const hasActiveAbility = piece.ability && piece.ability.name;
   if (btns.ability) {
     const onCooldown = (piece.ability?.cooldown || 0) > 0;
     toggleEl(btns.ability, hasActiveAbility);
@@ -1995,51 +1994,6 @@ export function showAbilityPanel(piece, gameState) {
       addMobileBtn(piece.ability.name, () => window.sendAction('ABILITY', { pieceId: piece.id, abilityKey: piece.ability?.key }), onCooldown);
       btns.ability.onclick = () => window.sendAction('ABILITY', { pieceId: piece.id, abilityKey: piece.ability?.key });
     }
-  }
-  if (isSiphoner) {
-    const onRift = C.SHAPES.riftAreas.some(r => r.cells.some(([rr, cc]) => rr === piece.row && cc === piece.col));
-    const maxRange = onRift ? 4 : 3;
-    let hasAlly = false, hasEnemy = false, hasAllyWithPower = false, hasEnemyWithPower = false;
-    gameState.pieces.forEach(p => {
-      if (p.id === piece.id) return;
-      if (Math.max(Math.abs(piece.row - p.row), Math.abs(piece.col - p.col)) <= maxRange) {
-        if (p.team === piece.team) {
-          hasAlly = true;
-          if (p.power > 0) hasAllyWithPower = true;
-        } else {
-          hasEnemy = true;
-          if (p.power > 0) hasEnemyWithPower = true;
-        }
-      }
-    });
-    const canVent = (piece.overloadPoints > 0) && (onRift || C.SHAPES.shrineArea.some(([r, c]) => r === piece.row && c === piece.col));
-    if (canVent) {
-      if (btns.ability) {
-        toggleEl(btns.ability, true);
-        btns.ability.textContent = 'Vent Overload';
-        btns.ability.disabled = false;
-        btns.ability.onclick = () => window.sendAction('VENT_OVERLOAD', { pieceId: piece.id });
-      }
-      addMobileBtn('Vent Overload', () => window.sendAction('VENT_OVERLOAD', { pieceId: piece.id }));
-    }
-    const tethers = [
-      { mode: 'benevolent', name: 'Benevolent Link', valid: hasAlly && piece.power > 0 },
-      { mode: 'hostile', name: 'Hostile Drain', valid: hasEnemyWithPower },
-      { mode: 'parasitic', name: 'Parasitic Siphon', valid: hasAllyWithPower },
-      { mode: 'resonance', name: 'Resonance Weave', valid: hasAlly && hasEnemyWithPower }
-    ];
-    tethers.forEach(t => {
-      if (t.valid) {
-        const tetherBtn = document.createElement('button');
-        tetherBtn.className = ((btns.ability?.className || '') + ' action-btn').trim();
-        tetherBtn.setAttribute('data-dynamic-tether', 'true');
-        tetherBtn.style.cssText = 'margin: 6px 0; display: block;';
-        tetherBtn.textContent = t.name;
-        tetherBtn.onclick = () => window.sendAction('START_TETHER', { pieceId: piece.id, mode: t.mode });
-        panel.appendChild(tetherBtn);
-        addMobileBtn(t.name, () => window.sendAction('START_TETHER', { pieceId: piece.id, mode: t.mode }));
-      }
-    });
   }
   if (btns.riftPulse) {
     toggleEl(btns.riftPulse, piece.canRiftPulse);
