@@ -25,18 +25,72 @@
   }
 }
 
+@keyframes titleShimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes buttonRaySweep {
+  0% {
+    transform: translateX(-150%) skewX(-20deg);
+  }
+  100% {
+    transform: translateX(250%) skewX(-20deg);
+  }
+}
+
+@keyframes subtleFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.animate-title-shimmer {
+  background-size: 200% 200% !important;
+  animation: titleShimmer 6s ease-in-out infinite;
+}
+
 .animate-pulse-glow {
-  animation: pulse-glow 3s infinite ease-in-out;
+  animation: pulse-glow 3s infinite ease-in-out, subtleFloat 4s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+}
+
+.animate-pulse-glow::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    60deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.15) 50%,
+    transparent 60%
+  );
+  animation: buttonRaySweep 4.5s ease-in-out infinite;
+  pointer-events: none;
 }
 
 /* Background Zoom */
 @keyframes slow-zoom {
   0% {
-    transform: scale(1.05);
+    transform: scale(1.03);
   }
 
   100% {
-    transform: scale(1.15);
+    transform: scale(1.12);
   }
 }
 
@@ -46,7 +100,6 @@
 
 body {
   background-color: #0B1019;
-  overflow: hidden;
 }
 
 .modal-overlay {
@@ -72,27 +125,41 @@ body {
   transform: translateY(0) scale(1);
 }
 
+.card-frost {
+  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  position: relative;
+}
+
 .card-frost:hover {
-  box-shadow: 0 0 30px rgba(165, 243, 252, 0.3);
+  box-shadow: 0 8px 35px rgba(165, 243, 252, 0.35);
   border-color: #A5F3FC;
-  background: rgba(165, 243, 252, 0.1);
-  transform: translateY(-8px) scale(1.03);
+  background: rgba(165, 243, 252, 0.12);
+  transform: translateY(-6px) scale(1.025);
+}
+
+.card-fire {
+  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  position: relative;
 }
 
 .card-fire:hover {
-  box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 8px 35px rgba(239, 68, 68, 0.35);
   border-color: #EF4444;
-  background: rgba(239, 68, 68, 0.1);
-  transform: translateY(-8px) scale(1.03);
+  background: rgba(239, 68, 68, 0.12);
+  transform: translateY(-6px) scale(1.025);
+}
+
+.card-gold {
+  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  position: relative;
 }
 
 .card-gold:hover:not(:disabled) {
-  box-shadow: 0 0 30px rgba(232, 193, 94, 0.3);
+  box-shadow: 0 8px 35px rgba(232, 193, 94, 0.35);
   border-color: #E8C15E;
   background: rgba(232, 193, 94, 0.15);
-  transform: translateY(-8px) scale(1.03);
+  transform: translateY(-6px) scale(1.025);
 }
-
 
 .screen-transition {
   transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out;

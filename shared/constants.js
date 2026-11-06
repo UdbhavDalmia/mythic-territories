@@ -1584,3 +1584,47 @@ export const ASCENSION_CHOICES = {
     }
   }
 };
+
+export const ABILITY_DESCRIPTIONS = {
+  SetSnare: 'Create a trap on an adjacent empty square. The first enemy to enter is Stuck for 2 turns.',
+  ScorchedRetreat: 'Move 1 square backward and create an Unstable Ground hazard on the square you left.',
+  HuntersRage: 'Gain +1 Power (attacking only) for 2 rounds.',
+  KindleArmor: 'Grants an adjacent ally +1 Power (defending only) for 2 rounds.',
+  SummonIceWisp: 'Summons a Power 0 wisp to an empty square within 4 squares.',
+  Hamstring: 'An adjacent enemy cannot move diagonally for 1 round.',
+  FrostArmor: 'Gain +2 Power (defending only) for 2 rounds.',
+  FrigidPath: 'Creates a 1x3 line of IcyGround. First enemy to enter is Dazed.',
+  GlacialWall: 'Creates two impassable walls on adjacent empty squares. Lasts 3 turns.',
+  FrenziedDash: 'Move 2 squares in a straight line to an empty square. Cannot capture.',
+  LavaGlob: 'Deals 1 permanent damage to an enemy with base power 1 or 2, within 4 squares.',
+  ObsidianPillar: 'Spawns an Obsidian Pillar: deals damage and pushback to enemies, works as cover, and forms an Obsidian Shield when targeting allies.',
+  Pummel: 'Pushes an adjacent enemy back 1 square. Deals no damage.',
+  UnstableGround: 'Make an empty square within 4 squares hazardous.',
+  MarkOfCinder: 'Mark an enemy within 2 squares, reducing its power by 1. Lasts 3 turns.',
+  ChillingAura: 'Activates an aura that reduces the power of adjacent enemies by 1. Lasts 3 turns.',
+  DistractingRoar: 'Reduce effective power of an adjacent enemy by 1 for 1 round.',
+  BlazeLunge: 'Move up to 2 squares in a straight line to an empty square adjacent to an enemy.',
+  CinderSurge: 'Removes all debuffs from an adjacent friendly unit.',
+  IcyShift: 'Swap positions with any unit within 2 squares; both are Dazed for 1 turn.',
+  FrostStomp: 'Daze any adjacent enemy unit for 1 turn.',
+  GlacialBeacon: 'Target empty square within 3; next enemy there is Dazed 1 turn.',
+  VolatileCinder: 'Deals 1 permanent damage to an enemy within 3 squares Marked by Cinder.',
+  HardenedIce: 'Grants an adjacent ally Steadfast for 2 full rounds.',
+  SoulfireBurst: 'Detonates a nearby Unstable Ground, dealing 1 damage to adjacent units.',
+  Siphon: 'Link units to transfer power or absorb debuffs.',
+  FrostfallBlessing: 'AOE (Range 2.5, Rad 2) deals 2 damage to enemies and heals allies for 1 HP for 5 turns.',
+  ReignOfFire: 'AOE (Range 2.5, Rad 2) deals 2 damage to enemies; deals 1 damage to allies but grants them +2 Strength for 3 turns.',
+  FateLink: 'Binds an ally and enemy (Range 3) for 4 turns; any damage taken by the ally is mirrored exactly to the enemy.',
+  TheReapersToll: 'Steals 1 Defence and 0.4 Agility from an enemy (Range 3) for 4 turns, transferring the stats to self.',
+  GlacialFracture: 'AOE (Range 2.5, Rad 2) deals 2 damage, creates Snow territory, and summons 1 Ice Wisp furthest from caught enemies (Max 2).'
+};
+
+export const PASSIVE_DESCRIPTIONS = {
+  snowFrostLord: 'Help From Above — Lethal damage is negated; becomes invulnerable for 5 turns and grants nearby allies (Rad 1.5) +1 Strength.',
+  ashAshTyrant: 'Death Meteor — Lethal damage is negated; survives at 1 HP and triggers an explosion (Rad 2) dealing 4 damage to enemies and 2 damage to allies.',
+  snowSoulLinker: 'Cold Snap — If the bound enemy dies, the Soul Linker heals 2 HP; excess healing is converted into a 1-damage absorb shield.',
+  ashAshReaper: "Ashes To Ashes — When The Reaper's Toll expires, the stolen stats return and the enemy has a 50% chance to take 1 unavoidable damage.",
+  snowGlacialMage: 'Frost Duo — Gains +0.2 Control and +0.2 Agility per active Ice Wisp; gains an additional +1 Strength if both Wisps are active.',
+  snowIceWisp: 'A Cold Farewell — On death, explodes (Rad 1.5) for 4 turns; allies heal 1 HP/turn and get +1 Strength; enemies lose 0.4 Agility and have Control reduced to 0.'
+};
+

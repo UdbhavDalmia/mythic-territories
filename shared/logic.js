@@ -40,10 +40,12 @@ const flash = (msg, team, gs) =>
 // ============================================================================
 export function checkTerritoryThresholds(gs) {
   if (!gs || !gs.factionPassives) return;
+  const snowSize = gs.snowTerritory ? (typeof gs.snowTerritory.size === 'number' ? gs.snowTerritory.size : gs.snowTerritory.length) : 0;
+  const ashSize = gs.ashTerritory ? (typeof gs.ashTerritory.size === 'number' ? gs.ashTerritory.size : gs.ashTerritory.length) : 0;
   gs.factionPassives.snow.territory.IcyHighways =
-    gs.snowTerritory.size >= C.TERRITORY_UNLOCK_THRESHOLD;
+    snowSize >= C.TERRITORY_UNLOCK_THRESHOLD;
   gs.factionPassives.ash.territory.ScorchedEarth =
-    gs.ashTerritory.size >= C.TERRITORY_UNLOCK_THRESHOLD;
+    ashSize >= C.TERRITORY_UNLOCK_THRESHOLD;
 }
 
 const isLeader = (piece) =>
@@ -2515,12 +2517,14 @@ export function resetGame() {
 
 export function initGameState(initialState) {
   gameState = initialState;
+  if (gameState) ensureSets(gameState);
 }
 
 export function withGameState(gs, fn) {
   const prev = gameState;
   try {
     gameState = gs;
+    if (gameState) ensureSets(gameState);
     return fn();
   } finally {
     gameState = prev;

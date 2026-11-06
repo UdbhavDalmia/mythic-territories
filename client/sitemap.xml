@@ -1,23 +1,36 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <!-- Main lobby / home -->
   <url>
     <loc>https://mythic-territories.xyz/</loc>
+    <lastmod>2025-07-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
+
+  <!-- Rulebook page -->
   <url>
-    <loc>https://mythic-territories.xyz/rules.html</loc>
+    <loc>https://mythic-territories.xyz/?page=rules</loc>
+    <lastmod>2025-07-05</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
+
+  <!-- Patch notes page -->
   <url>
-    <loc>https://mythic-territories.xyz/notes.html</loc>
+    <loc>https://mythic-territories.xyz/?page=notes</loc>
+    <lastmod>2025-07-05</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
+
+  <!-- Faction wheel / unit roster page -->
   <url>
-    <loc>https://mythic-territories.xyz/game.html</loc>
+    <loc>https://mythic-territories.xyz/?page=wheel</loc>
+    <lastmod>2025-07-05</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.6</priority>
   </url>
+
 </urlset>

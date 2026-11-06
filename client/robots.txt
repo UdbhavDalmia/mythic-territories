@@ -1,3 +1,9 @@
 User-agent: *
 Allow: /
+
+# Block the game session URLs — they are ephemeral and not indexable content
+Disallow: /?room=
+Disallow: /?mode=local
+
+# Sitemap
 Sitemap: https://mythic-territories.xyz/sitemap.xml

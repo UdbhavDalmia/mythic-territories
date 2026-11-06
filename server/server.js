@@ -58,7 +58,7 @@ function emitStateUpdate(room) {
     room.lastSentState = JSON.parse(JSON.stringify(newS));
 }
 
-app.use(express.static(path.join(__dirname, '../client')));
+app.use(express.static(path.join(__dirname, '../client/dist')));
 app.use('/shared', express.static(path.join(__dirname, '../shared')));
 
 io.on('connection', (socket) => {
@@ -145,8 +145,8 @@ io.on('connection', (socket) => {
 
             const coordsOk = (obj) => {
                 if (!obj || typeof obj !== 'object') return false;
-                const r = parseInt(obj.r);
-                const c = parseInt(obj.c);
+                const r = parseFloat(obj.r);
+                const c = parseFloat(obj.c);
                 if (isNaN(r) || isNaN(c)) return false;
                 return C.inBounds(r, c);
             };

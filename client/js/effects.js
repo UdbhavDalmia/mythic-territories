@@ -18,7 +18,6 @@ export const drawParticles = gs => Particles.drawParticles(ctx, gs)
 export const drawProjectiles = gs => Particles.drawProjectiles(ctx, gs)
 
 export function drawRifts(gs) {
-    if (Terrain.drawRifts) return Terrain.drawRifts(ctx, effectsCtx, gs)
     effectsCtx.clearRect(0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE)
     C.SHAPES.riftAreas.forEach(r => {
         r.pulsePhase += 0.06
@@ -134,4 +133,6 @@ export const spawnDeathMeteorEffect = (...a) => Anim.spawnDeathMeteorEffect(...a
 export const drawDeathMeteorAnimations = gs => Anim.drawDeathMeteorAnimations(ctx, gs)
 export const drawDeathMeteorShield = (ctxParam, piece, gs) => Anim.drawDeathMeteorShield(ctxParam, piece, gs)
 export const drawMagmaShardsBlock = (...a) => Terrain.drawMagmaShardsBlock(...a)
+export const spawnFateLinkCast = (...a) => Anim.spawnFateLinkCast(...a)
+export const drawFateLinkAnimations = (ctxParam, gs) => Anim.drawFateLinkAnimations(ctxParam, gs)
 

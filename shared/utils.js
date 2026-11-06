@@ -8,6 +8,28 @@ import * as C from "./constants.js";
 
 const safe = (v, d = 0) => (typeof v === "number" ? v : d);
 
+export function hasTerritory(territory, pos) {
+  if (!territory) return false;
+  if (typeof territory.has === 'function') {
+    return territory.has(pos);
+  }
+  if (typeof territory.includes === 'function') {
+    return territory.includes(pos);
+  }
+  return false;
+}
+
+export function getTerritorySize(territory) {
+  if (!territory) return 0;
+  if (typeof territory.size === 'number') {
+    return territory.size;
+  }
+  if (typeof territory.length === 'number') {
+    return territory.length;
+  }
+  return 0;
+}
+
 export function getEffectivePower(
   piece,
   gameState,
@@ -63,7 +85,7 @@ export function getEffectivePower(
   if (
     piece.team !== "ash" &&
     gameState.factionPassives?.ash?.territory?.ScorchedEarth &&
-    gameState.ashTerritory.has(`${piece.row},${piece.col}`)
+    hasTerritory(gameState.ashTerritory, `${piece.row},${piece.col}`)
   )
     base -= C.TERRITORY_PASSIVES.DEBUFF_AMOUNT;
 
@@ -383,12 +405,8 @@ export function isCaptureSuccessful(attacker, defender, gameState) {
       if (defender.isEntrenched && defender.team !== gameState.currentTurn)
         return false;
       return (
-        (attacker.team === "snow"
-          ? gameState.snowTerritory.size
-          : gameState.ashTerritory.size) >
-        (defender.team === "snow"
-          ? gameState.snowTerritory.size
-          : gameState.ashTerritory.size)
+        getTerritorySize(attacker.team === "snow" ? gameState.snowTerritory : gameState.ashTerritory) >
+        getTerritorySize(defender.team === "snow" ? gameState.snowTerritory : gameState.ashTerritory)
       );
     }
     return false;
@@ -681,9 +699,9 @@ export function getValidMoves(piece, gameState) {
         c2 < C.COLS
       ) {
         if (
-          gameState.snowTerritory.has(`${piece.row},${piece.col}`) &&
-          gameState.snowTerritory.has(`${r1},${c1}`) &&
-          gameState.snowTerritory.has(`${r2},${c2}`) &&
+          hasTerritory(gameState.snowTerritory, `${piece.row},${piece.col}`) &&
+          hasTerritory(gameState.snowTerritory, `${r1},${c1}`) &&
+          hasTerritory(gameState.snowTerritory, `${r2},${c2}`) &&
           !C.getPieceAt(r1, c1, gameState.pieces) &&
           isFree(r1, c1) &&
           r2 >= 0 &&

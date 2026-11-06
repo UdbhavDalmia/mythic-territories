@@ -45,136 +45,223 @@ export function drawMarkOfCinderSparks(ctx, gameState) {
   }
 }
 
-export function drawParticles(ctx, gameState) {
-  const low = !!gameState.lowDetail;
-  // When low-detail is active OR the deep freeze vignette is aggressively drawn, sample fewer environmental particles
-  const isVignetteHeavy = gameState.frostVignette && (gameState.frostVignette.life / gameState.frostVignette.maxLife) < 0.8;
-  const drawLowDetail = low || isVignetteHeavy;
+// Module-scoped persistent pools to maintain smooth animation across React renders
+let snowParticlesPool = [];
+let ashParticlesPool = [];
 
-  const drawSet = (arr, color, territory) => {
-    arr = arr || [];
-    let entries = null;
-    const getEntries = () => {
-      if (!entries) entries = (territory && territory.size > 0) ? Array.from(territory) : [];
-      return entries;
-    };
+// Helper to extract clean array of { r, c, key: 'r,c' } from any territory data shape or trails
+function extractTerritoryCells(territory, territoryTrails, team) {
+  const result = [];
+  const visited = new Set();
 
-    // When low-detail is active, sample fewer particles to reduce draw work
-    if (drawLowDetail && arr.length > 0) {
-      for (let i = 0; i < arr.length; i += (isVignetteHeavy ? 4 : 3)) { // Drop even more if vignette is heavy
-        const p = arr[i];
-        if (!p) continue;
-        p.x += p.vx;
-        p.y += p.vy;
-        const currentTerritory = `${Math.floor(p.y / C.CELL_SIZE)},${Math.floor(p.x / C.CELL_SIZE)}`;
-        // territory fallback handled below
-        if (!territory || !territory.has || !territory.has(currentTerritory)) {
-          let r, c;
-          const e = getEntries();
-          if (e.length === 0) {
-            r = Math.floor(Math.random() * C.ROWS);
-            c = Math.floor(Math.random() * C.COLS);
-          } else {
-            const entry = e[Math.floor(Math.random() * e.length)];
-            if (typeof entry === 'string') {
-              const parts = entry.split(',').map(Number);
-              r = parts[0]; c = parts[1];
-            } else if (Array.isArray(entry) && entry.length >= 2) {
-              r = Number(entry[0]); c = Number(entry[1]);
-            } else if (entry && typeof entry === 'object') {
-              const k = Object.keys(entry)[0];
-              if (typeof k === 'string' && k.includes(',')) {
-                const parts = k.split(',').map(Number);
-                r = parts[0]; c = parts[1];
-              } else {
-                r = Math.floor(Math.random() * C.ROWS);
-                c = Math.floor(Math.random() * C.COLS);
-              }
-            } else {
-              r = Math.floor(Math.random() * C.ROWS);
-              c = Math.floor(Math.random() * C.COLS);
-            }
-          }
-          p.x = c * C.CELL_SIZE + Math.random() * C.CELL_SIZE;
-          p.y = r * C.CELL_SIZE + Math.random() * C.CELL_SIZE;
-        }
-
-        if (p.x < 0) p.x = C.CANVAS_SIZE;
-        if (p.x > C.CANVAS_SIZE) p.x = 0;
-        if (p.y < 0) p.y = C.CANVAS_SIZE;
-        if (p.y > C.CANVAS_SIZE) p.y = 0;
-
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${color},${p.alpha})`;
-        ctx.fill();
-      }
-      return;
+  if (territory) {
+    let rawList = [];
+    if (typeof territory.size === 'number') {
+      rawList = Array.from(territory);
+    } else if (Array.isArray(territory)) {
+      rawList = territory;
+    } else if (typeof territory === 'object') {
+      rawList = Object.keys(territory);
     }
 
-    arr.forEach(p => {
-      p.x += p.vx;
-      p.y += p.vy;
-      const currentTerritory = `${Math.floor(p.y / C.CELL_SIZE)},${Math.floor(p.x / C.CELL_SIZE)}`;
-      // If territory is missing or doesn't contain the current cell, pick a fallback location
-      if (!territory || !territory.has || !territory.has(currentTerritory)) {
-        let r, c;
-        const e = getEntries();
-        if (e.length === 0) {
-          // No territory yet: random cell
-          r = Math.floor(Math.random() * C.ROWS);
-          c = Math.floor(Math.random() * C.COLS);
-        } else {
-          const entry = e[Math.floor(Math.random() * e.length)];
-          if (typeof entry === 'string') {
-            const parts = entry.split(',').map(Number);
-            r = parts[0]; c = parts[1];
-          } else if (Array.isArray(entry) && entry.length >= 2) {
-            r = Number(entry[0]); c = Number(entry[1]);
-          } else if (entry && typeof entry === 'object') {
-            // plain object with keys
-            const k = Object.keys(entry)[0];
-            if (typeof k === 'string' && k.includes(',')) {
-              const parts = k.split(',').map(Number);
-              r = parts[0]; c = parts[1];
-            } else {
-              r = Math.floor(Math.random() * C.ROWS);
-              c = Math.floor(Math.random() * C.COLS);
-            }
-          } else {
-            r = Math.floor(Math.random() * C.ROWS);
-            c = Math.floor(Math.random() * C.COLS);
+    for (const item of rawList) {
+      let r, c;
+      if (typeof item === 'string') {
+        const parts = item.split(',').map(Number);
+        r = parts[0]; c = parts[1];
+      } else if (Array.isArray(item) && item.length >= 2) {
+        r = Number(item[0]); c = Number(item[1]);
+      }
+      if (!isNaN(r) && !isNaN(c) && r >= 0 && r < 10 && c >= 0 && c < 10) {
+        const key = `${r},${c}`;
+        if (!visited.has(key)) {
+          visited.add(key);
+          result.push({ r, c, key });
+        }
+      }
+    }
+  }
+
+  if (Array.isArray(territoryTrails)) {
+    for (const t of territoryTrails) {
+      if (t.team === team) {
+        const r = Math.round(t.row);
+        const c = Math.round(t.col);
+        if (r >= 0 && r < 10 && c >= 0 && c < 10) {
+          const key = `${r},${c}`;
+          if (!visited.has(key)) {
+            visited.add(key);
+            result.push({ r, c, key });
           }
         }
-        p.x = c * C.CELL_SIZE + Math.random() * C.CELL_SIZE;
-        p.y = r * C.CELL_SIZE + Math.random() * C.CELL_SIZE;
       }
+    }
+  }
 
-      if (p.x < 0) p.x = C.CANVAS_SIZE;
-      if (p.x > C.CANVAS_SIZE) p.x = 0;
-      if (p.y < 0) p.y = C.CANVAS_SIZE;
-      if (p.y > C.CANVAS_SIZE) p.y = 0;
+  return result;
+}
 
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(${color},${p.alpha})`;
-      ctx.fill();
-    });
-  };
+export function drawParticles(ctx, gameState) {
+  if (!gameState || !ctx) return;
 
-  // Ensure particle arrays exist so drawing doesn't crash if initParticles wasn't called yet
-  gameState.snowParticles = gameState.snowParticles || [];
-  gameState.ashParticles = gameState.ashParticles || [];
+  const snowCells = extractTerritoryCells(gameState.snowTerritory, gameState.territoryTrails, 'snow');
+  const ashCells = extractTerritoryCells(gameState.ashTerritory, gameState.territoryTrails, 'ash');
+
+  const snowSet = new Set(snowCells.map(c => c.key));
+  const ashSet = new Set(ashCells.map(c => c.key));
+
+  const targetSnowCount = snowCells.length > 0 ? Math.min(Math.max(snowCells.length * 3, 8), 50) : 0;
+  const targetAshCount = ashCells.length > 0 ? Math.min(Math.max(ashCells.length * 3, 8), 50) : 0;
+
+  // 1. Snow Particles Update & Draw (strictly inside captured territory)
+  if (snowCells.length === 0) {
+    snowParticlesPool = [];
+  } else {
+    // Fill pool up to target count
+    while (snowParticlesPool.length < targetSnowCount) {
+      const cell = snowCells[Math.floor(Math.random() * snowCells.length)];
+      snowParticlesPool.push({
+        x: cell.c * C.CELL_SIZE + Math.random() * C.CELL_SIZE,
+        y: cell.r * C.CELL_SIZE + Math.random() * C.CELL_SIZE,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: Math.random() * 0.35 + 0.25, // Gentle snow drift down
+        radius: Math.random() * 1.5 + 1.2,
+        baseAlpha: Math.random() * 0.35 + 0.45,
+        alpha: 0,
+        fadeIn: true,
+        life: Math.floor(Math.random() * 80 + 80),
+        maxLife: 160,
+        swayOffset: Math.random() * Math.PI * 2
+      });
+    }
+    // Trim if territory shrank
+    if (snowParticlesPool.length > targetSnowCount) {
+      snowParticlesPool.length = targetSnowCount;
+    }
+  }
+
+  for (let i = snowParticlesPool.length - 1; i >= 0; i--) {
+    const p = snowParticlesPool[i];
+    p.swayOffset += 0.04;
+    p.x += p.vx + Math.sin(p.swayOffset) * 0.25;
+    p.y += p.vy;
+    p.life--;
+
+    // Fade in / out
+    if (p.fadeIn) {
+      p.alpha = Math.min(p.baseAlpha, p.alpha + 0.04);
+      if (p.alpha >= p.baseAlpha) p.fadeIn = false;
+    } else if (p.life < 20) {
+      p.alpha = Math.max(0, p.alpha - 0.03);
+    }
+
+    const cellR = Math.floor(p.y / C.CELL_SIZE);
+    const cellC = Math.floor(p.x / C.CELL_SIZE);
+    const inTerritory = snowSet.has(`${cellR},${cellC}`);
+
+    if (!inTerritory || p.life <= 0 || p.alpha <= 0) {
+      if (snowCells.length > 0) {
+        const cell = snowCells[Math.floor(Math.random() * snowCells.length)];
+        p.x = cell.c * C.CELL_SIZE + Math.random() * C.CELL_SIZE;
+        p.y = cell.r * C.CELL_SIZE + Math.random() * 6; // Respawn at top of cell
+        p.life = Math.floor(Math.random() * 80 + 80);
+        p.alpha = 0;
+        p.fadeIn = true;
+      } else {
+        snowParticlesPool.splice(i, 1);
+        continue;
+      }
+    }
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(180, 230, 255, ${p.alpha})`;
+    ctx.shadowColor = '#66ccff';
+    ctx.shadowBlur = 4;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // 2. Ash Particles Update & Draw (strictly inside captured territory)
+  if (ashCells.length === 0) {
+    ashParticlesPool = [];
+  } else {
+    // Fill pool up to target count
+    while (ashParticlesPool.length < targetAshCount) {
+      const cell = ashCells[Math.floor(Math.random() * ashCells.length)];
+      ashParticlesPool.push({
+        x: cell.c * C.CELL_SIZE + Math.random() * C.CELL_SIZE,
+        y: cell.r * C.CELL_SIZE + Math.random() * C.CELL_SIZE,
+        vx: (Math.random() - 0.5) * 0.35,
+        vy: -(Math.random() * 0.4 + 0.25), // Floating molten ember up
+        radius: Math.random() * 1.5 + 1.2,
+        baseAlpha: Math.random() * 0.35 + 0.45,
+        alpha: 0,
+        fadeIn: true,
+        life: Math.floor(Math.random() * 80 + 80),
+        maxLife: 160,
+        wobbleOffset: Math.random() * Math.PI * 2
+      });
+    }
+    // Trim if territory shrank
+    if (ashParticlesPool.length > targetAshCount) {
+      ashParticlesPool.length = targetAshCount;
+    }
+  }
+
+  for (let i = ashParticlesPool.length - 1; i >= 0; i--) {
+    const p = ashParticlesPool[i];
+    p.wobbleOffset += 0.05;
+    p.x += p.vx + Math.cos(p.wobbleOffset) * 0.25;
+    p.y += p.vy;
+    p.life--;
+
+    // Fade in / out
+    if (p.fadeIn) {
+      p.alpha = Math.min(p.baseAlpha, p.alpha + 0.04);
+      if (p.alpha >= p.baseAlpha) p.fadeIn = false;
+    } else if (p.life < 20) {
+      p.alpha = Math.max(0, p.alpha - 0.03);
+    }
+
+    const cellR = Math.floor(p.y / C.CELL_SIZE);
+    const cellC = Math.floor(p.x / C.CELL_SIZE);
+    const inTerritory = ashSet.has(`${cellR},${cellC}`);
+
+    if (!inTerritory || p.life <= 0 || p.alpha <= 0) {
+      if (ashCells.length > 0) {
+        const cell = ashCells[Math.floor(Math.random() * ashCells.length)];
+        p.x = cell.c * C.CELL_SIZE + Math.random() * C.CELL_SIZE;
+        p.y = (cell.r + 1) * C.CELL_SIZE - Math.random() * 6; // Respawn at bottom of cell
+        p.life = Math.floor(Math.random() * 80 + 80);
+        p.alpha = 0;
+        p.fadeIn = true;
+      } else {
+        ashParticlesPool.splice(i, 1);
+        continue;
+      }
+    }
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 120, 50, ${p.alpha})`;
+    ctx.shadowColor = '#ff6622';
+    ctx.shadowBlur = 4;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Sync with gameState arrays for backwards-compatibility
+  gameState.snowParticles = snowParticlesPool;
+  gameState.ashParticles = ashParticlesPool;
   gameState.battleParticles = gameState.battleParticles || [];
-  drawSet(gameState.snowParticles, '150,200,255', gameState.snowTerritory);
-  drawSet(gameState.ashParticles, '250,100,80', gameState.ashTerritory);
 
+  // 3. Battle Particles
   for (let i = gameState.battleParticles.length - 1; i >= 0; i--) {
-    // Under low detail, only draw a bounded recent subset and speed up decay
-    const drawIndexStart = gameState.lowDetail ? Math.max(0, gameState.battleParticles.length - 60) : 0;
-    if (i < drawIndexStart) { continue; }
     const p = gameState.battleParticles[i];
-    p.alpha -= 0.015;
+    p.alpha -= 0.02;
     if (p.alpha <= 0) {
       gameState.battleParticles.splice(i, 1);
       continue;
@@ -208,7 +295,6 @@ export function drawProjectiles(ctx, gameState) {
 
     ctx.fillStyle = proj.color;
     ctx.shadowColor = proj.color;
-    // Reduce blur in low-detail to save expensive shadow rendering
     ctx.shadowBlur = gameState.lowDetail ? 4 : 15;
     ctx.beginPath();
     ctx.arc(proj.x, proj.y, proj.size, 0, Math.PI * 2);
@@ -221,7 +307,6 @@ export function drawShockwaves(ctx, gameState) {
   for (let i = gameState.shockwaves.length - 1; i >= 0; i--) {
     const wave = gameState.shockwaves[i];
     wave.radius += 3;
-    // Faster fade under low-detail so arrays clean up faster
     wave.life -= (gameState.lowDetail ? 0.05 : 0.025);
     if (wave.life <= 0) {
       gameState.shockwaves.splice(i, 1);
@@ -237,43 +322,14 @@ export function drawShockwaves(ctx, gameState) {
 
 // Keep small helper spawners in particles core
 export function initParticles(gameState) {
-  const createSet = (count, territory, team) => {
-    const entries = (territory && territory.size > 0) ? Array.from(territory) : [];
-    return Array.from({ length: count }, () => {
-      // If territory is empty, fall back to random board positions to avoid undefined split()
-      let r, c;
-      if (entries.length === 0) {
-        r = Math.floor(Math.random() * C.ROWS);
-        c = Math.floor(Math.random() * C.COLS);
-      } else {
-        const entry = entries[Math.floor(Math.random() * entries.length)];
-        if (typeof entry === 'string') {
-          [r, c] = entry.split(',').map(Number);
-        } else if (Array.isArray(entry)) {
-          // Some code paths might store as [r,c] arrays; handle defensively
-          [r, c] = entry.map(Number);
-        } else {
-          r = Math.floor(Math.random() * C.ROWS);
-          c = Math.floor(Math.random() * C.COLS);
-        }
-      }
-
-      return {
-        x: c * C.CELL_SIZE + Math.random() * C.CELL_SIZE,
-        y: r * C.CELL_SIZE + Math.random() * C.CELL_SIZE,
-        radius: Math.random() * 2 + 1,
-        alpha: Math.random() * 0.5 + 0.3,
-        vx: (Math.random() - 0.5) * 0.5,
-        vy: (team === 'snow' ? 1 : -1) * (Math.random() * 0.5 + 0.2),
-        team
-      };
-    });
-  };
-
-  gameState.snowParticles = createSet(35, gameState.snowTerritory, 'snow');
-  gameState.ashParticles = createSet(35, gameState.ashTerritory, 'ash');
-  gameState.battleParticles = [];
-  gameState.frostfallShards = [];
+  snowParticlesPool = [];
+  ashParticlesPool = [];
+  if (gameState) {
+    gameState.snowParticles = snowParticlesPool;
+    gameState.ashParticles = ashParticlesPool;
+    gameState.battleParticles = [];
+    gameState.frostfallShards = [];
+  }
 }
 
 export function spawnBattleParticles(attacker, defender, gameState) {
