@@ -246,3 +246,21 @@ body {
 .almendra-font {
   font-family: 'Almendra SC', serif !important;
 }
+
+.home-subtitle {
+  font-family: 'Almendra SC', 'Cinzel', serif;
+  letter-spacing: 0.05em;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.85);
+}
+
+.home-subtitle-frost {
+  color: #A5F3FC;
+  font-weight: 700;
+  text-shadow: 0 0 16px rgba(165, 243, 252, 0.8), 0 0 32px rgba(137, 206, 255, 0.45);
+}
+
+.home-subtitle-ash {
+  color: #EF4444;
+  font-weight: 700;
+  text-shadow: 0 0 16px rgba(239, 68, 68, 0.8), 0 0 32px rgba(239, 68, 68, 0.45);
+}

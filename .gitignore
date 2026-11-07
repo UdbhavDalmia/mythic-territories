@@ -1,13 +1,44 @@
 # Dependency directories
 node_modules/
+client/node_modules/
+**/node_modules/
 
-# Environment variables
+# Production build outputs
+dist/
+client/dist/
+dist-ssr/
+build/
+out/
+.vite/
+**/.vite/
+
+# Environment variables & secrets
 .env
+.env.*
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+!.env.template
 
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Test, coverage, and cache
+coverage/
+.nyc_output/
+.cache/
+.turbo/
+.figma/cache/
+.figma/tmp/
 
 # OS generated files
 .DS_Store
@@ -17,6 +48,7 @@ npm-debug.log*
 .Trashes
 ehthumbs.db
 Thumbs.db
+[Dd]esktop.ini
 
 # Editor directories and files
 .vscode/
@@ -26,3 +58,5 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+*.bak
+*.tmp

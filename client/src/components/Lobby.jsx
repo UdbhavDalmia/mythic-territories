@@ -339,10 +339,18 @@ export default function Lobby({ navigateTo }) {
           </h1>
           <p
             ref={subtitleRef}
-            className="mt-5 max-w-xl text-sm sm:text-lg leading-relaxed text-on-surface-variant"
+            className="home-subtitle mt-5 max-w-2xl text-base sm:text-xl md:text-2xl leading-relaxed text-slate-200/90"
             style={{ opacity: 0 }}
           >
-            Command Frost or Ash in a tactical battle for territory, power, and dominion.
+            Command{' '}
+            <span className="home-subtitle-frost">
+              Frost
+            </span>{' '}
+            <span className="text-on-surface-variant/80 italic font-serif text-sm sm:text-base">or</span>{' '}
+            <span className="home-subtitle-ash">
+              Ash
+            </span>{' '}
+            in a tactical battle for territory, power, and dominion.
           </p>
         </div>
         <div className="relative flex flex-col items-center">
