@@ -25,7 +25,7 @@ const TERR_SKIP_FRAMES = 2;
 
 const buildBadges = team => Array.from({ length: 8 }, (_, i) => {
   const im = new Image();
-  im.src = i === 0 ? `badges/${team}-p0.svg` : `badges/${team}-p${i}.png`;
+  im.src = i === 0 ? `badges/${team}-p0.svg` : `badges/${team}-p${i}.webp`;
   return im;
 });
 
@@ -722,7 +722,7 @@ export function showVictoryScreen(winningTeam) {
   banner.style.display = 'flex';
   title.textContent = `${winningTeam.toUpperCase()} WINS!`;
   title.className = winningTeam === 'snow' ? 'snow-message' : 'ash-message';
-  if (art) { art.src = winningTeam === 'snow' ? 'units/frost-lord.png' : 'units/ash-tyrant.png'; art.style.display = 'block'; }
+  if (art) { art.src = winningTeam === 'snow' ? 'units/frost-lord.webp' : 'units/ash-tyrant.webp'; art.style.display = 'block'; }
 }
 
 const visualStates = new Map();

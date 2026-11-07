@@ -1,9 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
+import '../../styles/notes.css';
+import {
+  ArrowLeft,
+  BookOpen,
+  CalendarDays,
+  ChevronDown,
+  CircleAlert,
+  Minus,
+  Plus,
+  ScrollText,
+  SlidersHorizontal,
+  Sparkles,
+  Wrench,
+} from 'lucide-react';
 
 const PATCHES = [
   {
-    version: "3.0 (UPCOMING)",
+    version: "2.0 (UPCOMING)",
     title: "The New Era of Tactics",
     date: "TBD",
     tags: ["Upcoming", "Major Overhaul"],
@@ -16,7 +30,7 @@ const PATCHES = [
     ]
   },
   {
-    version: "2.3",
+    version: "1.9",
     title: "The Royal Primal Overhaul",
     date: "12/05/2026",
     tags: ["Latest", "Update"],
@@ -28,7 +42,7 @@ const PATCHES = [
     ]
   },
   {
-    version: "2.2",
+    version: "1.8",
     title: "Multiplayer Added; AI Temporarily Removed",
     date: "29/04/2026",
     tags: ["Multiplayer"],
@@ -41,7 +55,7 @@ const PATCHES = [
     ]
   },
   {
-    version: "2.1",
+    version: "1.7",
     title: "Siphoner Rework",
     date: "12/04/2026",
     tags: ["Balancing"],
@@ -54,7 +68,7 @@ const PATCHES = [
     ]
   },
   {
-    version: "2.0",
+    version: "1.6",
     title: "The Architect's Rebirth",
     date: "30/03/2026",
     tags: ["Major Milestone"],
@@ -157,217 +171,391 @@ const HISTORICAL_PATCHES = [
   }
 ];
 
-export default function Notes({ navigateTo }) {
-  const [showArchive, setShowArchive] = useState(false);
-  const pageRef = useRef(null);
+const CATEGORY_STYLES = {
+  New: {
+    icon: Plus,
+    className: 'border-ice-light/25 bg-ice-light/10 text-ice-light'
+  },
+  Balance: {
+    icon: SlidersHorizontal,
+    className: 'border-ember-gold/25 bg-ember-gold/10 text-ember-gold'
+  },
+  Fixed: {
+    icon: Wrench,
+    className: 'border-emerald-300/25 bg-emerald-300/10 text-emerald-300'
+  },
+  Removed: {
+    icon: Minus,
+    className: 'border-magma-core/25 bg-magma-core/10 text-magma-core'
+  },
+  Improved: {
+    icon: Sparkles,
+    className: 'border-violet-300/25 bg-violet-300/10 text-violet-300'
+  },
+  Notice: {
+    icon: CircleAlert,
+    className: 'border-on-surface-variant/25 bg-on-surface-variant/10 text-on-surface-variant'
+  }
+};
 
-  // Entrance — slide up + fade in
+const getCategory = (text) => {
+  const value = text.toLowerCase();
+  if (value.includes('removed') || value.includes('removal')) return 'Removed';
+  if (value.includes('fix') || value.includes('polish') || value.includes('latency')) return 'Fixed';
+  if (value.includes('balance') || value.includes('rework') || value.includes('overhaul')) return 'Balance';
+  if (value.includes('new ') || value.includes('added') || value.includes('introduced')) return 'New';
+  if (value.includes('note:') || value.includes('notes:')) return 'Notice';
+  return 'Improved';
+};
+
+const splitChange = (text) => {
+  const separator = text.indexOf(':');
+  if (separator === -1) return { title: 'Update', description: text };
+  return {
+    title: text.slice(0, separator).trim(),
+    description: text.slice(separator + 1).trim()
+  };
+};
+
+const getScope = (text) => {
+  const value = text.toLowerCase();
+  if (/(visual|animation|interface|mobile|portrait|aesthetic|performance)/.test(value)) return 'Presentation';
+  if (/(multiplayer|ai |artificial intelligence|matchmaking|room)/.test(value)) return 'Game modes';
+  return 'Gameplay';
+};
+
+const versionId = (version) => `version-${version.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`;
+
+function ChangeRow({ text }) {
+  const category = getCategory(text);
+  const scope = getScope(text);
+  const { title, description } = splitChange(text);
+  const categoryStyle = CATEGORY_STYLES[category];
+  const Icon = categoryStyle.icon;
+
+  return (
+    <li className="grid gap-3 rounded-xl border border-outline-variant/20 bg-void-black/35 p-4 sm:grid-cols-[auto_1fr]">
+      <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border ${categoryStyle.className}`}>
+        <Icon className="h-4 w-4" aria-hidden="true" />
+      </span>
+      <div>
+        <div className="mb-1 flex flex-wrap items-center gap-2">
+          <h4 className="font-label-caps text-xs tracking-wider text-on-surface">{title}</h4>
+          <span className={`rounded-full border px-2 py-0.5 font-label-caps text-[8px] tracking-widest ${categoryStyle.className}`}>
+            {category}
+          </span>
+          <span className="font-label-caps text-[8px] tracking-widest text-on-surface-variant/60">{scope}</span>
+        </div>
+        <p className="text-sm leading-relaxed text-on-surface-variant">{description}</p>
+      </div>
+    </li>
+  );
+}
+
+function ReleaseCard({ patch, expanded, onToggle, onViewRules, featured = false, archived = false }) {
+  const changes = patch.highlights?.map((item) => item.text) || patch.bullets?.map((item) => item.prefix) || [];
+  const themeClass = patch.colorTheme === 'magma'
+    ? 'from-magma-core/20 border-magma-core/35'
+    : patch.colorTheme === 'gold'
+      ? 'from-ember-gold/20 border-ember-gold/35'
+      : 'from-ice-light/20 border-ice-light/35';
+  const accentClass = patch.colorTheme === 'magma'
+    ? 'text-magma-core'
+    : patch.colorTheme === 'gold'
+      ? 'text-ember-gold'
+      : 'text-ice-light';
+  const summary = changes.length ? splitChange(changes[0]).description : '';
+
+  return (
+    <article
+      id={versionId(patch.version)}
+      className={`scroll-mt-36 overflow-hidden rounded-2xl border bg-gradient-to-br ${themeClass} via-surface-container/90 to-void-black/95 shadow-[0_20px_70px_rgba(0,0,0,0.3)] ${featured ? 'ring-1 ring-ice-light/15' : ''}`}
+    >
+      <button
+        className="w-full p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ember-gold sm:p-7"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        aria-controls={`${versionId(patch.version)}-changes`}
+      >
+        <div className="flex items-start justify-between gap-5">
+          <div className="min-w-0">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              {featured && (
+                <span className="rounded-full border border-ice-light/30 bg-ice-light/10 px-2.5 py-1 font-label-caps text-[9px] tracking-[0.18em] text-ice-light">
+                  Current release
+                </span>
+              )}
+              {archived && (
+                <span className="rounded-full border border-outline/30 bg-void-black/30 px-2.5 py-1 font-label-caps text-[9px] tracking-[0.18em] text-on-surface-variant">
+                  Archive
+                </span>
+              )}
+              <span className={`font-label-caps text-[10px] tracking-[0.2em] ${accentClass}`}>
+                Version {patch.version}
+              </span>
+            </div>
+            <h2 className={`font-almendra font-semibold text-on-surface ${featured ? 'text-3xl sm:text-4xl' : 'text-2xl sm:text-3xl'}`}>
+              {patch.title}
+            </h2>
+            <div className="mt-3 flex items-center gap-2 text-xs text-on-surface-variant/80">
+              <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+              <time>{patch.date}</time>
+              <span aria-hidden="true">·</span>
+              <span>{changes.length} changes</span>
+            </div>
+            {!expanded && summary && (
+              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-on-surface-variant">{summary}</p>
+            )}
+          </div>
+          <span className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-outline/20 bg-void-black/30 text-on-surface-variant">
+            <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" />
+          </span>
+        </div>
+      </button>
+
+      {expanded && (
+        <div id={`${versionId(patch.version)}-changes`} className="border-t border-outline-variant/20 px-5 pb-5 pt-4 sm:px-7 sm:pb-7">
+          <ul className="grid gap-3">
+            {changes.map((change, index) => <ChangeRow key={`${patch.version}-${index}`} text={change} />)}
+          </ul>
+          {onViewRules && (
+            <div className="mt-4 flex justify-end">
+              <button
+                className="inline-flex items-center gap-2 rounded-full px-3 py-2 font-label-caps text-[9px] tracking-wider text-on-surface-variant transition-colors hover:bg-ice-light/10 hover:text-ice-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ice-light"
+                onClick={onViewRules}
+              >
+                <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
+                View current rules
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </article>
+  );
+}
+
+export default function Notes({ navigateTo }) {
+  const requestedVersion = new URLSearchParams(window.location.search).get('version');
+  const archivedVersionRequested = HISTORICAL_PATCHES.some((patch) => patch.version === requestedVersion);
+  const initialVersion = [...PATCHES, ...HISTORICAL_PATCHES].some((patch) => patch.version === requestedVersion)
+    ? requestedVersion
+    : PATCHES[1].version;
+  const [showArchive, setShowArchive] = useState(archivedVersionRequested);
+  const [expandedVersions, setExpandedVersions] = useState(() => new Set([initialVersion]));
+  const pageRef = useRef(null);
+  const upcomingPatch = PATCHES[0];
+  const releasedPatches = PATCHES.slice(1);
+
   useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      gsap.set(pageRef.current, { opacity: 1, y: 0 });
+      return;
+    }
     gsap.fromTo(pageRef.current,
       { opacity: 0, y: 40 },
       { opacity: 1, y: 0, duration: 0.75, ease: 'expo.out' }
     );
   }, []);
 
-  // Exit — slide down + fade, then navigate
+  useEffect(() => {
+    if (!requestedVersion) return;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(versionId(requestedVersion))?.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        block: 'start'
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [requestedVersion]);
+
   const handleNavigate = (dest) => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      navigateTo(dest);
+      return;
+    }
     gsap.to(pageRef.current, {
       opacity: 0, y: 50, duration: 0.32, ease: 'power2.in',
       onComplete: () => navigateTo(dest)
     });
   };
 
+  const openVersion = (version, archived = false) => {
+    if (archived) setShowArchive(true);
+    setExpandedVersions((current) => {
+      const next = new Set(current);
+      if (next.has(version)) next.delete(version);
+      else next.add(version);
+      return next;
+    });
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('page', 'notes');
+    url.searchParams.set('version', version);
+    window.history.replaceState({}, '', url);
+
+    window.requestAnimationFrame(() => {
+      document.getElementById(versionId(version))?.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        block: 'start'
+      });
+    });
+  };
+
   return (
     <div ref={pageRef} className="relative min-h-screen flex flex-col bg-void-black text-on-surface font-body-md select-text" style={{ opacity: 0 }}>
-
-      {/* Background Image Overlay */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         <div className="sticky top-0 w-full h-screen">
           <div
-            className="absolute inset-0 opacity-40 bg-cover bg-center bg-no-repeat transition-transform duration-[20s]"
-            style={{ backgroundImage: "url('/images/menu-bg.png')" }}
+            className="absolute inset-0 opacity-30 bg-cover bg-center bg-no-repeat"
+            style={{ backgroundImage: "url('/images/menu-bg.webp')" }}
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-void-black/40 via-transparent to-void-black/90" />
+          <div className="absolute inset-0 bg-gradient-to-b from-void-black/50 via-void-black/75 to-void-black" />
+          <div className="absolute left-0 top-0 h-[32rem] w-1/2 bg-[radial-gradient(circle_at_top_left,rgba(165,243,252,0.12),transparent_65%)]" />
+          <div className="absolute right-0 top-0 h-[32rem] w-1/2 bg-[radial-gradient(circle_at_top_right,rgba(239,68,68,0.1),transparent_65%)]" />
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 bg-void-black/70 backdrop-blur-md border-b border-outline/20 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+      <nav className="fixed top-0 w-full z-50 bg-void-black/80 backdrop-blur-xl border-b border-outline/15">
         <div className="flex justify-between items-center w-full px-4 md:px-12 py-4 max-w-7xl mx-auto">
-          <div
-            className="font-almendra text-lg sm:text-2xl tracking-wider text-ember-gold cursor-pointer"
+          <button
+            className="font-almendra text-lg sm:text-2xl tracking-wider text-ember-gold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-gold rounded"
             onClick={() => handleNavigate('LOBBY')}
           >
             Mythic Territories
-          </div>
-          {/* Ghost → filled hover button */}
+          </button>
           <button
-            className="relative font-label-caps text-xs sm:text-sm text-ember-gold px-5 py-2 rounded overflow-hidden group transition-colors duration-300"
+            className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full border border-ember-gold/25 px-4 py-2 font-label-caps text-[10px] sm:text-xs tracking-wider text-ember-gold transition-colors duration-300 hover:text-void-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-gold"
             onClick={() => handleNavigate('LOBBY')}
           >
-            <span className="absolute inset-0 bg-ember-gold scale-x-0 group-hover:scale-x-100 origin-left transition-transform duration-300 rounded" />
-            <span className="relative z-10 group-hover:text-void-black transition-colors duration-300">
-              ← Back to Menu
-            </span>
+            <span className="absolute inset-0 origin-left scale-x-0 bg-ember-gold transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-x-100 group-focus-visible:scale-x-100" />
+            <ArrowLeft className="relative z-10 h-3.5 w-3.5 transition-transform duration-300 group-hover:-translate-x-0.5" aria-hidden="true" />
+            <span className="relative z-10">Back to menu</span>
           </button>
         </div>
       </nav>
 
-      {/* Main Content */}
-      <main className="relative z-10 flex-grow pt-32 pb-20 px-4 md:px-12 max-w-4xl mx-auto w-full">
-        <header className="text-center mb-16 space-y-4">
-          <h1 className="font-almendra text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-gradient-dual uppercase mb-4" style={{ fontFamily: '"Almendra SC", serif' }}>
+      <main className="relative z-10 flex-grow pt-32 pb-20 px-4 md:px-8 max-w-6xl mx-auto w-full">
+        <header className="text-center mb-12 space-y-4">
+          <div className="mx-auto flex w-fit items-center gap-2 rounded-full border border-outline/20 bg-void-black/40 px-3 py-1.5 font-label-caps text-[9px] tracking-[0.24em] text-on-surface-variant">
+            <ScrollText className="h-3.5 w-3.5 text-ember-gold" aria-hidden="true" />
+            Release archive
+          </div>
+          <h1 className="font-almendra text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight text-gradient-dual uppercase mb-4">
             PATCH NOTES
           </h1>
-          <p className="font-libre text-lg sm:text-xl italic text-on-surface-variant max-w-2xl mx-auto">
-            Chronicles of the eternal conflict between Frost and Flame.
+          <p className="text-base sm:text-lg text-on-surface-variant max-w-2xl mx-auto leading-relaxed">
+            Follow new features, balance changes, fixes, and every evolution of the battle between Frost and Flame.
           </p>
         </header>
 
-        {/* Timeline */}
-        <div className="space-y-12">
-
-          {/* Active Major Patches */}
-          {PATCHES.map((patch, idx) => {
-            const isIce = patch.colorTheme === 'ice';
-            const borderCol = isIce ? 'border-ice-light' : patch.colorTheme === 'magma' ? 'border-magma-core' : 'border-ember-gold';
-            const textCol = isIce ? 'text-ice-light' : patch.colorTheme === 'magma' ? 'text-magma-core' : 'text-ember-gold';
-
-            return (
-              <section
-                key={idx}
-                className={`glass-obsidian p-6 md:p-10 border-l-4 ${borderCol} rounded-xl relative overflow-hidden group shadow-lg border border-outline/10`}
-              >
-                {/* Upper tags */}
-                {patch.tags && (
-                  <div className="absolute top-0 right-0 p-4 flex flex-col items-end gap-1">
-                    {patch.tags.map((tag, tIdx) => (
-                      <span
-                        key={tIdx}
-                        className={`text-[9px] font-label-caps px-2 py-0.5 rounded border font-semibold uppercase ${tag.toLowerCase().includes('upcoming') || tag.toLowerCase().includes('major')
-                            ? 'bg-ember-gold/10 text-ember-gold border-ember-gold/30'
-                            : 'bg-ice-light/10 text-ice-light border-ice-light/20'
-                          }`}
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                <header className="mb-6">
-                  <p className={`font-label-caps text-xs tracking-widest mb-1 ${textCol}`}>
-                    VERSION {patch.version}
-                  </p>
-                  <h2 className="font-almendra text-2xl sm:text-3xl text-on-surface font-semibold" style={{ fontFamily: '"Almendra SC", serif' }}>
-                    {patch.title}
-                  </h2>
-                  <p className="text-on-surface-variant font-mono text-xs flex items-center gap-1.5 mt-2">
-                    <span className="material-symbols-outlined text-sm">calendar_today</span>
-                    {patch.date}
-                  </p>
-                </header>
-
-                {/* Highlights (Icon list layout) */}
-                {patch.highlights && (
-                  <div className="grid grid-cols-1 gap-4 mt-6">
-                    <div className="p-5 bg-void-black/50 border border-outline-variant/30 rounded-lg space-y-4">
-                      {patch.highlights.map((hl, hlIdx) => (
-                        <div key={hlIdx} className="flex gap-4">
-                          <span className={`material-symbols-outlined shrink-0 mt-0.5 ${hl.color}`}>
-                            {hl.icon}
-                          </span>
-                          <p className="text-on-surface-variant text-sm sm:text-base">
-                            {hl.text}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </section>
-            );
-          })}
-
-          {/* Historical Archives Toggle */}
-          <div className="text-center py-8 select-none">
+        <section id={versionId(upcomingPatch.version)} className="scroll-mt-36 mb-8 rounded-2xl border border-ember-gold/25 bg-gradient-to-r from-ember-gold/10 via-surface-container/75 to-magma-core/10 p-5 sm:p-7">
+          <div className="grid items-center gap-6 md:grid-cols-[1fr_auto]">
+            <div>
+              <div className="mb-2 flex items-center gap-2 font-label-caps text-[9px] tracking-[0.22em] text-ember-gold">
+                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                On the horizon
+              </div>
+              <h2 className="font-almendra text-2xl sm:text-3xl text-on-surface">{upcomingPatch.title}</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-on-surface-variant">
+                Version 2.0 is a planned major overhaul. Its scope is evolving and does not represent the current live ruleset.
+              </p>
+            </div>
             <button
-              className="px-8 py-4 border border-ember-gold/30 rounded-full font-label-caps text-ember-gold hover:bg-ember-gold hover:text-void-black transition-all duration-300 cursor-pointer font-bold text-xs"
-              onClick={() => setShowArchive(!showArchive)}
+              className="rounded-full border border-ember-gold/30 px-4 py-2.5 font-label-caps text-[10px] tracking-wider text-ember-gold transition-colors hover:bg-ember-gold hover:text-void-black"
+              onClick={() => openVersion(upcomingPatch.version)}
             >
-              {showArchive ? 'HIDE HISTORICAL ARCHIVES' : 'VIEW HISTORICAL ARCHIVES'}
+              View roadmap
+            </button>
+          </div>
+          {expandedVersions.has(upcomingPatch.version) && (
+            <ul className="mt-6 grid gap-3 border-t border-ember-gold/15 pt-5 md:grid-cols-2">
+              {upcomingPatch.highlights.map((change, index) => <ChangeRow key={`roadmap-${index}`} text={change.text} />)}
+            </ul>
+          )}
+        </section>
+
+        <section aria-labelledby="released-heading">
+          <div className="mb-5 flex items-end justify-between gap-4">
+            <div>
+              <p className="font-label-caps text-[9px] tracking-[0.22em] text-ice-light">Live history</p>
+              <h2 id="released-heading" className="mt-1 font-almendra text-2xl sm:text-3xl text-on-surface">Released updates</h2>
+            </div>
+            <p className="hidden text-xs text-on-surface-variant md:block">Select a release to view every change</p>
+          </div>
+
+          <div className="space-y-5">
+            {releasedPatches.map((patch, index) => (
+              <ReleaseCard
+                key={patch.version}
+                patch={patch}
+                featured={index === 0}
+                expanded={expandedVersions.has(patch.version)}
+                onToggle={() => openVersion(patch.version)}
+                onViewRules={() => handleNavigate('GUIDE')}
+              />
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-12 border-t border-outline/15 pt-8" aria-labelledby="archive-heading">
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+            <div>
+              <p className="font-label-caps text-[9px] tracking-[0.22em] text-ember-gold">Legacy chronicle</p>
+              <h2 id="archive-heading" className="mt-1 font-almendra text-2xl sm:text-3xl text-on-surface">Historical archive</h2>
+            </div>
+            <button
+              className="inline-flex items-center gap-2 rounded-full border border-ember-gold/25 px-4 py-2.5 font-label-caps text-[10px] tracking-wider text-ember-gold transition-colors hover:bg-ember-gold hover:text-void-black"
+              onClick={() => setShowArchive((current) => !current)}
+              aria-expanded={showArchive}
+            >
+              {showArchive ? 'Hide archive' : `Browse ${HISTORICAL_PATCHES.length} releases`}
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showArchive ? 'rotate-180' : ''}`} aria-hidden="true" />
             </button>
           </div>
 
-          {/* Archive Section */}
           {showArchive && (
-            <div className="space-y-8">
-              {HISTORICAL_PATCHES.map((patch, idx) => {
-                const isIce = patch.colorTheme === 'ice';
-                const borderCol = isIce ? 'border-ice-light' : patch.colorTheme === 'magma' ? 'border-magma-core' : 'border-ember-gold';
-                const textCol = isIce ? 'text-ice-light' : patch.colorTheme === 'magma' ? 'text-magma-core' : 'text-ember-gold';
-
-                return (
-                  <article
-                    key={idx}
-                    className={`glass-obsidian p-6 md:p-8 border border-outline-variant/20 rounded-lg opacity-95 hover:opacity-100 transition-opacity border-l-4 ${borderCol}`}
-                  >
-                    <header className="mb-4">
-                      <p className={`font-label-caps text-xs tracking-widest mb-1 ${textCol}`}>
-                        VERSION {patch.version}
-                      </p>
-                      <h3 className="font-almendra text-2xl text-ember-gold mb-2 font-semibold" style={{ fontFamily: '"Almendra SC", serif' }}>
-                        {patch.title}
-                      </h3>
-                      <p className="text-on-surface-variant font-mono text-xs flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-xs">calendar_today</span>
-                        {patch.date}
-                      </p>
-                    </header>
-
-                    <div className="space-y-3 font-body-md text-on-surface text-sm sm:text-base leading-relaxed">
-                      {patch.bullets.map((b, bIdx) => (
-                        <div key={bIdx} className="flex gap-3">
-                          <span className={`${b.color} font-bold text-xs mt-0.5`}>✦</span>
-                          <p className="text-on-surface-variant">
-                            {b.prefix}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </article>
-                );
-              })}
+            <div className="mt-6 space-y-4">
+              {HISTORICAL_PATCHES.map((patch) => (
+                <ReleaseCard
+                  key={patch.version}
+                  patch={patch}
+                  archived
+                  expanded={expandedVersions.has(patch.version)}
+                  onToggle={() => openVersion(patch.version, true)}
+                  onViewRules={() => handleNavigate('GUIDE')}
+                />
+              ))}
             </div>
           )}
-
-        </div>
+        </section>
       </main>
 
-      {/* Footer Shell */}
       <footer className="bg-void-black border-t border-outline/10 w-full py-8 mt-auto relative z-10 select-none font-label-caps">
         <div className="flex flex-col md:flex-row justify-between items-center px-6 md:px-12 max-w-7xl mx-auto w-full gap-4 text-center md:text-left">
-          <div
-            className="text-sm tracking-wider text-on-surface-variant cursor-pointer"
+          <button
+            className="text-sm tracking-wider text-on-surface-variant cursor-pointer hover:text-ember-gold transition-colors"
             onClick={() => handleNavigate('LOBBY')}
             style={{ fontVariant: 'small-caps' }}
           >
             Mythic Territories
-          </div>
-          <div className="text-xs text-on-surface-variant">
-            © 2025 Mythic Territories. All rights reserved. Ancient scripts protected.
+          </button>
+          <div className="text-[10px] text-on-surface-variant/60">
+            © 2025 Mythic Territories
           </div>
           <div className="flex gap-6">
             <button
-              className="text-xs text-on-surface-variant hover:text-ember-gold transition-colors duration-200 cursor-pointer bg-transparent border-none"
+              className="inline-flex items-center gap-2 text-xs text-on-surface-variant hover:text-ember-gold transition-colors duration-200 cursor-pointer bg-transparent border-none"
               onClick={() => handleNavigate('GUIDE')}
             >
+              <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
               Rulebook
             </button>
             <button
-              className="text-xs text-ember-gold font-bold transition-colors duration-200 cursor-pointer bg-transparent border-none"
+              className="inline-flex items-center gap-2 text-xs text-ember-gold font-bold transition-colors duration-200 cursor-pointer bg-transparent border-none"
               onClick={() => handleNavigate('NOTES')}
             >
+              <ScrollText className="h-3.5 w-3.5" aria-hidden="true" />
               Patch Notes
             </button>
           </div>

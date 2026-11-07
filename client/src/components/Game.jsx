@@ -1,5 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
+import '../../styles/game.css';
+import {
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+  Clock3,
+  FlaskConical,
+  Play,
+  RotateCcw,
+  ScrollText,
+  Shield,
+  Swords,
+  Users,
+  WifiOff,
+} from 'lucide-react';
 import Board from './Board.jsx';
 import AscensionModal from './AscensionModal.jsx';
 import * as Logic from '../../../shared/logic.js';
@@ -19,7 +34,7 @@ export default function Game({ navigateTo }) {
   const [hoveredPiece, setHoveredPiece] = useState(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [drawerExpanded, setDrawerExpanded] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [isCompactLayout, setIsCompactLayout] = useState(window.innerWidth <= 1180);
   const [arenaScale, setArenaScale] = useState(1);
   const gameStateRef = useRef(gameState);
 
@@ -29,9 +44,9 @@ export default function Game({ navigateTo }) {
 
   useEffect(() => {
     const handleResize = () => {
-      const mobile = window.innerWidth <= 768;
-      setIsMobile(mobile);
-      if (!mobile) {
+      const compact = window.innerWidth <= 1180;
+      setIsCompactLayout(compact);
+      if (!compact) {
         const availableH = window.innerHeight - 20;
         const availableW = window.innerWidth - 20;
         const sY = availableH / 985;
@@ -83,14 +98,42 @@ export default function Game({ navigateTo }) {
     setTimeout(() => setFlashMessage(null), 3000);
   };
 
-  // 1. Preload assets on mount
+  // 1. Load board textures first, then warm secondary effect assets without blocking play.
   useEffect(() => {
-    E.preloadImages(C.IMAGES, (imgs) => {
-      preloadedImagesRef.current = imgs;
+    let cancelled = false;
+    let idleTask = null;
+    const preferredBoardKey = params.get('team') === 'ash'
+      ? 'gameBackgroundAsh'
+      : 'gameBackgroundSnow';
+    const criticalSources = {
+      [preferredBoardKey]: C.IMAGES[preferredBoardKey]
+    };
+    const deferredSources = Object.fromEntries(
+      Object.entries(C.IMAGES).filter(([key]) => key !== preferredBoardKey)
+    );
+
+    E.preloadImages(criticalSources, (imgs) => {
+      if (cancelled) return;
+      Object.assign(preloadedImagesRef.current, imgs);
       setImagesLoaded(true);
-    });
+
+      const loadDeferredAssets = () => {
+        E.preloadImages(deferredSources, (secondaryImages) => {
+          if (!cancelled) Object.assign(preloadedImagesRef.current, secondaryImages);
+        }, { fetchPriority: 'low' });
+      };
+
+      idleTask = window.requestIdleCallback
+        ? window.requestIdleCallback(loadDeferredAssets, { timeout: 1800 })
+        : window.setTimeout(loadDeferredAssets, 500);
+    }, { fetchPriority: 'high' });
 
     return () => {
+      cancelled = true;
+      if (idleTask !== null) {
+        if (window.cancelIdleCallback) window.cancelIdleCallback(idleTask);
+        else window.clearTimeout(idleTask);
+      }
       if (socketRef.current) socketRef.current.disconnect();
       if (aiWorkerRef.current) aiWorkerRef.current.terminate();
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
@@ -805,19 +848,28 @@ export default function Game({ navigateTo }) {
   };
 
   const selectedPiece = gameState?.selectedPiece;
+  const selectedPieceName = selectedPiece
+    ? (selectedPiece.name || C.PIECE_TYPES[selectedPiece.key]?.name || 'Selected Unit')
+    : '';
+  const hasPrimaryAbility = !!selectedPiece?.ability && selectedPiece.ability.key !== 'Siphon';
+  const hasSiphon = selectedPiece?.ability?.key === 'Siphon';
+  const hasRiftPulse = !!selectedPiece?.canRiftPulse && !selectedPiece?.hasUsedRiftPulse;
+  const canDespawn = !!selectedPiece && ['snowIceWisp', 'glacialWall'].includes(selectedPiece.key);
 
   useEffect(() => {
     if (!selectedPiece) {
       setDrawerExpanded(false);
+    } else if (isCompactLayout) {
+      setDrawerExpanded(true);
     }
-  }, [selectedPiece?.id]);
+  }, [selectedPiece?.id, isCompactLayout]);
 
   // Main UI returns
   if (!imagesLoaded) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-void-black text-on-surface">
         <div className="w-10 h-10 border-4 border-t-ember-gold border-outline/20 rounded-full animate-spin mb-4" />
-        <p className="font-label-caps text-xs tracking-widest text-on-surface-variant font-bold">PRELOADING REALM IMAGES...</p>
+        <p className="font-label-caps text-xs tracking-widest text-on-surface-variant font-bold">PREPARING THE BATTLEFIELD...</p>
       </div>
     );
   }
@@ -880,14 +932,14 @@ export default function Game({ navigateTo }) {
     : `TURN ${gameState?.turnCount || 1}: ${(gameState?.currentTurn || 'snow').toUpperCase()}`;
 
   return (
-    <div className="text-on-surface select-none font-body-md overflow-y-auto overflow-x-hidden min-h-screen w-full flex flex-col items-center justify-start pt-2 relative" onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}>
+    <div className="game-screen text-on-surface select-none font-body-md overflow-y-auto overflow-x-hidden min-h-screen w-full flex flex-col items-center justify-start relative">
 
 
       {/* Disconnect Overlay */}
       {isOpponentDisconnected && (
         <div id="disconnectModal" className="fixed inset-0 z-[10000] flex items-center justify-center bg-void-black/85 backdrop-blur-md p-4">
           <div className="w-full max-w-md glass-obsidian border border-magma-core/30 p-8 rounded-2xl text-center shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
-            <span className="material-symbols-outlined text-magma-core text-5xl mb-4">wifi_off</span>
+            <WifiOff className="mx-auto mb-4 h-12 w-12 text-magma-core" aria-hidden="true" />
             <div id="disconnectMessage" className="font-display-lg text-lg text-pure-snow tracking-widest mb-6 uppercase">
               Opponent disconnected. Closing in {disconnectTimeout}s
             </div>
@@ -918,7 +970,7 @@ export default function Game({ navigateTo }) {
 
       <div 
         id="game-wrapper"
-        style={isMobile ? {} : {
+        style={isCompactLayout ? {} : {
           transform: `scale(${arenaScale})`,
           transformOrigin: 'top center',
           width: '1420px',
@@ -928,8 +980,12 @@ export default function Game({ navigateTo }) {
         }}
       >
         <div id="mobileHeader" className="mobile-only-header">
-          <button id="menuButton-mobile" className="top-menu-btn icon-btn" onClick={() => { if (socketRef.current) socketRef.current.disconnect(); navigateTo('LOBBY'); }}>MENU</button>
-          <div id="testModeContainer-mobile" style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#fff', fontFamily: "'Exo 2', sans-serif" }}>
+          <button id="menuButton-mobile" className="top-menu-btn icon-btn" aria-label="Return to main menu" onClick={() => { if (socketRef.current) socketRef.current.disconnect(); navigateTo('LOBBY'); }}>
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            <span>Menu</span>
+          </button>
+          <div id="testModeContainer-mobile" className="test-mode-control mobile-test-mode">
+            <FlaskConical className="h-3.5 w-3.5" aria-hidden="true" />
             <input 
               type="checkbox" 
               id="testModeToggle-mobile"
@@ -937,15 +993,16 @@ export default function Game({ navigateTo }) {
               onChange={(e) => sendAction('TOGGLE_TEST_MODE', { enabled: e.target.checked })}
               style={{ cursor: 'pointer', width: '14px', height: '14px', margin: 0 }}
             />
-            <label htmlFor="testModeToggle-mobile" style={{ cursor: 'pointer', fontSize: '11px', userSelect: 'none', fontWeight: 'bold', whiteSpace: 'nowrap' }}>Test Mode</label>
+            <label htmlFor="testModeToggle-mobile">Test</label>
           </div>
           <div className="mini-timer-block">
-            <span id="miniTimerSnow" className="timer-tag snow">{formatTime(gameState?.timers?.snow)}</span>
+            <span id="miniTimerSnow" className={`timer-tag snow ${gameState?.currentTurn === 'snow' ? 'active' : ''}`}>{formatTime(gameState?.timers?.snow)}</span>
             <span className="vs-text">VS</span>
-            <span id="miniTimerAsh" className="timer-tag ash">{formatTime(gameState?.timers?.ash)}</span>
+            <span id="miniTimerAsh" className={`timer-tag ash ${gameState?.currentTurn === 'ash' ? 'active' : ''}`}>{formatTime(gameState?.timers?.ash)}</span>
           </div>
           <button id="startResetBtn-mobile" className="menu-btn start-btn-mobile" onClick={handleStartReset}>
-            {gameState?.gameStarted ? 'RESET' : 'START'}
+            {gameState?.gameStarted ? <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> : <Play className="h-3.5 w-3.5" aria-hidden="true" />}
+            <span>{gameState?.gameStarted ? 'Reset' : 'Start'}</span>
           </button>
         </div>
 
@@ -953,14 +1010,40 @@ export default function Game({ navigateTo }) {
           <div id="left-column" className="ui-column primal-snow">
             <div id="timerContainer" className="ui-container">
               <div className="top-section">
-                <button id="menuButton" className="top-menu-btn" onClick={() => { if (socketRef.current) socketRef.current.disconnect(); navigateTo('LOBBY'); }}>MAIN MENU</button>
+                <div className="panel-heading">
+                  <span className="panel-kicker">Battle controls</span>
+                  <Swords className="h-4 w-4 text-ice-light" aria-hidden="true" />
+                </div>
+                <button id="menuButton" className="top-menu-btn" onClick={() => { if (socketRef.current) socketRef.current.disconnect(); navigateTo('LOBBY'); }}>
+                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                  Main menu
+                </button>
                 {myTeam && (
-                  <div id="yourTeamDisplay" className="ui-header" style={{ color: '#ffcc00', fontSize: '20px' }}>TEAM: {myTeam.toUpperCase()}</div>
+                  <div id="yourTeamDisplay" className={`team-display ${myTeam}`}>
+                    <Shield className="h-4 w-4" aria-hidden="true" />
+                    Commanding {myTeam}
+                  </div>
                 )}
-                <div className="ui-header">TIME REMAINING</div>
-                <div id="ashTimer" className={`timer-display ${gameState?.currentTurn === 'ash' ? 'active' : ''}`}>{formatTime(gameState?.timers?.ash)}</div>
-                <button id="startResetBtn" onClick={handleStartReset}>{gameState?.gameStarted ? 'RESET' : 'START'}</button>
-                <div id="testModeContainer" style={{ margin: '10px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#fff', fontFamily: "'Exo 2', sans-serif" }}>
+                <div className={`turn-status ${gameState?.currentTurn || 'snow'}`}>
+                  <span className="turn-status-dot" />
+                  {gameState?.gameOver ? 'Battle complete' : `${(gameState?.currentTurn || 'snow').toUpperCase()} TURN`}
+                </div>
+                <div className="timer-stack">
+                  <div className={`timer-card ash-card ${gameState?.currentTurn === 'ash' ? 'active' : ''}`}>
+                    <span>Ash</span>
+                    <div id="ashTimer" className="timer-display">{formatTime(gameState?.timers?.ash)}</div>
+                  </div>
+                  <div className={`timer-card snow-card ${gameState?.currentTurn === 'snow' ? 'active' : ''}`}>
+                    <span>Snow</span>
+                    <div id="snowTimer" className="timer-display">{formatTime(gameState?.timers?.snow)}</div>
+                  </div>
+                </div>
+                <button id="startResetBtn" onClick={handleStartReset}>
+                  {gameState?.gameStarted ? <RotateCcw className="h-4 w-4" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
+                  {gameState?.gameStarted ? 'Reset battle' : 'Start battle'}
+                </button>
+                <div id="testModeContainer" className="test-mode-control">
+                  <FlaskConical className="h-4 w-4" aria-hidden="true" />
                   <input 
                     type="checkbox" 
                     id="testModeToggle" 
@@ -968,24 +1051,27 @@ export default function Game({ navigateTo }) {
                     onChange={(e) => sendAction('TOGGLE_TEST_MODE', { enabled: e.target.checked })}
                     style={{ cursor: 'pointer', width: '16px', height: '16px', margin: 0 }}
                   />
-                  <label htmlFor="testModeToggle" style={{ cursor: 'pointer', fontSize: '14px', userSelect: 'none', fontWeight: 'bold' }}>Test Mode</label>
+                  <label htmlFor="testModeToggle">Test mode</label>
                 </div>
-                <div id="snowTimer" className={`timer-display ${gameState?.currentTurn === 'snow' ? 'active' : ''}`}>{formatTime(gameState?.timers?.snow)}</div>
               </div>
             </div>
             
-            <div id="ability-info-panel" className="ability-panel" style={{ display: selectedPiece ? 'block' : 'none' }}>
+            <div id="ability-info-panel" className="ability-panel" style={{ display: selectedPiece ? 'flex' : 'none' }}>
               {selectedPiece && (
                 <>
-                  <h3 id="ability-name">{selectedPiece.name}</h3>
+                  <div className="selected-unit-heading">
+                    <span className="panel-kicker">Selected unit</span>
+                    <h3 id="ability-name">{selectedPieceName}</h3>
+                  </div>
                   <p id="ability-description">
                     {C.PIECE_TYPES[selectedPiece.key]?.title || 'Elemental Commandant'}
-                    <br/><br/>
-                    <span style={{fontSize: '12px', color: '#888'}}>
-                      HP: {selectedPiece.currentHp} | STR: {selectedPiece.strength} | DEF: {selectedPiece.def} | AGI: {selectedPiece.agility}
+                    <span className="selected-unit-stats">
+                      <span><b>{selectedPiece.currentHp}</b> HP</span>
+                      <span><b>{selectedPiece.strength}</b> STR</span>
+                      <span><b>{selectedPiece.def}</b> DEF</span>
+                      <span><b>{selectedPiece.agility}</b> AGI</span>
                     </span>
-                    <br/><br/>
-                    {selectedPiece.ability && selectedPiece.ability.key !== 'Siphon' && (
+                    {selectedPiece.ability && (
                       <>
                         <strong style={{color: '#E8C15E'}}>Active: {selectedPiece.ability.name}</strong><br/>
                         {C.ABILITY_DESCRIPTIONS[selectedPiece.ability.key]}
@@ -1000,23 +1086,26 @@ export default function Game({ navigateTo }) {
                     )}
                   </p>
 
-                  <button 
-                    id="abilityBtn"
-                    className={!isMyTurn ? 'disabled' : ''}
-                    style={{ display: selectedPiece.ability ? 'block' : 'none' }}
-                    onClick={() => isMyTurn && sendAction('ABILITY', { pieceId: selectedPiece.id, abilityKey: selectedPiece.ability.key })}
-                    disabled={!isMyTurn}
-                  >
-                    Use Ability
-                  </button>
-                  <button 
-                    id="siphonBtn"
-                    className={!isMyTurn ? 'disabled' : ''}
-                    onClick={() => isMyTurn && sendAction('ABILITY', { pieceId: selectedPiece.id, abilityKey: 'Siphon' })}
-                    disabled={!isMyTurn}
-                  >
-                    Siphon
-                  </button>
+                  {hasPrimaryAbility && (
+                    <button
+                      id="abilityBtn"
+                      className={!isMyTurn ? 'disabled' : ''}
+                      onClick={() => isMyTurn && sendAction('ABILITY', { pieceId: selectedPiece.id, abilityKey: selectedPiece.ability.key })}
+                      disabled={!isMyTurn || (selectedPiece.ability.cooldown || 0) > 0}
+                    >
+                      {selectedPiece.ability.name || 'Use Ability'}
+                    </button>
+                  )}
+                  {hasSiphon && (
+                    <button
+                      id="siphonBtn"
+                      className={!isMyTurn ? 'disabled' : ''}
+                      onClick={() => isMyTurn && sendAction('ABILITY', { pieceId: selectedPiece.id, abilityKey: 'Siphon' })}
+                      disabled={!isMyTurn}
+                    >
+                      Siphon
+                    </button>
+                  )}
                   <button 
                     id="releaseBtn" 
                     className="unleash-btn"
@@ -1025,21 +1114,24 @@ export default function Game({ navigateTo }) {
                   >
                     Release
                   </button>
-                  <button 
-                    id="riftPulseBtn"
-                    className={!isMyTurn ? 'disabled' : ''}
-                    onClick={() => isMyTurn && sendAction('RIFT_PULSE', { pieceId: selectedPiece.id })}
-                    disabled={!isMyTurn}
-                  >
-                    Rift Pulse
-                  </button>
-                  <button 
-                    id="despawnBtn"
-                    style={{ display: ['snowIceWisp', 'glacialWall'].includes(selectedPiece.key) ? 'block' : 'none' }}
-                    onClick={() => sendAction('DESPAWN', { pieceId: selectedPiece.id })}
-                  >
-                    Despawn
-                  </button>
+                  {hasRiftPulse && (
+                    <button
+                      id="riftPulseBtn"
+                      className={!isMyTurn ? 'disabled' : ''}
+                      onClick={() => isMyTurn && sendAction('RIFT_PULSE', { pieceId: selectedPiece.id })}
+                      disabled={!isMyTurn}
+                    >
+                      Rift Pulse
+                    </button>
+                  )}
+                  {canDespawn && (
+                    <button
+                      id="despawnBtn"
+                      onClick={() => sendAction('DESPAWN', { pieceId: selectedPiece.id })}
+                    >
+                      Despawn
+                    </button>
+                  )}
                 </>
               )}
             </div>
@@ -1052,30 +1144,46 @@ export default function Game({ navigateTo }) {
               onCellClick={handleCellClick}
               onBoardClick={handleBoardClick}
               onPieceClick={handlePieceClick}
-              onMouseEnterPiece={(piece) => setHoveredPiece(piece)}
+              onMouseEnterPiece={(piece, event) => {
+                setHoveredPiece(piece);
+                if (event) setMousePos({ x: event.clientX, y: event.clientY });
+              }}
               onMouseLeavePiece={() => setHoveredPiece(null)}
             />
             <div className="labels-bar">
-               <div id="snowLabel" className="label snow">Snow: {terrScores.snow.toFixed(1)}</div>
-               <div id="turnLabel" className="label turn">{turnLabel}</div>
-               <div id="ashLabel" className="label ash">Ash: {terrScores.ash.toFixed(1)}</div>
+               <div id="snowLabel" className="label snow"><span>Snow control</span><strong>{terrScores.snow.toFixed(1)}%</strong></div>
+               <div id="turnLabel" className={`label turn ${gameState?.currentTurn || 'snow'}`}>
+                 <Clock3 className="h-4 w-4" aria-hidden="true" />
+                 <span>{turnLabel}</span>
+               </div>
+               <div id="ashLabel" className="label ash"><span>Ash control</span><strong>{terrScores.ash.toFixed(1)}%</strong></div>
             </div>
           </div>
 
           <div id="right-column" className="ui-column primal-ash">
             <div id="messageLogContainer" className="ui-container">
-              <div className="ui-header">EVENT LOG</div>
-              <ul id="messageLog">
-                {eventLog.map((log, i) => (
-                  <li key={i}>{log}</li>
+              <div className="event-log-heading">
+                <div>
+                  <span className="panel-kicker">Battle chronicle</span>
+                  <div className="event-log-title"><ScrollText className="h-4 w-4" aria-hidden="true" /> Event log</div>
+                </div>
+                <span className="event-count">{eventLog.length}</span>
+              </div>
+              <ul id="messageLog" aria-live="polite" aria-label="Battle event log">
+                {eventLog.length === 0 ? (
+                  <li className="event-log-empty">Battle events will appear here after the first move.</li>
+                ) : eventLog.map((log, i) => (
+                  <li key={i}><span className="event-dot" />{log}</li>
                 ))}
               </ul>
             </div>
             
-            <div id="roomStatusOverlay" style={{ padding: '10px' }}>
+            <div id="roomStatusOverlay">
               {!isLocal && (
-                <div id="playerCountDisplay" style={{ fontWeight: 'bold', color: 'white', padding: '5px' }}>
-                  Players: {playerCount}/2
+                <div id="playerCountDisplay">
+                  <Users className="h-4 w-4" aria-hidden="true" />
+                  <span>Realm players</span>
+                  <strong>{playerCount}/2</strong>
                 </div>
               )}
               {isOpponentDisconnected && (
@@ -1087,7 +1195,14 @@ export default function Game({ navigateTo }) {
           </div>
           
           <div id="mobileDrawer" className={`mobile-drawer ${drawerExpanded ? 'expanded' : 'peek'}`}>
-            <div className="drawer-handle" onClick={() => setDrawerExpanded(!drawerExpanded)}></div>
+            <button
+              className="drawer-handle"
+              onClick={() => setDrawerExpanded(!drawerExpanded)}
+              aria-label={drawerExpanded ? 'Collapse unit actions' : 'Expand unit actions'}
+              aria-expanded={drawerExpanded}
+            >
+              {drawerExpanded ? <ChevronDown className="h-4 w-4" aria-hidden="true" /> : <ChevronUp className="h-4 w-4" aria-hidden="true" />}
+            </button>
             <div className="drawer-content">
               {!selectedPiece ? (
                 <div id="drawerPeek" className="drawer-peek-info" onClick={() => setDrawerExpanded(!drawerExpanded)}>
@@ -1101,7 +1216,7 @@ export default function Game({ navigateTo }) {
                   <div id="drawerPeek" className="drawer-peek-info" onClick={() => setDrawerExpanded(!drawerExpanded)}>
                     <div className="peek-summary">
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                        <span id="peek-name" className="peek-name">{selectedPiece.name}</span>
+                        <span id="peek-name" className="peek-name">{selectedPieceName}</span>
                         <span className="drawer-toggle-badge">{drawerExpanded ? '▼ Close' : '▲ Actions'}</span>
                       </div>
                       <span id="peek-desc" className="peek-desc">{`${selectedPiece.currentHp} HP | ${selectedPiece.strength} STR | ${selectedPiece.def} DEF | ${selectedPiece.agility} AGI`}</span>
@@ -1109,7 +1224,7 @@ export default function Game({ navigateTo }) {
                   </div>
                   <div className="drawer-expanded">
                     <div className="unit-header-mobile">
-                      {selectedPiece.ability && selectedPiece.ability.key !== 'Siphon' && (
+                      {selectedPiece.ability && (
                         <div className="mobile-ability-desc-card">
                           <div style={{ color: '#E8C15E', fontWeight: 'bold', fontSize: '12px', marginBottom: '2px' }}>
                             Active: {selectedPiece.ability.name} {(selectedPiece.ability.cooldown || 0) > 0 ? `(CD: ${selectedPiece.ability.cooldown})` : '(Ready)'}
@@ -1132,7 +1247,7 @@ export default function Game({ navigateTo }) {
                     </div>
                     <div className="mobile-action-container">
                       <div className="mobile-button-grid">
-                        {selectedPiece.ability && (
+                        {hasPrimaryAbility && (
                           <button 
                             className="ability-btn-mobile primary-action" 
                             onClick={() => isMyTurn && sendAction('ABILITY', { pieceId: selectedPiece.id, abilityKey: selectedPiece.ability.key })} 
@@ -1141,12 +1256,16 @@ export default function Game({ navigateTo }) {
                             {selectedPiece.ability.name || 'Use Ability'}
                           </button>
                         )}
-                        <button className="ability-btn-mobile" onClick={() => isMyTurn && sendAction('ABILITY', { pieceId: selectedPiece.id, abilityKey: 'Siphon' })} disabled={!isMyTurn}>Siphon</button>
-                        <button className="ability-btn-mobile" onClick={() => isMyTurn && sendAction('RIFT_PULSE', { pieceId: selectedPiece.id })} disabled={!isMyTurn}>Rift Pulse</button>
+                        {hasSiphon && (
+                          <button className="ability-btn-mobile primary-action" onClick={() => isMyTurn && sendAction('ABILITY', { pieceId: selectedPiece.id, abilityKey: 'Siphon' })} disabled={!isMyTurn}>Siphon</button>
+                        )}
+                        {hasRiftPulse && (
+                          <button className="ability-btn-mobile" onClick={() => isMyTurn && sendAction('RIFT_PULSE', { pieceId: selectedPiece.id })} disabled={!isMyTurn}>Rift Pulse</button>
+                        )}
                         {selectedPiece.tethers && selectedPiece.tethers.length > 0 && (
                           <button className="ability-btn-mobile unleash-btn" onClick={() => sendAction('RELEASE', { pieceId: selectedPiece.id })}>Release</button>
                         )}
-                        {['snowIceWisp', 'glacialWall'].includes(selectedPiece.key) && (
+                        {canDespawn && (
                           <button className="ability-btn-mobile" onClick={() => sendAction('DESPAWN', { pieceId: selectedPiece.id })}>Despawn</button>
                         )}
                       </div>

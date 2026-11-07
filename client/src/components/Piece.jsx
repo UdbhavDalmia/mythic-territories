@@ -124,7 +124,7 @@ export default function Piece({
   };
 
   const getImgSource = () => {
-    const src = IMAGES[piece.key] || '/units/wisp.png';
+    const src = IMAGES[piece.key] || '/units/wisp.webp';
     return src.startsWith('/') ? src : `/${src}`;
   };
 
@@ -137,7 +137,7 @@ export default function Piece({
   if (teamBadgeKey) {
     const eff = Math.floor(getEffectivePower(piece, gameState) || 0);
     const idx = Math.max(0, Math.min(7, eff));
-    badgeSrc = idx === 0 ? `/badges/${teamBadgeKey}-p0.svg` : `/badges/${teamBadgeKey}-p${idx}.png`;
+    badgeSrc = idx === 0 ? `/badges/${teamBadgeKey}-p0.svg` : `/badges/${teamBadgeKey}-p${idx}.webp`;
   }
 
   const maxHp = piece.maxHp || PIECE_TYPES[piece.key]?.stats?.hp || 5;
@@ -182,6 +182,8 @@ export default function Piece({
         <img 
           src={getImgSource()} 
           alt={piece.name} 
+          decoding="async"
+          draggable="false"
           className={`w-full h-full object-contain pointer-events-none transition-all duration-150 ${
             isSelected 
               ? 'scale-110 drop-shadow-[0_0_14px_#ffcc00]' 
@@ -203,6 +205,8 @@ export default function Piece({
           <img 
             src={badgeSrc} 
             alt="badge" 
+            decoding="async"
+            draggable="false"
             className="absolute top-0 right-0 z-30 w-5 h-5 sm:w-6 sm:h-6 object-contain pointer-events-none drop-shadow hover:scale-110 transition-transform" 
           />
         )}

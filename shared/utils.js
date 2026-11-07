@@ -738,13 +738,16 @@ export function updateBoardMap(gameState) {
 
 
 
-export function preloadImages(sources, callback) {
+export function preloadImages(sources, callback, options = {}) {
   const imgs = {},
     keys = Object.keys(sources || {});
   if (!keys.length) return callback(imgs);
+  const { fetchPriority = "auto" } = options;
   let loaded = 0;
   keys.forEach((k) => {
     const img = new Image();
+    img.decoding = "async";
+    img.fetchPriority = fetchPriority;
     img.src = sources[k];
     img.onload = () => {
       imgs[k] = img;

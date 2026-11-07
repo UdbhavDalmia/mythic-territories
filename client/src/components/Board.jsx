@@ -545,7 +545,7 @@ export default function Board({
       className="relative select-none"
       onClick={handleBoardContainerClick}
       style={{
-        backgroundImage: isAsh ? "url('/images/bg-game2.png')" : "url('/images/bg-game.png')",
+        backgroundImage: isAsh ? "url('/images/bg-game2.webp')" : "url('/images/bg-game.webp')",
         backgroundSize: '100% 100%'
       }}
     >

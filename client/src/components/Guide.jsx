@@ -1,5 +1,25 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import gsap from 'gsap';
+import '../../styles/rules.css';
+import {
+  ArrowLeft,
+  BookOpen,
+  Clock3,
+  Flame,
+  Flag,
+  Footprints,
+  Landmark,
+  Map,
+  Search,
+  Shield,
+  Snowflake,
+  Sparkles,
+  Swords,
+  Target,
+  Users,
+  X,
+  Zap,
+} from 'lucide-react';
 
 // ─── Accurate unit profiles matching constants.js ───────────────────────────
 const UNIT_PROFILES = {
@@ -8,7 +28,7 @@ const UNIT_PROFILES = {
       name: "Frost Lord",
       title: "King of absolute order and cold geometry",
       role: "Snow Leader",
-      portrait: "/units/frost-lord.png",
+      portrait: "/units/frost-lord.webp",
       stats: { HP: 12, DEF: 3, STR: 5, RNG: 1.5, AGI: 1.8 },
       abilities: [
         {
@@ -27,7 +47,7 @@ const UNIT_PROFILES = {
       name: "Soul Linker",
       title: "Weaver of fate between ally and enemy",
       role: "Specialist",
-      portrait: "/units/soul-linker.png",
+      portrait: "/units/soul-linker.webp",
       stats: { HP: 8, DEF: 2, STR: 3, RNG: 2, AGI: 1.8 },
       abilities: [
         {
@@ -46,7 +66,7 @@ const UNIT_PROFILES = {
       name: "Glacial Mage",
       title: "Conduit of glacial fractures and frost storms",
       role: "Mage Specialist",
-      portrait: "/units/cryomancer.png",
+      portrait: "/units/cryomancer.webp",
       stats: { HP: 7, DEF: 2, STR: 2, RNG: 2.5, AGI: 1.4 },
       abilities: [
         {
@@ -65,7 +85,7 @@ const UNIT_PROFILES = {
       name: "Glacial Brute",
       title: "Unstoppable force of glacial mass",
       role: "Warrior",
-      portrait: "/units/glacial-brute.png",
+      portrait: "/units/glacial-brute.webp",
       stats: { HP: 10, DEF: 3, STR: 3, RNG: 1, AGI: 3 },
       abilities: [
         {
@@ -84,7 +104,7 @@ const UNIT_PROFILES = {
       name: "Frostbite Stalker",
       title: "Lethal predator of the snowy plains",
       role: "Striker",
-      portrait: "/units/snow-wolf.png",
+      portrait: "/units/snow-wolf.webp",
       stats: { HP: 6, DEF: 1, STR: 2, RNG: 1, AGI: 4 },
       abilities: [
         {
@@ -103,7 +123,7 @@ const UNIT_PROFILES = {
       name: "Ice Wisp",
       title: "Ethereal spirit of frost and sacrifice",
       role: "Summon",
-      portrait: "/units/wisp.png",
+      portrait: "/units/wisp.webp",
       stats: { HP: 2, DEF: 1, STR: 1, RNG: 1, AGI: 2 },
       abilities: [
         {
@@ -119,7 +139,7 @@ const UNIT_PROFILES = {
       name: "Ash Tyrant",
       title: "Lord of molten steel and volcanic fury",
       role: "Ash Leader",
-      portrait: "/units/ash-tyrant.png",
+      portrait: "/units/ash-tyrant.webp",
       stats: { HP: 12, DEF: 3, STR: 5, RNG: 1.5, AGI: 1.8 },
       abilities: [
         {
@@ -138,7 +158,7 @@ const UNIT_PROFILES = {
       name: "Ash Reaper",
       title: "Thief of life and stolen strength",
       role: "Specialist",
-      portrait: "/units/ash-reaper.png",
+      portrait: "/units/ash-reaper.webp",
       stats: { HP: 8, DEF: 2, STR: 3, RNG: 2, AGI: 1.8 },
       abilities: [
         {
@@ -157,7 +177,7 @@ const UNIT_PROFILES = {
       name: "Magma Shaper",
       title: "Architect of igneous structures and impact",
       role: "Mystic",
-      portrait: "/units/magma-shaper.png",
+      portrait: "/units/magma-shaper.webp",
       stats: { HP: 7, DEF: 1, STR: 2, RNG: 2, AGI: 2 },
       abilities: [
         {
@@ -171,7 +191,7 @@ const UNIT_PROFILES = {
       name: "Magma Prowler",
       title: "Hunter of the volcanic wastelands",
       role: "Warrior",
-      portrait: "/units/magma-prowler.png",
+      portrait: "/units/magma-prowler.webp",
       stats: { HP: 8, DEF: 2, STR: 3, RNG: 1, AGI: 3 },
       abilities: [
         {
@@ -190,7 +210,7 @@ const UNIT_PROFILES = {
       name: "Magma Spitter",
       title: "Ranged devastator of volcanic slugs",
       role: "Mage",
-      portrait: "/units/magma-spitter.png",
+      portrait: "/units/magma-spitter.webp",
       stats: { HP: 6, DEF: 0, STR: 5, RNG: 4, AGI: 2 },
       abilities: [
         {
@@ -209,7 +229,7 @@ const UNIT_PROFILES = {
       name: "Ash Strider",
       title: "Swift assassin of the brimstone wastes",
       role: "Skirmisher",
-      portrait: "/units/blaze-runner.png",
+      portrait: "/units/blaze-runner.webp",
       stats: { HP: 6, DEF: 1, STR: 2, RNG: 1, AGI: 4 },
       abilities: [
         {
@@ -290,36 +310,281 @@ const ASCENSION_ROLES = [
   }
 ];
 
+const QUICK_STEPS = [
+  {
+    number: '01',
+    title: 'Defeat the leader',
+    description: 'Vanquish the opposing Frost Lord or Ash Tyrant to win the battle.',
+    icon: Target,
+    accent: 'text-ember-gold border-ember-gold/25 bg-ember-gold/10'
+  },
+  {
+    number: '02',
+    title: 'Take one turn',
+    description: 'Snow and Ash alternate turns. Choose one unit to move, attack, or use an available ability.',
+    icon: Users,
+    accent: 'text-ice-light border-ice-light/25 bg-ice-light/10'
+  },
+  {
+    number: '03',
+    title: 'Move by Agility',
+    description: 'A unit’s Agility determines its movement range. Occupying an empty square claims that territory.',
+    icon: Footprints,
+    accent: 'text-ice-light border-ice-light/25 bg-ice-light/10'
+  },
+  {
+    number: '04',
+    title: 'Fight with Power',
+    description: 'Move onto an enemy to attack. Higher Effective Power wins; territory control breaks most ties.',
+    icon: Swords,
+    accent: 'text-magma-core border-magma-core/25 bg-magma-core/10'
+  },
+  {
+    number: '05',
+    title: 'Control the landmarks',
+    description: 'Rifts create Conduit bonuses, while Shrine captures build toward permanent Ascension upgrades.',
+    icon: Landmark,
+    accent: 'text-ember-gold border-ember-gold/25 bg-ember-gold/10'
+  }
+];
+
+const RULEBOOK_TABS = [
+  { id: 'QUICK', label: 'Quick Read', icon: Clock3 },
+  { id: 'RULES', label: 'Common Rules', icon: BookOpen },
+  { id: 'ASCENSION', label: 'Ascension', icon: Sparkles },
+  { id: 'UNITS', label: 'Unit Catalog', icon: Shield }
+];
+
+const COMMON_RULES = [
+  {
+    title: 'Turn sequence',
+    description: 'Snow and Ash alternate turns. On your turn, choose one unit to move, attack, or use an available ability.',
+    icon: Users,
+    accent: 'text-ice-light border-ice-light/25 bg-ice-light/10'
+  },
+  {
+    title: 'Movement',
+    description: 'Agility determines movement range. Hamstrung units cannot move diagonally; Stuck units cannot move.',
+    icon: Footprints,
+    accent: 'text-ice-light border-ice-light/25 bg-ice-light/10'
+  },
+  {
+    title: 'Territory',
+    description: 'Moving onto an empty square claims it for your faction. Territory control breaks standard combat ties.',
+    icon: Map,
+    accent: 'text-ember-gold border-ember-gold/25 bg-ember-gold/10'
+  },
+  {
+    title: 'Combat',
+    description: 'Move onto an enemy square to attack. The unit with the higher Effective Power vanquishes its opponent.',
+    icon: Swords,
+    accent: 'text-magma-core border-magma-core/25 bg-magma-core/10'
+  }
+];
+
+const TERRAIN_RULES = [
+  { name: 'Unstable Ground', color: 'text-red-400', description: 'Enemies entering take 1 damage. Lasts 3 turns and can be detonated by Volatile Cinder.' },
+  { name: 'Icy Ground', color: 'text-blue-300', description: 'The first enemy to enter is Dazed for 1 turn.' },
+  { name: 'Void Scar', color: 'text-purple-400', description: 'Radiates from each Rift and alters combat resolution inside its area.' },
+  { name: 'Glacial Wall', color: 'text-slate-300', description: 'An impassable barrier lasting 3 turns that blocks movement and line of sight.' },
+  { name: 'Obsidian Pillar', color: 'text-orange-400', description: 'Provides cover, disrupts nearby enemies, and can form a temporary allied shield.' }
+];
+
+const STATUS_RULES = [
+  { name: 'Dazed', color: 'text-yellow-400', description: 'Cannot act this turn.' },
+  { name: 'Stuck', color: 'text-red-400', description: 'Cannot move for the stated duration.' },
+  { name: 'Hamstrung', color: 'text-orange-400', description: 'Cannot move diagonally for 1 round.' },
+  { name: 'Steadfast', color: 'text-blue-300', description: 'Immune to Daze, Stuck, and forced movement.' }
+];
+
+const toRulebookId = (value) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+const RULEBOOK_SEARCH_INDEX = [
+  ...QUICK_STEPS.map((step) => ({
+    tab: 'QUICK',
+    section: 'Quick Read',
+    title: step.title,
+    description: step.description,
+    keywords: `${step.title} ${step.description}`,
+    target: `quick-${toRulebookId(step.title)}`
+  })),
+  ...COMMON_RULES.map((rule) => ({
+    tab: 'RULES',
+    section: 'Common Rules',
+    title: rule.title,
+    description: rule.description,
+    keywords: `${rule.title} ${rule.description}`,
+    target: `rule-${toRulebookId(rule.title)}`
+  })),
+  {
+    tab: 'RULES',
+    section: 'Common Rules',
+    title: 'Effective Power',
+    description: 'Strength plus boosts minus debuffs determines combat. Territory control breaks a standard tie.',
+    keywords: 'effective power strength boosts debuffs combat tie territory',
+    target: 'rule-effective-power'
+  },
+  {
+    tab: 'RULES',
+    section: 'Common Rules',
+    title: 'Sacred Shrine',
+    description: 'Shrine captures grant Power and charges that lead to Overload, Trapping, Release, or Ascension.',
+    keywords: 'sacred shrine capture power charge overload trapped release sacrifice ascension',
+    target: 'rule-sacred-shrine'
+  },
+  {
+    tab: 'RULES',
+    section: 'Common Rules',
+    title: 'Power Rifts and Conduit',
+    description: 'Occupy both Rifts to activate contested or uncontested Anchor bonuses.',
+    keywords: 'power rift conduit anchor contested uncontested ward void scar',
+    target: 'rule-power-rifts-and-conduit'
+  },
+  ...TERRAIN_RULES.map((terrain) => ({
+    tab: 'RULES',
+    section: 'Terrain',
+    title: terrain.name,
+    description: terrain.description,
+    keywords: `${terrain.name} ${terrain.description}`,
+    target: `terrain-${toRulebookId(terrain.name)}`
+  })),
+  ...STATUS_RULES.map((status) => ({
+    tab: 'RULES',
+    section: 'Status',
+    title: status.name,
+    description: status.description,
+    keywords: `${status.name} ${status.description}`,
+    target: `status-${toRulebookId(status.name)}`
+  })),
+  ...ASCENSION_ROLES.map((path) => ({
+    tab: 'ASCENSION',
+    section: 'Ascension',
+    title: `${path.role} paths`,
+    description: `${path.A.name} or ${path.B.name}`,
+    keywords: `${path.role} ${path.snow} ${path.ash} ${path.A.name} ${path.A.desc} ${path.B.name} ${path.B.desc}`,
+    target: `ascension-${toRulebookId(path.role)}`
+  })),
+  ...Object.entries(UNIT_PROFILES).flatMap(([faction, units]) => units.map((unit) => ({
+    tab: 'UNITS',
+    section: faction === 'snow' ? 'Snow Catalog' : 'Ash Catalog',
+    faction,
+    title: unit.name,
+    description: `${unit.role} — ${unit.title}`,
+    keywords: [
+      unit.name,
+      unit.role,
+      unit.title,
+      ...Object.entries(unit.stats).flatMap(([stat, value]) => [stat, value]),
+      ...unit.abilities.flatMap((ability) => [ability.name, ability.type, ability.desc])
+    ].join(' '),
+    target: `unit-${faction}-${toRulebookId(unit.name)}`
+  })))
+];
+
 export default function Guide({ navigateTo }) {
-  const [activeTab, setActiveTab] = useState('RULES');
+  const [activeTab, setActiveTab] = useState('QUICK');
   const [activeFaction, setActiveFaction] = useState('snow');
   const [ascFaction, setAscFaction] = useState('snow');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [pendingSearchTarget, setPendingSearchTarget] = useState(null);
+  const [tabIndicator, setTabIndicator] = useState(null);
   const pageRef = useRef(null);
+  const tabNavRef = useRef(null);
+  const tabRefs = useRef({});
+  const searchResults = useMemo(() => {
+    const terms = searchQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (!terms.length) return [];
+    return RULEBOOK_SEARCH_INDEX
+      .filter((entry) => {
+        const haystack = `${entry.title} ${entry.description} ${entry.keywords}`.toLowerCase();
+        return terms.every((term) => haystack.includes(term));
+      })
+      .slice(0, 10);
+  }, [searchQuery]);
 
   // Entrance — slide up + fade in
   useEffect(() => {
-    gsap.fromTo(pageRef.current,
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      gsap.set(pageRef.current, { opacity: 1, y: 0 });
+      return;
+    }
+    const entrance = gsap.fromTo(pageRef.current,
       { opacity: 0, y: 40 },
       { opacity: 1, y: 0, duration: 0.75, ease: 'expo.out' }
     );
+    return () => entrance.kill();
   }, []);
+
+  useLayoutEffect(() => {
+    const nav = tabNavRef.current;
+    const activeButton = tabRefs.current[activeTab];
+    if (!nav || !activeButton) return;
+
+    const updateIndicator = () => {
+      setTabIndicator({
+        x: activeButton.offsetLeft,
+        y: activeButton.offsetTop,
+        width: activeButton.offsetWidth,
+        height: activeButton.offsetHeight
+      });
+    };
+
+    updateIndicator();
+    const observer = new ResizeObserver(updateIndicator);
+    observer.observe(nav);
+    return () => observer.disconnect();
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!pendingSearchTarget) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.getElementById(pendingSearchTarget);
+      if (!target) return;
+
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+      if (!reduceMotion) {
+        target.animate(
+          [
+            { boxShadow: '0 0 0 1px rgba(232, 193, 94, 0)', transform: 'translateY(0)' },
+            { boxShadow: '0 0 0 2px rgba(232, 193, 94, 0.8), 0 0 35px rgba(232, 193, 94, 0.28)', transform: 'translateY(-2px)' },
+            { boxShadow: '0 0 0 1px rgba(232, 193, 94, 0)', transform: 'translateY(0)' }
+          ],
+          { duration: 1400, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' }
+        );
+      }
+      setPendingSearchTarget(null);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeTab, activeFaction, pendingSearchTarget]);
 
   // Exit — slide down + fade, then navigate
   const handleNavigate = (dest) => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      navigateTo(dest);
+      return;
+    }
     gsap.to(pageRef.current, {
       opacity: 0, y: 50, duration: 0.32, ease: 'power2.in',
       onComplete: () => navigateTo(dest)
     });
   };
 
+  const handleSearchResult = (result) => {
+    setPendingSearchTarget(result.target);
+    setActiveTab(result.tab);
+    if (result.faction) setActiveFaction(result.faction);
+    setSearchQuery('');
+  };
+
   return (
-    <div ref={pageRef} className="relative min-h-screen flex flex-col bg-void-black text-on-surface select-none font-body-md overflow-y-auto" style={{ opacity: 0 }}>
+    <div ref={pageRef} className="relative min-h-screen flex flex-col bg-void-black text-on-surface select-text font-body-md overflow-y-auto" style={{ opacity: 0 }}>
       {/* Background */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         <div className="sticky top-0 w-full h-screen">
           <div
             className="absolute inset-0 opacity-40 bg-cover bg-center bg-no-repeat"
-            style={{ backgroundImage: "url('/images/menu-bg.png')" }}
+            style={{ backgroundImage: "url('/images/menu-bg.webp')" }}
           />
           <div className="absolute inset-0 bg-gradient-to-b from-void-black/40 via-transparent to-void-black/90" />
         </div>
@@ -328,21 +593,19 @@ export default function Guide({ navigateTo }) {
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-50 bg-void-black/70 backdrop-blur-md border-b border-outline/20 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
         <div className="flex justify-between items-center w-full px-4 md:px-12 py-4 max-w-7xl mx-auto">
-          <div
+          <button
             className="font-almendra text-lg sm:text-2xl tracking-wider text-ember-gold cursor-pointer"
             onClick={() => handleNavigate('LOBBY')}
           >
             Mythic Territories
-          </div>
-          {/* Ghost → filled hover button */}
+          </button>
           <button
-            className="relative font-label-caps text-xs sm:text-sm text-ember-gold px-5 py-2 rounded overflow-hidden group transition-colors duration-300"
+            className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full border border-ember-gold/25 px-4 py-2 font-label-caps text-[10px] sm:text-xs tracking-wider text-ember-gold transition-colors duration-300 hover:text-void-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-gold"
             onClick={() => handleNavigate('LOBBY')}
           >
-            <span className="absolute inset-0 bg-ember-gold scale-x-0 group-hover:scale-x-100 origin-left transition-transform duration-300 rounded" />
-            <span className="relative z-10 group-hover:text-void-black transition-colors duration-300">
-              ← Back to Menu
-            </span>
+            <span className="absolute inset-0 origin-left scale-x-0 bg-ember-gold transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-x-100 group-focus-visible:scale-x-100" />
+            <ArrowLeft className="relative z-10 h-3.5 w-3.5 transition-transform duration-300 group-hover:-translate-x-0.5" aria-hidden="true" />
+            <span className="relative z-10">Back to menu</span>
           </button>
         </div>
       </nav>
@@ -350,240 +613,412 @@ export default function Guide({ navigateTo }) {
       {/* Main Content */}
       <main className="relative z-10 flex-grow pt-32 pb-20 px-4 md:px-12 max-w-6xl mx-auto w-full">
         <header className="text-center mb-10 space-y-4">
+          <div className="mx-auto flex w-fit items-center gap-2 rounded-full border border-outline/20 bg-void-black/40 px-3 py-1.5 font-label-caps text-[9px] tracking-[0.24em] text-on-surface-variant">
+            <BookOpen className="h-3.5 w-3.5 text-ember-gold" aria-hidden="true" />
+            Ruleset 1.9
+          </div>
           <h1 className="font-almendra text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-gradient-dual uppercase">
-            Game Guidebook
+            Rulebook
           </h1>
-          <p className="font-libre text-base sm:text-lg italic text-on-surface-variant max-w-2xl mx-auto">
-            Master the elemental forces of Snow and Ash. A comprehensive guide to survival, conquest, and ascension.
+          <p className="text-base sm:text-lg text-on-surface-variant max-w-2xl mx-auto leading-relaxed">
+            Learn the battle in minutes, explore shared mechanics, then study the warriors unique to Snow and Ash.
           </p>
         </header>
 
         {/* Tab Selection */}
-        <div className="flex justify-center border-b border-outline/20 mb-8 max-w-2xl mx-auto">
-          <button
-            className={`flex-1 py-3 text-center font-label-caps text-sm border-b-2 font-bold transition-all duration-300 ${
-              activeTab === 'RULES'
-                ? 'border-ember-gold text-ember-gold'
-                : 'border-transparent text-on-surface-variant hover:text-white'
-            }`}
-            onClick={() => setActiveTab('RULES')}
-          >
-            Core Rules
-          </button>
-          <button
-            className={`flex-1 py-3 text-center font-label-caps text-sm border-b-2 font-bold transition-all duration-300 ${
-              activeTab === 'ASCENSION'
-                ? 'border-ember-gold text-ember-gold'
-                : 'border-transparent text-on-surface-variant hover:text-white'
-            }`}
-            onClick={() => setActiveTab('ASCENSION')}
-          >
-            Ascension Paths
-          </button>
-          <button
-            className={`flex-1 py-3 text-center font-label-caps text-sm border-b-2 font-bold transition-all duration-300 ${
-              activeTab === 'UNITS'
-                ? 'border-ember-gold text-ember-gold'
-                : 'border-transparent text-on-surface-variant hover:text-white'
-            }`}
-            onClick={() => setActiveTab('UNITS')}
-          >
-            Unit Catalog
-          </button>
+        <div ref={tabNavRef} className="relative mb-8 grid grid-cols-2 gap-2 rounded-2xl border border-outline/15 bg-void-black/45 p-2 backdrop-blur-xl md:grid-cols-4">
+          {tabIndicator && (
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute rounded-xl bg-ember-gold shadow-[0_8px_25px_rgba(232,193,94,0.18)] transition-[transform,width,height] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none"
+              style={{
+                width: tabIndicator.width,
+                height: tabIndicator.height,
+                transform: `translate3d(${tabIndicator.x}px, ${tabIndicator.y}px, 0)`
+              }}
+            />
+          )}
+          {RULEBOOK_TABS.map((tab) => {
+            const Icon = tab.icon;
+            const selected = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                ref={(element) => { tabRefs.current[tab.id] = element; }}
+                className={`relative z-10 flex min-h-12 items-center justify-center gap-2 rounded-xl px-3 py-3 text-center font-label-caps text-[10px] sm:text-xs font-bold tracking-wider transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-gold ${
+                  selected
+                    ? 'text-void-black'
+                    : 'text-on-surface-variant hover:bg-surface-container hover:text-white'
+                }`}
+                onClick={() => setActiveTab(tab.id)}
+                aria-pressed={selected}
+              >
+                <Icon className="h-4 w-4" aria-hidden="true" />
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
-        {/* ═══════════════════════════ RULES TAB ═══════════════════════════ */}
-        {activeTab === 'RULES' && (
-          <div className="space-y-8 animate-[fadeIn_0.3s_ease-out]">
+        <section className="relative z-30 mb-8" aria-label="Search the rulebook">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" aria-hidden="true" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search rules, statuses, units, or abilities…"
+              className="h-12 w-full rounded-xl border border-outline/20 bg-void-black/65 py-3 pl-11 pr-24 text-sm text-on-surface outline-none backdrop-blur-xl transition-colors placeholder:text-on-surface-variant/50 focus:border-ember-gold/60 focus:ring-2 focus:ring-ember-gold/15"
+              aria-label="Search rules, statuses, units, or abilities"
+            />
+            {searchQuery && (
+              <button
+                className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1.5 rounded-lg px-2 py-1.5 font-label-caps text-[9px] tracking-wider text-on-surface-variant transition-colors hover:bg-surface-container hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-gold"
+                onClick={() => setSearchQuery('')}
+                aria-label="Clear rulebook search"
+              >
+                <X className="h-3.5 w-3.5" aria-hidden="true" />
+                Clear
+              </button>
+            )}
+          </div>
 
-            {/* ── Objective ── */}
-            <section className="bg-surface-container/60 backdrop-blur-md rounded-xl p-6 sm:p-8 border border-outline/10 shadow-lg">
-              <div className="flex flex-col md:flex-row items-center gap-8">
-                <div className="flex-1">
-                  <h2 className="font-almendra text-2xl sm:text-3xl font-bold text-ember-gold mb-4 flex items-center gap-2">
-                    <span className="material-symbols-outlined">flag</span>
-                    The Objective
-                  </h2>
-                  <div className="h-[2px] bg-gradient-to-r from-ember-gold to-transparent mb-4" />
-                  <p className="font-libre text-base sm:text-lg leading-relaxed text-on-surface-variant">
-                    Command the elemental forces of Snow or Ash. The primary victory condition is simple yet daunting:{' '}
-                    <span className="text-ember-gold font-bold">Vanquish the enemy leader</span>. Eliminate the enemy's
-                    Frost Lord or Ash Tyrant to secure your dominion over the realm.
-                  </p>
-                </div>
-                <div className="flex gap-4 shrink-0">
-                  <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-lg border-2 border-ice-light overflow-hidden shadow-md">
-                    <img alt="Frost Lord" className="w-full h-full object-cover grayscale-[30%] hover:grayscale-0 transition-all duration-300" src="/units/frost-lord.png" />
-                  </div>
-                  <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-lg border-2 border-magma-core overflow-hidden shadow-md">
-                    <img alt="Ash Tyrant" className="w-full h-full object-cover grayscale-[30%] hover:grayscale-0 transition-all duration-300" src="/units/ash-tyrant.png" />
-                  </div>
-                </div>
+          {searchQuery.trim() && (
+            <div className="mt-2 overflow-hidden rounded-xl border border-outline/20 bg-void-black/95 shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+              <div className="flex items-center justify-between border-b border-outline/15 px-4 py-3">
+                <p className="font-label-caps text-[9px] tracking-[0.18em] text-on-surface-variant">
+                  {searchResults.length ? `${searchResults.length} matching entries` : 'No matching entries'}
+                </p>
+                <p className="hidden text-[10px] text-on-surface-variant/55 sm:block">Search remains active when changing sections</p>
               </div>
-            </section>
-
-            {/* ── Core Gameplay + Shrine — one row ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              <section className="lg:col-span-7 bg-surface-container/60 backdrop-blur-md rounded-xl p-6 sm:p-8 border border-outline/10 shadow-lg space-y-6">
-                <h2 className="font-almendra text-2xl sm:text-3xl font-bold text-ice-light flex items-center gap-2">
-                  <span className="material-symbols-outlined">swords</span>
-                  Core Gameplay
-                </h2>
-                <div className="h-[2px] bg-gradient-to-r from-ice-light to-transparent" />
-                <div className="space-y-5">
-                  <div>
-                    <h3 className="font-label-caps text-xs sm:text-sm text-ice-light mb-1">Turns &amp; Movement</h3>
-                    <p className="text-on-surface-variant text-sm sm:text-base leading-relaxed">
-                      Each turn one unit may be moved. A full round is one Snow turn then one Ash turn. Movement range is
-                      determined by a unit's <span className="text-ice-light italic">Agility</span> stat. Units affected
-                      by <span className="text-ice-light italic">Hamstrung</span> cannot move diagonally;
-                      <span className="text-ice-light italic"> Stuck</span> units cannot move at all.
-                    </p>
-                  </div>
-                  <div>
-                    <h3 className="font-label-caps text-xs sm:text-sm text-magma-core mb-1">Combat &amp; Territory</h3>
-                    <p className="text-on-surface-variant text-sm sm:text-base leading-relaxed">
-                      Move onto an enemy unit's square to initiate combat. The unit with the higher{' '}
-                      <span className="text-ember-gold font-bold">Effective Power</span> (Strength + all boosts − all
-                      debuffs) wins and captures the enemy. Ties are broken in favor of the player controlling more
-                      territory. Moving onto an empty square automatically converts it to your faction's territory.
-                    </p>
-                  </div>
-                  <div className="bg-void-black/40 border-l-4 border-ember-gold p-4 italic text-xs sm:text-sm text-on-surface-variant">
-                    Abilities, status effects, Shrine boosts, Conduit Anchor boosts, Unstable Ground, Icy Ground, and
-                    Void Scars all directly affect Effective Power at the moment of combat resolution.
-                  </div>
-                </div>
-              </section>
-
-              {/* ── Shrine (same row, right column) ── */}
-              <section className="lg:col-span-5 bg-surface-container/60 backdrop-blur-md rounded-xl p-6 sm:p-8 border border-outline/10 shadow-lg space-y-5">
-                <h2 className="font-almendra text-2xl font-bold text-ember-gold flex items-center gap-2">
-                  <span className="material-symbols-outlined">temple_buddhist</span>
-                  The Sacred Shrine
-                </h2>
-                <div className="h-[2px] bg-gradient-to-r from-ember-gold to-transparent" />
-                <p className="text-sm text-on-surface-variant leading-relaxed">
-                  The <span className="text-ember-gold font-bold">Sacred Shrine</span> occupies a 2×2 zone at the
-                  centre of the board. Capturing an enemy on a Shrine square grants permanent{' '}
-                  <span className="text-ember-gold font-bold">+1 Power</span> and charges the Shrine by 1.
-                </p>
-                <p className="text-sm text-on-surface-variant leading-relaxed">
-                  After <span className="text-white font-bold">2 charges</span>, the Shrine enters{' '}
-                  <span className="text-magma-core font-bold">Overload</span>. Any unit on the Shrine becomes{' '}
-                  <span className="text-magma-core font-bold">Trapped</span> — unable to move until Ascension is
-                  triggered or cancelled.
-                </p>
-                <div className="bg-void-black/50 border border-amber-500/30 rounded-lg p-3 space-y-1">
-                  <div className="font-label-caps text-[10px] text-amber-500">Ascension Trigger</div>
-                  <p className="text-[11px] text-on-surface-variant leading-relaxed">
-                    <span className="text-amber-400 font-bold">Sacrifice</span> the Trapped unit to unlock a faction{' '}
-                    <span className="text-amber-400 font-bold">Ascension</span> — unit upgrade (A) or faction passive (B).{' '}
-                    <button className="text-amber-400 underline" onClick={() => setActiveTab('ASCENSION')}>View Paths →</button>
-                  </p>
-                </div>
-                <div className="bg-void-black/50 border border-red-500/30 rounded-lg p-3 space-y-1">
-                  <div className="font-label-caps text-[10px] text-red-400">Release Escape</div>
-                  <p className="text-[11px] text-on-surface-variant leading-relaxed">
-                    <span className="text-red-400 font-bold">Release</span> the unit instead — loses −1 Power and is Dazed for 3 turns, no Ascension triggered.
-                  </p>
-                </div>
-              </section>
-            </div>
-
-            {/* ── Conduit & Rifts ── */}
-            <section className="bg-surface-container/60 backdrop-blur-md rounded-xl p-6 sm:p-8 border border-outline/10 shadow-lg space-y-6">
-              <h2 className="font-almendra text-2xl sm:text-3xl font-bold text-ice-light flex items-center gap-2">
-                <span className="material-symbols-outlined">hub</span>
-                Power Rifts &amp; the Conduit
-              </h2>
-              <div className="h-[2px] bg-gradient-to-r from-ice-light to-transparent" />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <p className="text-sm sm:text-base text-on-surface-variant leading-relaxed">
-                    Two <span className="text-purple-400 font-bold">Power Rifts</span> (3×3 zones) are fixed in opposite
-                    corners of the board — top-left and bottom-right. They pulse with void energy that alters combat
-                    math for any unit standing within them.
-                  </p>
-                  <div className="bg-void-black/50 border border-purple-500/30 rounded-lg p-4 space-y-2">
-                    <div className="font-label-caps text-xs text-purple-400">Conduit Link</div>
-                    <p className="text-xs text-on-surface-variant leading-relaxed">
-                      When a single faction has{' '}
-                      <span className="text-white font-bold">at least one unit on each Rift</span> (both top-left AND
-                      bottom-right), the <span className="text-purple-400 font-bold">Conduit Link</span> activates.
-                    </p>
-                    <ul className="text-xs text-on-surface-variant space-y-1 mt-2 list-none">
-                      <li>
-                        <span className="text-white font-bold">Uncontested</span> — Both Rift units gain{' '}
-                        <span className="text-green-400 font-bold">+2 Anchor Boost</span> to Effective Power and
-                        become immune to captures (<span className="text-cyan-300">Defensive Ward</span>).
-                      </li>
-                      <li className="mt-1">
-                        <span className="text-white font-bold">Contested</span> — An enemy also occupies a Rift. Anchor
-                        Boost drops to{' '}
-                        <span className="text-amber-400 font-bold">+1</span> (unless{' '}
-                        <em>Rift Reinforcement</em> Ascension is active, which always gives +2).
-                      </li>
-                    </ul>
-                  </div>
-                  <div className="bg-void-black/50 border border-cyan-500/30 rounded-lg p-4 space-y-2">
-                    <div className="font-label-caps text-xs text-cyan-400">Void Scars</div>
-                    <p className="text-xs text-on-surface-variant leading-relaxed">
-                      The area surrounding each Rift generates{' '}
-                      <span className="text-cyan-400 font-bold">Void Scars</span> — hazardous terrain that modifies
-                      movement and combat in that zone. Units standing on Void Scars suffer altered combat resolution
-                      and cannot pass freely.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="bg-void-black/50 border border-amber-500/20 rounded-lg p-4 space-y-3">
-                    <div className="font-label-caps text-xs text-amber-500">Special Terrain Effects</div>
-                    <div className="space-y-2.5 text-xs text-on-surface-variant">
-                      <div className="flex gap-2">
-                        <span className="text-red-400 font-bold shrink-0 w-28">Unstable Ground</span>
-                        <span>Created by Rift Forger or Scorched Retreat. Enemies entering take 1 damage. Lasts 3 turns. Can be detonated by Volatile Cinder.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-blue-300 font-bold shrink-0 w-28">Icy Ground</span>
-                        <span>Created by Frigid Path. First enemy to enter is Dazed for 1 turn.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-purple-400 font-bold shrink-0 w-28">Void Scar</span>
-                        <span>Radiates outward from both Rift corners. Alters combat resolution for units standing inside.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-slate-300 font-bold shrink-0 w-28">Glacial Wall</span>
-                        <span>Impassable solid barrier placed by Ice Weaver. Lasts 3 turns. Blocks movement and line of sight.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-orange-400 font-bold shrink-0 w-28">Obsidian Pillar</span>
-                        <span>Placed by Magma Shaper. Acts as cover. Deals damage/pushback to enemies nearby and forms a temporary shield on allies.</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-void-black/50 border border-outline/10 rounded-lg p-4 space-y-3">
-                    <div className="font-label-caps text-xs text-on-surface-variant">Status Effects Reference</div>
-                    <div className="grid grid-cols-2 gap-2 text-[10px] text-on-surface-variant">
-                      {[
-                        { name: "Dazed", col: "text-yellow-400", desc: "Cannot act this turn." },
-                        { name: "Stuck", col: "text-red-400", desc: "Cannot move for N turns." },
-                        { name: "Hamstrung", col: "text-orange-400", desc: "No diagonal movement for 1 round." },
-                        { name: "Steadfast", col: "text-blue-300", desc: "Immune to Daze, Stuck, Push." }
-                      ].map(s => (
-                        <div key={s.name} className="bg-void-black/30 rounded p-1.5">
-                          <div className={`font-bold ${s.col}`}>{s.name}</div>
-                          <div>{s.desc}</div>
+              {searchResults.length > 0 ? (
+                <div className="max-h-80 overflow-y-auto p-2">
+                  {searchResults.map((result, index) => (
+                    <button
+                      key={`${result.tab}-${result.title}-${index}`}
+                      className="group flex w-full items-start justify-between gap-4 rounded-lg px-3 py-3 text-left transition-colors hover:bg-surface-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-gold"
+                      onClick={() => handleSearchResult(result)}
+                    >
+                      <div className="min-w-0">
+                        <div className="mb-1 flex flex-wrap items-center gap-2">
+                          <span className="font-label-caps text-[8px] tracking-widest text-ember-gold">{result.section}</span>
+                          {result.faction && (
+                            <span className={`font-label-caps text-[8px] tracking-widest ${result.faction === 'snow' ? 'text-ice-light' : 'text-magma-core'}`}>
+                              {result.faction}
+                            </span>
+                          )}
                         </div>
-                      ))}
-                    </div>
+                        <h3 className="text-sm font-semibold text-on-surface">{result.title}</h3>
+                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-on-surface-variant">{result.description}</p>
+                      </div>
+                      <ArrowLeft className="mt-1 h-4 w-4 shrink-0 rotate-180 text-on-surface-variant transition-transform group-hover:translate-x-1 group-hover:text-ember-gold" aria-hidden="true" />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="px-4 py-8 text-center">
+                  <p className="text-sm text-on-surface-variant">Try a unit name, “Conduit,” “Dazed,” or an ability.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* ═══════════════════════════ QUICK READ TAB ═══════════════════════════ */}
+        {activeTab === 'QUICK' && (
+          <div className="space-y-7 animate-[fadeIn_0.3s_ease-out]">
+            <section className="overflow-hidden rounded-2xl border border-ember-gold/20 bg-gradient-to-br from-ember-gold/10 via-surface-container/80 to-void-black/95 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.3)] sm:p-9">
+              <div className="grid items-center gap-8 lg:grid-cols-[1fr_auto]">
+                <div>
+                  <div className="mb-3 flex items-center gap-2 font-label-caps text-[10px] tracking-[0.22em] text-ember-gold">
+                    <Clock3 className="h-4 w-4" aria-hidden="true" />
+                    Three-minute briefing
+                  </div>
+                  <h2 className="font-almendra text-3xl font-bold text-on-surface sm:text-4xl">The battle at a glance</h2>
+                  <p className="mt-3 max-w-2xl text-sm leading-relaxed text-on-surface-variant sm:text-base">
+                    Mythic Territories is a turn-based contest of positioning and power. Claim ground, use faction abilities,
+                    control ancient landmarks, and create the opening that brings down the enemy leader.
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center justify-center gap-3">
+                  <div className="h-20 w-20 overflow-hidden rounded-xl border border-ice-light/40 bg-ice-light/5 sm:h-24 sm:w-24">
+                    <img src="/units/frost-lord.webp" alt="Frost Lord" className="h-full w-full object-cover" />
+                  </div>
+                  <Swords className="h-6 w-6 text-ember-gold" aria-hidden="true" />
+                  <div className="h-20 w-20 overflow-hidden rounded-xl border border-magma-core/40 bg-magma-core/5 sm:h-24 sm:w-24">
+                    <img src="/units/ash-tyrant.webp" alt="Ash Tyrant" className="h-full w-full object-cover" />
                   </div>
                 </div>
               </div>
             </section>
 
+            <section aria-labelledby="quick-steps-heading">
+              <div className="mb-4 flex items-end justify-between gap-4">
+                <div>
+                  <p className="font-label-caps text-[9px] tracking-[0.22em] text-ice-light">How a match works</p>
+                  <h2 id="quick-steps-heading" className="mt-1 font-almendra text-2xl font-bold text-on-surface sm:text-3xl">Five rules to start playing</h2>
+                </div>
+                <button
+                  className="hidden font-label-caps text-[10px] tracking-wider text-ember-gold hover:text-white sm:block"
+                  onClick={() => setActiveTab('RULES')}
+                >
+                  Read common rules →
+                </button>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                {QUICK_STEPS.map((step) => {
+                  const Icon = step.icon;
+                  return (
+                    <article id={`quick-${toRulebookId(step.title)}`} key={step.number} className="scroll-mt-36 rounded-2xl border border-outline/15 bg-surface-container/65 p-5 backdrop-blur-md">
+                      <div className="mb-5 flex items-center justify-between">
+                        <span className={`flex h-9 w-9 items-center justify-center rounded-xl border ${step.accent}`}>
+                          <Icon className="h-4 w-4" aria-hidden="true" />
+                        </span>
+                        <span className="font-mono text-[10px] text-on-surface-variant/50">{step.number}</span>
+                      </div>
+                      <h3 className="font-label-caps text-xs font-bold tracking-wider text-on-surface">{step.title}</h3>
+                      <p className="mt-2 text-xs leading-relaxed text-on-surface-variant">{step.description}</p>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="grid gap-5 lg:grid-cols-2">
+              <div className="rounded-2xl border border-ice-light/20 bg-gradient-to-br from-ice-light/10 to-surface-container/70 p-6">
+                <div className="mb-4 flex items-center gap-3">
+                  <Snowflake className="h-5 w-5 text-ice-light" aria-hidden="true" />
+                  <h2 className="font-almendra text-2xl font-bold text-ice-light">Snow</h2>
+                </div>
+                <p className="text-sm leading-relaxed text-on-surface-variant">
+                  Control space with glacial terrain, defensive effects, healing, and precise disruption.
+                </p>
+                <button className="mt-5 font-label-caps text-[10px] tracking-wider text-ice-light hover:text-white" onClick={() => { setActiveFaction('snow'); setActiveTab('UNITS'); }}>
+                  Explore Snow units →
+                </button>
+              </div>
+              <div className="rounded-2xl border border-magma-core/20 bg-gradient-to-br from-magma-core/10 to-surface-container/70 p-6">
+                <div className="mb-4 flex items-center gap-3">
+                  <Flame className="h-5 w-5 text-magma-core" aria-hidden="true" />
+                  <h2 className="font-almendra text-2xl font-bold text-magma-core">Ash</h2>
+                </div>
+                <p className="text-sm leading-relaxed text-on-surface-variant">
+                  Break formations with direct damage, volatile terrain, forced movement, and aggressive pressure.
+                </p>
+                <button className="mt-5 font-label-caps text-[10px] tracking-wider text-magma-core hover:text-white" onClick={() => { setActiveFaction('ash'); setActiveTab('UNITS'); }}>
+                  Explore Ash units →
+                </button>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-outline/15 bg-void-black/40 p-5 sm:p-6">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {[
+                  { term: 'Agility', definition: 'How far a unit can move.', icon: Footprints },
+                  { term: 'Effective Power', definition: 'Strength plus boosts minus debuffs.', icon: Zap },
+                  { term: 'Territory', definition: 'Claimed squares used to break combat ties.', icon: Map },
+                  { term: 'Dazed', definition: 'The unit cannot act this turn.', icon: Shield }
+                ].map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <div key={item.term} className="flex gap-3">
+                      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-ember-gold" aria-hidden="true" />
+                      <div>
+                        <h3 className="font-label-caps text-[10px] tracking-wider text-on-surface">{item.term}</h3>
+                        <p className="mt-1 text-xs leading-relaxed text-on-surface-variant">{item.definition}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* ═══════════════════════════ COMMON RULES TAB ═══════════════════════════ */}
+        {activeTab === 'RULES' && (
+          <div className="space-y-7 animate-[fadeIn_0.3s_ease-out]">
+            <section className="overflow-hidden rounded-2xl border border-ember-gold/20 bg-gradient-to-br from-ember-gold/10 via-surface-container/80 to-void-black/95 p-6 sm:p-9">
+              <div className="grid items-center gap-8 lg:grid-cols-[1fr_auto]">
+                <div>
+                  <div className="mb-3 flex items-center gap-2 font-label-caps text-[10px] tracking-[0.22em] text-ember-gold">
+                    <Flag className="h-4 w-4" aria-hidden="true" />
+                    Shared victory condition
+                  </div>
+                  <h2 className="font-almendra text-3xl font-bold text-on-surface sm:text-4xl">Vanquish the enemy leader</h2>
+                  <p className="mt-3 max-w-2xl text-sm leading-relaxed text-on-surface-variant sm:text-base">
+                    Snow and Ash follow the same battlefield rules. Defeat the opposing Frost Lord or Ash Tyrant to end
+                    the match and claim dominion over the realm.
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center justify-center gap-3">
+                  <div className="h-20 w-20 overflow-hidden rounded-xl border border-ice-light/40 sm:h-24 sm:w-24">
+                    <img alt="Frost Lord" className="h-full w-full object-cover" src="/units/frost-lord.webp" />
+                  </div>
+                  <Swords className="h-6 w-6 text-ember-gold" aria-hidden="true" />
+                  <div className="h-20 w-20 overflow-hidden rounded-xl border border-magma-core/40 sm:h-24 sm:w-24">
+                    <img alt="Ash Tyrant" className="h-full w-full object-cover" src="/units/ash-tyrant.webp" />
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section aria-labelledby="foundation-heading">
+              <div className="mb-4">
+                <p className="font-label-caps text-[9px] tracking-[0.22em] text-ice-light">Battlefield foundation</p>
+                <h2 id="foundation-heading" className="mt-1 font-almendra text-2xl font-bold text-on-surface sm:text-3xl">The rules every faction shares</h2>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {COMMON_RULES.map((rule) => {
+                  const Icon = rule.icon;
+                  return (
+                    <article id={`rule-${toRulebookId(rule.title)}`} key={rule.title} className="scroll-mt-36 rounded-2xl border border-outline/15 bg-surface-container/65 p-5 backdrop-blur-md">
+                      <span className={`mb-5 flex h-10 w-10 items-center justify-center rounded-xl border ${rule.accent}`}>
+                        <Icon className="h-4 w-4" aria-hidden="true" />
+                      </span>
+                      <h3 className="font-label-caps text-xs font-bold tracking-wider text-on-surface">{rule.title}</h3>
+                      <p className="mt-2 text-xs leading-relaxed text-on-surface-variant">{rule.description}</p>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
+              <div id="rule-effective-power" className="scroll-mt-36 rounded-2xl border border-magma-core/20 bg-gradient-to-br from-magma-core/10 to-surface-container/70 p-6 sm:p-8">
+                <div className="mb-5 flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-magma-core/25 bg-magma-core/10 text-magma-core">
+                    <Swords className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <p className="font-label-caps text-[9px] tracking-[0.2em] text-magma-core">Combat resolution</p>
+                    <h2 className="font-almendra text-2xl font-bold text-on-surface">Compare Effective Power</h2>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-outline/15 bg-void-black/45 p-5 text-center">
+                  <p className="font-label-caps text-[9px] tracking-[0.18em] text-on-surface-variant">Effective Power</p>
+                  <p className="mt-2 font-mono text-sm font-bold text-on-surface sm:text-lg">
+                    Strength <span className="text-ice-light">+</span> boosts <span className="text-magma-core">−</span> debuffs
+                  </p>
+                </div>
+                <ol className="mt-5 space-y-3 text-sm leading-relaxed text-on-surface-variant">
+                  <li className="flex gap-3"><span className="font-mono text-ember-gold">01</span><span>Move onto an enemy unit’s square to begin combat.</span></li>
+                  <li className="flex gap-3"><span className="font-mono text-ember-gold">02</span><span>Calculate both units’ Effective Power at that moment.</span></li>
+                  <li className="flex gap-3"><span className="font-mono text-ember-gold">03</span><span>Higher Power wins. Territory control breaks a standard tie.</span></li>
+                </ol>
+              </div>
+
+              <div className="rounded-2xl border border-ember-gold/20 bg-gradient-to-br from-ember-gold/10 to-surface-container/70 p-6 sm:p-8">
+                <div className="mb-5 flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-ember-gold/25 bg-ember-gold/10 text-ember-gold">
+                    <Map className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <p className="font-label-caps text-[9px] tracking-[0.2em] text-ember-gold">Map control</p>
+                    <h2 className="font-almendra text-2xl font-bold text-on-surface">Territory matters</h2>
+                  </div>
+                </div>
+                <p className="text-sm leading-relaxed text-on-surface-variant">
+                  Entering an empty square converts it to your faction. Territory is both positioning and leverage: the
+                  faction controlling more squares wins standard tied combat unless another effect overrides the result.
+                </p>
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-ice-light/20 bg-ice-light/5 p-3 text-center">
+                    <Snowflake className="mx-auto h-4 w-4 text-ice-light" aria-hidden="true" />
+                    <p className="mt-2 font-label-caps text-[9px] tracking-wider text-ice-light">Snow territory</p>
+                  </div>
+                  <div className="rounded-xl border border-magma-core/20 bg-magma-core/5 p-3 text-center">
+                    <Flame className="mx-auto h-4 w-4 text-magma-core" aria-hidden="true" />
+                    <p className="mt-2 font-label-caps text-[9px] tracking-wider text-magma-core">Ash territory</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section aria-labelledby="landmarks-heading">
+              <div className="mb-4">
+                <p className="font-label-caps text-[9px] tracking-[0.22em] text-ember-gold">Strategic landmarks</p>
+                <h2 id="landmarks-heading" className="mt-1 font-almendra text-2xl font-bold text-on-surface sm:text-3xl">Shrine, Rifts, and Conduits</h2>
+              </div>
+              <div className="grid gap-5 lg:grid-cols-2">
+                <article id="rule-sacred-shrine" className="scroll-mt-36 rounded-2xl border border-ember-gold/20 bg-surface-container/65 p-6 sm:p-7">
+                  <div className="mb-4 flex items-center gap-3">
+                    <Landmark className="h-5 w-5 text-ember-gold" aria-hidden="true" />
+                    <h3 className="font-almendra text-2xl font-bold text-ember-gold">The Sacred Shrine</h3>
+                  </div>
+                  <p className="text-sm leading-relaxed text-on-surface-variant">
+                    The Shrine occupies a 2×2 zone at the centre. Capturing an enemy there grants permanent
+                    <span className="font-bold text-ember-gold"> +1 Power</span> and adds 1 Shrine charge.
+                  </p>
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-4">
+                      <p className="font-label-caps text-[9px] tracking-wider text-amber-400">At 2 charges</p>
+                      <p className="mt-2 text-xs leading-relaxed text-on-surface-variant">The Shrine Overloads and any occupying unit becomes Trapped.</p>
+                    </div>
+                    <div className="rounded-xl border border-red-400/20 bg-red-400/5 p-4">
+                      <p className="font-label-caps text-[9px] tracking-wider text-red-400">Release</p>
+                      <p className="mt-2 text-xs leading-relaxed text-on-surface-variant">Escape with −1 Power and Dazed for 3 turns, without Ascension.</p>
+                    </div>
+                  </div>
+                  <button className="mt-5 font-label-caps text-[10px] tracking-wider text-ember-gold hover:text-white" onClick={() => setActiveTab('ASCENSION')}>
+                    Explore Ascension paths →
+                  </button>
+                </article>
+
+                <article id="rule-power-rifts-and-conduit" className="scroll-mt-36 rounded-2xl border border-purple-400/20 bg-surface-container/65 p-6 sm:p-7">
+                  <div className="mb-4 flex items-center gap-3">
+                    <Zap className="h-5 w-5 text-purple-400" aria-hidden="true" />
+                    <h3 className="font-almendra text-2xl font-bold text-purple-300">Power Rifts and Conduit</h3>
+                  </div>
+                  <p className="text-sm leading-relaxed text-on-surface-variant">
+                    Two 3×3 Power Rifts occupy opposite corners. A faction with at least one unit on each Rift activates
+                    its Conduit Link.
+                  </p>
+                  <div className="mt-5 space-y-3">
+                    <div className="flex gap-3 rounded-xl border border-green-400/20 bg-green-400/5 p-4">
+                      <Shield className="mt-0.5 h-4 w-4 shrink-0 text-green-400" aria-hidden="true" />
+                      <p className="text-xs leading-relaxed text-on-surface-variant"><span className="font-bold text-green-400">Uncontested:</span> both Anchor units gain +2 Power and a defensive ward.</p>
+                    </div>
+                    <div className="flex gap-3 rounded-xl border border-amber-400/20 bg-amber-400/5 p-4">
+                      <Swords className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" aria-hidden="true" />
+                      <p className="text-xs leading-relaxed text-on-surface-variant"><span className="font-bold text-amber-400">Contested:</span> an enemy occupies a Rift and the Anchor bonus falls to +1.</p>
+                    </div>
+                  </div>
+                </article>
+              </div>
+            </section>
+
+            <section className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+              <div className="rounded-2xl border border-outline/15 bg-surface-container/65 p-6 sm:p-7">
+                <div className="mb-5 flex items-center gap-3">
+                  <Map className="h-5 w-5 text-ice-light" aria-hidden="true" />
+                  <h2 className="font-almendra text-2xl font-bold text-on-surface">Special terrain</h2>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {TERRAIN_RULES.map((terrain) => (
+                    <div id={`terrain-${toRulebookId(terrain.name)}`} key={terrain.name} className="scroll-mt-36 rounded-xl border border-outline/10 bg-void-black/35 p-4">
+                      <h3 className={`font-label-caps text-[10px] font-bold tracking-wider ${terrain.color}`}>{terrain.name}</h3>
+                      <p className="mt-2 text-xs leading-relaxed text-on-surface-variant">{terrain.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-outline/15 bg-surface-container/65 p-6 sm:p-7">
+                <div className="mb-5 flex items-center gap-3">
+                  <Shield className="h-5 w-5 text-ember-gold" aria-hidden="true" />
+                  <h2 className="font-almendra text-2xl font-bold text-on-surface">Status reference</h2>
+                </div>
+                <div className="space-y-3">
+                  {STATUS_RULES.map((status) => (
+                    <div id={`status-${toRulebookId(status.name)}`} key={status.name} className="scroll-mt-36 flex items-start justify-between gap-4 rounded-xl border border-outline/10 bg-void-black/35 p-4">
+                      <h3 className={`font-label-caps text-[10px] font-bold tracking-wider ${status.color}`}>{status.name}</h3>
+                      <p className="max-w-52 text-right text-xs leading-relaxed text-on-surface-variant">{status.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
           </div>
         )}
 
@@ -592,7 +1027,7 @@ export default function Guide({ navigateTo }) {
           <div className="space-y-8 animate-[fadeIn_0.3s_ease-out]">
             <section className="bg-surface-container/60 backdrop-blur-md rounded-xl p-6 sm:p-8 border border-outline/10 shadow-lg space-y-6">
               <h2 className="font-almendra text-2xl sm:text-3xl font-bold text-ember-gold flex items-center gap-2">
-                <span className="material-symbols-outlined">auto_awesome</span>
+                <Sparkles className="h-6 w-6" aria-hidden="true" />
                 Ascension Paths
               </h2>
               <div className="h-[2px] bg-gradient-to-r from-ember-gold to-transparent" />
@@ -634,7 +1069,7 @@ export default function Guide({ navigateTo }) {
 
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                 {ASCENSION_ROLES.map((r) => (
-                  <div key={r.role} className="bg-void-black/50 border border-outline/10 rounded-xl overflow-hidden">
+                  <div id={`ascension-${toRulebookId(r.role)}`} key={r.role} className="scroll-mt-36 bg-void-black/50 border border-outline/10 rounded-xl overflow-hidden">
                     {/* Role header */}
                     <div className="px-5 py-3 border-b border-outline/10 flex items-baseline justify-between">
                       <span className="font-almendra text-base text-ember-gold font-bold">{r.role}</span>
@@ -677,24 +1112,59 @@ export default function Guide({ navigateTo }) {
         {/* ═══════════════════════════ UNITS TAB ═══════════════════════════ */}
         {activeTab === 'UNITS' && (
           <div className="space-y-8 animate-[fadeIn_0.3s_ease-out]">
+            <section className={`overflow-hidden rounded-2xl border p-6 sm:p-8 ${
+              activeFaction === 'snow'
+                ? 'border-ice-light/25 bg-gradient-to-r from-ice-light/12 via-surface-container/80 to-void-black/95'
+                : 'border-magma-core/25 bg-gradient-to-r from-magma-core/12 via-surface-container/80 to-void-black/95'
+            }`}>
+              <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
+                <div>
+                  <div className={`mb-2 flex items-center gap-2 font-label-caps text-[9px] tracking-[0.22em] ${
+                    activeFaction === 'snow' ? 'text-ice-light' : 'text-magma-core'
+                  }`}>
+                    {activeFaction === 'snow'
+                      ? <Snowflake className="h-4 w-4" aria-hidden="true" />
+                      : <Flame className="h-4 w-4" aria-hidden="true" />}
+                    Faction unit catalog
+                  </div>
+                  <h2 className={`font-almendra text-3xl font-bold sm:text-4xl ${
+                    activeFaction === 'snow' ? 'text-ice-light' : 'text-magma-core'
+                  }`}>
+                    {activeFaction === 'snow' ? 'The Snow Host' : 'The Ash Legion'}
+                  </h2>
+                  <p className="mt-3 max-w-2xl text-sm leading-relaxed text-on-surface-variant">
+                    {activeFaction === 'snow'
+                      ? 'A disciplined force built around control, protection, healing, and glacial terrain.'
+                      : 'An aggressive force built around direct damage, disruption, hazards, and relentless pressure.'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-3xl font-bold text-on-surface">{UNIT_PROFILES[activeFaction].length}</span>
+                  <span className="font-label-caps text-[9px] leading-relaxed tracking-wider text-on-surface-variant">documented<br />units</span>
+                </div>
+              </div>
+            </section>
+
             {/* Faction Selector */}
-            <div className="flex justify-center gap-4">
+            <div className="grid grid-cols-2 gap-3 rounded-2xl border border-outline/15 bg-void-black/45 p-2 sm:mx-auto sm:max-w-xl">
               <button
-                className={`px-6 py-2 rounded font-label-caps text-sm border font-semibold tracking-wider transition-all duration-300 ${activeFaction === 'snow'
-                    ? 'bg-ice-light/10 border-ice-light text-ice-light shadow-[0_0_15px_rgba(165,243,252,0.2)]'
-                    : 'border-outline/30 text-on-surface-variant hover:text-white'
+                className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-label-caps text-xs font-semibold tracking-wider transition-all duration-300 ${activeFaction === 'snow'
+                    ? 'bg-ice-light text-void-black shadow-[0_8px_25px_rgba(165,243,252,0.18)]'
+                    : 'text-on-surface-variant hover:bg-ice-light/10 hover:text-ice-light'
                   }`}
                 onClick={() => setActiveFaction('snow')}
               >
+                <Snowflake className="h-4 w-4" aria-hidden="true" />
                 Snow Faction
               </button>
               <button
-                className={`px-6 py-2 rounded font-label-caps text-sm border font-semibold tracking-wider transition-all duration-300 ${activeFaction === 'ash'
-                    ? 'bg-magma-core/10 border-magma-core text-magma-core shadow-[0_0_15px_rgba(239,68,68,0.2)]'
-                    : 'border-outline/30 text-on-surface-variant hover:text-white'
+                className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-label-caps text-xs font-semibold tracking-wider transition-all duration-300 ${activeFaction === 'ash'
+                    ? 'bg-magma-core text-white shadow-[0_8px_25px_rgba(239,68,68,0.18)]'
+                    : 'text-on-surface-variant hover:bg-magma-core/10 hover:text-magma-core'
                   }`}
                 onClick={() => setActiveFaction('ash')}
               >
+                <Flame className="h-4 w-4" aria-hidden="true" />
                 Ash Faction
               </button>
             </div>
@@ -703,14 +1173,17 @@ export default function Guide({ navigateTo }) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {UNIT_PROFILES[activeFaction].map((unit, idx) => (
                 <div
-                  key={idx}
-                  className="bg-surface-container/60 backdrop-blur-md rounded-xl border border-outline/10 overflow-hidden flex flex-col hover:border-outline/30 transition-all duration-300 shadow-lg"
+                  id={`unit-${activeFaction}-${toRulebookId(unit.name)}`}
+                  key={`${activeFaction}-${unit.name}`}
+                  className="scroll-mt-36 bg-surface-container/60 backdrop-blur-md rounded-xl border border-outline/10 overflow-hidden flex flex-col hover:border-outline/30 transition-all duration-300 shadow-lg"
                 >
                   {/* Portrait */}
                   <div className="relative h-56 bg-void-black/80 flex items-center justify-center overflow-hidden border-b border-outline/10">
                     <img
                       src={unit.portrait}
                       alt={unit.name}
+                      loading="lazy"
+                      decoding="async"
                       className="w-40 h-40 object-contain hover:scale-105 transition-transform duration-500"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-void-black via-transparent to-transparent pointer-events-none" />

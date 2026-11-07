@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import gsap from 'gsap';
+import '../../styles/wheel.css';
 import { TEAM_PIECES, PIECE_TYPES, IMAGES } from '../../../shared/constants.js';
 
 // Descriptions lookup for active abilities
@@ -389,7 +390,7 @@ export default function Wheel({ navigateTo }) {
               {/* Unit Card Header */}
               <div className="flex items-center gap-4 border-b border-outline/10 pb-4">
                 <div className="w-16 h-16 rounded-lg bg-void-black/70 p-1.5 border border-outline/20 flex items-center justify-center overflow-hidden">
-                  <img src={IMAGES[winner.key] ? (IMAGES[winner.key].startsWith('/') ? IMAGES[winner.key] : `/${IMAGES[winner.key]}`) : '/units/cryomancer.png'} alt={winner.name} className="w-full h-full object-contain" />
+                  <img src={IMAGES[winner.key] ? (IMAGES[winner.key].startsWith('/') ? IMAGES[winner.key] : `/${IMAGES[winner.key]}`) : '/units/cryomancer.webp'} alt={winner.name} decoding="async" className="w-full h-full object-contain" />
                 </div>
                 <div>
                   <h2 className="font-almendra text-2xl font-bold text-white">{winner.name}</h2>
