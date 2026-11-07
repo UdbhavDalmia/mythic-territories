@@ -269,10 +269,10 @@ function ReleaseCard({ patch, expanded, onToggle, onViewRules, featured = false,
   return (
     <article
       id={versionId(patch.version)}
-      className={`scroll-mt-36 overflow-hidden rounded-2xl border bg-gradient-to-br ${themeClass} via-surface-container/90 to-void-black/95 shadow-[0_20px_70px_rgba(0,0,0,0.3)] ${featured ? 'ring-1 ring-ice-light/15' : ''}`}
+      className={`scroll-mt-36 overflow-hidden rounded-2xl border bg-gradient-to-br ${themeClass} via-surface-container/90 to-void-black/95 transition-all duration-300 shadow-[0_20px_70px_rgba(0,0,0,0.3)] ${featured ? 'ring-1 ring-ice-light/15' : ''} ${expanded ? 'note-card-expanded border-opacity-70' : ''}`}
     >
       <button
-        className="w-full p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ember-gold sm:p-7"
+        className="w-full p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ember-gold sm:p-7 cursor-pointer"
         onClick={onToggle}
         aria-expanded={expanded}
         aria-controls={`${versionId(patch.version)}-changes`}
@@ -303,34 +303,44 @@ function ReleaseCard({ patch, expanded, onToggle, onViewRules, featured = false,
               <span aria-hidden="true">·</span>
               <span>{changes.length} changes</span>
             </div>
-            {!expanded && summary && (
-              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-on-surface-variant">{summary}</p>
+            {summary && (
+              <div className={`note-summary-wrapper ${expanded ? 'collapsed' : ''}`}>
+                <div className="note-summary-inner">
+                  <p className="mt-4 max-w-2xl text-sm leading-relaxed text-on-surface-variant">{summary}</p>
+                </div>
+              </div>
             )}
           </div>
-          <span className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-outline/20 bg-void-black/30 text-on-surface-variant">
-            <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" />
+          <span className={`mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-outline/20 bg-void-black/30 text-on-surface-variant transition-colors duration-300 ${expanded ? 'text-ember-gold border-ember-gold/40' : ''}`}>
+            <ChevronDown className={`h-4 w-4 transition-transform duration-300 ease-out ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" />
           </span>
         </div>
       </button>
 
-      {expanded && (
-        <div id={`${versionId(patch.version)}-changes`} className="border-t border-outline-variant/20 px-5 pb-5 pt-4 sm:px-7 sm:pb-7">
-          <ul className="grid gap-3">
-            {changes.map((change, index) => <ChangeRow key={`${patch.version}-${index}`} text={change} />)}
-          </ul>
-          {onViewRules && (
-            <div className="mt-4 flex justify-end">
-              <button
-                className="inline-flex items-center gap-2 rounded-full px-3 py-2 font-label-caps text-[9px] tracking-wider text-on-surface-variant transition-colors hover:bg-ice-light/10 hover:text-ice-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ice-light"
-                onClick={onViewRules}
-              >
-                <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
-                View current rules
-              </button>
-            </div>
-          )}
+      <div
+        id={`${versionId(patch.version)}-changes`}
+        className={`note-accordion-wrapper ${expanded ? 'open' : ''}`}
+        aria-hidden={!expanded}
+      >
+        <div className="note-accordion-inner">
+          <div className="note-accordion-content border-t border-outline-variant/20 px-5 pb-5 pt-4 sm:px-7 sm:pb-7">
+            <ul className="grid gap-3">
+              {changes.map((change, index) => <ChangeRow key={`${patch.version}-${index}`} text={change} />)}
+            </ul>
+            {onViewRules && (
+              <div className="mt-4 flex justify-end">
+                <button
+                  className="inline-flex items-center gap-2 rounded-full px-3 py-2 font-label-caps text-[9px] tracking-wider text-on-surface-variant transition-colors hover:bg-ice-light/10 hover:text-ice-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ice-light cursor-pointer"
+                  onClick={onViewRules}
+                >
+                  <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
+                  View current rules
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </article>
   );
 }
@@ -382,24 +392,28 @@ export default function Notes({ navigateTo }) {
 
   const openVersion = (version, archived = false) => {
     if (archived) setShowArchive(true);
-    setExpandedVersions((current) => {
-      const next = new Set(current);
-      if (next.has(version)) next.delete(version);
-      else next.add(version);
-      return next;
-    });
+    const isCurrentlyOpen = expandedVersions.has(version);
 
-    const url = new URL(window.location.href);
-    url.searchParams.set('page', 'notes');
-    url.searchParams.set('version', version);
-    window.history.replaceState({}, '', url);
+    if (isCurrentlyOpen) {
+      setExpandedVersions(new Set());
+      const url = new URL(window.location.href);
+      url.searchParams.set('page', 'notes');
+      url.searchParams.delete('version');
+      window.history.replaceState({}, '', url);
+    } else {
+      setExpandedVersions(new Set([version]));
+      const url = new URL(window.location.href);
+      url.searchParams.set('page', 'notes');
+      url.searchParams.set('version', version);
+      window.history.replaceState({}, '', url);
 
-    window.requestAnimationFrame(() => {
-      document.getElementById(versionId(version))?.scrollIntoView({
-        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
-        block: 'start'
+      window.requestAnimationFrame(() => {
+        document.getElementById(versionId(version))?.scrollIntoView({
+          behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+          block: 'start'
+        });
       });
-    });
+    }
   };
 
   return (
@@ -462,17 +476,21 @@ export default function Notes({ navigateTo }) {
               </p>
             </div>
             <button
-              className="rounded-full border border-ember-gold/30 px-4 py-2.5 font-label-caps text-[10px] tracking-wider text-ember-gold transition-colors hover:bg-ember-gold hover:text-void-black"
+              className="rounded-full border border-ember-gold/30 px-4 py-2.5 font-label-caps text-[10px] tracking-wider text-ember-gold transition-colors hover:bg-ember-gold hover:text-void-black cursor-pointer"
               onClick={() => openVersion(upcomingPatch.version)}
             >
-              View roadmap
+              {expandedVersions.has(upcomingPatch.version) ? 'Close roadmap' : 'View roadmap'}
             </button>
           </div>
-          {expandedVersions.has(upcomingPatch.version) && (
-            <ul className="mt-6 grid gap-3 border-t border-ember-gold/15 pt-5 md:grid-cols-2">
-              {upcomingPatch.highlights.map((change, index) => <ChangeRow key={`roadmap-${index}`} text={change.text} />)}
-            </ul>
-          )}
+          <div className={`note-accordion-wrapper ${expandedVersions.has(upcomingPatch.version) ? 'open' : ''}`}>
+            <div className="note-accordion-inner">
+              <div className="note-accordion-content">
+                <ul className="mt-6 grid gap-3 border-t border-ember-gold/15 pt-5 md:grid-cols-2">
+                  {upcomingPatch.highlights.map((change, index) => <ChangeRow key={`roadmap-${index}`} text={change.text} />)}
+                </ul>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section aria-labelledby="released-heading">
@@ -514,20 +532,24 @@ export default function Notes({ navigateTo }) {
             </button>
           </div>
 
-          {showArchive && (
-            <div className="mt-6 space-y-4">
-              {HISTORICAL_PATCHES.map((patch) => (
-                <ReleaseCard
-                  key={patch.version}
-                  patch={patch}
-                  archived
-                  expanded={expandedVersions.has(patch.version)}
-                  onToggle={() => openVersion(patch.version, true)}
-                  onViewRules={() => handleNavigate('GUIDE')}
-                />
-              ))}
+          <div className={`note-accordion-wrapper ${showArchive ? 'open' : ''}`}>
+            <div className="note-accordion-inner">
+              <div className="note-accordion-content">
+                <div className="mt-6 space-y-4">
+                  {HISTORICAL_PATCHES.map((patch) => (
+                    <ReleaseCard
+                      key={patch.version}
+                      patch={patch}
+                      archived
+                      expanded={expandedVersions.has(patch.version)}
+                      onToggle={() => openVersion(patch.version, true)}
+                      onViewRules={() => handleNavigate('GUIDE')}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
-          )}
+          </div>
         </section>
       </main>
 

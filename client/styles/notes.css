@@ -92,3 +92,65 @@ body {
         background-position: 0% 50%;
     }
 }
+
+/* ── Note Card Accordion Animations ────────────────────────────── */
+.note-accordion-wrapper {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.38s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.note-accordion-wrapper.open {
+    grid-template-rows: 1fr;
+}
+
+.note-accordion-inner {
+    overflow: hidden;
+    min-height: 0;
+}
+
+.note-accordion-content {
+    min-height: 0;
+    opacity: 0;
+    transform: translateY(-8px);
+    transition: opacity 0.32s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.note-accordion-wrapper.open .note-accordion-content {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Summary preview accordion (smoothly hides when card is opened) */
+.note-summary-wrapper {
+    display: grid;
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transform: translateY(0);
+    transition: grid-template-rows 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, transform 0.25s ease;
+}
+
+.note-summary-wrapper.collapsed {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transform: translateY(-4px);
+    pointer-events: none;
+}
+
+.note-summary-inner {
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* Card hover and expanded state */
+.note-card-expanded {
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5), 0 0 25px rgba(232, 193, 94, 0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .note-accordion-wrapper,
+    .note-accordion-content,
+    .note-summary-wrapper {
+        transition: none !important;
+    }
+}

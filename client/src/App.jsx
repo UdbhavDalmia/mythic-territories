@@ -36,25 +36,23 @@ function ScreenLoader() {
 }
 
 export default function App() {
-  const [view, setView] = useState(() => {
+  const parseCurrentView = () => {
     const params = new URLSearchParams(window.location.search);
-    const page = params.get('page');
-    if (page === 'rules') return 'GUIDE';
-    if (page === 'notes') return 'NOTES';
-    if (page === 'wheel') return 'WHEEL';
+    const page = params.get('page')?.toLowerCase();
+    const path = window.location.pathname.replace(/\/+$/, '').toLowerCase();
+
+    if (page === 'rules' || path.endsWith('/rules') || path.endsWith('/guide')) return 'GUIDE';
+    if (page === 'notes' || path.endsWith('/notes')) return 'NOTES';
+    if (page === 'wheel' || page === 'destiny' || path.endsWith('/wheel') || path.endsWith('/destiny')) return 'WHEEL';
     if (params.get('room') || params.get('mode') === 'local') return 'GAME';
     return 'LOBBY';
-  });
+  };
+
+  const [view, setView] = useState(parseCurrentView);
 
   useEffect(() => {
     const handlePopState = () => {
-      const params = new URLSearchParams(window.location.search);
-      const page = params.get('page');
-      if (page === 'rules') setView('GUIDE');
-      else if (page === 'notes') setView('NOTES');
-      else if (page === 'wheel') setView('WHEEL');
-      else if (params.get('room') || params.get('mode') === 'local') setView('GAME');
-      else setView('LOBBY');
+      setView(parseCurrentView());
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -75,7 +73,7 @@ export default function App() {
       warmGameAssets();
       loadGame();
       secondaryTask = window.setTimeout(() => {
-        Promise.allSettled([loadGuide(), loadNotes()]);
+        Promise.allSettled([loadGuide(), loadNotes(), loadWheel()]);
       }, 1200);
     });
 
@@ -86,7 +84,7 @@ export default function App() {
   }, [view]);
 
   const navigateTo = (newView, params = {}) => {
-    const url = new URL(window.location.origin + window.location.pathname);
+    const url = new URL(window.location.origin + (newView === 'LOBBY' ? '/' : window.location.pathname));
     
     if (newView === 'GUIDE') {
       url.searchParams.set('page', 'rules');
@@ -94,6 +92,11 @@ export default function App() {
       url.searchParams.set('page', 'notes');
     } else if (newView === 'WHEEL') {
       url.searchParams.set('page', 'wheel');
+    } else if (newView === 'LOBBY') {
+      url.search = '';
+      Object.entries(params).forEach(([key, val]) => {
+        url.searchParams.set(key, val);
+      });
     } else {
       Object.entries(params).forEach(([key, val]) => {
         url.searchParams.set(key, val);

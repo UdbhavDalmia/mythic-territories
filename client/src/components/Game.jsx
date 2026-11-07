@@ -859,10 +859,8 @@ export default function Game({ navigateTo }) {
   useEffect(() => {
     if (!selectedPiece) {
       setDrawerExpanded(false);
-    } else if (isCompactLayout) {
-      setDrawerExpanded(true);
     }
-  }, [selectedPiece?.id, isCompactLayout]);
+  }, [selectedPiece?.id]);
 
   // Main UI returns
   if (!imagesLoaded) {

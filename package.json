@@ -1,6 +1,6 @@
 {
   "name": "mythic-territories",
-  "version": "2.1.0",
+  "version": "2.0",
   "description": "Turn-based strategy game with Socket.io multiplayer",
   "main": "server/server.js",
   "type": "module",

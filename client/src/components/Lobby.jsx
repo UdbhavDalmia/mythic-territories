@@ -56,6 +56,8 @@ export default function Lobby({ navigateTo }) {
 
   const modesOverlayRef = useRef(null);
   const modeCardsRef    = useRef([]);
+  const modesBackRef    = useRef(null);
+  const isClosingModesRef = useRef(false);
 
   const mpModalRef      = useRef(null);
   const mpBackArrowRef  = useRef(null);
@@ -64,8 +66,6 @@ export default function Lobby({ navigateTo }) {
   const snowCardRef       = useRef(null);
   const ashCardRef        = useRef(null);
   const factionBackRef    = useRef(null);
-
-  const modesBackRef    = useRef(null);
 
   // ── 1. Page-load entrance sequence ────────────────────────────────────────
   useEffect(() => {
@@ -100,23 +100,94 @@ export default function Lobby({ navigateTo }) {
     return () => tl.kill();
   }, []);
 
-  // ── 2. Game-mode overlay entrance ─────────────────────────────────────────
+  // ── 2. Game-mode overlay entrance & exit ──────────────────────────────────
+  const handleCloseModes = () => {
+    if (isClosingModesRef.current) return;
+    if (prefersReducedMotion() || !modesOverlayRef.current) {
+      setShowModes(false);
+      return;
+    }
+    isClosingModesRef.current = true;
+    const cards = modeCardsRef.current.filter(Boolean);
+    const content = modesOverlayRef.current?.querySelector('.modal-content');
+    const header = content?.querySelector('.text-center');
+
+    const tl = gsap.timeline({
+      onComplete: () => {
+        setShowModes(false);
+        isClosingModesRef.current = false;
+      }
+    });
+
+    tl.to(cards, {
+      y: 35,
+      opacity: 0,
+      scale: 0.96,
+      duration: 0.28,
+      stagger: 0.05,
+      ease: 'power2.in'
+    })
+    .to([header, modesBackRef.current].filter(Boolean), {
+      y: -12,
+      opacity: 0,
+      duration: 0.22,
+      ease: 'power2.in'
+    }, 0)
+    .to(modesOverlayRef.current, {
+      opacity: 0,
+      duration: 0.28,
+      ease: 'power2.in'
+    }, '-=0.15');
+  };
+
   useEffect(() => {
     if (!showModes) return;
+    isClosingModesRef.current = false;
     if (prefersReducedMotion()) {
       gsap.set([modesOverlayRef.current, ...modeCardsRef.current.filter(Boolean)], { opacity: 1, y: 0, scale: 1 });
       return;
     }
     // Stagger cards in from below
     const cards = modeCardsRef.current.filter(Boolean);
-    gsap.fromTo(modesOverlayRef.current,
-      { opacity: 0 },
-      { opacity: 1, duration: 0.4, ease: 'power2.out' }
+    const content = modesOverlayRef.current?.querySelector('.modal-content');
+    const header = content?.querySelector('.text-center');
+
+    gsap.set([modesOverlayRef.current, ...cards], { opacity: 0 });
+    if (header) gsap.set(header, { opacity: 0, y: 20 });
+    if (modesBackRef.current) gsap.set(modesBackRef.current, { opacity: 0, y: 15 });
+
+    const tl = gsap.timeline();
+
+    tl.to(modesOverlayRef.current, {
+      opacity: 1,
+      duration: 0.35,
+      ease: 'power2.out'
+    });
+
+    if (header) {
+      tl.to(header, {
+        opacity: 1,
+        y: 0,
+        duration: 0.5,
+        ease: 'expo.out'
+      }, '-=0.2');
+    }
+
+    tl.fromTo(cards,
+      { y: 50, opacity: 0, scale: 0.95 },
+      { y: 0, opacity: 1, scale: 1, duration: 0.7, stagger: 0.12, ease: 'expo.out', clearProps: 'transform' },
+      header ? '-=0.35' : 0
     );
-    gsap.fromTo(cards,
-      { y: 60, opacity: 0, scale: 0.95 },
-      { y: 0, opacity: 1, scale: 1, duration: 0.75, stagger: 0.15, ease: 'expo.out', delay: 0.1 }
-    );
+
+    if (modesBackRef.current) {
+      tl.to(modesBackRef.current, {
+        opacity: 1,
+        y: 0,
+        duration: 0.45,
+        ease: 'expo.out'
+      }, '-=0.4');
+    }
+
     // Back arrow nudge loop
     const backArrow = modesBackRef.current?.querySelector('.back-arrow-icon');
     if (backArrow) {
@@ -124,7 +195,16 @@ export default function Lobby({ navigateTo }) {
         x: -3, repeat: -1, yoyo: true, duration: 0.65, ease: 'sine.inOut'
       });
     }
-    return () => gsap.killTweensOf([modesOverlayRef.current, ...cards, backArrow].filter(Boolean));
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') handleCloseModes();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      gsap.killTweensOf([modesOverlayRef.current, ...cards, backArrow, header, modesBackRef.current].filter(Boolean));
+    };
   }, [showModes]);
 
   // ── 3. Multiplayer modal entrance ─────────────────────────────────────────
@@ -376,13 +456,6 @@ export default function Lobby({ navigateTo }) {
         <nav ref={footerLinksRef} aria-label="Game resources" className="flex flex-wrap justify-center gap-2 sm:gap-3 items-center">
           <button
             className="home-resource-link"
-            onClick={() => handleNavigate('WHEEL')}
-          >
-            <Sparkles className="h-4 w-4" aria-hidden="true" />
-            <span>Wheel of Destiny</span>
-          </button>
-          <button
-            className="home-resource-link"
             onClick={() => handleNavigate('NOTES')}
           >
             <ScrollText className="h-4 w-4" aria-hidden="true" />
@@ -407,6 +480,9 @@ export default function Lobby({ navigateTo }) {
           ref={modesOverlayRef}
           className="fixed inset-0 z-50 flex items-center justify-center bg-void-black/80 backdrop-blur-md p-4 sm:p-6"
           style={{ opacity: 0 }}
+          onClick={(e) => {
+            if (e.target === modesOverlayRef.current) handleCloseModes();
+          }}
         >
           <div className="modal-content w-full max-w-5xl">
             <div className="flex flex-col items-center">
@@ -422,11 +498,11 @@ export default function Lobby({ navigateTo }) {
                 {/* Pass & Play */}
                 <button
                   ref={el => modeCardsRef.current[0] = el}
-                  className="card-frost glass-obsidian border border-outline/20 p-4 sm:p-6 md:p-8 rounded-xl flex flex-row md:flex-col items-center text-left md:text-center justify-start md:justify-center gap-4 sm:gap-6 group transition-all duration-500 w-full cursor-pointer hover:border-ice-light/60"
+                  className="card-frost glass-obsidian border border-outline/20 p-4 sm:p-6 md:p-8 rounded-xl flex flex-row md:flex-col items-center text-left md:text-center justify-start md:justify-center gap-4 sm:gap-6 group w-full cursor-pointer"
                   style={{ opacity: 0 }}
                   onClick={() => navigateTo('GAME', { mode: 'local' })}
                 >
-                  <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-full bg-ice-light/10 flex items-center justify-center border border-ice-light/30 group-hover:bg-ice-light/20 transition-colors shrink-0">
+                  <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-full bg-ice-light/10 flex items-center justify-center border border-ice-light/30 group-hover:bg-ice-light/20 transition-all duration-300 ease-out group-hover:scale-105 shrink-0">
                     <Users className="h-5 w-5 sm:h-8 sm:w-8 text-ice-light" aria-hidden="true" />
                   </div>
                   <div className="flex flex-col items-start md:items-center">
@@ -434,19 +510,19 @@ export default function Lobby({ navigateTo }) {
                     <p className="font-body-md text-on-surface-variant text-[10px] sm:text-xs md:text-sm opacity-70">Two commanders, one device</p>
                     <span className="mt-3 rounded-full border border-ice-light/20 bg-ice-light/10 px-2.5 py-1 font-label-caps text-[9px] tracking-widest text-ice-light">Available</span>
                   </div>
-                  <div className="h-1 w-12 bg-ice-light opacity-0 group-hover:opacity-100 transition-opacity hidden md:block" />
+                  <div className="h-1 w-12 bg-ice-light opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:block rounded-full" />
                 </button>
 
                 {/* Online Realm */}
                 <button
                   ref={el => modeCardsRef.current[1] = el}
-                  className="card-fire glass-obsidian border border-outline/20 p-4 sm:p-6 md:p-8 rounded-xl flex flex-row md:flex-col items-center text-left md:text-center justify-start md:justify-center gap-4 sm:gap-6 group transition-all duration-500 w-full cursor-pointer hover:border-magma-core/60"
+                  className="card-fire glass-obsidian border border-outline/20 p-4 sm:p-6 md:p-8 rounded-xl flex flex-row md:flex-col items-center text-left md:text-center justify-start md:justify-center gap-4 sm:gap-6 group w-full cursor-pointer"
                   style={{ opacity: 0 }}
                   onClick={() => { setCurrentMode('online'); setShowModes(false); setShowMultiplayer(true); }}
                   onMouseEnter={warmSocketClient}
                   onFocus={warmSocketClient}
                 >
-                  <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-full bg-magma-core/10 flex items-center justify-center border border-magma-core/30 group-hover:bg-magma-core/20 transition-colors shrink-0">
+                  <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-full bg-magma-core/10 flex items-center justify-center border border-magma-core/30 group-hover:bg-magma-core/20 transition-all duration-300 ease-out group-hover:scale-105 shrink-0">
                     <Globe2 className="h-5 w-5 sm:h-8 sm:w-8 text-magma-core" aria-hidden="true" />
                   </div>
                   <div className="flex flex-col items-start md:items-center">
@@ -454,13 +530,13 @@ export default function Lobby({ navigateTo }) {
                     <p className="font-body-md text-on-surface-variant text-[10px] sm:text-xs md:text-sm opacity-70">Create or join with a realm code</p>
                     <span className="mt-3 rounded-full border border-magma-core/20 bg-magma-core/10 px-2.5 py-1 font-label-caps text-[9px] tracking-widest text-magma-core">Available</span>
                   </div>
-                  <div className="h-1 w-12 bg-magma-core opacity-0 group-hover:opacity-100 transition-opacity hidden md:block" />
+                  <div className="h-1 w-12 bg-magma-core opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:block rounded-full" />
                 </button>
 
                 {/* Ancient Trials */}
                 <button
                   ref={el => modeCardsRef.current[2] = el}
-                  className="card-gold glass-obsidian border border-outline/10 p-4 sm:p-6 md:p-8 rounded-xl flex flex-row md:flex-col items-center text-left md:text-center justify-start md:justify-center gap-4 sm:gap-6 w-full cursor-not-allowed opacity-50 grayscale transition-all duration-500"
+                  className="card-gold glass-obsidian border border-outline/10 p-4 sm:p-6 md:p-8 rounded-xl flex flex-row md:flex-col items-center text-left md:text-center justify-start md:justify-center gap-4 sm:gap-6 w-full cursor-not-allowed opacity-50 grayscale"
                   style={{ opacity: 0 }}
                   disabled={true}
                 >
@@ -479,7 +555,7 @@ export default function Lobby({ navigateTo }) {
               <button
                 ref={modesBackRef}
                 className="mt-8 md:mt-16 text-on-surface-variant hover:text-ember-gold transition-colors flex items-center gap-2 group cursor-pointer font-label-caps tracking-widest text-xs sm:text-sm"
-                onClick={() => setShowModes(false)}
+                onClick={handleCloseModes}
               >
                 <span className="material-symbols-outlined text-xl back-arrow-icon">arrow_back</span>
                 RETURN TO MENU

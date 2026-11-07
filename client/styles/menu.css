@@ -193,39 +193,57 @@ body {
 }
 
 .card-frost {
-  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
   position: relative;
+  transform: translateY(0);
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.35s ease,
+              background 0.35s ease;
+  will-change: transform, box-shadow;
+  backface-visibility: hidden;
 }
 
 .card-frost:hover {
-  box-shadow: 0 8px 35px rgba(165, 243, 252, 0.35);
-  border-color: #A5F3FC;
-  background: rgba(165, 243, 252, 0.12);
-  transform: translateY(-6px) scale(1.025);
+  transform: translateY(-6px) !important;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.65), 0 0 30px rgba(165, 243, 252, 0.28), inset 0 0 20px rgba(165, 243, 252, 0.06);
+  border-color: rgba(165, 243, 252, 0.7);
+  background: rgba(165, 243, 252, 0.08);
 }
 
 .card-fire {
-  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
   position: relative;
+  transform: translateY(0);
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.35s ease,
+              background 0.35s ease;
+  will-change: transform, box-shadow;
+  backface-visibility: hidden;
 }
 
 .card-fire:hover {
-  box-shadow: 0 8px 35px rgba(239, 68, 68, 0.35);
-  border-color: #EF4444;
-  background: rgba(239, 68, 68, 0.12);
-  transform: translateY(-6px) scale(1.025);
+  transform: translateY(-6px) !important;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.65), 0 0 30px rgba(239, 68, 68, 0.28), inset 0 0 20px rgba(239, 68, 68, 0.06);
+  border-color: rgba(239, 68, 68, 0.7);
+  background: rgba(239, 68, 68, 0.08);
 }
 
 .card-gold {
-  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
   position: relative;
+  transform: translateY(0);
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.35s ease,
+              background 0.35s ease;
+  will-change: transform, box-shadow;
+  backface-visibility: hidden;
 }
 
 .card-gold:hover:not(:disabled) {
-  box-shadow: 0 8px 35px rgba(232, 193, 94, 0.35);
-  border-color: #E8C15E;
-  background: rgba(232, 193, 94, 0.15);
-  transform: translateY(-6px) scale(1.025);
+  transform: translateY(-6px) !important;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.65), 0 0 30px rgba(232, 193, 94, 0.28), inset 0 0 20px rgba(232, 193, 94, 0.06);
+  border-color: rgba(232, 193, 94, 0.7);
+  background: rgba(232, 193, 94, 0.08);
 }
 
 .screen-transition {

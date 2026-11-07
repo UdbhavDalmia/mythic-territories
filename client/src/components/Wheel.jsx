@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import gsap from 'gsap';
 import '../../styles/wheel.css';
 import { TEAM_PIECES, PIECE_TYPES, IMAGES } from '../../../shared/constants.js';
+import { ArrowLeft, BookOpen, ScrollText, Sparkles } from 'lucide-react';
 
 // Descriptions lookup for active abilities
 const ACTIVE_DESCS = {
@@ -77,11 +78,37 @@ export default function Wheel({ navigateTo }) {
   const pointerRef = useRef(null);
   const audioCtxRef = useRef(null);
   const wheelAngle = useRef(0);
+  const pageRef = useRef(null);
   
   const [units, setUnits] = useState([]);
   const [isSpinning, setIsSpinning] = useState(false);
   const [winner, setWinner] = useState(null);
   const [animatedStats, setAnimatedStats] = useState({ hp: 0, strength: 0, def: 0, range: 0, agility: 0, control: 0 });
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      gsap.set(pageRef.current, { opacity: 1, y: 0 });
+      return;
+    }
+    gsap.fromTo(pageRef.current,
+      { opacity: 0, y: 40 },
+      { opacity: 1, y: 0, duration: 0.75, ease: 'expo.out' }
+    );
+  }, []);
+
+  const handleNavigate = (dest) => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      navigateTo(dest);
+      return;
+    }
+    gsap.to(pageRef.current, {
+      opacity: 0,
+      y: 50,
+      duration: 0.32,
+      ease: 'power2.in',
+      onComplete: () => navigateTo(dest)
+    });
+  };
 
   // Load units list from constants on mount
   useEffect(() => {
@@ -314,185 +341,245 @@ export default function Wheel({ navigateTo }) {
   };
 
   return (
-    <div className="relative min-h-screen flex flex-col bg-void-black text-on-surface select-none font-body-md overflow-y-auto">
-      {/* Back to Menu */}
-      <button 
-        className="fixed top-6 left-6 z-50 flex items-center gap-2 bg-void-black/70 backdrop-blur border border-outline/20 px-4 py-2 rounded-lg text-sm text-ember-gold hover:bg-ember-gold/10 transition-all font-label-caps"
-        onClick={() => navigateTo('LOBBY')}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="19" y1="12" x2="5" y2="12"></line>
-          <polyline points="12 19 5 12 12 5"></polyline>
-        </svg>
-        Return to Menu
-      </button>
-
-      {/* Header */}
-      <div className="text-center pt-24 pb-8 space-y-2 relative z-10">
-        <h1 className="font-almendra text-4xl sm:text-5xl text-ember-gold font-bold tracking-widest uppercase">Wheel of Destiny</h1>
-        <div className="font-libre text-sm sm:text-base italic text-on-surface-variant">The Elemental Path of Unit Selection</div>
+    <div ref={pageRef} className="relative min-h-screen flex flex-col bg-void-black text-on-surface select-none font-body-md overflow-y-auto" style={{ opacity: 0 }}>
+      {/* Ambient Background matching Guide & Notes */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <div className="sticky top-0 w-full h-screen">
+          <div
+            className="absolute inset-0 opacity-30 bg-cover bg-center bg-no-repeat"
+            style={{ backgroundImage: "url('/images/menu-bg.webp')" }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-void-black/50 via-void-black/75 to-void-black" />
+          <div className="absolute left-0 top-0 h-[32rem] w-1/2 bg-[radial-gradient(circle_at_top_left,rgba(165,243,252,0.12),transparent_65%)]" />
+          <div className="absolute right-0 top-0 h-[32rem] w-1/2 bg-[radial-gradient(circle_at_top_right,rgba(239,68,68,0.1),transparent_65%)]" />
+        </div>
       </div>
 
-      {/* Wheel Area & Results */}
-      <div className="relative z-10 max-w-6xl mx-auto w-full flex-grow px-4 pb-20 flex flex-col lg:flex-row items-center justify-center gap-12">
-        
-        {/* Left: The Wheel */}
-        <div className="relative flex flex-col items-center select-none">
-          {/* Wheel Pointer Pin */}
-          <div 
-            ref={pointerRef}
-            className="absolute top-[-10px] z-20 w-10 h-14 bg-ember-gold border-2 border-white rounded-t-full shadow-lg"
-            style={{
-              clipPath: 'polygon(50% 100%, 0 0, 100% 0)',
-              transformOrigin: '50% 0%'
-            }} 
-          />
-          
-          <div className="rounded-full border-8 border-void-black bg-void-black shadow-[0_0_50px_rgba(232,193,94,0.15)] relative p-2.5 overflow-hidden bg-gradient-to-br from-surface to-surface-container-low">
-            <canvas 
-              ref={canvasRef} 
-              width={540} 
-              height={540} 
-              className="w-[320px] h-[320px] sm:w-[480px] sm:h-[480px] object-contain transition-transform" 
+      {/* Standardized Internal Page Navigation */}
+      <nav className="fixed top-0 w-full z-50 bg-void-black/80 backdrop-blur-xl border-b border-outline/15 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+        <div className="flex justify-between items-center w-full px-4 md:px-12 py-4 max-w-7xl mx-auto">
+          <button
+            className="font-almendra text-lg sm:text-2xl tracking-wider text-ember-gold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-gold rounded"
+            onClick={() => handleNavigate('LOBBY')}
+          >
+            Mythic Territories
+          </button>
+          <button
+            className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full border border-ember-gold/25 px-4 py-2 font-label-caps text-[10px] sm:text-xs tracking-wider text-ember-gold transition-colors duration-300 hover:text-void-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-gold cursor-pointer"
+            onClick={() => handleNavigate('LOBBY')}
+          >
+            <span className="absolute inset-0 origin-left scale-x-0 bg-ember-gold transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-x-100 group-focus-visible:scale-x-100" />
+            <ArrowLeft className="relative z-10 h-3.5 w-3.5 transition-transform duration-300 group-hover:-translate-x-0.5" aria-hidden="true" />
+            <span className="relative z-10">Back to menu</span>
+          </button>
+        </div>
+      </nav>
+
+      {/* Main Content Area */}
+      <main className="relative z-10 flex-grow pt-32 pb-16 px-4 md:px-8 max-w-6xl mx-auto w-full">
+        {/* Header */}
+        <header className="text-center mb-10 space-y-3">
+          <div className="mx-auto flex w-fit items-center gap-2 rounded-full border border-ember-gold/30 bg-void-black/60 px-3.5 py-1.5 font-label-caps text-[9px] tracking-[0.24em] text-ember-gold">
+            <Sparkles className="h-3.5 w-3.5 text-ember-gold" aria-hidden="true" />
+            Secret Chamber
+          </div>
+          <h1 className="font-almendra text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-gradient-dual uppercase">
+            Wheel of Destiny
+          </h1>
+          <p className="text-base sm:text-lg text-on-surface-variant max-w-2xl mx-auto leading-relaxed">
+            Spin the elemental wheel to randomly draft and study champion units of Frost and Ash.
+          </p>
+        </header>
+
+        {/* Wheel Area & Results */}
+        <div className="flex flex-col lg:flex-row items-center justify-center gap-12">
+          {/* Left: The Wheel */}
+          <div className="relative flex flex-col items-center select-none">
+            {/* Wheel Pointer Pin */}
+            <div 
+              ref={pointerRef}
+              className="absolute top-[-10px] z-20 w-10 h-14 bg-ember-gold border-2 border-white rounded-t-full shadow-lg"
+              style={{
+                clipPath: 'polygon(50% 100%, 0 0, 100% 0)',
+                transformOrigin: '50% 0%'
+              }} 
             />
-            <button 
-              className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 border-ember-gold bg-void-black text-ember-gold text-xs sm:text-sm font-bold shadow-md hover:bg-ember-gold hover:text-void-black transition-colors ${
-                isSpinning ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-              }`}
-              onClick={triggerSpin}
-              disabled={isSpinning}
+            
+            <div className="rounded-full border-8 border-void-black bg-void-black shadow-[0_0_50px_rgba(232,193,94,0.15)] relative p-2.5 overflow-hidden bg-gradient-to-br from-surface to-surface-container-low">
+              <canvas 
+                ref={canvasRef} 
+                width={540} 
+                height={540} 
+                className="w-[320px] h-[320px] sm:w-[480px] sm:h-[480px] object-contain transition-transform" 
+              />
+              <button 
+                className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 border-ember-gold bg-void-black text-ember-gold text-xs sm:text-sm font-bold shadow-md hover:bg-ember-gold hover:text-void-black transition-colors ${
+                  isSpinning ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                }`}
+                onClick={triggerSpin}
+                disabled={isSpinning}
+              >
+                SPIN
+              </button>
+            </div>
+          </div>
+
+          {/* Right: Winner Info Panel */}
+          <div className="w-full max-w-md min-h-[450px] relative">
+            {/* Placeholder Card */}
+            {!winner && (
+              <div className="absolute inset-0 bg-surface-container/60 backdrop-blur-md rounded-xl border border-outline/10 p-8 flex flex-col items-center justify-center text-center space-y-4 shadow-xl">
+                <div className="text-4xl text-ember-gold animate-pulse">✦</div>
+                <h3 className="font-almendra text-lg text-on-surface font-semibold uppercase">Destiny Awaits</h3>
+                <p className="text-sm text-on-surface-variant max-w-xs leading-relaxed">
+                  Spin the Wheel of Destiny to draft your elemental combat unit for training or battle!
+                </p>
+              </div>
+            )}
+
+            {/* Winner Card */}
+            {winner && (
+              <div className={`bg-surface-container/60 backdrop-blur-md rounded-xl border border-outline/10 p-6 sm:p-8 flex flex-col justify-between space-y-6 shadow-xl border-l-4 ${
+                winner.faction === 'snow' ? 'border-l-ice-light animate-[glowIce_1s_infinite]' : 'border-l-magma-core animate-[glowAsh_1s_infinite]'
+              }`}>
+                {/* Unit Card Header */}
+                <div className="flex items-center gap-4 border-b border-outline/10 pb-4">
+                  <div className="w-16 h-16 rounded-lg bg-void-black/70 p-1.5 border border-outline/20 flex items-center justify-center overflow-hidden">
+                    <img src={IMAGES[winner.key] ? (IMAGES[winner.key].startsWith('/') ? IMAGES[winner.key] : `/${IMAGES[winner.key]}`) : '/units/cryomancer.webp'} alt={winner.name} decoding="async" className="w-full h-full object-contain" />
+                  </div>
+                  <div>
+                    <h2 className="font-almendra text-2xl font-bold text-white">{winner.name}</h2>
+                    <div className={`text-xs font-label-caps font-semibold mt-0.5 ${
+                      winner.faction === 'snow' ? 'text-ice-light' : 'text-magma-core'
+                    }`}>
+                      {winner.role.toUpperCase()} • {winner.faction === 'snow' ? 'Faction of Snow' : 'Faction of Ash'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stats Bar Gauges */}
+                <div className="space-y-3 font-mono text-xs text-on-surface-variant">
+                  {[
+                    { label: "Health", val: winner.stats?.hp || 5, max: 12, animVal: animatedStats.hp },
+                    { label: "Strength", val: winner.stats?.strength || 3, max: 6, animVal: animatedStats.strength },
+                    { label: "Defense", val: winner.stats?.def || 1, max: 4, animVal: animatedStats.def },
+                    { label: "Range", val: winner.stats?.range || 1, max: 5, animVal: animatedStats.range },
+                    { label: "Agility", val: winner.stats?.agility || 2, max: 5, animVal: animatedStats.agility },
+                    { label: "Control", val: winner.stats?.control || 0.1, max: 1.5, animVal: animatedStats.control }
+                  ].map((stat, sIdx) => {
+                    const percent = Math.min(100, Math.max(0, (stat.animVal / stat.max) * 100));
+                    return (
+                      <div key={sIdx} className="space-y-1">
+                        <div className="flex justify-between items-center text-[10px] font-label-caps">
+                          <span>{stat.label}</span>
+                          <span className="text-white font-bold">{stat.val}</span>
+                        </div>
+                        <div className="h-2 w-full bg-void-black/80 rounded overflow-hidden">
+                          <div 
+                            className={`h-full transition-all duration-75 ${
+                              winner.faction === 'snow' ? 'bg-gradient-to-r from-blue-700 to-ice-light' : 'bg-gradient-to-r from-red-800 to-magma-core'
+                            }`}
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Abilities details */}
+                <div className="space-y-4 max-h-48 overflow-y-auto pr-1">
+                  {winner.ability?.key && (
+                    <div className="bg-void-black/30 border border-outline/5 rounded-lg p-3 space-y-1">
+                      <div className="text-[9px] font-label-caps px-1.5 py-0.25 bg-ember-gold/15 text-ember-gold border border-ember-gold/30 rounded inline-block uppercase font-bold">
+                        Active Ability: {winner.ability.name}
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-on-surface-variant">
+                        {ACTIVE_DESCS[winner.ability.key] || 'Triggers special ability effect.'}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {PASSIVE_DESCS[winner.key] && (
+                    <div className="bg-void-black/30 border border-outline/5 rounded-lg p-3 space-y-1">
+                      <div className="text-[9px] font-label-caps px-1.5 py-0.25 bg-outline/15 text-on-surface-variant border border-outline/25 rounded inline-block uppercase font-bold">
+                        Passive Ability: {PASSIVE_DESCS[winner.key].name}
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-on-surface-variant">
+                        {PASSIVE_DESCS[winner.key].desc}
+                      </p>
+                    </div>
+                  )}
+
+                  {winner.veteranAbility?.key && (
+                    <div className="bg-void-black/30 border border-outline/5 rounded-lg p-3 space-y-1">
+                      <div className="text-[9px] font-label-caps px-1.5 py-0.25 bg-green-500/10 text-green-400 border border-green-500/20 rounded inline-block uppercase font-bold">
+                        Veteran Ascension: {winner.veteranAbility.key.replace(/([A-Z])/g, ' $1').trim()}
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-on-surface-variant">
+                        {VET_DESCS[winner.veteranAbility.key] || 'Ascends the unit with special upgrades.'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-4">
+                  <button 
+                    className={`flex-1 py-3 text-center text-xs font-label-caps font-bold text-void-black rounded-lg transition-colors border shadow cursor-pointer ${
+                      winner.faction === 'snow'
+                        ? 'bg-ice-light border-white/20 hover:bg-white'
+                        : 'bg-magma-core border-white/20 hover:bg-red-400'
+                    }`}
+                    onClick={() => handleNavigate('LOBBY')}
+                  >
+                    Lock in Unit
+                  </button>
+                  <button 
+                    className="flex-1 py-3 text-center text-xs font-label-caps font-bold border border-outline/20 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+                    onClick={triggerSpin}
+                    disabled={isSpinning}
+                  >
+                    Spin Again
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
+
+      {/* Internal Page Footer */}
+      <footer className="bg-void-black border-t border-outline/10 w-full py-8 mt-auto relative z-10 select-none font-label-caps">
+        <div className="flex flex-col md:flex-row justify-between items-center px-6 md:px-12 max-w-7xl mx-auto w-full gap-4 text-center md:text-left">
+          <button
+            className="text-sm tracking-wider text-on-surface-variant cursor-pointer hover:text-ember-gold transition-colors"
+            onClick={() => handleNavigate('LOBBY')}
+            style={{ fontVariant: 'small-caps' }}
+          >
+            Mythic Territories
+          </button>
+          <div className="text-[10px] text-on-surface-variant/60">
+            © 2025 Mythic Territories
+          </div>
+          <div className="flex gap-6">
+            <button
+              className="inline-flex items-center gap-2 text-xs text-on-surface-variant hover:text-ember-gold transition-colors duration-200 cursor-pointer bg-transparent border-none"
+              onClick={() => handleNavigate('GUIDE')}
             >
-              SPIN
+              <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
+              Rulebook
+            </button>
+            <button
+              className="inline-flex items-center gap-2 text-xs text-on-surface-variant hover:text-ember-gold transition-colors duration-200 cursor-pointer bg-transparent border-none"
+              onClick={() => handleNavigate('NOTES')}
+            >
+              <ScrollText className="h-3.5 w-3.5" aria-hidden="true" />
+              Patch Notes
             </button>
           </div>
         </div>
-
-        {/* Right: Winner Info Panel */}
-        <div className="w-full max-w-md min-h-[450px] relative">
-          
-          {/* Placeholder Card */}
-          {!winner && (
-            <div className="absolute inset-0 bg-surface-container/60 backdrop-blur-md rounded-xl border border-outline/10 p-8 flex flex-col items-center justify-center text-center space-y-4 shadow-xl">
-              <div className="text-4xl text-ember-gold animate-pulse">✦</div>
-              <h3 className="font-almendra text-lg text-on-surface font-semibold uppercase">Destiny Awaits</h3>
-              <p className="text-sm text-on-surface-variant max-w-xs leading-relaxed">
-                Spin the Wheel of Destiny to draft your elemental combat unit for training or battle!
-              </p>
-            </div>
-          )}
-
-          {/* Winner Card */}
-          {winner && (
-            <div className={`bg-surface-container/60 backdrop-blur-md rounded-xl border border-outline/10 p-6 sm:p-8 flex flex-col justify-between space-y-6 shadow-xl border-l-4 ${
-              winner.faction === 'snow' ? 'border-l-ice-light animate-[glowIce_1s_infinite]' : 'border-l-magma-core animate-[glowAsh_1s_infinite]'
-            }`}>
-              
-              {/* Unit Card Header */}
-              <div className="flex items-center gap-4 border-b border-outline/10 pb-4">
-                <div className="w-16 h-16 rounded-lg bg-void-black/70 p-1.5 border border-outline/20 flex items-center justify-center overflow-hidden">
-                  <img src={IMAGES[winner.key] ? (IMAGES[winner.key].startsWith('/') ? IMAGES[winner.key] : `/${IMAGES[winner.key]}`) : '/units/cryomancer.webp'} alt={winner.name} decoding="async" className="w-full h-full object-contain" />
-                </div>
-                <div>
-                  <h2 className="font-almendra text-2xl font-bold text-white">{winner.name}</h2>
-                  <div className={`text-xs font-label-caps font-semibold mt-0.5 ${
-                    winner.faction === 'snow' ? 'text-ice-light' : 'text-magma-core'
-                  }`}>
-                    {winner.role.toUpperCase()} • {winner.faction === 'snow' ? 'Faction of Snow' : 'Faction of Ash'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Stats Bar Gauges */}
-              <div className="space-y-3 font-mono text-xs text-on-surface-variant">
-                {[
-                  { label: "Health", val: winner.stats?.hp || 5, max: 12, animVal: animatedStats.hp },
-                  { label: "Strength", val: winner.stats?.strength || 3, max: 6, animVal: animatedStats.strength },
-                  { label: "Defense", val: winner.stats?.def || 1, max: 4, animVal: animatedStats.def },
-                  { label: "Range", val: winner.stats?.range || 1, max: 5, animVal: animatedStats.range },
-                  { label: "Agility", val: winner.stats?.agility || 2, max: 5, animVal: animatedStats.agility },
-                  { label: "Control", val: winner.stats?.control || 0.1, max: 1.5, animVal: animatedStats.control }
-                ].map((stat, sIdx) => {
-                  const percent = Math.min(100, Math.max(0, (stat.animVal / stat.max) * 100));
-                  return (
-                    <div key={sIdx} className="space-y-1">
-                      <div className="flex justify-between items-center text-[10px] font-label-caps">
-                        <span>{stat.label}</span>
-                        <span className="text-white font-bold">{stat.val}</span>
-                      </div>
-                      <div className="h-2 w-full bg-void-black/80 rounded overflow-hidden">
-                        <div 
-                          className={`h-full transition-all duration-75 ${
-                            winner.faction === 'snow' ? 'bg-gradient-to-r from-blue-700 to-ice-light' : 'bg-gradient-to-r from-red-800 to-magma-core'
-                          }`}
-                          style={{ width: `${percent}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Abilities details */}
-              <div className="space-y-4 max-h-48 overflow-y-auto pr-1">
-                {winner.ability?.key && (
-                  <div className="bg-void-black/30 border border-outline/5 rounded-lg p-3 space-y-1">
-                    <div className="text-[9px] font-label-caps px-1.5 py-0.25 bg-ember-gold/15 text-ember-gold border border-ember-gold/30 rounded inline-block uppercase font-bold">
-                      Active Ability: {winner.ability.name}
-                    </div>
-                    <p className="text-[11px] leading-relaxed text-on-surface-variant">
-                      {ACTIVE_DESCS[winner.ability.key] || 'Triggers special ability effect.'}
-                    </p>
-                  </div>
-                )}
-                
-                {PASSIVE_DESCS[winner.key] && (
-                  <div className="bg-void-black/30 border border-outline/5 rounded-lg p-3 space-y-1">
-                    <div className="text-[9px] font-label-caps px-1.5 py-0.25 bg-outline/15 text-on-surface-variant border border-outline/25 rounded inline-block uppercase font-bold">
-                      Passive Ability: {PASSIVE_DESCS[winner.key].name}
-                    </div>
-                    <p className="text-[11px] leading-relaxed text-on-surface-variant">
-                      {PASSIVE_DESCS[winner.key].desc}
-                    </p>
-                  </div>
-                )}
-
-                {winner.veteranAbility?.key && (
-                  <div className="bg-void-black/30 border border-outline/5 rounded-lg p-3 space-y-1">
-                    <div className="text-[9px] font-label-caps px-1.5 py-0.25 bg-green-500/10 text-green-400 border border-green-500/20 rounded inline-block uppercase font-bold">
-                      Veteran Ascension: {winner.veteranAbility.key.replace(/([A-Z])/g, ' $1').trim()}
-                    </div>
-                    <p className="text-[11px] leading-relaxed text-on-surface-variant">
-                      {VET_DESCS[winner.veteranAbility.key] || 'Ascends the unit with special upgrades.'}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-4">
-                <button 
-                  className={`flex-1 py-3 text-center text-xs font-label-caps font-bold text-void-black rounded-lg transition-colors border shadow ${
-                    winner.faction === 'snow'
-                      ? 'bg-ice-light border-white/20 hover:bg-white'
-                      : 'bg-magma-core border-white/20 hover:bg-red-400'
-                  }`}
-                  onClick={() => navigateTo('LOBBY')}
-                >
-                  Lock in Unit
-                </button>
-                <button 
-                  className="flex-1 py-3 text-center text-xs font-label-caps font-bold border border-outline/20 rounded-lg hover:bg-white/5 transition-colors"
-                  onClick={triggerSpin}
-                  disabled={isSpinning}
-                >
-                  Spin Again
-                </button>
-              </div>
-
-            </div>
-          )}
-        </div>
-      </div>
+      </footer>
     </div>
   );
 }
