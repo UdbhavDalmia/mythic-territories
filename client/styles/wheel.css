@@ -50,6 +50,7 @@ body.wheel-page::before {
   text-shadow: 0 0 30px rgba(255, 215, 0, 0.3), 0 0 10px rgba(255, 255, 255, 0.5);
   background: linear-gradient(to bottom, #fff 20%, #ffd700 60%, #b8860b 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 

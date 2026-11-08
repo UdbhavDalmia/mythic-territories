@@ -58,7 +58,17 @@ function emitStateUpdate(room) {
     room.lastSentState = JSON.parse(JSON.stringify(newS));
 }
 
-app.use(express.static(path.join(__dirname, '../client/dist')));
+app.use(express.static(path.join(__dirname, '../client/dist'), {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+        } else if (filePath.includes('/assets/')) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        } else {
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+        }
+    }
+}));
 app.use('/shared', express.static(path.join(__dirname, '../shared')));
 
 io.on('connection', (socket) => {

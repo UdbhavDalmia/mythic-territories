@@ -2,11 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import '../../styles/menu.css';
 import {
+  ArrowLeft,
   BookOpen,
   Bot,
   ChevronRight,
   Globe2,
   ScrollText,
+  Shield,
   Sparkles,
   Swords,
   Users,
@@ -408,11 +410,11 @@ export default function Lobby({ navigateTo }) {
             style={{
               background: 'linear-gradient(135deg, rgb(137, 206, 255) 0%, rgb(245, 158, 11) 50%, rgb(137, 206, 255) 100%)',
               WebkitBackgroundClip: 'text',
+              backgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               filter: 'drop-shadow(rgba(137, 206, 255, 0.4) 0px 0px 20px) drop-shadow(rgba(245, 158, 11, 0.4) 0px 0px 20px)',
               fontWeight: 700,
-              fontSize: 'clamp(42px, 8vw, 78px)',
-              opacity: 0  /* GSAP owns initial opacity */
+              fontSize: 'clamp(42px, 8vw, 78px)'
             }}
           >
             MYTHIC TERRITORIES
@@ -420,7 +422,6 @@ export default function Lobby({ navigateTo }) {
           <p
             ref={subtitleRef}
             className="home-subtitle mt-5 max-w-2xl text-base sm:text-xl md:text-2xl leading-relaxed text-slate-200/90"
-            style={{ opacity: 0 }}
           >
             Command{' '}
             <span className="home-subtitle-frost">
@@ -437,7 +438,6 @@ export default function Lobby({ navigateTo }) {
           <button
             ref={playBtnRef}
             className="home-play-button min-w-56 px-10 py-4 glass-obsidian transition-all duration-300 active:scale-95 group rounded-xl border border-ember-gold/40 hover:border-ember-gold/80 flex items-center justify-center gap-4 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-gold focus-visible:ring-offset-4 focus-visible:ring-offset-void-black"
-            style={{ opacity: 0 }}  /* GSAP owns initial opacity */
             onClick={() => setShowModes(true)}
           >
             <span className="relative rye-font text-xl md:text-2xl text-ember-gold tracking-[0.32em] group-hover:translate-x-1 transition-transform block">
@@ -557,7 +557,7 @@ export default function Lobby({ navigateTo }) {
                 className="mt-8 md:mt-16 text-on-surface-variant hover:text-ember-gold transition-colors flex items-center gap-2 group cursor-pointer font-label-caps tracking-widest text-xs sm:text-sm"
                 onClick={handleCloseModes}
               >
-                <span className="material-symbols-outlined text-xl back-arrow-icon">arrow_back</span>
+                <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5 back-arrow-icon" aria-hidden="true" />
                 RETURN TO MENU
               </button>
             </div>
@@ -574,7 +574,7 @@ export default function Lobby({ navigateTo }) {
             style={{ opacity: 0 }}
           >
             <div className="flex flex-col items-center">
-              <span className="material-symbols-outlined text-magma-core text-5xl mb-6">shield</span>
+              <Shield className="h-12 w-12 text-magma-core mb-6" aria-hidden="true" />
               <h2 className="almendra-font text-2xl text-pure-snow tracking-widest mb-8 uppercase font-bold">
                 Enter Realm Code
               </h2>
@@ -605,7 +605,7 @@ export default function Lobby({ navigateTo }) {
                 className="text-on-surface-variant hover:text-white transition-colors flex items-center gap-2 text-xs font-label-caps tracking-widest cursor-pointer"
                 onClick={() => { setShowMultiplayer(false); setShowModes(true); setRoomCode(''); }}
               >
-                <span className="material-symbols-outlined text-base back-arrow-icon">arrow_back</span>
+                <ArrowLeft className="h-3.5 w-3.5 back-arrow-icon" aria-hidden="true" />
                 CANCEL
               </button>
             </div>
@@ -709,7 +709,7 @@ export default function Lobby({ navigateTo }) {
                 className="mt-4 md:mt-6 text-on-surface-variant hover:text-ember-gold transition-colors flex items-center gap-2 group cursor-pointer font-label-caps tracking-widest uppercase text-xs sm:text-sm"
                 onClick={handleCancelFaction}
               >
-                <span className="material-symbols-outlined text-base sm:text-xl back-arrow-icon">arrow_back</span>
+                <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5 back-arrow-icon" aria-hidden="true" />
                 Back to Modes
               </button>
             </div>
