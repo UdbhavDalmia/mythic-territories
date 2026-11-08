@@ -1,0 +1,47 @@
+{
+  "schema_version": "v1",
+  "name": "Mythic Territories",
+  "description": "A free browser-based, turn-based strategy game where two players command elemental factions — Snow (Ice) or Ash (Fire) — in tactical head-to-head combat. Features online multiplayer, local 2-player, and an AI opponent.",
+  "url": "https://mythic-territories.xyz/",
+  "logo_url": "https://mythic-territories.xyz/android-chrome-512x512.png",
+  "auth": {
+    "type": "none"
+  },
+  "resources": [
+    {
+      "url": "https://mythic-territories.xyz/llms.txt",
+      "type": "llms.txt",
+      "description": "AI-readable summary of Mythic Territories — game overview, factions, mechanics, and key pages"
+    },
+    {
+      "url": "https://mythic-territories.xyz/sitemap.xml",
+      "type": "sitemap",
+      "description": "XML sitemap listing all public pages"
+    },
+    {
+      "url": "https://mythic-territories.xyz/",
+      "type": "webpage",
+      "description": "Main lobby — start a local match, create an online room, or spin the Destiny Wheel"
+    },
+    {
+      "url": "https://mythic-territories.xyz/?page=rules",
+      "type": "webpage",
+      "description": "Rulebook — full game rules, unit stats, faction abilities, and strategy guide"
+    },
+    {
+      "url": "https://mythic-territories.xyz/?page=notes",
+      "type": "webpage",
+      "description": "Patch notes — changelog and balance updates"
+    },
+    {
+      "url": "https://mythic-territories.xyz/?page=wheel",
+      "type": "webpage",
+      "description": "Destiny Wheel — spin for random unit unlocks or bonuses"
+    }
+  ],
+  "categories": ["games", "strategy", "browser-game"],
+  "language": "en",
+  "access": "public",
+  "pricing": "free"
+}
+

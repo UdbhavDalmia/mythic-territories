@@ -40,3 +40,4 @@ Units include: Arctic Trapper, Cryomancer, Frost Lord, Glacial Brute, Hoarfrost 
 
 - Primary URL: https://mythic-territories.xyz/
 - Sitemap: https://mythic-territories.xyz/sitemap.xml
+

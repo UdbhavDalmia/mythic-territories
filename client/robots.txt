@@ -32,3 +32,6 @@ Sitemap: https://mythic-territories.xyz/sitemap.xml
 
 # LLMs.txt (AI-readable site summary)
 # https://mythic-territories.xyz/llms.txt
+
+# AI Catalog (ARD — Agent Resource Discovery)
+# https://mythic-territories.xyz/ai-catalog.json
