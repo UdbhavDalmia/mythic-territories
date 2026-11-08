@@ -1,0 +1,34 @@
+User-agent: *
+Allow: /
+Allow: /?page=rules
+Allow: /?page=notes
+Allow: /?page=wheel
+
+# Block ephemeral game session URLs — not indexable content
+Disallow: /?room=
+Disallow: /?mode=local
+
+# AI / LLM crawlers — allow reading llms.txt and all public content
+User-agent: GPTBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+# Sitemap
+Sitemap: https://mythic-territories.xyz/sitemap.xml
+
+# LLMs.txt (AI-readable site summary)
+# https://mythic-territories.xyz/llms.txt

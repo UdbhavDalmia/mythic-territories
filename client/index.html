@@ -4,27 +4,98 @@
 <head>
   <meta charset="utf-8" />
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+
+  <!-- ═══════════════════════════════════════════
+       Favicons & PWA
+  ════════════════════════════════════════════ -->
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png" />
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
   <link rel="shortcut icon" href="/favicon.ico" />
   <link rel="manifest" href="/site.webmanifest" />
-  <title>Mythic Territories</title>
-  <meta name="description"
-    content="Experience Mythic Territories, a premium turn-based strategy game. Command powerful elemental leaders, master unique faction abilities, and battle for dominion in an immersive cinematic arena.">
-  <link rel="canonical" href="https://mythic-territories.xyz/">
-  <meta property="og:site_name" content="Mythic Territories">
-  <meta property="og:title" content="Mythic Territories">
-  <meta property="og:description"
-    content="Command the elemental forces of Snow or Ash in this tactical turn-based strategy game.">
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://mythic-territories.xyz/">
-  <link rel="preload" as="image" href="/images/menu-bg.webp" type="image/webp" fetchpriority="high">
+  <meta name="theme-color" content="#0a0a0c" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Mythic Territories" />
+
+  <!-- ═══════════════════════════════════════════
+       Primary SEO
+  ════════════════════════════════════════════ -->
+  <title>Mythic Territories — Elemental Turn-Based Strategy Game</title>
+  <meta name="description" content="Command the elemental forces of Snow or Ash in Mythic Territories — a free browser-based turn-based strategy game. Build your faction, deploy unique units, and battle for dominion." />
+  <meta name="keywords" content="mythic territories, turn-based strategy game, browser strategy game, elemental strategy, ash faction, ice faction, snow faction, tactical game, multiplayer strategy, free strategy game" />
+  <meta name="author" content="Mythic Territories" />
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+  <link rel="canonical" href="https://mythic-territories.xyz/" />
+
+  <!-- ═══════════════════════════════════════════
+       Open Graph (Facebook, LinkedIn, Discord)
+  ════════════════════════════════════════════ -->
+  <meta property="og:site_name" content="Mythic Territories" />
+  <meta property="og:title" content="Mythic Territories — Elemental Turn-Based Strategy Game" />
+  <meta property="og:description" content="Command the elemental forces of Snow or Ash in this tactical browser strategy game. Free to play — no download required." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://mythic-territories.xyz/" />
+  <meta property="og:image" content="https://mythic-territories.xyz/og-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:alt" content="Mythic Territories — Ice vs Fire elemental turn-based strategy game" />
+  <meta property="og:locale" content="en_US" />
+
+  <!-- ═══════════════════════════════════════════
+       Twitter / X Cards
+  ════════════════════════════════════════════ -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Mythic Territories — Elemental Turn-Based Strategy Game" />
+  <meta name="twitter:description" content="Command the elemental forces of Snow or Ash in this tactical browser strategy game. Free to play — no download required." />
+  <meta name="twitter:image" content="https://mythic-territories.xyz/og-card.png" />
+  <meta name="twitter:image:alt" content="Mythic Territories — Ice vs Fire elemental turn-based strategy game" />
+
+  <!-- ═══════════════════════════════════════════
+       Structured Data (JSON-LD)
+  ════════════════════════════════════════════ -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "VideoGame",
+    "name": "Mythic Territories",
+    "url": "https://mythic-territories.xyz/",
+    "description": "A free browser-based turn-based strategy game where players command elemental factions — Snow or Ash — in tactical head-to-head combat.",
+    "image": "https://mythic-territories.xyz/og-card.png",
+    "gamePlatform": "Web Browser",
+    "applicationCategory": "Game",
+    "genre": ["Strategy", "Turn-Based Strategy", "Multiplayer"],
+    "numberOfPlayers": {
+      "@type": "QuantitativeValue",
+      "minValue": 1,
+      "maxValue": 2
+    },
+    "operatingSystem": "Any (browser-based)",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD",
+      "availability": "https://schema.org/InStock"
+    },
+    "inLanguage": "en"
+  }
+  </script>
+
+  <!-- ═══════════════════════════════════════════
+       Performance: Preload critical assets
+  ════════════════════════════════════════════ -->
+  <link rel="preload" as="image" href="/images/menu-bg.webp" type="image/webp" fetchpriority="high" />
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+  <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
 
   <!-- Google Fonts Preconnect -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
   <!-- Google Fonts (Non-render-blocking with display=swap) -->
   <link
@@ -38,6 +109,9 @@
       href="https://fonts.googleapis.com/css2?family=Almendra+SC:wght@400;700&family=Cinzel:wght@700&family=Cinzel+Decorative:wght@700&family=Exo+2:wght@400;600;700&family=Rajdhani:wght@600;700&family=Fira+Sans:wght@400;600&family=Space+Grotesk:wght@400;600;700&family=Rye&display=swap" />
   </noscript>
 
+  <!-- ═══════════════════════════════════════════
+       Critical inline styles (prevent FOUC)
+  ════════════════════════════════════════════ -->
   <style>
     html, body {
       background-color: #0B1019;

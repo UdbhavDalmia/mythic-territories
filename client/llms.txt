@@ -1,0 +1,43 @@
+# Mythic Territories
+
+> A premium turn-based strategy game where you command elemental factions — Snow or Ash — in tactical head-to-head combat. Free to play in your browser.
+
+## About the Game
+
+Mythic Territories is a browser-based, turn-based strategy game built with modern web technologies (React, Vite). Two players — or one player vs an AI — battle across a tactical board using unique faction units, each with special abilities. The game features an Ascension mechanic, Destiny Wheel spins, and a detailed faction guide (Rulebook).
+
+## Key Pages
+
+- [Home / Lobby](https://mythic-territories.xyz/) — Start a local match, create an online room, or spin the Destiny Wheel
+- [Rulebook / Guide](https://mythic-territories.xyz/?page=rules) — Full game rules, unit stats, faction abilities, and strategy tips
+- [Patch Notes](https://mythic-territories.xyz/?page=notes) — Changelog and balance updates
+- [Destiny Wheel](https://mythic-territories.xyz/?page=wheel) — Spin for a random unit unlock or bonus
+
+## Factions
+
+**Ash Faction** — Fire and volcanic units. Aggressive, high-damage playstyle.
+Units include: Ash Reaper, Ash Tyrant, Blaze Runner, Cinder Scout, Hell Hound, Magma Prowler, Magma Shaper, Magma Spitter, Rift Forger, Scorch Priest, Obsidian Shaper.
+
+**Ice / Snow Faction** — Frost and arctic units. Defensive, control-based playstyle.
+Units include: Arctic Trapper, Cryomancer, Frost Lord, Glacial Brute, Hoarfrost Mystic, Ice Weaver, Snow Wolf, Soul Freeze, Soul Linker, Void Chanter, Wisp, Yeti.
+
+## Game Mechanics
+
+- Turn-based grid combat
+- Each faction has a unique Leader with special abilities
+- Ascension system: units can ascend to stronger forms
+- Destiny Wheel: randomised bonuses and unit unlocks
+- Online multiplayer (room codes) and local 2-player mode
+- AI opponent available for single-player
+
+## Technical Stack
+
+- Frontend: React 18, Vite, Tailwind CSS, GSAP animations
+- Multiplayer: Socket.IO (real-time)
+- Assets: WebP images, SVG badges, Web Workers for AI
+
+## Domain
+
+- Primary URL: https://mythic-territories.xyz/
+- Sitemap: https://mythic-territories.xyz/sitemap.xml
+
