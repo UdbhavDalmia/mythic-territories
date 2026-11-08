@@ -20,7 +20,7 @@ const warmSocketClient = () => {
   preloadSocketClient().catch(() => {});
 };
 
-export default function Lobby({ navigateTo }) {
+export default function Lobby({ navigateTo, onWarm }) {
   const [showModes, setShowModes] = useState(false);
   const [showMultiplayer, setShowMultiplayer] = useState(false);
   const [showFactionSelection, setShowFactionSelection] = useState(false);
@@ -438,7 +438,9 @@ export default function Lobby({ navigateTo }) {
           <button
             ref={playBtnRef}
             className="home-play-button min-w-56 px-10 py-4 glass-obsidian transition-all duration-300 active:scale-95 group rounded-xl border border-ember-gold/40 hover:border-ember-gold/80 flex items-center justify-center gap-4 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-gold focus-visible:ring-offset-4 focus-visible:ring-offset-void-black"
-            onClick={() => setShowModes(true)}
+            onClick={() => { onWarm?.('GAME'); setShowModes(true); }}
+            onMouseEnter={() => onWarm?.('GAME')}
+            onFocus={() => onWarm?.('GAME')}
           >
             <span className="relative rye-font text-xl md:text-2xl text-ember-gold tracking-[0.32em] group-hover:translate-x-1 transition-transform block">
               PLAY
@@ -457,6 +459,8 @@ export default function Lobby({ navigateTo }) {
           <button
             className="home-resource-link"
             onClick={() => handleNavigate('NOTES')}
+            onMouseEnter={() => onWarm?.('NOTES')}
+            onFocus={() => onWarm?.('NOTES')}
           >
             <ScrollText className="h-4 w-4" aria-hidden="true" />
             <span>Patch Notes</span>
@@ -464,6 +468,8 @@ export default function Lobby({ navigateTo }) {
           <button
             className="home-resource-link"
             onClick={() => handleNavigate('GUIDE')}
+            onMouseEnter={() => onWarm?.('GUIDE')}
+            onFocus={() => onWarm?.('GUIDE')}
           >
             <BookOpen className="h-4 w-4" aria-hidden="true" />
             <span>Rulebook</span>

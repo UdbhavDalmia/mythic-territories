@@ -58,30 +58,18 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  useEffect(() => {
-    if (view !== 'LOBBY') return;
-
-    const runWhenIdle = window.requestIdleCallback
-      ? (callback) => window.requestIdleCallback(callback, { timeout: 2500 })
-      : (callback) => window.setTimeout(callback, 1200);
-    const cancelIdle = window.cancelIdleCallback
-      ? (id) => window.cancelIdleCallback(id)
-      : (id) => window.clearTimeout(id);
-
-    let secondaryTask = null;
-    const idleTask = runWhenIdle(() => {
+  const warmRoute = (target) => {
+    if (target === 'GAME') {
       warmGameAssets();
       loadGame();
-      secondaryTask = window.setTimeout(() => {
-        Promise.allSettled([loadGuide(), loadNotes(), loadWheel()]);
-      }, 1200);
-    });
-
-    return () => {
-      cancelIdle(idleTask);
-      if (secondaryTask !== null) window.clearTimeout(secondaryTask);
-    };
-  }, [view]);
+    } else if (target === 'NOTES') {
+      loadNotes();
+    } else if (target === 'GUIDE') {
+      loadGuide();
+    } else if (target === 'WHEEL') {
+      loadWheel();
+    }
+  };
 
   const navigateTo = (newView, params = {}) => {
     const url = new URL(window.location.origin + (newView === 'LOBBY' ? '/' : window.location.pathname));
@@ -110,7 +98,7 @@ export default function App() {
   return (
     <div className={`min-h-screen w-full flex flex-col ${view === 'GAME' ? 'bg-transparent' : 'bg-surface'} text-on-surface select-none font-body-md`}>
       <Suspense fallback={<ScreenLoader />}>
-        {view === 'LOBBY' && <Lobby navigateTo={navigateTo} />}
+        {view === 'LOBBY' && <Lobby navigateTo={navigateTo} onWarm={warmRoute} />}
         {view === 'GAME' && <Game navigateTo={navigateTo} />}
         {view === 'GUIDE' && <Guide navigateTo={navigateTo} />}
         {view === 'NOTES' && <Notes navigateTo={navigateTo} />}
