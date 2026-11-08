@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "npm --prefix client install && npm --prefix client run build",
+    "postinstall": "npm run build",
     "start": "node server/server.js",
     "dev": "node --watch server/server.js",
     "client:dev": "npm run --prefix client dev",
