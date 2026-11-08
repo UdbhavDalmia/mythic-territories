@@ -71,6 +71,16 @@ app.use(express.static(path.join(__dirname, '../client/dist'), {
 }));
 app.use('/shared', express.static(path.join(__dirname, '../shared')));
 
+// SPA fallback for client-side routing
+app.get('*', (req, res) => {
+    const indexPath = path.join(__dirname, '../client/dist/index.html');
+    res.sendFile(indexPath, (err) => {
+        if (err) {
+            res.status(404).send("Client build not found. Please ensure 'npm run build' has run on the server.");
+        }
+    });
+});
+
 io.on('connection', (socket) => {
     socket.on('joinRoom', (data) => {
         let roomId = data;

@@ -5,7 +5,7 @@
   "main": "server/server.js",
   "type": "module",
   "scripts": {
-    "build": "npm run --prefix client build",
+    "build": "npm --prefix client install && npm --prefix client run build",
     "start": "node server/server.js",
     "dev": "node --watch server/server.js",
     "client:dev": "npm run --prefix client dev",
