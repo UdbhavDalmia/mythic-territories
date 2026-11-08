@@ -1,10 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
-          http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 
-  <!-- Main lobby / home -->
   <url>
     <loc>https://mythic-territories.xyz/</loc>
     <lastmod>2026-11-08</lastmod>
@@ -12,7 +8,6 @@
     <priority>1.0</priority>
   </url>
 
-  <!-- Rulebook / Guide page -->
   <url>
     <loc>https://mythic-territories.xyz/?page=rules</loc>
     <lastmod>2026-11-08</lastmod>
@@ -20,7 +15,6 @@
     <priority>0.8</priority>
   </url>
 
-  <!-- Patch notes page -->
   <url>
     <loc>https://mythic-territories.xyz/?page=notes</loc>
     <lastmod>2026-11-08</lastmod>
@@ -28,7 +22,6 @@
     <priority>0.7</priority>
   </url>
 
-  <!-- Destiny Wheel page -->
   <url>
     <loc>https://mythic-territories.xyz/?page=wheel</loc>
     <lastmod>2026-11-08</lastmod>
