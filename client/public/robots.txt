@@ -29,6 +29,7 @@ Allow: /
 
 # Sitemap
 Sitemap: https://mythic-territories.xyz/sitemap.xml
+Sitemap: https://mythic-territories.xyz/sitemap_index.xml
 
 # LLMs.txt (AI-readable site summary)
 # https://mythic-territories.xyz/llms.txt
