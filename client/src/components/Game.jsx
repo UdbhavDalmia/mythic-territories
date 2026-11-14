@@ -114,7 +114,7 @@ export default function Game({ navigateTo }) {
         const availableH = window.innerHeight - 20;
         const availableW = window.innerWidth - 20;
         const sY = availableH / 985;
-        const sX = availableW / 1520;
+        const sX = availableW / 1536;
         setArenaScale(Math.min(sY, sX, 1));
       } else {
         setArenaScale(1);
@@ -1110,7 +1110,7 @@ export default function Game({ navigateTo }) {
       <div 
         className="arena-scale-container"
         style={isCompactLayout ? { width: '100%' } : {
-          width: `${1520 * arenaScale}px`,
+          width: `${1536 * arenaScale}px`,
           height: `${981 * arenaScale}px`,
           margin: '0 auto',
           position: 'relative',
@@ -1123,7 +1123,7 @@ export default function Game({ navigateTo }) {
           style={isCompactLayout ? {} : {
             transform: `scale(${arenaScale})`,
             transformOrigin: 'top left',
-            width: '1520px',
+            width: '1536px',
             height: '981px',
             position: 'absolute',
             top: 0,

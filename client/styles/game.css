@@ -318,11 +318,11 @@ button:disabled {
    display: flex;
    justify-content: center;
    align-items: stretch;
-   gap: 20px;
+   gap: 16px;
    margin-top: 0;
    padding: 0;
    height: 981px;
-   width: 1512px;
+   width: 1536px;
    margin: 0 auto;
 }
 
@@ -338,17 +338,17 @@ button:disabled {
 
 #game-wrapper {
    position: relative;
-   width: 1520px;
+   width: 1536px;
    height: 981px;
    margin: 0 auto;
 }
 
 #left-column {
-   width: 270px;
+   width: 286px;
    height: 981px;
    display: flex;
    flex-direction: column;
-   padding: 16px 14px;
+   padding: 16px 12px;
    overflow-y: auto;
    overflow-x: hidden;
    scrollbar-width: thin;
@@ -360,11 +360,11 @@ button:disabled {
 }
 
 #right-column {
-   width: 270px;
+   width: 286px;
    height: 981px;
    display: flex;
    flex-direction: column;
-   padding: 16px 14px;
+   padding: 16px 12px;
    overflow-y: auto;
    overflow-x: hidden;
    scrollbar-width: thin;
@@ -1460,7 +1460,7 @@ body.multiplayer #roomStatusOverlay {
    display: flex;
    flex-direction: column;
    gap: 8px;
-   padding: 10px 10px;
+   padding: 10px 8px;
    border: 1px solid rgba(255, 255, 255, 0.08);
    border-radius: 9px;
    background: rgba(8, 12, 22, 0.45);
@@ -1508,27 +1508,34 @@ body.multiplayer #roomStatusOverlay {
 
 .fallen-units-columns {
    display: grid;
-   grid-template-columns: 1fr 1fr;
-   gap: 8px;
+   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+   gap: 6px;
    flex: 1;
    min-height: 0;
+   min-width: 0;
+   width: 100%;
 }
 
 .fallen-column {
    display: flex;
    flex-direction: column;
-   gap: 5px;
+   gap: 4px;
    min-height: 0;
+   min-width: 0;
+   width: 100%;
 }
 
 .fallen-column-label {
    font-family: 'Space Grotesk', sans-serif;
-   font-size: 9.5px;
+   font-size: 9px;
    font-weight: 700;
-   letter-spacing: 0.1em;
+   letter-spacing: 0.08em;
    text-transform: uppercase;
    text-align: center;
-   padding-bottom: 4px;
+   padding-bottom: 3px;
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis;
 }
 
 .snow-column .fallen-column-label {
@@ -1544,10 +1551,14 @@ body.multiplayer #roomStatusOverlay {
 .fallen-list {
    display: flex;
    flex-direction: column;
-   gap: 5px;
+   gap: 4px;
    overflow-y: auto;
+   overflow-x: hidden;
    flex: 1;
-   padding-right: 2px;
+   min-height: 0;
+   min-width: 0;
+   width: 100%;
+   padding-right: 1px;
    scrollbar-width: thin;
    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
@@ -1566,8 +1577,8 @@ body.multiplayer #roomStatusOverlay {
 .fallen-unit-card {
    display: flex;
    align-items: center;
-   gap: 6px;
-   padding: 4px 6px;
+   gap: 5px;
+   padding: 3px 5px;
    border-radius: 6px;
    background: rgba(15, 23, 42, 0.5);
    border: 1px solid rgba(255, 255, 255, 0.06);
@@ -1575,6 +1586,8 @@ body.multiplayer #roomStatusOverlay {
    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), 
                background 0.2s ease, 
                border-color 0.2s ease;
+   min-width: 0;
+   box-sizing: border-box;
 }
 
 .fallen-unit-card:hover {
@@ -1591,8 +1604,8 @@ body.multiplayer #roomStatusOverlay {
 }
 
 .fallen-unit-avatar {
-   width: 20px;
-   height: 20px;
+   width: 18px;
+   height: 18px;
    border-radius: 50%;
    object-fit: cover;
    flex-shrink: 0;
@@ -1603,12 +1616,13 @@ body.multiplayer #roomStatusOverlay {
 
 .fallen-unit-name {
    font-family: 'Space Grotesk', sans-serif;
-   font-size: 10px;
+   font-size: 8.5px;
    font-weight: 600;
    color: #cbd5e1;
-   white-space: nowrap;
-   overflow: hidden;
-   text-overflow: ellipsis;
+   line-height: 1.15;
+   min-width: 0;
+   flex: 1;
+   word-break: break-word;
 }
 
 .fallen-empty-card {
