@@ -10,6 +10,7 @@ import {
   RotateCcw,
   ScrollText,
   Shield,
+  Skull,
   Swords,
   Users,
   WifiOff,
@@ -28,6 +29,32 @@ import {
   updatePlayerHeartbeat,
   getOrCreatePlayerId
 } from '../services/multiplayer.js';
+
+const INITIAL_SNOW_KEYS = [
+  'snowFrostLord',
+  'snowSoulLinker',
+  'snowRampagingYeti',
+  'snowIceWeaver',
+  'snowGlacialMage',
+  'snowSoulFreeze',
+  'snowArcticTrapper',
+  'snowGlacialBrute',
+  'snowFrostbiteStalker',
+  'snowHoarfrostMystic'
+];
+
+const INITIAL_ASH_KEYS = [
+  'ashAshTyrant',
+  'ashAshReaper',
+  'ashBlazeboundBeast',
+  'ashRiftForger',
+  'ashMagmaSpitter',
+  'ashScorchPriest',
+  'ashAshStrider',
+  'ashMagmaProwler',
+  'ashCinderScout',
+  'ashMagmaShaper'
+];
 
 export default function Game({ navigateTo }) {
   const [gameState, setGameState] = useState(null);
@@ -87,7 +114,7 @@ export default function Game({ navigateTo }) {
         const availableH = window.innerHeight - 20;
         const availableW = window.innerWidth - 20;
         const sY = availableH / 985;
-        const sX = availableW / 1420;
+        const sX = availableW / 1520;
         setArenaScale(Math.min(sY, sX, 1));
       } else {
         setArenaScale(1);
@@ -594,12 +621,19 @@ export default function Game({ navigateTo }) {
     events.forEach(event => {
       switch (event.type) {
         case 'FLASH':
-          showFlash(event.message, event.team === 'snow' ? 'snow' : event.team === 'ash' ? 'ash' : 'neutral');
-          setEventLog(prev => [event.message, ...prev.slice(0, 49)]);
+          setEventLog(prev => [{
+            text: event.message,
+            turn: gs?.turnCount || 1,
+            team: event.team === 'snow' ? 'snow' : event.team === 'ash' ? 'ash' : 'neutral'
+          }, ...prev.slice(0, 49)]);
           break;
 
         case 'GAME_OVER':
-          showFlash(`GAME OVER: Team ${event.winningTeam.toUpperCase()} has secured victory!`, 'neutral');
+          setEventLog(prev => [{
+            text: `GAME OVER: Team ${event.winningTeam === 'snow' ? 'FROST' : 'ASH'} has secured victory!`,
+            turn: gs?.turnCount || 1,
+            team: event.winningTeam === 'snow' ? 'snow' : 'ash'
+          }, ...prev.slice(0, 49)]);
           break;
 
         case 'ANIMATION':
@@ -998,6 +1032,11 @@ export default function Game({ navigateTo }) {
     ? 'GAME OVER' 
     : `TURN ${gameState?.turnCount || 1}: ${gameState?.currentTurn === 'ash' ? 'ASH' : 'FROST'}`;
 
+  const aliveSnowKeys = new Set(gameState?.pieces ? gameState.pieces.filter(p => p.team === 'snow').map(p => p.key) : []);
+  const aliveAshKeys = new Set(gameState?.pieces ? gameState.pieces.filter(p => p.team === 'ash').map(p => p.key) : []);
+  const fallenSnow = INITIAL_SNOW_KEYS.filter(k => !aliveSnowKeys.has(k));
+  const fallenAsh = INITIAL_ASH_KEYS.filter(k => !aliveAshKeys.has(k));
+
   return (
     <div className="game-screen text-on-surface select-none font-body-md overflow-y-auto overflow-x-hidden min-h-screen w-full flex flex-col items-center justify-start relative">
 
@@ -1068,31 +1107,29 @@ export default function Game({ navigateTo }) {
         <AscensionModal gameState={gameState} sendAction={sendAction} />
       )}
 
-      {/* Flash Message */}
-      {flashMessage && (
-        <div id="flashMessage" className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-bounce">
-          <div className={`px-6 py-3 rounded-lg border font-semibold text-xs tracking-wider shadow-lg backdrop-blur ${
-            flashMessage.type === 'snow' ? 'bg-blue-950/90 border-blue-400 text-cyan-300' : 
-            flashMessage.type === 'ash' ? 'bg-red-950/90 border-red-500 text-orange-400' : 
-            'bg-surface-container-high/90 border-outline/20 text-white'
-          }`}>
-            {flashMessage.msg}
-          </div>
-        </div>
-      )}
-
       <div 
-        id="game-wrapper"
-        className="relative z-10"
-        style={isCompactLayout ? {} : {
-          transform: `scale(${arenaScale})`,
-          transformOrigin: 'top center',
-          width: '1420px',
-          height: '981px',
+        className="arena-scale-container"
+        style={isCompactLayout ? { width: '100%' } : {
+          width: `${1520 * arenaScale}px`,
+          height: `${981 * arenaScale}px`,
           margin: '0 auto',
-          marginBottom: arenaScale < 1 ? `-${(1 - arenaScale) * 981}px` : '0px'
+          position: 'relative',
+          flexShrink: 0,
         }}
       >
+        <div 
+          id="game-wrapper"
+          className="relative z-10"
+          style={isCompactLayout ? {} : {
+            transform: `scale(${arenaScale})`,
+            transformOrigin: 'top left',
+            width: '1520px',
+            height: '981px',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+          }}
+        >
         <div id="mobileHeader" className="mobile-only-header">
           <button id="menuButton-mobile" className="top-menu-btn icon-btn" aria-label="Return to main menu" onClick={handleExitToLobby}>
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -1126,87 +1163,43 @@ export default function Game({ navigateTo }) {
 
         <div className="main-layout">
           <div id="left-column" className="ui-column primal-snow">
-            <div id="timerContainer" className="ui-container">
-              <div className="top-section">
-                <div className="panel-heading">
-                  <span className="panel-kicker">Battle controls</span>
-                  <Swords className="h-4 w-4 text-ice-light" aria-hidden="true" />
-                </div>
-                <button id="menuButton" className="top-menu-btn" onClick={handleExitToLobby}>
-                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                  Main menu
-                </button>
-                {myTeam && (
-                  <div id="yourTeamDisplay" className={`team-display ${myTeam}`}>
-                    <Shield className="h-4 w-4" aria-hidden="true" />
-                    Commanding {myTeam === 'snow' ? 'Frost' : 'Ash'}
-                  </div>
-                )}
-                <div className={`turn-status ${gameState?.currentTurn || 'snow'}`}>
-                  <span className="turn-status-dot" />
-                  {gameState?.gameOver ? 'Battle complete' : `${gameState?.currentTurn === 'ash' ? 'ASH' : 'FROST'} TURN`}
-                </div>
-                <div className="timer-stack">
-                  <div className={`timer-card ash-card ${gameState?.currentTurn === 'ash' ? 'active' : ''}`}>
-                    <span>Ash</span>
-                    <div id="ashTimer" className="timer-display">{formatTime(gameState?.timers?.ash)}</div>
-                  </div>
-                  <div className={`timer-card snow-card ${gameState?.currentTurn === 'snow' ? 'active' : ''}`}>
-                    <span>Frost</span>
-                    <div id="snowTimer" className="timer-display">{formatTime(gameState?.timers?.snow)}</div>
-                  </div>
-                </div>
-                {isLocal && (
-                  <button id="startResetBtn" onClick={handleStartReset}>
-                    {gameState?.gameStarted ? <RotateCcw className="h-4 w-4" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
-                    {gameState?.gameStarted ? 'Reset battle' : 'Start battle'}
-                  </button>
-                )}
-                {isLocal && (
-                  <div id="testModeContainer" className="test-mode-control">
-                    <FlaskConical className="h-4 w-4" aria-hidden="true" />
-                    <input 
-                      type="checkbox" 
-                      id="testModeToggle" 
-                      checked={!!gameState?.testMode}
-                      onChange={(e) => sendAction('TOGGLE_TEST_MODE', { enabled: e.target.checked })}
-                      style={{ cursor: 'pointer', width: '16px', height: '16px', margin: 0 }}
-                    />
-                    <label htmlFor="testModeToggle">Test mode</label>
-                  </div>
-                )}
+            <div className="battle-controls-heading">
+              <div className="battle-controls-title">
+                <Swords className="h-4 w-4 text-ice-light" aria-hidden="true" />
+                <span>Battle Controls</span>
+              </div>
+            </div>
+
+            <button id="menuButton" className="top-menu-btn" onClick={handleExitToLobby}>
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              <span>Main menu</span>
+            </button>
+
+            {isLocal && (
+              <button id="startResetBtn" className="top-menu-btn" onClick={handleStartReset}>
+                {gameState?.gameStarted ? <RotateCcw className="h-4 w-4" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
+                <span>{gameState?.gameStarted ? 'Reset battle' : 'Start battle'}</span>
+              </button>
+            )}
+
+            <div className="timer-stack">
+              <div className={`timer-card snow-card ${gameState?.currentTurn === 'snow' ? 'active' : ''}`}>
+                <span className="timer-faction-name">Frost</span>
+                <div id="snowTimer" className="timer-display">{formatTime(gameState?.timers?.snow)}</div>
+              </div>
+              <div className={`timer-card ash-card ${gameState?.currentTurn === 'ash' ? 'active' : ''}`}>
+                <span className="timer-faction-name">Ash</span>
+                <div id="ashTimer" className="timer-display">{formatTime(gameState?.timers?.ash)}</div>
               </div>
             </div>
             
-            <div id="ability-info-panel" className="ability-panel" style={{ display: selectedPiece ? 'flex' : 'none' }}>
+            <div id="ability-info-panel" className={`ability-panel ${selectedPiece ? 'visible' : ''}`}>
               {selectedPiece && (
                 <>
                   <div className="selected-unit-heading">
                     <span className="panel-kicker">Selected unit</span>
                     <h3 id="ability-name">{selectedPieceName}</h3>
                   </div>
-                  <p id="ability-description">
-                    {C.PIECE_TYPES[selectedPiece.key]?.title || 'Elemental Commandant'}
-                    <span className="selected-unit-stats">
-                      <span><b>{selectedPiece.currentHp}</b> HP</span>
-                      <span><b>{selectedPiece.strength}</b> STR</span>
-                      <span><b>{selectedPiece.def}</b> DEF</span>
-                      <span><b>{selectedPiece.agility}</b> AGI</span>
-                    </span>
-                    {selectedPiece.ability && (
-                      <>
-                        <strong style={{color: '#E8C15E'}}>Active: {selectedPiece.ability.name}</strong><br/>
-                        {C.ABILITY_DESCRIPTIONS[selectedPiece.ability.key]}
-                        <br/><br/>
-                      </>
-                    )}
-                    {C.PASSIVE_DESCRIPTIONS[selectedPiece.key] && (
-                      <>
-                        <strong style={{color: '#4ade80'}}>Passive: </strong><br/>
-                        {C.PASSIVE_DESCRIPTIONS[selectedPiece.key]}
-                      </>
-                    )}
-                  </p>
 
                   {hasPrimaryAbility && (
                     <button
@@ -1257,6 +1250,83 @@ export default function Game({ navigateTo }) {
                 </>
               )}
             </div>
+
+            <div id="fallenUnitsPanel" className="fallen-units-panel">
+              <div className="fallen-units-header">
+                <div className="fallen-units-title">
+                  <Skull className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
+                  <span>Fallen Units</span>
+                </div>
+                <div className="fallen-units-counts">
+                  <span className="frost-count">❄ {fallenSnow.length}</span>
+                  <span className="ash-count">🔥 {fallenAsh.length}</span>
+                </div>
+              </div>
+
+              <div className="fallen-units-columns">
+                {/* Frost Casualties */}
+                <div className="fallen-column snow-column">
+                  <div className="fallen-column-label">Frost ({10 - fallenSnow.length}/10)</div>
+                  <div className="fallen-list">
+                    {fallenSnow.length === 0 ? (
+                      <div className="fallen-empty-card">
+                        <span className="empty-sub">Vanguard Intact</span>
+                        <span className="empty-count">10 Active</span>
+                      </div>
+                    ) : (
+                      fallenSnow.map(key => {
+                        const info = C.PIECE_TYPES[key] || {};
+                        const imgPath = C.IMAGES[key] ? `/${C.IMAGES[key]}` : null;
+                        return (
+                          <div key={key} className="fallen-unit-card snow" title={info.name || key}>
+                            {imgPath && <img src={imgPath} alt={info.name || key} className="fallen-unit-avatar" />}
+                            <span className="fallen-unit-name">{info.name || key}</span>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* Ash Casualties */}
+                <div className="fallen-column ash-column">
+                  <div className="fallen-column-label">Ash ({10 - fallenAsh.length}/10)</div>
+                  <div className="fallen-list">
+                    {fallenAsh.length === 0 ? (
+                      <div className="fallen-empty-card">
+                        <span className="empty-sub">Vanguard Intact</span>
+                        <span className="empty-count">10 Active</span>
+                      </div>
+                    ) : (
+                      fallenAsh.map(key => {
+                        const info = C.PIECE_TYPES[key] || {};
+                        const imgPath = C.IMAGES[key] ? `/${C.IMAGES[key]}` : null;
+                        return (
+                          <div key={key} className="fallen-unit-card ash" title={info.name || key}>
+                            {imgPath && <img src={imgPath} alt={info.name || key} className="fallen-unit-avatar" />}
+                            <span className="fallen-unit-name">{info.name || key}</span>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {isLocal && (
+              <div id="testModeContainer" className="test-mode-control mt-auto">
+                <FlaskConical className="h-4 w-4" aria-hidden="true" />
+                <input 
+                  type="checkbox" 
+                  id="testModeToggle" 
+                  checked={!!gameState?.testMode}
+                  onChange={(e) => sendAction('TOGGLE_TEST_MODE', { enabled: e.target.checked })}
+                  style={{ cursor: 'pointer', width: '16px', height: '16px', margin: 0 }}
+                />
+                <label htmlFor="testModeToggle">Test mode</label>
+              </div>
+            )}
           </div>
 
           <div className="game-container">
@@ -1283,20 +1353,35 @@ export default function Game({ navigateTo }) {
           </div>
 
           <div id="right-column" className="ui-column primal-ash">
-            <div id="messageLogContainer" className="ui-container">
+            <div id="messageLogContainer">
               <div className="event-log-heading">
-                <div>
-                  <span className="panel-kicker">Battle chronicle</span>
-                  <div className="event-log-title"><ScrollText className="h-4 w-4" aria-hidden="true" /> Event log</div>
+                <div className="event-log-title">
+                  <ScrollText className="h-4 w-4 text-magma-core" aria-hidden="true" />
+                  <span>Battle Chronicle</span>
                 </div>
-                <span className="event-count">{eventLog.length}</span>
               </div>
-              <ul id="messageLog" aria-live="polite" aria-label="Battle event log">
+              <ul id="messageLog" aria-live="polite" aria-label="Battle chronicle event log">
                 {eventLog.length === 0 ? (
                   <li className="event-log-empty">Battle events will appear here after the first move.</li>
-                ) : eventLog.map((log, i) => (
-                  <li key={i}><span className="event-dot" />{log}</li>
-                ))}
+                ) : eventLog.map((log, i) => {
+                  const turnNum = typeof log === 'object' && log.turn ? log.turn : 1;
+                  const message = typeof log === 'object' && log.text ? log.text : log;
+                  const team = typeof log === 'object' && log.team ? log.team : 'neutral';
+                  const badgeColor = team === 'snow'
+                    ? 'border-sky-400/40 bg-sky-500/15 text-sky-300'
+                    : team === 'ash'
+                    ? 'border-rose-500/40 bg-rose-500/15 text-rose-300'
+                    : 'border-ember-gold/40 bg-ember-gold/15 text-amber-300';
+
+                  return (
+                    <li key={i} className="event-log-item">
+                      <span className={`event-turn-badge ${badgeColor}`}>
+                        T{turnNum}
+                      </span>
+                      <span className="event-text">{message}</span>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
             
@@ -1399,6 +1484,7 @@ export default function Game({ navigateTo }) {
           </div>
         </div>
       </div>
+    </div>
 
       {hoveredPiece && (
         <div 
