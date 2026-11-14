@@ -7,6 +7,7 @@ export default function Piece({
   piece, 
   gameState, 
   isSelected, 
+  isAsh,
   onClick, 
   onLungeComplete,
   onMouseEnter,
@@ -34,7 +35,7 @@ export default function Piece({
 
   // 2. Cell Glide Movement Animation strictly on pieceRef left/top
   useEffect(() => {
-    const isLocalTeamAsh = gameState?.playerTeam === 'ash';
+    const isLocalTeamAsh = isAsh !== undefined ? isAsh : gameState?.playerTeam === 'ash';
     
     // Target percentage calculations
     let targetLeft = piece.col * 10;

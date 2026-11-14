@@ -1,26 +1,25 @@
 {
   "name": "mythic-territories",
-  "version": "2.0",
-  "description": "Turn-based strategy game with Socket.io multiplayer",
-  "main": "server/server.js",
+  "version": "2.0.0",
+  "description": "Elemental turn-based tactical strategy game built with React and serverless Firebase Firestore multiplayer.",
   "type": "module",
   "scripts": {
+    "dev": "npm run --prefix client dev",
     "build": "npm --prefix client install && npm --prefix client run build",
-    "postinstall": "npm run build",
-    "start": "node server/server.js",
-    "dev": "node --watch server/server.js",
-    "client:dev": "npm run --prefix client dev",
-    "client:build": "npm run --prefix client build",
-    "dev:full": "concurrently \"npm run dev\" \"npm run client:dev\""
+    "preview": "npm run --prefix client preview",
+    "deploy": "firebase deploy",
+    "deploy:hosting": "firebase deploy --only hosting",
+    "deploy:rules": "firebase deploy --only firestore:rules"
   },
-  "dependencies": {
-    "express": "^4.22.1",
-    "socket.io": "^4.8.3"
-  },
-  "devDependencies": {
-    "concurrently": "^8.2.2"
-  },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "turn-based",
+    "strategy",
+    "game",
+    "tactical",
+    "firebase",
+    "react",
+    "vite"
+  ],
+  "author": "Mythic Territories",
   "license": "ISC"
 }

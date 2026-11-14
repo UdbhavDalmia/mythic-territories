@@ -1214,6 +1214,7 @@ export function createPiece(r, c, key, team) {
   const piece = {
     id: gameState.pieceIdCounter++,
     team,
+    name: properties.name || key,
     row: r,
     col: c,
     key,
@@ -1787,7 +1788,7 @@ function applySacrificeBuff(team, gs) {
       });
   });
   flash(
-    `The ${team === "snow" ? "Snow" : "Ash"
+    `The ${team === "snow" ? "Frost" : "Ash"
     } faction is empowered by ${buffKey}!`,
     team,
     gs

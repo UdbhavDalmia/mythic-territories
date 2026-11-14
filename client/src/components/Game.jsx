@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { io } from 'socket.io-client';
 import '../../styles/game.css';
 import {
   ArrowLeft,
@@ -21,6 +20,14 @@ import * as Logic from '../../../shared/logic.js';
 import * as C from '../../../shared/constants.js';
 import * as E from '../../../shared/utils.js';
 import * as Effects from '../../js/effects.js';
+import {
+  subscribeToRoom,
+  dispatchGameAction,
+  leaveRoom,
+  disbandRoom,
+  updatePlayerHeartbeat,
+  getOrCreatePlayerId
+} from '../services/multiplayer.js';
 
 export default function Game({ navigateTo }) {
   const [gameState, setGameState] = useState(null);
@@ -36,11 +43,41 @@ export default function Game({ navigateTo }) {
   const [drawerExpanded, setDrawerExpanded] = useState(false);
   const [isCompactLayout, setIsCompactLayout] = useState(window.innerWidth <= 1180);
   const [arenaScale, setArenaScale] = useState(1);
+  const [battleCountdown, setBattleCountdown] = useState(null);
   const gameStateRef = useRef(gameState);
 
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
+
+  // Global 5s Battle Countdown when match begins in multiplayer
+  useEffect(() => {
+    if (!gameState?.gameStarted || gameState?.gameOver) {
+      setBattleCountdown(null);
+      return;
+    }
+
+    const targetTime = gameState.battleStartTime;
+    if (!targetTime) {
+      setBattleCountdown(null);
+      return;
+    }
+
+    const checkCountdown = () => {
+      const diff = targetTime - Date.now();
+      if (diff > 0) {
+        setBattleCountdown(Math.ceil(diff / 1000));
+      } else if (diff > -1000) {
+        setBattleCountdown(0);
+      } else {
+        setBattleCountdown(null);
+      }
+    };
+
+    checkCountdown();
+    const interval = setInterval(checkCountdown, 100);
+    return () => clearInterval(interval);
+  }, [gameState?.gameStarted, gameState?.battleStartTime, gameState?.gameOver]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -62,10 +99,13 @@ export default function Game({ navigateTo }) {
   }, []);
 
   const preloadedImagesRef = useRef({});
-  const socketRef = useRef(null);
+  const roomUnsubRef = useRef(null);
+  const lastProcessedEventsRef = useRef(null);
+  const prevPlayersCountRef = useRef(1);
   const aiWorkerRef = useRef(null);
   const timerIntervalRef = useRef(null);
   const disconnectTimerIntervalRef = useRef(null);
+  const heartbeatIntervalRef = useRef(null);
 
   const params = new URLSearchParams(window.location.search);
   const roomId = params.get('room');
@@ -134,7 +174,13 @@ export default function Game({ navigateTo }) {
         if (window.cancelIdleCallback) window.cancelIdleCallback(idleTask);
         else window.clearTimeout(idleTask);
       }
-      if (socketRef.current) socketRef.current.disconnect();
+      if (roomUnsubRef.current) {
+        roomUnsubRef.current();
+        roomUnsubRef.current = null;
+      }
+      if (roomId) {
+        leaveRoom(roomId, getOrCreatePlayerId());
+      }
       if (aiWorkerRef.current) aiWorkerRef.current.terminate();
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
       if (disconnectTimerIntervalRef.current) clearInterval(disconnectTimerIntervalRef.current);
@@ -177,103 +223,103 @@ export default function Game({ navigateTo }) {
         setTimeout(checkAITurn, 200);
       }
     } else {
-      // Online Multiplayer Setup
-      const devPorts = ['5500', '5501', '5173', '8080', '8081', '3001'];
-      const isDevServer = devPorts.includes(window.location.port);
-      const connectionUrl = (window.location.protocol === 'file:' || isDevServer) ? 'http://localhost:3000' : '';
-      
-      const socket = io(connectionUrl);
-      socketRef.current = socket;
+      // Cloud Firestore Online Multiplayer Setup
+      const assignedTeam = params.get('team') || 'snow';
+      setMyTeam(assignedTeam);
 
-      let playerId = sessionStorage.getItem('mythic_playerId');
-      if (!playerId) {
-        playerId = 'p_' + Math.random().toString(36).substring(2, 11);
-        sessionStorage.setItem('mythic_playerId', playerId);
-      }
+      const playerId = getOrCreatePlayerId();
+      let isFirstSync = true;
+      updatePlayerHeartbeat(roomId, playerId);
+      if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = setInterval(() => {
+        updatePlayerHeartbeat(roomId, playerId);
+      }, 20000);
 
-      socket.on('connect', () => {
-        socket.emit('joinRoom', { roomId, playerId });
-      });
+      roomUnsubRef.current = subscribeToRoom(roomId, (roomData) => {
+        if (!roomData) return;
 
-      socket.on('init', (data) => {
-        const gs = data.state;
+        if (roomData.status === 'DISBANDED') {
+          if (roomUnsubRef.current) {
+            roomUnsubRef.current();
+            roomUnsubRef.current = null;
+          }
+          alert('This battle realm has been disbanded.');
+          handleExitToLobby();
+          return;
+        }
+
+        const gs = roomData.gameState;
+        if (!gs) return;
+
+        const players = roomData.players || [];
+        setPlayerCount(players.length);
+
+        // Determine player team
+        const me = players.find(p => p.id === playerId);
+        const effectiveTeam = me?.team || assignedTeam;
+        setMyTeam(effectiveTeam);
+
+        // Maintain local asset images
         gs.images = preloadedImagesRef.current;
         gs.boardImgs = {
           gameBackgroundSnow: preloadedImagesRef.current.gameBackgroundSnow,
           gameBackgroundAsh: preloadedImagesRef.current.gameBackgroundAsh
         };
-        gs.playerTeam = data.team;
+        gs.playerTeam = effectiveTeam;
 
-        setMyTeam(data.team);
-        setPlayerCount(data.playerCount);
         E.updateBoardMap(gs);
+
+        // Process any new events from this update
+        if (gs.events && gs.events.length > 0) {
+          const eventsKey = JSON.stringify(gs.events) + '_' + (roomData.updatedAt || '');
+          if (lastProcessedEventsRef.current !== eventsKey) {
+            lastProcessedEventsRef.current = eventsKey;
+            processAnimationEvents(gs.events, gs);
+          }
+        }
+
         setGameState(cloneState(gs));
 
-        showFlash(`Joined room ${roomId} as Team ${data.team?.toUpperCase()}`, 'neutral');
-        
-        if (gs.gameStarted) {
-          startCountdown();
-        }
-      });
-
-      socket.on('playerJoined', (data) => {
-        showFlash('An opponent has joined the realm!', 'neutral');
-        setPlayerCount(data.playerCount);
-        setIsOpponentDisconnected(false);
-        if (disconnectTimerIntervalRef.current) {
-          clearInterval(disconnectTimerIntervalRef.current);
-        }
-      });
-
-      socket.on('playerLeft', (data) => {
-        showFlash('Opponent disconnected from the realm.', 'error');
-        setPlayerCount(data.playerCount);
-        if (gameStateRef.current?.gameStarted && !gameStateRef.current?.gameOver) {
-          setIsOpponentDisconnected(true);
-          setDisconnectTimeout(60);
-          startDisconnectTimer();
-        }
-      });
-
-      socket.on('stateUpdate', (data) => {
-        setGameState(prev => {
-          if (!prev) return null;
-          
-          let updated = { ...prev };
-          if (data.state) {
-            updated = data.state;
-          } else if (data.diff) {
-            updated = { ...prev, ...data.diff };
+        if (isFirstSync) {
+          isFirstSync = false;
+          showFlash(`Joined realm ${roomId} as Team ${effectiveTeam.toUpperCase()}`, 'neutral');
+          if (gs.gameStarted && !gs.gameOver) {
+            startCountdown();
           }
-
-          // Maintain local asset images
-          updated.images = preloadedImagesRef.current;
-          updated.boardImgs = {
-            gameBackgroundSnow: preloadedImagesRef.current.gameBackgroundSnow,
-            gameBackgroundAsh: preloadedImagesRef.current.gameBackgroundAsh
-          };
-          updated.playerTeam = myTeam;
-
-          E.updateBoardMap(updated);
-
-          // Append events to event log list
-          if (data.events && data.events.length > 0) {
-            processAnimationEvents(data.events, updated);
+        } else {
+          // Detect player joins / disconnects
+          if (players.length > prevPlayersCountRef.current) {
+            showFlash('An opponent has entered the realm!', 'neutral');
+            setIsOpponentDisconnected(false);
+            if (disconnectTimerIntervalRef.current) {
+              clearInterval(disconnectTimerIntervalRef.current);
+            }
+          } else if (players.length < prevPlayersCountRef.current) {
+            showFlash('Opponent disconnected from the realm.', 'error');
+            if (gs.gameStarted && !gs.gameOver) {
+              setIsOpponentDisconnected(true);
+              setDisconnectTimeout(60);
+              startDisconnectTimer();
+            }
           }
-
-          return cloneState(updated);
-        });
-      });
-
-      socket.on('error', (msg) => {
-        alert(msg);
-      });
-
-      socket.on('roomClosed', () => {
-        alert('This battle room has been closed.');
-        navigateTo('LOBBY');
+        }
+        prevPlayersCountRef.current = players.length;
+      }, (err) => {
+        console.error('Firestore room error:', err);
+        alert(err.message || 'Unable to connect to realm.');
       });
     }
+
+    return () => {
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
+        heartbeatIntervalRef.current = null;
+      }
+      if (roomUnsubRef.current) {
+        roomUnsubRef.current();
+        roomUnsubRef.current = null;
+      }
+    };
   }, [imagesLoaded]);
 
   // Local clock ticking interval
@@ -284,6 +330,9 @@ export default function Game({ navigateTo }) {
       setGameState(prev => {
         if (!prev || prev.gameOver || !prev.gameStarted) return prev;
         
+        // Hold turn timers during pre-battle countdown
+        if (prev.battleStartTime && Date.now() < prev.battleStartTime) return prev;
+
         const turn = prev.currentTurn || 'snow';
         const updated = { ...prev };
         if (!updated.timers) updated.timers = { snow: 600, ash: 600 };
@@ -303,7 +352,7 @@ export default function Game({ navigateTo }) {
             };
             return cloneState(newGs);
           } else {
-            socketRef.current.emit('gameAction', { roomId, actionType: 'TIMEOUT', data: { team: turn } });
+            dispatchGameAction(roomId, getOrCreatePlayerId(), 'TIMEOUT', { team: turn }).catch(console.warn);
           }
         }
         return updated;
@@ -319,6 +368,21 @@ export default function Game({ navigateTo }) {
     }
   }, [gameState?.gameStarted, gameState?.gameOver]);
 
+  const handleExitToLobby = () => {
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+    }
+    if (roomUnsubRef.current) {
+      roomUnsubRef.current();
+      roomUnsubRef.current = null;
+    }
+    if (roomId) {
+      leaveRoom(roomId, getOrCreatePlayerId());
+    }
+    navigateTo('LOBBY');
+  };
+
   // Disconnect countdown timer
   const startDisconnectTimer = () => {
     if (disconnectTimerIntervalRef.current) clearInterval(disconnectTimerIntervalRef.current);
@@ -327,8 +391,9 @@ export default function Game({ navigateTo }) {
       setDisconnectTimeout(prev => {
         if (prev <= 1) {
           clearInterval(disconnectTimerIntervalRef.current);
+          if (roomId) disbandRoom(roomId, 'DISCONNECT_TIMEOUT');
           alert('Match ended due to player disconnection.');
-          navigateTo('LOBBY');
+          handleExitToLobby();
           return 0;
         }
         return prev - 1;
@@ -345,7 +410,7 @@ export default function Game({ navigateTo }) {
 
     if (aiWorkerRef.current) aiWorkerRef.current.terminate();
     
-    const worker = new Worker('/js/ai.worker.js', { type: 'module' });
+    const worker = new Worker(new URL('../workers/ai.worker.js', import.meta.url), { type: 'module' });
     aiWorkerRef.current = worker;
 
     worker.onmessage = (ev) => {
@@ -618,50 +683,55 @@ export default function Game({ navigateTo }) {
 
   // Main input action dispatch bridge
   const sendAction = (actionType, data) => {
+    if (battleCountdown !== null && battleCountdown > 0) return;
     if (isLocal) {
       processLocalAction(actionType, data);
-    } else if (socketRef.current) {
-      if (gameState?.timers) {
-        socketRef.current.emit('gameAction', { roomId, actionType: 'SYNC_TIMERS', data: { timers: gameState.timers } });
+    } else {
+      // Optimistic local update for instantaneous UI feedback
+      if (['SELECT_PIECE', 'TOGGLE_TEST_MODE'].includes(actionType)) {
+        processLocalAction(actionType, data);
       }
-      socketRef.current.emit('gameAction', { roomId, actionType, data });
+      const playerId = getOrCreatePlayerId();
+      dispatchGameAction(roomId, playerId, actionType, {
+        ...data,
+        timers: gameStateRef.current?.timers
+      }).catch(err => {
+        console.warn('Action dispatch failed:', err);
+      });
     }
   };
 
   const handleStartReset = () => {
-    if (isLocal) {
-      setGameState(prev => {
-        if (!prev) return null;
-        const gs = { ...prev };
-        if (!gs.gameStarted) {
-          gs.gameStarted = true;
-          gs.timers = { snow: 600, ash: 600 };
-        } else {
-          Logic.initGameState(gs);
-          Logic.initGame();
-          const nextGs = Logic.getGameState();
-          nextGs.images = preloadedImagesRef.current;
-          nextGs.boardImgs = {
-            gameBackgroundSnow: preloadedImagesRef.current.gameBackgroundSnow,
-            gameBackgroundAsh: preloadedImagesRef.current.gameBackgroundAsh
-          };
-          nextGs.playerTeam = myTeam;
-          nextGs.gameStarted = false;
-          nextGs.timers = { snow: 600, ash: 600 };
-          E.updateBoardMap(nextGs);
-          setEventLog([]);
-          return cloneState(nextGs);
-        }
-        return gs;
-      });
-    } else if (socketRef.current) {
-      const type = gameState?.gameStarted ? 'RESET_GAME' : 'START_GAME';
-      socketRef.current.emit('gameAction', { roomId, actionType: type, data: {} });
-    }
+    if (!isLocal) return; // In multiplayer, match start & turns are automated
+    setGameState(prev => {
+      if (!prev) return null;
+      const gs = { ...prev };
+      if (!gs.gameStarted) {
+        gs.gameStarted = true;
+        gs.timers = { snow: 600, ash: 600 };
+      } else {
+        Logic.initGameState(gs);
+        Logic.initGame();
+        const nextGs = Logic.getGameState();
+        nextGs.images = preloadedImagesRef.current;
+        nextGs.boardImgs = {
+          gameBackgroundSnow: preloadedImagesRef.current.gameBackgroundSnow,
+          gameBackgroundAsh: preloadedImagesRef.current.gameBackgroundAsh
+        };
+        nextGs.playerTeam = myTeam;
+        nextGs.gameStarted = false;
+        nextGs.timers = { snow: 600, ash: 600 };
+        E.updateBoardMap(nextGs);
+        setEventLog([]);
+        return cloneState(nextGs);
+      }
+      return gs;
+    });
   };
 
   // Board clicking routers
   const handleBoardClick = (r, c) => {
+    if (battleCountdown !== null && battleCountdown > 0) return;
     const isMyTurn = isLocal || gameState?.currentTurn === myTeam;
     if (!isMyTurn || gameState?.gameOver) return;
 
@@ -681,7 +751,6 @@ export default function Game({ navigateTo }) {
         
         if (dist <= maxRadius) {
           sendAction('MOVE', { pieceId: gameState.selectedPiece.id, r, c, isHighway: false });
-          sendAction('SELECT_PIECE', { pieceId: null });
         } else {
           sendAction('SELECT_PIECE', { pieceId: null });
         }
@@ -694,6 +763,7 @@ export default function Game({ navigateTo }) {
   };
 
   const handlePieceClick = (piece) => {
+    if (battleCountdown !== null && battleCountdown > 0) return;
     const isMyTurn = isLocal || gameState?.currentTurn === myTeam;
     if (!isMyTurn || gameState?.gameOver) return;
 
@@ -711,7 +781,6 @@ export default function Game({ navigateTo }) {
       
       if (dist <= maxRadius) {
         sendAction('MOVE', { pieceId: gameState.selectedPiece.id, r: piece.row, c: piece.col, isHighway: false });
-        sendAction('SELECT_PIECE', { pieceId: null });
       }
     }
   };
@@ -927,11 +996,57 @@ export default function Game({ navigateTo }) {
   const terrScores = calculateDynamicTerritoryAreas(gameState);
   const turnLabel = gameState?.gameOver 
     ? 'GAME OVER' 
-    : `TURN ${gameState?.turnCount || 1}: ${(gameState?.currentTurn || 'snow').toUpperCase()}`;
+    : `TURN ${gameState?.turnCount || 1}: ${gameState?.currentTurn === 'ash' ? 'ASH' : 'FROST'}`;
 
   return (
     <div className="game-screen text-on-surface select-none font-body-md overflow-y-auto overflow-x-hidden min-h-screen w-full flex flex-col items-center justify-start relative">
 
+      {/* Atmospheric Battlefield Page Background */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden select-none z-0">
+        <img
+          src="/images/menu-bg.webp"
+          alt="Battlefield Arena"
+          className="w-full h-full object-cover object-center pointer-events-none select-none opacity-45"
+          fetchPriority="high"
+          decoding="async"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-void-black via-transparent to-void-black/80" />
+        <div className="absolute inset-0 bg-void-black/45" />
+        <div className="absolute inset-y-0 left-0 w-1/2 bg-[radial-gradient(circle_at_0%_50%,rgba(56,189,248,0.22),transparent_70%)]" />
+        <div className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_100%_50%,rgba(239,68,68,0.22),transparent_70%)]" />
+      </div>
+
+      {/* 5-Second Global Battle Countdown Overlay */}
+      {battleCountdown !== null && (
+        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-void-black/80 backdrop-blur-md pointer-events-auto transition-opacity duration-300">
+          <div className="flex flex-col items-center text-center p-6 sm:p-8 rounded-2xl glass-obsidian border border-ember-gold/40 shadow-[0_0_60px_rgba(245,158,11,0.35)] max-w-sm sm:max-w-md w-full mx-4">
+            <span className="font-label-caps text-xs sm:text-sm tracking-[0.3em] text-ember-gold/80 uppercase mb-2">
+              ⚔️ Both Commanders Connected ⚔️
+            </span>
+            <h2 className="almendra-font text-2xl sm:text-3xl font-bold tracking-widest text-pure-snow uppercase mb-4">
+              {battleCountdown > 0 ? 'Battle Commences In' : 'Battle Commences!'}
+            </h2>
+            
+            <div className="relative flex items-center justify-center my-3">
+              {battleCountdown > 0 ? (
+                <div key={battleCountdown} className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 border-ember-gold/60 bg-ember-gold/15 flex items-center justify-center shadow-[0_0_35px_rgba(245,158,11,0.5)] animate-pulse">
+                  <span className="rye-font text-5xl sm:text-6xl font-black text-ember-gold drop-shadow-[0_2px_12px_rgba(245,158,11,0.8)]">
+                    {battleCountdown}
+                  </span>
+                </div>
+              ) : (
+                <div className="px-6 py-3 rounded-xl bg-emerald-500/20 border-2 border-emerald-400 text-emerald-300 font-label-caps tracking-widest text-base sm:text-xl font-bold shadow-[0_0_30px_rgba(52,211,153,0.5)] animate-bounce">
+                  ❄️ FROST COMMANDS FIRST!
+                </div>
+              )}
+            </div>
+
+            <p className="text-on-surface-variant font-label-caps text-[11px] sm:text-xs tracking-wider mt-4">
+              {battleCountdown > 0 ? 'Synchronizing elemental battlefield...' : 'The war for dominion begins!'}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Disconnect Overlay */}
       {isOpponentDisconnected && (
@@ -941,7 +1056,7 @@ export default function Game({ navigateTo }) {
             <div id="disconnectMessage" className="font-display-lg text-lg text-pure-snow tracking-widest mb-6 uppercase">
               Opponent disconnected. Closing in {disconnectTimeout}s
             </div>
-            <button id="mainMenuBtn" className="action-btn w-full py-3 bg-magma-core/20 border border-magma-core/50 hover:bg-magma-core/40 transition-all text-pure-snow font-label-caps tracking-widest rounded-lg" onClick={() => navigateTo('LOBBY')}>
+            <button id="mainMenuBtn" className="action-btn w-full py-3 bg-magma-core/20 border border-magma-core/50 hover:bg-magma-core/40 transition-all text-pure-snow font-label-caps tracking-widest rounded-lg" onClick={handleExitToLobby}>
               Go to Main Menu
             </button>
           </div>
@@ -968,6 +1083,7 @@ export default function Game({ navigateTo }) {
 
       <div 
         id="game-wrapper"
+        className="relative z-10"
         style={isCompactLayout ? {} : {
           transform: `scale(${arenaScale})`,
           transformOrigin: 'top center',
@@ -978,30 +1094,34 @@ export default function Game({ navigateTo }) {
         }}
       >
         <div id="mobileHeader" className="mobile-only-header">
-          <button id="menuButton-mobile" className="top-menu-btn icon-btn" aria-label="Return to main menu" onClick={() => { if (socketRef.current) socketRef.current.disconnect(); navigateTo('LOBBY'); }}>
+          <button id="menuButton-mobile" className="top-menu-btn icon-btn" aria-label="Return to main menu" onClick={handleExitToLobby}>
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             <span>Menu</span>
           </button>
-          <div id="testModeContainer-mobile" className="test-mode-control mobile-test-mode">
-            <FlaskConical className="h-3.5 w-3.5" aria-hidden="true" />
-            <input 
-              type="checkbox" 
-              id="testModeToggle-mobile"
-              checked={!!gameState?.testMode}
-              onChange={(e) => sendAction('TOGGLE_TEST_MODE', { enabled: e.target.checked })}
-              style={{ cursor: 'pointer', width: '14px', height: '14px', margin: 0 }}
-            />
-            <label htmlFor="testModeToggle-mobile">Test</label>
-          </div>
+          {isLocal && (
+            <div id="testModeContainer-mobile" className="test-mode-control mobile-test-mode">
+              <FlaskConical className="h-3.5 w-3.5" aria-hidden="true" />
+              <input 
+                type="checkbox" 
+                id="testModeToggle-mobile"
+                checked={!!gameState?.testMode}
+                onChange={(e) => sendAction('TOGGLE_TEST_MODE', { enabled: e.target.checked })}
+                style={{ cursor: 'pointer', width: '14px', height: '14px', margin: 0 }}
+              />
+              <label htmlFor="testModeToggle-mobile">Test</label>
+            </div>
+          )}
           <div className="mini-timer-block">
             <span id="miniTimerSnow" className={`timer-tag snow ${gameState?.currentTurn === 'snow' ? 'active' : ''}`}>{formatTime(gameState?.timers?.snow)}</span>
             <span className="vs-text">VS</span>
             <span id="miniTimerAsh" className={`timer-tag ash ${gameState?.currentTurn === 'ash' ? 'active' : ''}`}>{formatTime(gameState?.timers?.ash)}</span>
           </div>
-          <button id="startResetBtn-mobile" className="menu-btn start-btn-mobile" onClick={handleStartReset}>
-            {gameState?.gameStarted ? <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> : <Play className="h-3.5 w-3.5" aria-hidden="true" />}
-            <span>{gameState?.gameStarted ? 'Reset' : 'Start'}</span>
-          </button>
+          {isLocal && (
+            <button id="startResetBtn-mobile" className="menu-btn start-btn-mobile" onClick={handleStartReset}>
+              {gameState?.gameStarted ? <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> : <Play className="h-3.5 w-3.5" aria-hidden="true" />}
+              <span>{gameState?.gameStarted ? 'Reset' : 'Start'}</span>
+            </button>
+          )}
         </div>
 
         <div className="main-layout">
@@ -1012,19 +1132,19 @@ export default function Game({ navigateTo }) {
                   <span className="panel-kicker">Battle controls</span>
                   <Swords className="h-4 w-4 text-ice-light" aria-hidden="true" />
                 </div>
-                <button id="menuButton" className="top-menu-btn" onClick={() => { if (socketRef.current) socketRef.current.disconnect(); navigateTo('LOBBY'); }}>
+                <button id="menuButton" className="top-menu-btn" onClick={handleExitToLobby}>
                   <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                   Main menu
                 </button>
                 {myTeam && (
                   <div id="yourTeamDisplay" className={`team-display ${myTeam}`}>
                     <Shield className="h-4 w-4" aria-hidden="true" />
-                    Commanding {myTeam}
+                    Commanding {myTeam === 'snow' ? 'Frost' : 'Ash'}
                   </div>
                 )}
                 <div className={`turn-status ${gameState?.currentTurn || 'snow'}`}>
                   <span className="turn-status-dot" />
-                  {gameState?.gameOver ? 'Battle complete' : `${(gameState?.currentTurn || 'snow').toUpperCase()} TURN`}
+                  {gameState?.gameOver ? 'Battle complete' : `${gameState?.currentTurn === 'ash' ? 'ASH' : 'FROST'} TURN`}
                 </div>
                 <div className="timer-stack">
                   <div className={`timer-card ash-card ${gameState?.currentTurn === 'ash' ? 'active' : ''}`}>
@@ -1032,25 +1152,29 @@ export default function Game({ navigateTo }) {
                     <div id="ashTimer" className="timer-display">{formatTime(gameState?.timers?.ash)}</div>
                   </div>
                   <div className={`timer-card snow-card ${gameState?.currentTurn === 'snow' ? 'active' : ''}`}>
-                    <span>Snow</span>
+                    <span>Frost</span>
                     <div id="snowTimer" className="timer-display">{formatTime(gameState?.timers?.snow)}</div>
                   </div>
                 </div>
-                <button id="startResetBtn" onClick={handleStartReset}>
-                  {gameState?.gameStarted ? <RotateCcw className="h-4 w-4" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
-                  {gameState?.gameStarted ? 'Reset battle' : 'Start battle'}
-                </button>
-                <div id="testModeContainer" className="test-mode-control">
-                  <FlaskConical className="h-4 w-4" aria-hidden="true" />
-                  <input 
-                    type="checkbox" 
-                    id="testModeToggle" 
-                    checked={!!gameState?.testMode}
-                    onChange={(e) => sendAction('TOGGLE_TEST_MODE', { enabled: e.target.checked })}
-                    style={{ cursor: 'pointer', width: '16px', height: '16px', margin: 0 }}
-                  />
-                  <label htmlFor="testModeToggle">Test mode</label>
-                </div>
+                {isLocal && (
+                  <button id="startResetBtn" onClick={handleStartReset}>
+                    {gameState?.gameStarted ? <RotateCcw className="h-4 w-4" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
+                    {gameState?.gameStarted ? 'Reset battle' : 'Start battle'}
+                  </button>
+                )}
+                {isLocal && (
+                  <div id="testModeContainer" className="test-mode-control">
+                    <FlaskConical className="h-4 w-4" aria-hidden="true" />
+                    <input 
+                      type="checkbox" 
+                      id="testModeToggle" 
+                      checked={!!gameState?.testMode}
+                      onChange={(e) => sendAction('TOGGLE_TEST_MODE', { enabled: e.target.checked })}
+                      style={{ cursor: 'pointer', width: '16px', height: '16px', margin: 0 }}
+                    />
+                    <label htmlFor="testModeToggle">Test mode</label>
+                  </div>
+                )}
               </div>
             </div>
             
@@ -1149,7 +1273,7 @@ export default function Game({ navigateTo }) {
               onMouseLeavePiece={() => setHoveredPiece(null)}
             />
             <div className="labels-bar">
-               <div id="snowLabel" className="label snow"><span>Snow control</span><strong>{terrScores.snow.toFixed(1)}%</strong></div>
+               <div id="snowLabel" className="label snow"><span>Frost control</span><strong>{terrScores.snow.toFixed(1)}%</strong></div>
                <div id="turnLabel" className={`label turn ${gameState?.currentTurn || 'snow'}`}>
                  <Clock3 className="h-4 w-4" aria-hidden="true" />
                  <span>{turnLabel}</span>

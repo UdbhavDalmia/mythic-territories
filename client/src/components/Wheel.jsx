@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import gsap from 'gsap';
 import '../../styles/wheel.css';
-import { TEAM_PIECES, PIECE_TYPES, IMAGES } from '../../../shared/constants.js';
+import { IMAGES } from '../../../shared/constants.js';
 import { ArrowLeft, BookOpen, ScrollText, Sparkles } from 'lucide-react';
 
 // Descriptions lookup for active abilities
@@ -67,7 +67,7 @@ const FACTION_SCHEMES = {
     bgStart: '#05234A',
     bgEnd: '#0077FF',
     text: '#E5F4FF',
-    factionName: 'Faction of Snow',
+    factionName: 'Faction of Frost',
     themeColor: '#0077ff',
     themeColorDark: '#003a80'
   }
@@ -452,7 +452,7 @@ export default function Wheel({ navigateTo }) {
                     <div className={`text-xs font-label-caps font-semibold mt-0.5 ${
                       winner.faction === 'snow' ? 'text-ice-light' : 'text-magma-core'
                     }`}>
-                      {winner.role.toUpperCase()} • {winner.faction === 'snow' ? 'Faction of Snow' : 'Faction of Ash'}
+                      {winner.role.toUpperCase()} • {winner.faction === 'snow' ? 'Faction of Frost' : 'Faction of Ash'}
                     </div>
                   </div>
                 </div>

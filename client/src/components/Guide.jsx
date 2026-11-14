@@ -27,7 +27,7 @@ const UNIT_PROFILES = {
     {
       name: "Frost Lord",
       title: "King of absolute order and cold geometry",
-      role: "Snow Leader",
+      role: "Frost Leader",
       portrait: "/units/frost-lord.webp",
       stats: { HP: 12, DEF: 3, STR: 5, RNG: 1.5, AGI: 1.8 },
       abilities: [
@@ -72,7 +72,7 @@ const UNIT_PROFILES = {
         {
           name: "Glacial Fracture",
           type: "Active",
-          desc: "AOE (Range 2.5, Rad 2) — deals 2 damage, creates Snow territory, and summons 1 Ice Wisp furthest from caught enemies (Max 2 Wisps)."
+          desc: "AOE (Range 2.5, Rad 2) — deals 2 damage, creates Frost territory, and summons 1 Ice Wisp furthest from caught enemies (Max 2 Wisps)."
         },
         {
           name: "Frost Duo",
@@ -249,21 +249,21 @@ const ASCENSION_ROLES = [
     role: "Shaper",
     snow: "Ice Weaver",
     ash: "Rift Forger",
-    A: { name: "Master of Creation", desc: "Snow: Leader gains Mini-Glacial Wall. Ash: Leader gains Mini-Unstable Ground." },
+    A: { name: "Master of Creation", desc: "Frost: Leader gains Mini-Glacial Wall. Ash: Leader gains Mini-Unstable Ground." },
     B: { name: "Territorial Claim", desc: "Faction Passive: Capture +2 adjacent squares on kill." }
   },
   {
     role: "Brawler",
     snow: "Glacial Brute",
     ash: "Blazebound Beast",
-    A: { name: "Rampage", desc: "Snow: Frost Armor reflects 1 permanent damage. Ash: Frenzied Dash jumps over allies." },
+    A: { name: "Rampage", desc: "Frost: Frost Armor reflects 1 permanent damage. Ash: Frenzied Dash jumps over allies." },
     B: { name: "Vengeance", desc: "Faction Passive: Enemy is Marked for 2 turns on vanquish." }
   },
   {
     role: "Skirmisher",
     snow: "Arctic Trapper",
     ash: "Cinder Scout",
-    A: { name: "Acrobatic Tactics", desc: "Snow: Frostbite Stalker is Acrobat. Ash: Cinder Scout is Acrobat (jumps over allies)." },
+    A: { name: "Acrobatic Tactics", desc: "Frost: Frostbite Stalker is Acrobat. Ash: Cinder Scout is Acrobat (jumps over allies)." },
     B: { name: "Hit and Run", desc: "Faction Passive: New capture grants Entrenched (wins combat tie)." }
   },
   {
@@ -277,35 +277,35 @@ const ASCENSION_ROLES = [
     role: "Siphoner",
     snow: "Soul Linker",
     ash: "Ash Reaper",
-    A: { name: "Primal Power", desc: "Snow: Glacial Mage's summoned Wisp is Power 1. Ash: Lava Glob targets up to Power 3." },
+    A: { name: "Primal Power", desc: "Frost: Glacial Mage's summoned Wisp is Power 1. Ash: Lava Glob targets up to Power 3." },
     B: { name: "Energy Siphon", desc: "Faction Passive: New capture adjacent to enemy Dazes that enemy for 1 turn." }
   },
   {
     role: "Mage",
     snow: "Glacial Mage",
     ash: "Magma Spitter",
-    A: { name: "Elemental Harmony", desc: "Snow: Chilling Aura also Hamstrings. Ash: Mark of Cinder deals 1 permanent damage on application." },
+    A: { name: "Elemental Harmony", desc: "Frost: Chilling Aura also Hamstrings. Ash: Mark of Cinder deals 1 permanent damage on application." },
     B: { name: "Magical Supremacy", desc: "Faction Passive: Lose combat tie: Banished, −1 Power, Dazed." }
   },
   {
     role: "Striker",
     snow: "Frostbite Stalker",
     ash: "Ash Strider",
-    A: { name: "Lethal Precision", desc: "Snow: Arctic Trapper Base Power becomes 2. Ash: Ash Strider Base Power becomes 2." },
+    A: { name: "Lethal Precision", desc: "Frost: Arctic Trapper Base Power becomes 2. Ash: Ash Strider Base Power becomes 2." },
     B: { name: "Targeted Weakness", desc: "Faction Passive: Attacking a debuffed enemy grants +1 Power (attacking only)." }
   },
   {
     role: "Warrior",
     snow: "Rampaging Yeti",
     ash: "Blazebound Beast",
-    A: { name: "Unstoppable Force", desc: "Snow: Rampaging Yeti gains Steadfast. Ash: Blazebound Beast gains Steadfast (Immune to Daze, Stuck, Push/Pull)." },
+    A: { name: "Unstoppable Force", desc: "Frost: Rampaging Yeti gains Steadfast. Ash: Blazebound Beast gains Steadfast (Immune to Daze, Stuck, Push/Pull)." },
     B: { name: "Home-Field Advantage", desc: "Faction Passive: Units defending on starting squares gain +1 Power." }
   },
   {
     role: "Priest",
     snow: "Soul Freeze",
     ash: "Scorch Priest",
-    A: { name: "Leader's Ward", desc: "Snow: Frost Lord gains Priest's Ward. Ash: Ash Tyrant gains Priest's Ward (blocks first enemy ability)." },
+    A: { name: "Leader's Ward", desc: "Frost: Frost Lord gains Priest's Ward. Ash: Ash Tyrant gains Priest's Ward (blocks first enemy ability)." },
     B: { name: "Martyrdom", desc: "Faction Passive: Vanquished unit Dazes the attacker for 2 turns." }
   }
 ];
@@ -321,7 +321,7 @@ const QUICK_STEPS = [
   {
     number: '02',
     title: 'Take one turn',
-    description: 'Snow and Ash alternate turns. Choose one unit to move, attack, or use an available ability.',
+    description: 'Frost and Ash alternate turns. Choose one unit to move, attack, or use an available ability.',
     icon: Users,
     accent: 'text-ice-light border-ice-light/25 bg-ice-light/10'
   },
@@ -358,7 +358,7 @@ const RULEBOOK_TABS = [
 const COMMON_RULES = [
   {
     title: 'Turn sequence',
-    description: 'Snow and Ash alternate turns. On your turn, choose one unit to move, attack, or use an available ability.',
+    description: 'Frost and Ash alternate turns. On your turn, choose one unit to move, attack, or use an available ability.',
     icon: Users,
     accent: 'text-ice-light border-ice-light/25 bg-ice-light/10'
   },
@@ -466,7 +466,7 @@ const RULEBOOK_SEARCH_INDEX = [
   })),
   ...Object.entries(UNIT_PROFILES).flatMap(([faction, units]) => units.map((unit) => ({
     tab: 'UNITS',
-    section: faction === 'snow' ? 'Snow Catalog' : 'Ash Catalog',
+    section: faction === 'snow' ? 'Frost Catalog' : 'Ash Catalog',
     faction,
     title: unit.name,
     description: `${unit.role} — ${unit.title}`,
@@ -621,7 +621,7 @@ export default function Guide({ navigateTo }) {
             Rulebook
           </h1>
           <p className="text-base sm:text-lg text-on-surface-variant max-w-2xl mx-auto leading-relaxed">
-            Learn the battle in minutes, explore shared mechanics, then study the warriors unique to Snow and Ash.
+            Learn the battle in minutes, explore shared mechanics, then study the warriors unique to Frost and Ash.
           </p>
         </header>
 
@@ -788,13 +788,13 @@ export default function Guide({ navigateTo }) {
               <div className="rounded-2xl border border-ice-light/20 bg-gradient-to-br from-ice-light/10 to-surface-container/70 p-6">
                 <div className="mb-4 flex items-center gap-3">
                   <Snowflake className="h-5 w-5 text-ice-light" aria-hidden="true" />
-                  <h2 className="font-almendra text-2xl font-bold text-ice-light">Snow</h2>
+                  <h2 className="font-almendra text-2xl font-bold text-ice-light">Frost</h2>
                 </div>
                 <p className="text-sm leading-relaxed text-on-surface-variant">
                   Control space with glacial terrain, defensive effects, healing, and precise disruption.
                 </p>
                 <button className="mt-5 font-label-caps text-[10px] tracking-wider text-ice-light hover:text-white" onClick={() => { setActiveFaction('snow'); setActiveTab('UNITS'); }}>
-                  Explore Snow units →
+                  Explore Frost units →
                 </button>
               </div>
               <div className="rounded-2xl border border-magma-core/20 bg-gradient-to-br from-magma-core/10 to-surface-container/70 p-6">
@@ -847,7 +847,7 @@ export default function Guide({ navigateTo }) {
                   </div>
                   <h2 className="font-almendra text-3xl font-bold text-on-surface sm:text-4xl">Vanquish the enemy leader</h2>
                   <p className="mt-3 max-w-2xl text-sm leading-relaxed text-on-surface-variant sm:text-base">
-                    Snow and Ash follow the same battlefield rules. Defeat the opposing Frost Lord or Ash Tyrant to end
+                    Frost and Ash follow the same battlefield rules. Defeat the opposing Frost Lord or Ash Tyrant to end
                     the match and claim dominion over the realm.
                   </p>
                 </div>
@@ -925,7 +925,7 @@ export default function Guide({ navigateTo }) {
                 <div className="mt-5 grid grid-cols-2 gap-3">
                   <div className="rounded-xl border border-ice-light/20 bg-ice-light/5 p-3 text-center">
                     <Snowflake className="mx-auto h-4 w-4 text-ice-light" aria-hidden="true" />
-                    <p className="mt-2 font-label-caps text-[9px] tracking-wider text-ice-light">Snow territory</p>
+                    <p className="mt-2 font-label-caps text-[9px] tracking-wider text-ice-light">Frost territory</p>
                   </div>
                   <div className="rounded-xl border border-magma-core/20 bg-magma-core/5 p-3 text-center">
                     <Flame className="mx-auto h-4 w-4 text-magma-core" aria-hidden="true" />
@@ -1056,7 +1056,7 @@ export default function Guide({ navigateTo }) {
                       : 'border-outline/30 text-on-surface-variant hover:text-white'
                   }`}
                   onClick={() => setAscFaction('snow')}
-                >Snow</button>
+                >Frost</button>
                 <button
                   className={`px-5 py-1.5 rounded font-label-caps text-xs border font-semibold transition-all duration-200 ${
                     ascFaction === 'ash'
@@ -1130,7 +1130,7 @@ export default function Guide({ navigateTo }) {
                   <h2 className={`font-almendra text-3xl font-bold sm:text-4xl ${
                     activeFaction === 'snow' ? 'text-ice-light' : 'text-magma-core'
                   }`}>
-                    {activeFaction === 'snow' ? 'The Snow Host' : 'The Ash Legion'}
+                    {activeFaction === 'snow' ? 'The Frost Host' : 'The Ash Legion'}
                   </h2>
                   <p className="mt-3 max-w-2xl text-sm leading-relaxed text-on-surface-variant">
                     {activeFaction === 'snow'
@@ -1155,7 +1155,7 @@ export default function Guide({ navigateTo }) {
                 onClick={() => setActiveFaction('snow')}
               >
                 <Snowflake className="h-4 w-4" aria-hidden="true" />
-                Snow Faction
+                Frost Faction
               </button>
               <button
                 className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-label-caps text-xs font-semibold tracking-wider transition-all duration-300 ${activeFaction === 'ash'

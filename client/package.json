@@ -5,16 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/compress.js",
     "preview": "vite preview"
   },
   "dependencies": {
     "@gsap/react": "^2.1.1",
+    "firebase": "^13.3.0",
     "gsap": "^3.12.5",
     "lucide-react": "^0.475.0",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "socket.io-client": "^4.8.3"
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",

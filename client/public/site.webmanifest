@@ -1,7 +1,7 @@
 {
   "name": "Mythic Territories",
   "short_name": "Mythic",
-  "description": "Command elemental factions in this free browser turn-based strategy game. Snow vs Ash — battle for dominion.",
+  "description": "Command elemental factions in this free browser turn-based strategy game. Frost vs Ash — battle for dominion.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "landscape",
@@ -50,7 +50,7 @@
       "src": "/og-card.png",
       "sizes": "1200x630",
       "type": "image/png",
-      "label": "Mythic Territories — Ice vs Fire elemental strategy game"
+      "label": "Mythic Territories — Frost vs Ash elemental strategy game"
     }
   ]
 }

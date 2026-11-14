@@ -688,7 +688,7 @@ export function getValidMoves(piece, gameState) {
         }
       }
 
-      // Icy Highways (Snow faction passive — slide along owned territory)
+      // Icy Highways (Frost faction passive — slide along owned territory)
       if (
         isIcyHighways &&
         !isRestricted &&

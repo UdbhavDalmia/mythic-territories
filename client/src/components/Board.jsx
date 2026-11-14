@@ -584,6 +584,7 @@ export default function Board({
             key={piece.id}
             piece={piece}
             gameState={gameState}
+            isAsh={isAsh}
             isSelected={gameState.selectedPiece?.id === piece.id}
             onClick={onPieceClick}
             onMouseEnter={onMouseEnterPiece}

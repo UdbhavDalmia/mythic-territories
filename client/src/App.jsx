@@ -11,7 +11,18 @@ const Guide = lazy(loadGuide);
 const Notes = lazy(loadNotes);
 const Wheel = lazy(loadWheel);
 
+const loadSecondaryFonts = () => {
+  if (typeof document === 'undefined') return;
+  if (document.querySelector('link[data-secondary-fonts]')) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Cinzel+Decorative:wght@700&family=Exo+2:wght@400;600;700&family=Rajdhani:wght@600;700&family=Fira+Sans:wght@400;600&family=Space+Grotesk:wght@400;600;700&display=swap';
+  link.dataset.secondaryFonts = 'true';
+  document.head.appendChild(link);
+};
+
 const warmGameAssets = () => {
+  loadSecondaryFonts();
   ['/images/bg-game.webp', '/images/bg-game2.webp'].forEach((href) => {
     if (document.head.querySelector(`link[data-game-asset="${href}"]`)) return;
     const link = document.createElement('link');
@@ -44,7 +55,7 @@ export default function App() {
     if (page === 'rules' || path.endsWith('/rules') || path.endsWith('/guide')) return 'GUIDE';
     if (page === 'notes' || path.endsWith('/notes')) return 'NOTES';
     if (page === 'wheel' || page === 'destiny' || path.endsWith('/wheel') || path.endsWith('/destiny')) return 'WHEEL';
-    if (params.get('room') || params.get('mode') === 'local') return 'GAME';
+    if ((params.get('room') && params.get('team')) || params.get('mode') === 'local') return 'GAME';
     return 'LOBBY';
   };
 
@@ -52,21 +63,32 @@ export default function App() {
 
   useEffect(() => {
     const handlePopState = () => {
-      setView(parseCurrentView());
+      const v = parseCurrentView();
+      if (v !== 'LOBBY') loadSecondaryFonts();
+      setView(v);
     };
     window.addEventListener('popstate', handlePopState);
+
+    // Only load secondary fonts if the user landed directly on a game/guide/wheel subpage
+    if (view !== 'LOBBY') {
+      loadSecondaryFonts();
+    }
+
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   const warmRoute = (target) => {
     if (target === 'GAME') {
+      loadSecondaryFonts();
       warmGameAssets();
       loadGame();
     } else if (target === 'NOTES') {
       loadNotes();
     } else if (target === 'GUIDE') {
+      loadSecondaryFonts();
       loadGuide();
     } else if (target === 'WHEEL') {
+      loadSecondaryFonts();
       loadWheel();
     }
   };

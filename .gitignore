@@ -60,3 +60,4 @@ Thumbs.db
 *.sw?
 *.bak
 *.tmp
+.firebase

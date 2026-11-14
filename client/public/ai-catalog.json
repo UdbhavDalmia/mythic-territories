@@ -1,7 +1,7 @@
 {
   "schema_version": "v1",
   "name": "Mythic Territories",
-  "description": "A free browser-based, turn-based strategy game where two players command elemental factions — Snow (Ice) or Ash (Fire) — in tactical head-to-head combat. Features online multiplayer, local 2-player, and an AI opponent.",
+  "description": "A free browser-based, turn-based strategy game where two players command elemental factions — Frost or Ash — in tactical head-to-head combat. Features online multiplayer, local 2-player, and an AI opponent.",
   "url": "https://mythic-territories.xyz/",
   "logo_url": "https://mythic-territories.xyz/android-chrome-512x512.png",
   "auth": {

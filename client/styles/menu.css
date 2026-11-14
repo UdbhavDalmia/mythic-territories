@@ -188,11 +188,15 @@ body {
   transform: translateY(0) scale(1);
 }
 
-.card-frost {
+.card-frost,
+.card-fire,
+.card-gold {
   position: relative;
-  transform: translateY(0);
-  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+  transform-style: preserve-3d;
+  perspective: 1000px;
+  transform: perspective(1000px) translateY(0) rotateX(0deg) rotateY(0deg);
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1),
               border-color 0.35s ease,
               background 0.35s ease;
   will-change: transform, box-shadow;
@@ -200,50 +204,43 @@ body {
 }
 
 .card-frost:hover {
-  transform: translateY(-6px) !important;
-  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.65), 0 0 30px rgba(165, 243, 252, 0.28), inset 0 0 20px rgba(165, 243, 252, 0.06);
-  border-color: rgba(165, 243, 252, 0.7);
-  background: rgba(165, 243, 252, 0.08);
-}
-
-.card-fire {
-  position: relative;
-  transform: translateY(0);
-  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.45s cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 0.35s ease,
-              background 0.35s ease;
-  will-change: transform, box-shadow;
-  backface-visibility: hidden;
+  transform: perspective(1000px) translateY(var(--card-ty, -8px)) rotateX(var(--card-rx, 3.5deg)) rotateY(var(--card-ry, -2.5deg)) scale3d(1.02, 1.02, 1.02) !important;
+  box-shadow: 0 24px 45px -10px rgba(0, 0, 0, 0.7), 0 0 35px rgba(165, 243, 252, 0.35), inset 0 0 20px rgba(165, 243, 252, 0.08);
+  border-color: rgba(165, 243, 252, 0.75);
+  background: rgba(165, 243, 252, 0.09);
 }
 
 .card-fire:hover {
-  transform: translateY(-6px) !important;
-  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.65), 0 0 30px rgba(239, 68, 68, 0.28), inset 0 0 20px rgba(239, 68, 68, 0.06);
-  border-color: rgba(239, 68, 68, 0.7);
-  background: rgba(239, 68, 68, 0.08);
-}
-
-.card-gold {
-  position: relative;
-  transform: translateY(0);
-  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.45s cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 0.35s ease,
-              background 0.35s ease;
-  will-change: transform, box-shadow;
-  backface-visibility: hidden;
+  transform: perspective(1000px) translateY(var(--card-ty, -8px)) rotateX(var(--card-rx, 3.5deg)) rotateY(var(--card-ry, -2.5deg)) scale3d(1.02, 1.02, 1.02) !important;
+  box-shadow: 0 24px 45px -10px rgba(0, 0, 0, 0.7), 0 0 35px rgba(239, 68, 68, 0.35), inset 0 0 20px rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.75);
+  background: rgba(239, 68, 68, 0.09);
 }
 
 .card-gold:hover:not(:disabled) {
-  transform: translateY(-6px) !important;
-  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.65), 0 0 30px rgba(232, 193, 94, 0.28), inset 0 0 20px rgba(232, 193, 94, 0.06);
-  border-color: rgba(232, 193, 94, 0.7);
-  background: rgba(232, 193, 94, 0.08);
+  transform: perspective(1000px) translateY(var(--card-ty, -8px)) rotateX(var(--card-rx, 3.5deg)) rotateY(var(--card-ry, -2.5deg)) scale3d(1.02, 1.02, 1.02) !important;
+  box-shadow: 0 24px 45px -10px rgba(0, 0, 0, 0.7), 0 0 35px rgba(232, 193, 94, 0.35), inset 0 0 20px rgba(232, 193, 94, 0.08);
+  border-color: rgba(232, 193, 94, 0.75);
+  background: rgba(232, 193, 94, 0.09);
 }
 
 .screen-transition {
   transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out;
+}
+
+@keyframes modalPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-pop-in {
+  animation: modalPopIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .screen-hidden {

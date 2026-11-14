@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /rooms/{roomId} {
+      // 1. Discovery & Realtime Sync:
+      // Allow reading rooms for matchmaking, active room subscriptions, and open lobby lists.
+      allow read: if true;
+
+      // 2. Room Creation Guard:
+      // Room ID must be standard length (<= 20 chars).
+      // Required initial fields and type constraints to prevent malformed injections.
+      allow create: if roomId.size() <= 20
+        && request.resource.data.keys().hasAll(['id', 'status', 'createdAt', 'updatedAt', 'players', 'gameState'])
+        && request.resource.data.status in ['WAITING', 'PLAYING', 'DISBANDED', 'FINISHED']
+        && request.resource.data.players is list
+        && request.resource.data.players.size() <= 2
+        && request.resource.data.gameState is string
+        && request.resource.data.gameState.size() <= 150000;
+
+      // 3. Room Update Guard (Moves, Factions, Heartbeats, Disbands):
+      // Restricts status to valid enums and prevents expanding player capacity beyond 2.
+      allow update: if request.resource.data.status in ['WAITING', 'PLAYING', 'DISBANDED', 'FINISHED']
+        && request.resource.data.players is list
+        && request.resource.data.players.size() <= 2
+        && request.resource.data.gameState is string
+        && request.resource.data.gameState.size() <= 150000;
+
+      // 4. Prohibit client-side deletions (managed server-side via automated TTL retention policy).
+      allow delete: if false;
+    }
+  }
+}

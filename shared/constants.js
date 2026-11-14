@@ -1616,7 +1616,7 @@ export const ABILITY_DESCRIPTIONS = {
   ReignOfFire: 'AOE (Range 2.5, Rad 2) deals 2 damage to enemies; deals 1 damage to allies but grants them +2 Strength for 3 turns.',
   FateLink: 'Binds an ally and enemy (Range 3) for 4 turns; any damage taken by the ally is mirrored exactly to the enemy.',
   TheReapersToll: 'Steals 1 Defence and 0.4 Agility from an enemy (Range 3) for 4 turns, transferring the stats to self.',
-  GlacialFracture: 'AOE (Range 2.5, Rad 2) deals 2 damage, creates Snow territory, and summons 1 Ice Wisp furthest from caught enemies (Max 2).'
+  GlacialFracture: 'AOE (Range 2.5, Rad 2) deals 2 damage, creates Frost territory, and summons 1 Ice Wisp furthest from caught enemies (Max 2).'
 };
 
 export const PASSIVE_DESCRIPTIONS = {

@@ -24,7 +24,7 @@ const PATCHES = [
     colorTheme: "ice",
     highlights: [
       { text: "Complete Game Overhaul: The entire battlefield has been rebuilt from the ground up to support a new era of deep, tactical competitive play.", icon: "grid_view", color: "text-ice-light font-bold" },
-      { text: "Total Unit & Ability Remaster: Every single piece across the Factions of Snow and Ash has been completely reworked with modernized base stats, balanced ability sets, and strategic active/passive loops.", icon: "military_tech", color: "text-ember-gold font-bold" },
+      { text: "Total Unit & Ability Remaster: Every single piece across the Factions of Frost and Ash has been completely reworked with modernized base stats, balanced ability sets, and strategic active/passive loops.", icon: "military_tech", color: "text-ember-gold font-bold" },
       { text: "Overhauled Movement & Board Dynamics: Redesigned spatial control, pathfinding grids, and core movement mechanics to reward positional play and calculated maneuvers.", icon: "grid_on", color: "text-secondary font-bold" },
       { text: "High-Fidelity Visual Systems: Upgraded animations, particle systems, and visual cues across combat, projectile trails, and status rings for a premium gameplay feel.", icon: "auto_awesome", color: "text-magma-core font-bold" }
     ]
@@ -459,7 +459,7 @@ export default function Notes({ navigateTo }) {
             PATCH NOTES
           </h1>
           <p className="text-base sm:text-lg text-on-surface-variant max-w-2xl mx-auto leading-relaxed">
-            Follow new features, balance changes, fixes, and every evolution of the battle between Frost and Flame.
+            Follow new features, balance changes, fixes, and every evolution of the battle between Frost and Ash.
           </p>
         </header>
 
