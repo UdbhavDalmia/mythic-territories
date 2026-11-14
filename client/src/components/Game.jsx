@@ -12,6 +12,7 @@ import {
   Shield,
   Skull,
   Swords,
+  Trophy,
   Users,
   WifiOff,
 } from 'lucide-react';
@@ -55,6 +56,97 @@ const INITIAL_ASH_KEYS = [
   'ashCinderScout',
   'ashMagmaShaper'
 ];
+
+let lastTerritoryCache = {
+  snowTerritory: null,
+  ashTerritory: null,
+  territoryTrails: null,
+  scores: { snow: 13.3, ash: 13.3 }
+};
+
+function calculateDynamicTerritoryAreas(gs) {
+  if (!gs) return { snow: 0, ash: 0 };
+  if (
+    lastTerritoryCache.snowTerritory === gs.snowTerritory &&
+    lastTerritoryCache.ashTerritory === gs.ashTerritory &&
+    lastTerritoryCache.territoryTrails === gs.territoryTrails
+  ) {
+    return lastTerritoryCache.scores;
+  }
+  const N = 6, totalSubcells = 100 * N * N, radius = 1.0;
+  let snowCovered = 0, ashCovered = 0;
+  const snowSet = gs.snowTerritory instanceof Set ? gs.snowTerritory : new Set(gs.snowTerritory || []);
+  const ashSet = gs.ashTerritory instanceof Set ? gs.ashTerritory : new Set(gs.ashTerritory || []);
+  const trailsByCell = Array.from({ length: 10 }, () => Array.from({ length: 10 }, () => []));
+  (gs.territoryTrails || []).forEach(t => {
+    const minR = Math.max(0, Math.floor(t.row - 1)), maxR = Math.min(9, Math.ceil(t.row + 1));
+    const minC = Math.max(0, Math.floor(t.col - 1)), maxC = Math.min(9, Math.ceil(t.col + 1));
+    for (let r = minR; r <= maxR; r++) {
+      for (let c = minC; c <= maxC; c++) {
+        trailsByCell[r][c].push(t);
+      }
+    }
+  });
+  const checkCover = (x, y, bases, trails, team) =>
+    bases.some(b => Math.hypot(x - b.cx, y - b.cy) <= radius) ||
+    trails.some(t => t.team === team && Math.hypot(x - (t.col + 0.5), y - (t.row + 0.5)) <= radius);
+  for (let r = 0; r < 10; r++) {
+    for (let c = 0; c < 10; c++) {
+      const pos = `${r},${c}`;
+      const isSnow = snowSet.has(pos), isAsh = ashSet.has(pos);
+      const cellTrails = trailsByCell[r][c];
+      const nearbyBases = { snow: [], ash: [] };
+      for (let nr = Math.max(0, r - 1); nr <= Math.min(9, r + 1); nr++) {
+        for (let nc = Math.max(0, c - 1); nc <= Math.min(9, c + 1); nc++) {
+          const npos = `${nr},${nc}`;
+          if (snowSet.has(npos)) nearbyBases.snow.push({ cx: nc + 0.5, cy: nr + 0.5 });
+          if (ashSet.has(npos)) nearbyBases.ash.push({ cx: nc + 0.5, cy: nr + 0.5 });
+        }
+      }
+      for (let sr = 0; sr < N; sr++) {
+        const y = r + (sr + 0.5) / N;
+        for (let sc = 0; sc < N; sc++) {
+          const x = c + (sc + 0.5) / N;
+          if (!isAsh && checkCover(x, y, nearbyBases.snow, cellTrails, 'snow')) {
+            snowCovered++;
+          } else if (!isSnow && checkCover(x, y, nearbyBases.ash, cellTrails, 'ash')) {
+            ashCovered++;
+          }
+        }
+      }
+    }
+  }
+  const result = {
+    snow: parseFloat(((snowCovered / totalSubcells) * 100).toFixed(1)),
+    ash: parseFloat(((ashCovered / totalSubcells) * 100).toFixed(1))
+  };
+  lastTerritoryCache = {
+    snowTerritory: gs.snowTerritory,
+    ashTerritory: gs.ashTerritory,
+    territoryTrails: gs.territoryTrails,
+    scores: result
+  };
+  return result;
+}
+
+let lastPiecesRef = null;
+let lastFallenCache = {
+  fallenSnow: [],
+  fallenAsh: []
+};
+
+function getFallenUnits(pieces) {
+  if (pieces === lastPiecesRef && lastPiecesRef !== null) {
+    return lastFallenCache;
+  }
+  const aliveSnowKeys = new Set(pieces ? pieces.filter(p => p.team === 'snow').map(p => p.key) : []);
+  const aliveAshKeys = new Set(pieces ? pieces.filter(p => p.team === 'ash').map(p => p.key) : []);
+  const fallenSnow = INITIAL_SNOW_KEYS.filter(k => !aliveSnowKeys.has(k));
+  const fallenAsh = INITIAL_ASH_KEYS.filter(k => !aliveAshKeys.has(k));
+  lastPiecesRef = pieces;
+  lastFallenCache = { fallenSnow, fallenAsh };
+  return lastFallenCache;
+}
 
 export default function Game({ navigateTo }) {
   const [gameState, setGameState] = useState(null);
@@ -153,7 +245,22 @@ export default function Game({ navigateTo }) {
     if (!gs) return null;
     return {
       ...gs,
-      pieces: gs.pieces ? gs.pieces.map(p => ({ ...p })) : [],
+      pieces: gs.pieces ? gs.pieces.map(p => ({
+        ...p,
+        ability: p.ability ? { ...p.ability } : undefined,
+        veteranAbility: p.veteranAbility ? { ...p.veteranAbility } : undefined
+      })) : [],
+      frostfallBlessings: gs.frostfallBlessings ? gs.frostfallBlessings.map(b => ({ ...b })) : [],
+      spikeRains: gs.spikeRains ? gs.spikeRains.map(s => ({ ...s })) : [],
+      reignOfFires: gs.reignOfFires ? gs.reignOfFires.map(r => ({ ...r })) : [],
+      shields: gs.shields ? gs.shields.map(s => ({ ...s })) : [],
+      debuffs: gs.debuffs ? gs.debuffs.map(d => ({ ...d })) : [],
+      temporaryBoosts: gs.temporaryBoosts ? gs.temporaryBoosts.map(b => ({ ...b })) : [],
+      specialTerrains: gs.specialTerrains ? gs.specialTerrains.map(t => ({ ...t })) : [],
+      unstableGrounds: gs.unstableGrounds ? gs.unstableGrounds.map(u => ({ ...u })) : [],
+      glacialWalls: gs.glacialWalls ? gs.glacialWalls.map(w => ({ ...w })) : [],
+      deathMeteors: gs.deathMeteors ? gs.deathMeteors.map(m => ({ ...m })) : [],
+      events: gs.events ? [...gs.events] : [],
       snowTerritory: gs.snowTerritory ? Array.from(gs.snowTerritory) : [],
       ashTerritory: gs.ashTerritory ? Array.from(gs.ashTerritory) : []
     };
@@ -395,6 +502,12 @@ export default function Game({ navigateTo }) {
     }
   }, [gameState?.gameStarted, gameState?.gameOver]);
 
+  useEffect(() => {
+    if (!gameState?.selectedPiece) {
+      setDrawerExpanded(false);
+    }
+  }, [gameState?.selectedPiece?.id]);
+
   const handleExitToLobby = () => {
     if (heartbeatIntervalRef.current) {
       clearInterval(heartbeatIntervalRef.current);
@@ -478,7 +591,7 @@ export default function Game({ navigateTo }) {
     setGameState(prev => {
       if (!prev) return null;
       
-      const nextState = { ...prev };
+      const nextState = cloneState(prev);
       nextState.events = [];
       
       // Load standard Logic engine with current state
@@ -584,7 +697,7 @@ export default function Game({ navigateTo }) {
 
       E.updateBoardMap(nextState);
 
-      if (turnEnded) {
+      if (turnEnded && !nextState.gameOver) {
         const ascensionTriggered = Logic.checkAscensionReady();
         if (!ascensionTriggered) {
           Logic.switchTurn();
@@ -712,6 +825,10 @@ export default function Game({ navigateTo }) {
         const tyrant = gs.pieces.find(p => p.id === anim.pieceId);
         if (tyrant) Effects.spawnReignOfFireEffect(tyrant, anim.targetR, anim.targetC, gs);
         break;
+      case 'DeathMeteor':
+        const ashTyrant = (gs.pieces || []).find(p => p.id === anim.pieceId) || (gs.pieces || []).find(p => p.key === 'ashAshTyrant');
+        if (ashTyrant) Effects.spawnDeathMeteorEffect(ashTyrant, gs);
+        break;
     }
   };
 
@@ -755,6 +872,21 @@ export default function Game({ navigateTo }) {
         nextGs.playerTeam = myTeam;
         nextGs.gameStarted = false;
         nextGs.timers = { snow: 600, ash: 600 };
+        nextGs.frostfallBlessings = [];
+        nextGs.knownFrostfallBlessings = [];
+        nextGs.dyingFrostfallBlessings = [];
+        nextGs.frostfallShards = [];
+        nextGs.frostVignette = null;
+        nextGs.deathMeteors = [];
+        nextGs.deathMeteorAnimations = [];
+        Effects.initParticles(nextGs);
+        lastTerritoryCache = {
+          snowTerritory: null,
+          ashTerritory: null,
+          territoryTrails: null,
+          scores: { snow: 13.3, ash: 13.3 }
+        };
+        lastPiecesRef = null;
         E.updateBoardMap(nextGs);
         setEventLog([]);
         return cloneState(nextGs);
@@ -959,12 +1091,6 @@ export default function Game({ navigateTo }) {
   const hasRiftPulse = !!selectedPiece?.canRiftPulse && !selectedPiece?.hasUsedRiftPulse;
   const canDespawn = !!selectedPiece && ['snowIceWisp', 'glacialWall'].includes(selectedPiece.key);
 
-  useEffect(() => {
-    if (!selectedPiece) {
-      setDrawerExpanded(false);
-    }
-  }, [selectedPiece?.id]);
-
   // Main UI returns
   if (!imagesLoaded) {
     return (
@@ -975,67 +1101,13 @@ export default function Game({ navigateTo }) {
     );
   }
 
-  const calculateDynamicTerritoryAreas = (gs) => {
-    if (!gs) return { snow: 0, ash: 0 };
-    const N = 6, totalSubcells = 100 * N * N, radius = 1.0;
-    let snowCovered = 0, ashCovered = 0;
-    const snowSet = gs.snowTerritory instanceof Set ? gs.snowTerritory : new Set(gs.snowTerritory || []);
-    const ashSet = gs.ashTerritory instanceof Set ? gs.ashTerritory : new Set(gs.ashTerritory || []);
-    const trailsByCell = Array.from({ length: 10 }, () => Array.from({ length: 10 }, () => []));
-    (gs.territoryTrails || []).forEach(t => {
-      const minR = Math.max(0, Math.floor(t.row - 1)), maxR = Math.min(9, Math.ceil(t.row + 1));
-      const minC = Math.max(0, Math.floor(t.col - 1)), maxC = Math.min(9, Math.ceil(t.col + 1));
-      for (let r = minR; r <= maxR; r++) {
-        for (let c = minC; c <= maxC; c++) {
-          trailsByCell[r][c].push(t);
-        }
-      }
-    });
-    const checkCover = (x, y, bases, trails, team) =>
-      bases.some(b => Math.hypot(x - b.cx, y - b.cy) <= radius) ||
-      trails.some(t => t.team === team && Math.hypot(x - (t.col + 0.5), y - (t.row + 0.5)) <= radius);
-    for (let r = 0; r < 10; r++) {
-      for (let c = 0; c < 10; c++) {
-        const pos = `${r},${c}`;
-        const isSnow = snowSet.has(pos), isAsh = ashSet.has(pos);
-        const cellTrails = trailsByCell[r][c];
-        const nearbyBases = { snow: [], ash: [] };
-        for (let nr = Math.max(0, r - 1); nr <= Math.min(9, r + 1); nr++) {
-          for (let nc = Math.max(0, c - 1); nc <= Math.min(9, c + 1); nc++) {
-            const npos = `${nr},${nc}`;
-            if (snowSet.has(npos)) nearbyBases.snow.push({ cx: nc + 0.5, cy: nr + 0.5 });
-            if (ashSet.has(npos)) nearbyBases.ash.push({ cx: nc + 0.5, cy: nr + 0.5 });
-          }
-        }
-        for (let sr = 0; sr < N; sr++) {
-          const y = r + (sr + 0.5) / N;
-          for (let sc = 0; sc < N; sc++) {
-            const x = c + (sc + 0.5) / N;
-            if (!isAsh && checkCover(x, y, nearbyBases.snow, cellTrails, 'snow')) {
-              snowCovered++;
-            } else if (!isSnow && checkCover(x, y, nearbyBases.ash, cellTrails, 'ash')) {
-              ashCovered++;
-            }
-          }
-        }
-      }
-    }
-    return {
-      snow: parseFloat(((snowCovered / totalSubcells) * 100).toFixed(1)),
-      ash: parseFloat(((ashCovered / totalSubcells) * 100).toFixed(1))
-    };
-  };
-
   const isMyTurn = isLocal || gameState?.currentTurn === myTeam;
   const terrScores = calculateDynamicTerritoryAreas(gameState);
   const turnLabel = gameState?.gameOver 
     ? 'GAME OVER' 
     : `TURN ${gameState?.turnCount || 1}: ${gameState?.currentTurn === 'ash' ? 'ASH' : 'FROST'}`;
 
-  const aliveSnowKeys = new Set(gameState?.pieces ? gameState.pieces.filter(p => p.team === 'snow').map(p => p.key) : []);
-  const aliveAshKeys = new Set(gameState?.pieces ? gameState.pieces.filter(p => p.team === 'ash').map(p => p.key) : []);
-  const fallenSnow = INITIAL_SNOW_KEYS.filter(k => !aliveSnowKeys.has(k));
-  const fallenAsh = INITIAL_ASH_KEYS.filter(k => !aliveAshKeys.has(k));
+  const { fallenSnow, fallenAsh } = getFallenUnits(gameState?.pieces);
 
   return (
     <div className="game-screen text-on-surface select-none font-body-md overflow-y-auto overflow-x-hidden min-h-screen w-full flex flex-col items-center justify-start relative">
@@ -1105,6 +1177,62 @@ export default function Game({ navigateTo }) {
       {/* Ascension Modal */}
       {gameState?.pendingAscension && (
         <AscensionModal gameState={gameState} sendAction={sendAction} />
+      )}
+
+      {/* Game Over Modal */}
+      {gameState?.gameOver && (
+        <div id="gameOverModal" className="fixed inset-0 z-[10000] flex items-center justify-center bg-void-black/85 backdrop-blur-md p-4 animate-fadeIn">
+          <div className={`w-full max-w-md glass-obsidian p-8 rounded-2xl text-center shadow-[0_20px_60px_rgba(0,0,0,0.9)] border ${
+            (gameState.winner === 'snow')
+              ? 'border-ice-light/40 shadow-[0_0_50px_rgba(56,189,248,0.25)]'
+              : 'border-magma-glow/40 shadow-[0_0_50px_rgba(249,115,22,0.25)]'
+          }`}>
+            <div className="flex justify-center mb-4">
+              <Trophy className={`h-16 w-16 ${gameState.winner === 'snow' ? 'text-ice-light drop-shadow-[0_0_15px_rgba(56,189,248,0.8)]' : 'text-ember-gold drop-shadow-[0_0_15px_rgba(245,158,11,0.8)]'}`} />
+            </div>
+            
+            <span className={`font-label-caps text-xs tracking-[0.3em] uppercase block mb-2 ${gameState.winner === 'snow' ? 'text-ice-light' : 'text-magma-glow'}`}>
+              Dominion Decided
+            </span>
+            
+            <h2 className="almendra-font text-3xl sm:text-4xl font-bold tracking-widest text-pure-snow uppercase mb-2">
+              {isLocal
+                ? `${gameState.winner === 'snow' ? 'Frost' : 'Ash'} Ascendant!`
+                : (gameState.winner === myTeam ? 'Victory!' : 'Defeat')}
+            </h2>
+            
+            <p className="font-body-md text-sm text-on-surface-variant mb-6">
+              {gameState.winner === 'snow'
+                ? 'The eternal winter claims the realm. Team Frost has conquered the battlefield.'
+                : 'The volcanic pyre incinerates all opposition. Team Ash reigns supreme.'}
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              {isLocal && (
+                <button
+                  id="playAgainBtn"
+                  className={`action-btn flex-1 py-3 font-label-caps tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 ${
+                    gameState.winner === 'snow'
+                      ? 'bg-ice-light/20 border border-ice-light/50 hover:bg-ice-light/30 text-pure-snow'
+                      : 'bg-magma-glow/20 border border-magma-glow/50 hover:bg-magma-glow/30 text-pure-snow'
+                  }`}
+                  onClick={handleStartReset}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  <span>Play Again</span>
+                </button>
+              )}
+              <button
+                id="gameOverExitBtn"
+                className="action-btn flex-1 py-3 bg-surface-container/60 border border-outline/30 hover:bg-surface-container text-pure-snow font-label-caps tracking-widest rounded-lg transition-all flex items-center justify-center gap-2"
+                onClick={handleExitToLobby}
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Main Menu</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <div 
@@ -1193,22 +1321,29 @@ export default function Game({ navigateTo }) {
               </div>
             </div>
             
-            <div id="ability-info-panel" className={`ability-panel ${selectedPiece ? 'visible' : ''}`}>
-              {selectedPiece && (
-                <>
-                  <div className="selected-unit-heading">
-                    <span className="panel-kicker">Selected unit</span>
-                    <h3 id="ability-name">{selectedPieceName}</h3>
-                  </div>
+            <div id="ability-info-panel" className="ability-panel">
+              <div className="selected-unit-heading">
+                <span className="panel-kicker">Selected unit</span>
+                <div className="unit-name-container">
+                  {selectedPiece ? (
+                    <h3 key={selectedPiece.id} id="ability-name" className="unit-name-active">{selectedPieceName}</h3>
+                  ) : (
+                    <span key="no-unit" className="no-unit-text">No unit selected</span>
+                  )}
+                </div>
+              </div>
 
+              <div className={`ability-actions-wrapper ${selectedPiece && (hasPrimaryAbility || hasSiphon || (selectedPiece.tethers && selectedPiece.tethers.length > 0) || hasRiftPulse || canDespawn) ? 'open' : ''}`}>
+                <div className="ability-actions-inner">
                   {hasPrimaryAbility && (
                     <button
                       id="abilityBtn"
-                      className={!isMyTurn ? 'disabled' : ''}
-                      onClick={() => isMyTurn && sendAction('ABILITY', { pieceId: selectedPiece.id, abilityKey: selectedPiece.ability.key })}
+                      className={!isMyTurn || (selectedPiece.ability.cooldown || 0) > 0 ? 'disabled' : ''}
+                      onClick={() => isMyTurn && (selectedPiece.ability.cooldown || 0) <= 0 && sendAction('ABILITY', { pieceId: selectedPiece.id, abilityKey: selectedPiece.ability.key })}
                       disabled={!isMyTurn || (selectedPiece.ability.cooldown || 0) > 0}
                     >
                       {selectedPiece.ability.name || 'Use Ability'}
+                      {(selectedPiece.ability.cooldown || 0) > 0 ? ` (CD: ${selectedPiece.ability.cooldown})` : ''}
                     </button>
                   )}
                   {hasSiphon && (
@@ -1224,7 +1359,7 @@ export default function Game({ navigateTo }) {
                   <button 
                     id="releaseBtn" 
                     className="unleash-btn"
-                    style={{ display: (selectedPiece.tethers && selectedPiece.tethers.length > 0) ? 'block' : 'none' }}
+                    style={{ display: (selectedPiece?.tethers && selectedPiece.tethers.length > 0) ? 'block' : 'none' }}
                     onClick={() => sendAction('RELEASE', { pieceId: selectedPiece.id })}
                   >
                     Release
@@ -1247,8 +1382,8 @@ export default function Game({ navigateTo }) {
                       Despawn
                     </button>
                   )}
-                </>
-              )}
+                </div>
+              </div>
             </div>
 
             <div id="fallenUnitsPanel" className="fallen-units-panel">
@@ -1457,10 +1592,11 @@ export default function Game({ navigateTo }) {
                         {hasPrimaryAbility && (
                           <button 
                             className="ability-btn-mobile primary-action" 
-                            onClick={() => isMyTurn && sendAction('ABILITY', { pieceId: selectedPiece.id, abilityKey: selectedPiece.ability.key })} 
+                            onClick={() => isMyTurn && (selectedPiece.ability.cooldown || 0) <= 0 && sendAction('ABILITY', { pieceId: selectedPiece.id, abilityKey: selectedPiece.ability.key })} 
                             disabled={!isMyTurn || (selectedPiece.ability.cooldown || 0) > 0}
                           >
                             {selectedPiece.ability.name || 'Use Ability'}
+                            {(selectedPiece.ability.cooldown || 0) > 0 ? ` (CD: ${selectedPiece.ability.cooldown})` : ''}
                           </button>
                         )}
                         {hasSiphon && (

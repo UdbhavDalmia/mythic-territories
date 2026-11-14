@@ -82,7 +82,7 @@ export function checkSpecialTerrains(p, r, c, gs) {
       const dmg = 1;
       p.power = Math.max(0, p.power - dmg);
       if (typeof p.currentHp === "number") {
-        if (!(p.key === 'snowFrostLord' && p.hasHelpFromAboveActive)) {
+        if (!(p.key === 'snowFrostLord' && p.hasHelpFromAboveActive) && !(p.key === 'ashAshTyrant' && p.hasDeathMeteorInvincibility)) {
           p.currentHp = Math.max(0, p.currentHp - dmg);
         }
       }
@@ -953,13 +953,22 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
   const startRow = piece.row;
   const startCol = piece.col;
 
-  // 1. Exact grid check for defender
-  const defender = C.getPieceAt(targetRow, targetCol, gameState.pieces);
+  // 1. Exact grid check for any other piece at destination
+  const occupyingPiece = (gameState.pieces || []).find(
+    (p) => p.id !== piece.id && Math.hypot(p.col - targetCol, p.row - targetRow) < 0.7
+  );
+
+  // Pieces can NEVER land on or overlap an allied unit
+  if (occupyingPiece && occupyingPiece.team === piece.team) {
+    return false;
+  }
+
+  const defender = occupyingPiece;
 
   let finalTargetCol = targetCol;
   let finalTargetRow = targetRow;
 
-  if (defender && defender.team !== piece.team) {
+  if (defender) {
     finalTargetCol = defender.col;
     finalTargetRow = defender.row;
   }
@@ -1068,6 +1077,12 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
       // flash(`${C.PIECE_TYPES[piece.key]?.name || 'Unit'} attacked but ${C.PIECE_TYPES[defender.key]?.name || 'Defender'} survived!`, piece.team, gameState);
     }
   } else {
+    // Empty square move: ensure target square is not an impassable obstacle
+    const isBlocked = (gameState.voidSquares || []).some(v => v.row === targetRow && v.col === targetCol) ||
+                      (gameState.glacialWalls || []).some(w => w.row === targetRow && w.col === targetCol) ||
+                      (gameState.specialTerrains || []).some(t => t.type === 'crater' && Math.round(t.row) === targetRow && Math.round(t.col) === targetCol);
+    if (isBlocked) return false;
+
     if (!gameState.movePulses) gameState.movePulses = [];
     gameState.movePulses.push({ startRow, startCol, targetRow, targetCol, team: piece.team, life: 1.0 });
     updatePiecePosition(piece, targetRow, targetCol);
@@ -2365,27 +2380,32 @@ function endOfTurnUpkeep() {
 
   if (gameState.spikeRains) {
     gameState.spikeRains = gameState.spikeRains.filter((s) => {
-      s.duration -= 1;
-      if (s.duration > 0) {
-        const creator = gameState.pieces.find(c => c.id === s.creatorId) || { id: 'spike', team: s.team };
-        gameState.pieces.forEach(p => {
-          if (C.cellIntersectsCircle(p.row, p.col, s.r, s.c, s.radius)) {
-            if (p.team !== s.team) {
-              if (p.key === 'snowFrostLord' && p.hasHelpFromAboveActive) {
-                return; // Immune
+      if (gameState.currentTurn === s.team) {
+        s.duration -= 1;
+        if (s.duration > 0) {
+          const creator = gameState.pieces.find(c => c.id === s.creatorId) || { id: 'spike', team: s.team };
+          gameState.pieces.forEach(p => {
+            if (C.cellIntersectsCircle(p.row, p.col, s.r, s.c, s.radius)) {
+              if (p.team !== s.team) {
+                if (p.key === 'snowFrostLord' && p.hasHelpFromAboveActive) {
+                  return; // Immune
+                }
+                if (p.key === 'ashAshTyrant' && p.hasDeathMeteorInvincibility) {
+                  return; // Immune
+                }
+                const prevHp = p.currentHp;
+                p.currentHp = Math.max(0, p.currentHp - s.damage);
+                if (creator.id !== 'spike') {
+                  creator.damageDealt = (creator.damageDealt || 0) + (prevHp - p.currentHp);
+                  if (!creator.isVeteran && creator.damageDealt >= (creator.maxHp || 5)) creator.readyForVeteranPromotion = true;
+                }
+              } else {
+                p.currentHp = Math.min(p.maxHp || 5, p.currentHp + s.heal);
               }
-              const prevHp = p.currentHp;
-              p.currentHp = Math.max(0, p.currentHp - s.damage);
-              if (creator.id !== 'spike') {
-                creator.damageDealt = (creator.damageDealt || 0) + (prevHp - p.currentHp);
-                if (!creator.isVeteran && creator.damageDealt >= (creator.maxHp || 5)) creator.readyForVeteranPromotion = true;
-              }
-            } else {
-              p.currentHp = Math.min(p.maxHp || 5, p.currentHp + s.heal);
             }
-          }
-        });
-        resolveDeaths(gameState, creator);
+          });
+          resolveDeaths(gameState, creator);
+        }
       }
       return s.duration > 0;
     });
@@ -2400,30 +2420,35 @@ function endOfTurnUpkeep() {
 
   if (gameState.frostfallBlessings) {
     gameState.frostfallBlessings = gameState.frostfallBlessings.filter((s) => {
-      s.duration -= 1;
-      if (s.duration > 0) {
-        const creator = gameState.pieces.find(c => c.id === s.creatorId) || { id: 'frost', team: s.team };
-        gameState.pieces.forEach(p => {
-          if (C.cellIntersectsCircle(p.row, p.col, s.r, s.c, s.radius)) {
-            if (p.team !== s.team) {
-              if (p.key === 'snowFrostLord' && p.hasHelpFromAboveActive) {
-                return; // Immune
-              }
-              const prevHp = p.currentHp;
-              p.currentHp = Math.max(0, p.currentHp - s.damage);
-              if (creator.id !== 'frost') {
-                creator.damageDealt = (creator.damageDealt || 0) + (prevHp - p.currentHp);
-                if (!creator.isVeteran && creator.damageDealt >= (creator.maxHp || 5)) creator.readyForVeteranPromotion = true;
-              }
-            } else {
-              // Tyrants cannot heal from Frostfall Blessing
-              if (p.key !== 'ashAshTyrant' && p.key !== 'snowFrostLord') {
-                p.currentHp = Math.min(p.maxHp || 5, p.currentHp + s.heal);
+      if (gameState.currentTurn === s.team) {
+        s.duration -= 1;
+        if (s.duration > 0) {
+          const creator = gameState.pieces.find(c => c.id === s.creatorId) || { id: 'frost', team: s.team };
+          gameState.pieces.forEach(p => {
+            if (C.cellIntersectsCircle(p.row, p.col, s.r, s.c, s.radius)) {
+              if (p.team !== s.team) {
+                if (p.key === 'snowFrostLord' && p.hasHelpFromAboveActive) {
+                  return; // Immune
+                }
+                if (p.key === 'ashAshTyrant' && p.hasDeathMeteorInvincibility) {
+                  return; // Immune
+                }
+                const prevHp = p.currentHp;
+                p.currentHp = Math.max(0, p.currentHp - s.damage);
+                if (creator.id !== 'frost') {
+                  creator.damageDealt = (creator.damageDealt || 0) + (prevHp - p.currentHp);
+                  if (!creator.isVeteran && creator.damageDealt >= (creator.maxHp || 5)) creator.readyForVeteranPromotion = true;
+                }
+              } else {
+                // Tyrants cannot heal from Frostfall Blessing
+                if (p.key !== 'ashAshTyrant' && p.key !== 'snowFrostLord') {
+                  p.currentHp = Math.min(p.maxHp || 5, p.currentHp + s.heal);
+                }
               }
             }
-          }
-        });
-        resolveDeaths(gameState, creator);
+          });
+          resolveDeaths(gameState, creator);
+        }
       }
       return s.duration > 0;
     });
@@ -2492,6 +2517,8 @@ export function switchTurn() {
     }
   }
 
+  if (gameState && gameState.gameOver) return;
+
   const nextTurn = gameState.currentTurn === "snow" ? "ash" : "snow";
   startOfTurnUpkeep(nextTurn);
   gameState.currentTurn = nextTurn;
@@ -2504,6 +2531,7 @@ export function switchTurn() {
 
 export function endGame(winningTeam) {
   gameState.gameOver = true;
+  gameState.winner = winningTeam;
   setCurrentState(GameState.GAME_OVER);
   emit(gameState, { type: "GAME_OVER", winningTeam });
 }

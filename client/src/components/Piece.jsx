@@ -3,7 +3,7 @@ import gsap from 'gsap';
 import { IMAGES, PIECE_TYPES } from '../../../shared/constants.js';
 import { getEffectivePower } from '../../../shared/utils.js';
 
-export default function Piece({ 
+function Piece({ 
   piece, 
   gameState, 
   isSelected, 
@@ -237,3 +237,5 @@ export default function Piece({
     </div>
   );
 }
+
+export default React.memo(Piece);

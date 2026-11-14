@@ -329,6 +329,12 @@ export function initParticles(gameState) {
     gameState.ashParticles = ashParticlesPool;
     gameState.battleParticles = [];
     gameState.frostfallShards = [];
+    gameState.knownFrostfallBlessings = [];
+    gameState.dyingFrostfallBlessings = [];
+    gameState.frostfallBlessings = [];
+    gameState.frostVignette = null;
+    gameState.deathMeteorAnimations = [];
+    gameState.deathMeteors = [];
   }
 }
 

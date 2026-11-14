@@ -1753,11 +1753,9 @@ export function drawDeathMeteorAnimations(ctx, gameState) {
 // ============================================================
 export function drawDeathMeteorShield(ctx, piece, gameState) {
   if (!piece || piece.key !== 'ashAshTyrant') return;
-  if (!piece.deathMeteorCooldown || piece.deathMeteorCooldown <= 0) return;
-  if (!piece.hasTriggeredDeathMeteor) return;
+  if (!piece.hasDeathMeteorInvincibility) return;
 
-  const maxCooldown = (C.ABILITY_VALUES && C.ABILITY_VALUES.DeathMeteor && C.ABILITY_VALUES.DeathMeteor.cooldown) || 10;
-  const life = Math.min(1, (piece.deathMeteorCooldown / maxCooldown) * 1.2);
+  const life = Math.min(1, ((piece.deathMeteorInvincibilityTurns || 1) / 2));
   const t = performance.now() * 0.001;
   const yOffset = (gameState && piece === gameState.selectedPiece) ? Math.sin(t * 2.5) * 2 : 0;
   const vis = UI.getPieceVisualState ? UI.getPieceVisualState(piece) : null;

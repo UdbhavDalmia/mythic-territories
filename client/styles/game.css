@@ -466,38 +466,106 @@ button:disabled {
 
 .ability-panel {
    width: 100%;
-   border: 1px solid var(--elemental-glow, rgba(56, 189, 248, 0.35));
-   text-align: center;
+   border: 1px solid rgba(255, 255, 255, 0.1);
+   background: rgba(8, 12, 22, 0.48);
+   border-radius: 8px;
+   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+   padding: 10px 12px;
+   display: flex;
+   flex-direction: column;
    color: var(--elemental-text);
+   text-align: left;
+   box-sizing: border-box;
+   pointer-events: auto;
+   transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.selected-unit-heading {
+   display: flex;
+   flex-direction: column;
+   gap: 4px;
+   text-align: left;
+   align-items: flex-start;
+   width: 100%;
+}
+
+.selected-unit-heading .panel-kicker {
+   color: rgba(192, 199, 207, 0.7);
+   font-family: 'Space Grotesk', sans-serif;
+   font-size: 9px;
+   font-weight: 700;
+   letter-spacing: 0.18em;
+   text-transform: uppercase;
+   line-height: 1;
+}
+
+.unit-name-container {
+   min-height: 24px;
+   display: flex;
+   align-items: center;
+   justify-content: flex-start;
+   width: 100%;
+}
+
+.unit-name-active {
+   margin: 0;
+   color: #f8fafc;
+   font-family: 'Almendra SC', serif;
+   font-size: 17px;
+   font-weight: 700;
+   letter-spacing: 0.04em;
+   line-height: 1.15;
+   animation: textCrossFade 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.no-unit-text {
+   font-family: 'Space Grotesk', sans-serif;
+   font-size: 12px;
+   color: #94a3b8;
+   font-weight: 500;
+   letter-spacing: 0.03em;
+   line-height: 1.2;
+   animation: textCrossFade 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes textCrossFade {
+   from {
+      opacity: 0;
+      transform: translateY(-2px);
+   }
+   to {
+      opacity: 1;
+      transform: translateY(0);
+   }
+}
+
+.ability-actions-wrapper {
+   display: grid;
+   grid-template-rows: 0fr;
+   transition: grid-template-rows 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+               margin-top 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+   margin-top: 0;
+   width: 100%;
+}
+
+.ability-actions-wrapper.open {
+   grid-template-rows: 1fr;
+   margin-top: 8px;
+}
+
+.ability-actions-inner {
+   overflow: hidden;
    display: flex;
    flex-direction: column;
    gap: 6px;
-   background: rgba(10, 15, 28, 0.65);
-   border-radius: 9px;
-   box-shadow: 0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
-   overflow: hidden;
-   transition: max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-               opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-               padding 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-               margin 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-               transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-               border-color 0.25s ease;
-   max-height: 0;
    opacity: 0;
-   padding: 0 12px;
-   margin: 0;
-   border-color: transparent;
-   pointer-events: none;
-   transform: translateY(-6px);
+   transform: translateY(-4px);
+   transition: opacity 0.2s ease 0.05s, transform 0.2s ease 0.05s;
+   min-height: 0;
 }
 
-.ability-panel.visible {
-   max-height: 120px;
+.ability-actions-wrapper.open .ability-actions-inner {
    opacity: 1;
-   padding: 10px 12px;
-   margin-bottom: 2px;
-   border-color: var(--elemental-glow, rgba(56, 189, 248, 0.35));
-   pointer-events: auto;
    transform: translateY(0);
 }
 
@@ -1460,7 +1528,7 @@ body.multiplayer #roomStatusOverlay {
    display: flex;
    flex-direction: column;
    gap: 8px;
-   padding: 10px 8px;
+   padding: 8px 6px;
    border: 1px solid rgba(255, 255, 255, 0.08);
    border-radius: 9px;
    background: rgba(8, 12, 22, 0.45);
@@ -1509,7 +1577,7 @@ body.multiplayer #roomStatusOverlay {
 .fallen-units-columns {
    display: grid;
    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-   gap: 6px;
+   gap: 5px;
    flex: 1;
    min-height: 0;
    min-width: 0;
@@ -1558,7 +1626,7 @@ body.multiplayer #roomStatusOverlay {
    min-height: 0;
    min-width: 0;
    width: 100%;
-   padding-right: 1px;
+   padding-right: 2px;
    scrollbar-width: thin;
    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
@@ -1577,8 +1645,9 @@ body.multiplayer #roomStatusOverlay {
 .fallen-unit-card {
    display: flex;
    align-items: center;
-   gap: 5px;
-   padding: 3px 5px;
+   gap: 4px;
+   padding: 3px 4px;
+   width: 100%;
    border-radius: 6px;
    background: rgba(15, 23, 42, 0.5);
    border: 1px solid rgba(255, 255, 255, 0.06);
@@ -1604,8 +1673,8 @@ body.multiplayer #roomStatusOverlay {
 }
 
 .fallen-unit-avatar {
-   width: 18px;
-   height: 18px;
+   width: 16px;
+   height: 16px;
    border-radius: 50%;
    object-fit: cover;
    flex-shrink: 0;
@@ -1616,13 +1685,15 @@ body.multiplayer #roomStatusOverlay {
 
 .fallen-unit-name {
    font-family: 'Space Grotesk', sans-serif;
-   font-size: 8.5px;
+   font-size: 8px;
    font-weight: 600;
    color: #cbd5e1;
    line-height: 1.15;
    min-width: 0;
    flex: 1;
-   word-break: break-word;
+   white-space: normal;
+   word-break: normal;
+   overflow-wrap: break-word;
 }
 
 .fallen-empty-card {
@@ -1706,10 +1777,37 @@ body.multiplayer #roomStatusOverlay {
 }
 
 .ability-panel button {
-   padding: 7px 10px !important;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   width: 100%;
+   padding: 8px 12px !important;
+   border-radius: 6px;
+   font-family: 'Space Grotesk', sans-serif;
    font-size: 11px !important;
+   font-weight: 700;
+   letter-spacing: 0.08em;
+   text-transform: uppercase;
    margin-bottom: 0 !important;
-   letter-spacing: 0.06em;
+   background: rgba(15, 23, 42, 0.6);
+   border: 1px solid rgba(56, 189, 248, 0.35);
+   color: #e2e8f0;
+   transition: all 0.2s ease;
+   cursor: pointer;
+}
+
+.ability-panel button:hover:not(:disabled) {
+   background: rgba(56, 189, 248, 0.18);
+   border-color: #38bdf8;
+   color: #fff;
+   box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+}
+
+.ability-panel button.disabled,
+.ability-panel button:disabled {
+   opacity: 0.45;
+   cursor: not-allowed;
+   border-color: rgba(255, 255, 255, 0.1);
 }
 
 #ability-description {

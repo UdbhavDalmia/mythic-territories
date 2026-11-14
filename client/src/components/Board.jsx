@@ -87,7 +87,7 @@ export default function Board({
         const ashTerr = currentGs.ashTerritory || [];
         const snowCount = typeof snowTerr.size === 'number' ? snowTerr.size : snowTerr.length || 0;
         const ashCount = typeof ashTerr.size === 'number' ? ashTerr.size : ashTerr.length || 0;
-        const newKey = `${snowCount}/${ashCount}/${trails.length}`;
+        const newKey = `${snowCount}/${ashCount}/${trails.length}_${currentGs.gameStarted ? 1 : 0}_${currentGs.turnCount || 1}`;
 
         if (newKey !== terrCacheKeyRef.current || !terrCacheCanvasRef.current) {
           terrCacheKeyRef.current = newKey;
@@ -271,6 +271,45 @@ export default function Board({
       if (Effects.drawFateLinkAnimations) Effects.drawFateLinkAnimations(ctx, currentGs);
       if (Effects.drawReignOfFireAnimations) Effects.drawReignOfFireAnimations(currentGs);
       if (Effects.drawDeathMeteorAnimations) Effects.drawDeathMeteorAnimations(currentGs);
+
+      // Death Meteor impact ground & revival shield
+      if (currentGs.deathMeteors && currentGs.deathMeteors.length > 0) {
+        currentGs.deathMeteors.forEach(m => {
+          const radius = 2;
+          const dur = m.duration !== undefined ? m.duration : 6;
+          const decay = dur / 6;
+          for (let dr = -radius; dr <= radius; dr++) {
+            for (let dc = -radius; dc <= radius; dc++) {
+              const dist = Math.hypot(dr, dc);
+              if (dist > radius) continue;
+              const tr = m.r + dr, tc = m.c + dc;
+              if (tr < 0 || tr >= 10 || tc < 0 || tc >= 10) continue;
+              const alpha = Math.max(0.08, (0.6 - dist * 0.14) * decay);
+              ctx.save();
+              ctx.fillStyle = `rgba(35, 10, 0, ${alpha * 0.75})`;
+              ctx.fillRect(tc * CS, tr * CS, CS, CS);
+              ctx.strokeStyle = `rgba(255, 60, 0, ${alpha * 0.85})`;
+              ctx.lineWidth = 1.5;
+              const cx = (tc + 0.5) * CS;
+              const cy = (tr + 0.5) * CS;
+              for (let si = 0; si < 3; si++) {
+                const ang = (si / 3) * Math.PI * 2 + (tc * 1.3 + tr * 0.7);
+                ctx.beginPath();
+                ctx.moveTo(cx + Math.cos(ang) * 4, cy + Math.sin(ang) * 4);
+                ctx.lineTo(cx + Math.cos(ang) * (CS * 0.4), cy + Math.sin(ang) * (CS * 0.4));
+                ctx.stroke();
+              }
+              ctx.restore();
+            }
+          }
+        });
+      }
+
+      const ashTyrant = (currentGs.pieces || []).find(p => p.key === 'ashAshTyrant');
+      if (ashTyrant && Effects.drawDeathMeteorShield) {
+        Effects.drawDeathMeteorShield(ctx, ashTyrant, currentGs);
+      }
+
       if (Effects.drawShrineEffects) Effects.drawShrineEffects(currentGs);
 
       if (didTransform) ctx.restore();
@@ -311,25 +350,29 @@ export default function Board({
   // Render grid cells
   const renderCells = () => {
     const cells = [];
-    const snowTerr = Array.isArray(gameState?.snowTerritory) 
-      ? gameState.snowTerritory 
-      : (gameState?.snowTerritory instanceof Set ? Array.from(gameState.snowTerritory) : []);
-    const ashTerr = Array.isArray(gameState?.ashTerritory) 
-      ? gameState.ashTerritory 
-      : (gameState?.ashTerritory instanceof Set ? Array.from(gameState.ashTerritory) : []);
-    const voidSquares = gameState?.voidSquares || [];
-    const glacialWalls = gameState?.glacialWalls || [];
+    const snowSet = gameState?.snowTerritory instanceof Set
+      ? gameState.snowTerritory
+      : new Set(Array.isArray(gameState?.snowTerritory) ? gameState.snowTerritory : []);
+    const ashSet = gameState?.ashTerritory instanceof Set
+      ? gameState.ashTerritory
+      : new Set(Array.isArray(gameState?.ashTerritory) ? gameState.ashTerritory : []);
+    const voidSet = new Set((gameState?.voidSquares || []).map(v => `${v.row},${v.col}`));
+    const wallSet = new Set((gameState?.glacialWalls || []).map(w => `${w.row},${w.col}`));
 
     // Ability targeting highlights
     const isAbilityTargeting = gameState?.currentState === 'ABILITY_TARGETING' || gameState?.currentState === 'WALL_PLACEMENT_FIRST' || gameState?.currentState === 'TETHER_TARGETING' || gameState?.currentState === 'WALL_PLACEMENT_SECOND';
+    const pieceByCoord = isAbilityTargeting && gameState?.pieces
+      ? new Map(gameState.pieces.map(p => [`${p.row},${p.col}`, p]))
+      : null;
 
     for (let i = 0; i < 100; i++) {
       const { r, c } = getCellCoords(i);
+      const posKey = `${r},${c}`;
 
-      const hasSnowTerritory = snowTerr.includes(`${r},${c}`);
-      const hasAshTerritory = ashTerr.includes(`${r},${c}`);
-      const isVoid = voidSquares.some(v => v.row === r && v.col === c);
-      const isWall = glacialWalls.some(w => w.row === r && w.col === c);
+      const hasSnowTerritory = snowSet.has(posKey);
+      const hasAshTerritory = ashSet.has(posKey);
+      const isVoid = voidSet.has(posKey);
+      const isWall = wallSet.has(posKey);
       
       const riftOwner = isRiftCell(r, c);
 
@@ -343,7 +386,7 @@ export default function Board({
         if (gameState.currentState === 'WALL_PLACEMENT_SECOND' && gameState.firstWallCoords) {
           const { row: fR, col: fC } = gameState.firstWallCoords;
           const isNeighbor = Math.max(Math.abs(fR - r), Math.abs(fC - c)) === 1;
-          const hasUnit = gameState.pieces.some(p => p.row === r && p.col === c);
+          const hasUnit = pieceByCoord ? pieceByCoord.has(posKey) : (gameState.pieces || []).some(p => p.row === r && p.col === c);
           isAbilityTarget = isNeighbor && !hasUnit;
         } else if (gameState.currentState === 'TETHER_TARGETING' && gameState.abilityContext) {
           const { siphoner, mode, allyTarget } = gameState.abilityContext;
@@ -352,7 +395,7 @@ export default function Board({
           const distance = Math.max(Math.abs(siphoner.row - r), Math.abs(siphoner.col - c));
           
           if (distance <= maxRange) {
-            const targetPiece = gameState.pieces.find(p => p.row === r && p.col === c);
+            const targetPiece = pieceByCoord ? pieceByCoord.get(posKey) : (gameState.pieces || []).find(p => p.row === r && p.col === c);
             if (mode === 'resonance') {
               if (!allyTarget) isAbilityTarget = targetPiece && targetPiece.team === siphoner.team && targetPiece.id !== siphoner.id;
               else isAbilityTarget = targetPiece && targetPiece.team !== siphoner.team && (targetPiece.power || 0) > 0;
@@ -373,7 +416,7 @@ export default function Board({
             if (ability.specialTargeting) {
               isAbilityTarget = ability.specialTargeting(piece, { r, c }, gameState);
             } else {
-              const targetPiece = gameState.pieces.find(p => p.row === r && p.col === c);
+              const targetPiece = pieceByCoord ? pieceByCoord.get(posKey) : (gameState.pieces || []).find(p => p.row === r && p.col === c);
               switch (ability.targetType) {
                 case 'enemy': isAbilityTarget = targetPiece && targetPiece.team !== piece.team && !targetPiece.hasDefensiveWard; break;
                 case 'friendly': isAbilityTarget = targetPiece && targetPiece.team === piece.team; break;

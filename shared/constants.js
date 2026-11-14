@@ -1048,6 +1048,9 @@ export const ABILITIES = {
           if (target.key === 'snowFrostLord' && target.hasHelpFromAboveActive) {
             return; // Immune to damage
           }
+          if (target.key === 'ashAshTyrant' && target.hasDeathMeteorInvincibility) {
+            return; // Immune to damage
+          }
           if (target.team !== p.team) {
             target.currentHp = Math.max(0, (target.currentHp || target.stats?.hp || 5) - dmg);
             if (target.currentHp <= 0) toRemove.push({ piece: target });
