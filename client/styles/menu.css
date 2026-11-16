@@ -217,6 +217,13 @@ body {
   background: rgba(239, 68, 68, 0.09);
 }
 
+.card-no-tilt,
+.card-no-tilt:hover {
+  transform: translateY(-2px) !important;
+  perspective: none !important;
+  transform-style: flat !important;
+}
+
 .card-gold:hover:not(:disabled) {
   transform: perspective(1000px) translateY(var(--card-ty, -8px)) rotateX(var(--card-rx, 3.5deg)) rotateY(var(--card-ry, -2.5deg)) scale3d(1.02, 1.02, 1.02) !important;
   box-shadow: 0 24px 45px -10px rgba(0, 0, 0, 0.7), 0 0 35px rgba(232, 193, 94, 0.35), inset 0 0 20px rgba(232, 193, 94, 0.08);
