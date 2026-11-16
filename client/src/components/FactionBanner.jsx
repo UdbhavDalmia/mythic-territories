@@ -9,14 +9,13 @@ import React from 'react';
 
 /* ── Crest Components ──────────────────────────────────────────────────────── */
 
-function SnowflakeCrest({ factionKey = 'frost', detailed = true }) {
+function SnowflakeCrest({ factionKey = 'frost', detailed = false }) {
   return (
     <>
       {detailed && (
         <g className="v-rune-ring" stroke="#7dd3fc" strokeWidth="1" strokeDasharray="3 4" fill="none" opacity="0.6">
           <circle cx="110" cy="176" r="64" />
           <circle cx="110" cy="176" r="54" strokeWidth="0.8" />
-          {/* Ancient Ice Glyphs at cardinal directions */}
           <polygon points="110,116 114,122 110,128 106,122" fill="#bae6fd" stroke="none" />
           <polygon points="110,224 114,230 110,236 106,230" fill="#bae6fd" stroke="none" />
           <polygon points="50,176 56,180 50,184 44,180" fill="#bae6fd" stroke="none" />
@@ -40,7 +39,7 @@ function SnowflakeCrest({ factionKey = 'frost', detailed = true }) {
   );
 }
 
-function FlameCrest({ factionKey = 'ash', detailed = true }) {
+function FlameCrest({ factionKey = 'ash', detailed = false }) {
   const outerGradId = `v-flame-outer-${factionKey}`;
   const innerGradId = `v-flame-inner-${factionKey}`;
   const hornGradId = `v-flame-horn-${factionKey}`;
@@ -64,19 +63,14 @@ function FlameCrest({ factionKey = 'ash', detailed = true }) {
         </linearGradient>
       </defs>
 
-      {/* Detailed Volcanic Maw & Demon Horn Silhouettes */}
       {detailed && (
         <g opacity="0.85">
-          {/* Left curved horn */}
           <path d="M72 176 C65 140 78 110 92 98 C88 120 85 145 88 176 Z" fill={`url(#${hornGradId})`} stroke="#f97316" strokeWidth="1" />
-          {/* Right curved horn */}
           <path d="M148 176 C155 140 142 110 128 98 C132 120 135 145 132 176 Z" fill={`url(#${hornGradId})`} stroke="#f97316" strokeWidth="1" />
-          {/* Basalt base collar */}
           <path d="M78 226 L110 236 L142 226 L136 218 L110 224 L84 218 Z" fill="#292524" stroke="#f97316" strokeWidth="1.2" />
         </g>
       )}
 
-      {/* Living Flickering Core Flame */}
       <g className="v-flame">
         <path
           d="M110 96 C128 124 152 142 150 182 C148 214 128 234 110 234 C92 234 72 214 70 182 C68 158 82 148 90 128 C94 140 100 146 105 146 C102 128 104 112 110 96 Z"
@@ -183,7 +177,7 @@ export default function FactionBanner({ faction = 'frost', className = '', idPre
   const Crest = cfg.Crest;
   const pfx = idPrefix ? `${idPrefix}-${normKey}` : normKey;
 
-  // Resolve customization options (props take precedence, fallback to saved options or defaults)
+  // Resolve customization options (user choices applied as permanent defaults)
   let savedOpts = {};
   if (!options && typeof window !== 'undefined') {
     try {
@@ -195,13 +189,13 @@ export default function FactionBanner({ faction = 'frost', className = '', idPre
   }
 
   const effectiveOpts = {
-    rodStyle: 'fantasy',       // 'fantasy' | 'ornate' | 'minimal'
-    fabricFolds: true,         // realistic cloth depth shading
-    fabricWave: true,          // living SVG wind billow
-    waveSpeed: 'normal',       // 'calm' | 'normal' | 'storm'
-    tassels: true,             // fringe tassels along the hem
-    detailedCrest: true,       // enhanced heraldic seal
-    particles: true,           // subtle floating motes
+    rodStyle: 'fantasy',       // Forged fantasy spearheads & curved horns
+    fabricFolds: true,         // Realistic cloth depth & crease shading
+    fabricWave: true,          // Living fabric wave
+    waveSpeed: 'storm',        // Storm wave intensity (user choice!)
+    tassels: true,             // Metallic fringe tassels along the hem
+    detailedCrest: false,      // Clean classic crest (user choice!)
+    particles: true,           // Emitted elemental particles
     ...savedOpts,
     ...(options || {})
   };
@@ -210,6 +204,7 @@ export default function FactionBanner({ faction = 'frost', className = '', idPre
   const rimGradId = `v-rim-${pfx}`;
   const glowGradId = `v-glow-${pfx}`;
   const foldsGradId = `v-folds-${pfx}`;
+  const drapeGradId = `v-drape-${pfx}`;
   const rodGradId = `v-rod-${pfx}`;
 
   return (
@@ -236,15 +231,29 @@ export default function FactionBanner({ faction = 'frost', className = '', idPre
             <stop offset="1" stopColor={cfg.glow} stopOpacity="0" />
           </radialGradient>
 
-          {/* Realistic Fabric Crease & Depth Folds Shading */}
+          {/* Realistic Fabric Crease & Volumetric Fluted Column Folds Shading */}
           <linearGradient id={foldsGradId} x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#000000" stopOpacity="0.32" />
-            <stop offset="18%" stopColor="#ffffff" stopOpacity="0.08" />
-            <stop offset="32%" stopColor="#000000" stopOpacity="0.28" />
-            <stop offset="50%" stopColor="#ffffff" stopOpacity="0.12" />
-            <stop offset="68%" stopColor="#000000" stopOpacity="0.26" />
-            <stop offset="84%" stopColor="#ffffff" stopOpacity="0.07" />
-            <stop offset="100%" stopColor="#000000" stopOpacity="0.34" />
+            <stop offset="0%" stopColor="#000000" stopOpacity="0.48" />
+            <stop offset="6%" stopColor="#000000" stopOpacity="0.32" />
+            <stop offset="13%" stopColor="#ffffff" stopOpacity="0.14" />
+            <stop offset="24%" stopColor="#000000" stopOpacity="0.44" />
+            <stop offset="35%" stopColor="#ffffff" stopOpacity="0.18" />
+            <stop offset="47%" stopColor="#000000" stopOpacity="0.30" />
+            <stop offset="53%" stopColor="#000000" stopOpacity="0.30" />
+            <stop offset="65%" stopColor="#ffffff" stopOpacity="0.18" />
+            <stop offset="76%" stopColor="#000000" stopOpacity="0.44" />
+            <stop offset="87%" stopColor="#ffffff" stopOpacity="0.14" />
+            <stop offset="94%" stopColor="#000000" stopOpacity="0.32" />
+            <stop offset="100%" stopColor="#000000" stopOpacity="0.48" />
+          </linearGradient>
+
+          {/* Vertical Drape & Weight Shadowing */}
+          <linearGradient id={drapeGradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#000000" stopOpacity="0.45" />
+            <stop offset="9%" stopColor="#ffffff" stopOpacity="0.10" />
+            <stop offset="55%" stopColor="#000000" stopOpacity="0.0" />
+            <stop offset="85%" stopColor="#000000" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#000000" stopOpacity="0.60" />
           </linearGradient>
 
           {/* Forged Rod Metallic / Obsidian Gradient */}
@@ -323,19 +332,37 @@ export default function FactionBanner({ faction = 'frost', className = '', idPre
           </g>
         )}
 
-        {/* ── 2. Cloth Body ────────────────────────────────────────────────────── */}
+        {/* ── 2. Cloth Body with Living Supple Wave ────────────────────────────── */}
         <g className="v-cloth-body">
           {/* Main Colored Tapestry */}
           <path d={cfg.clothPath} fill={`url(#${clothGradId})`} stroke={`url(#${rimGradId})`} strokeWidth="3" strokeLinejoin="round" />
 
-          {/* Realistic Fabric Creases & Depth Folds Shading */}
+          {/* Realistic Fabric Creases & Volumetric Column Shading */}
           {effectiveOpts.fabricFolds && (
-            <path
-              d={cfg.clothPath}
-              fill={`url(#${foldsGradId})`}
-              style={{ mixBlendMode: 'multiply' }}
-              opacity="0.85"
-            />
+            <>
+              {/* Vertical Column Folds */}
+              <path
+                d={cfg.clothPath}
+                fill={`url(#${foldsGradId})`}
+                style={{ mixBlendMode: 'multiply' }}
+                opacity="0.9"
+              />
+              {/* Vertical Drape & Gravity Weight Shading */}
+              <path
+                d={cfg.clothPath}
+                fill={`url(#${drapeGradId})`}
+                style={{ mixBlendMode: 'multiply' }}
+                opacity="0.8"
+              />
+              {/* Hanging Gathers / Puckers just beneath the bar */}
+              <path
+                d="M22 16 Q36 26 50 16 Q64 26 78 16 Q94 26 110 16 Q126 26 142 16 Q156 26 170 16 Q184 26 198 16"
+                fill="none"
+                stroke="#000000"
+                strokeWidth="2.2"
+                opacity="0.4"
+              />
+            </>
           )}
 
           {/* Inner Heraldic Stitched Trim */}
@@ -360,21 +387,42 @@ export default function FactionBanner({ faction = 'frost', className = '', idPre
             <g className="v-tassels" stroke={normKey === 'frost' ? '#bae6fd' : '#f97316'} strokeWidth="1.5" strokeLinecap="round">
               {normKey === 'frost' ? (
                 <>
-                  {/* Silver Crystal Pendants at the pointed V-tip */}
+                  {/* Silver Crystal Pendants at pointed V-tip */}
                   <line x1="110" y1="415" x2="110" y2="426" />
                   <polygon points="110,428 113,423 110,420 107,423" fill="#e0f2fe" stroke="none" />
-                  <line x1="66" y1="380" x2="66" y2="389" opacity="0.7" />
-                  <line x1="154" y1="380" x2="154" y2="389" opacity="0.7" />
+                  <line x1="66" y1="380" x2="66" y2="389" opacity="0.75" />
+                  <line x1="154" y1="380" x2="154" y2="389" opacity="0.75" />
                 </>
               ) : (
                 <>
                   {/* Scorched Copper Fringe Drop Beads */}
                   <line x1="108" y1="408" x2="108" y2="418" />
                   <circle cx="108" cy="420" r="2.5" fill="#f97316" stroke="none" />
-                  <line x1="142" y1="396" x2="142" y2="405" opacity="0.75" />
-                  <line x1="68" y1="390" x2="68" y2="399" opacity="0.75" />
+                  <line x1="142" y1="396" x2="142" y2="405" opacity="0.8" />
+                  <line x1="68" y1="390" x2="68" y2="399" opacity="0.8" />
                 </>
               )}
+            </g>
+          )}
+
+          {/* ── 4. Emitted Elemental Micro-Particles ───────────────────────────── */}
+          {effectiveOpts.particles && normKey === 'frost' && (
+            <g className="v-particles-frost" opacity="0.85">
+              <circle className="v-banner-spark v-spark-snow" cx="42" cy="130" r="1.8" fill="#e0f2fe" style={{ animationDelay: '0s' }} />
+              <circle className="v-banner-spark v-spark-snow" cx="178" cy="170" r="1.4" fill="#bae6fd" style={{ animationDelay: '-1.4s' }} />
+              <circle className="v-banner-spark v-spark-snow" cx="95" cy="275" r="1.6" fill="#e0f2fe" style={{ animationDelay: '-2.5s' }} />
+              <circle className="v-banner-spark v-spark-snow" cx="138" cy="345" r="1.3" fill="#bae6fd" style={{ animationDelay: '-0.8s' }} />
+              <circle className="v-banner-spark v-spark-snow" cx="62" cy="230" r="1.5" fill="#e0f2fe" style={{ animationDelay: '-3.1s' }} />
+            </g>
+          )}
+
+          {effectiveOpts.particles && normKey === 'ash' && (
+            <g className="v-particles-ash" opacity="0.9">
+              <circle className="v-banner-spark v-spark-ember" cx="68" cy="360" r="2.0" fill="#f97316" style={{ animationDelay: '0s' }} />
+              <circle className="v-banner-spark v-spark-ember" cx="140" cy="370" r="1.6" fill="#fbbf24" style={{ animationDelay: '-1.2s' }} />
+              <circle className="v-banner-spark v-spark-ember" cx="108" cy="390" r="2.2" fill="#ef4444" style={{ animationDelay: '-2.1s' }} />
+              <circle className="v-banner-spark v-spark-ember" cx="50" cy="320" r="1.5" fill="#f97316" style={{ animationDelay: '-0.7s' }} />
+              <circle className="v-banner-spark v-spark-ember" cx="170" cy="310" r="1.8" fill="#f59e0b" style={{ animationDelay: '-2.7s' }} />
             </g>
           )}
         </g>
