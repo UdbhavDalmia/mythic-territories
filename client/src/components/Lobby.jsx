@@ -30,6 +30,7 @@ import {
   getOrCreatePlayerId,
   getPlayerId
 } from '../services/roomCode.js';
+import FactionBanner from './FactionBanner.jsx';
 
 const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const loadMultiplayer = () => import('../services/multiplayer.js');
@@ -1680,7 +1681,7 @@ export default function Lobby({ navigateTo, onWarm }) {
               {/* Faction Cards Grid */}
               <div className="grid grid-cols-2 gap-3 sm:gap-5 w-full p-1 sm:p-2 overflow-visible">
 
-                {/* FROST LORD CARD */}
+                {/* FROST DOMAIN CARD */}
                 <div
                   ref={snowCardRef}
                   className={`card-frost glass-obsidian border rounded-xl overflow-hidden flex flex-col group ${
@@ -1695,8 +1696,8 @@ export default function Lobby({ navigateTo, onWarm }) {
                   onMouseMove={handleCardMouseMove}
                   onMouseLeave={handleCardMouseLeave}
                 >
-                  {/* Hero Artwork Container */}
-                  <div className="relative h-24 sm:h-36 md:h-44 lg:h-48 overflow-hidden bg-void-black">
+                  {/* Faction Banner Artwork Container */}
+                  <div className="relative h-40 sm:h-52 md:h-60 overflow-hidden bg-gradient-to-b from-void-black/95 via-sky-950/20 to-void-black flex items-center justify-center p-3">
                     {/* Atmospheric Glow */}
                     <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(56,189,248,0.25)_0%,_transparent_75%)] pointer-events-none" />
 
@@ -1720,14 +1721,12 @@ export default function Lobby({ navigateTo, onWarm }) {
                       </div>
                     )}
 
-                    <img
-                      alt="Frost Lord"
-                      decoding="async"
-                      className="w-full h-full object-cover object-top transition-transform duration-700 ease-out group-hover:scale-108"
-                      src="/units/frost-lord.webp"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-void-black via-transparent to-transparent" />
-                    <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-void-black to-transparent" />
+                    {/* Animated Heraldic Faction Banner */}
+                    <div className="h-full w-full max-w-[130px] sm:max-w-[160px] md:max-w-[180px] flex items-center justify-center py-1 transition-transform duration-700 ease-out group-hover:scale-105 group-hover:-translate-y-1">
+                      <FactionBanner faction="frost" idPrefix="lobby-frost" className="h-full w-auto" />
+                    </div>
+
+                    <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-void-black to-transparent pointer-events-none" />
                   </div>
 
                   {/* Card Content */}
@@ -1735,21 +1734,21 @@ export default function Lobby({ navigateTo, onWarm }) {
                     <div>
                       <div className="flex items-center justify-between gap-1 mb-1">
                         <h3 className="text-sm sm:text-base md:text-xl text-ice-light tracking-widest uppercase almendra-font font-bold drop-shadow-[0_0_12px_rgba(56,189,248,0.4)]">
-                          FROST LORD
+                          FROST DOMAIN
                         </h3>
                         <span className="text-[8px] sm:text-[9px] font-label-caps tracking-widest text-ice-light/70 hidden sm:inline-block">CONTROL / DEFENSE</span>
                       </div>
                       <p className="text-on-surface-variant text-[10px] sm:text-xs leading-relaxed mb-2">
-                        Absolute order and crystalline geometry. Freeze enemies and construct glacial barriers to outlast the storm.
+                        Absolute order and crystalline geometry. Freeze encroaching enemies, raise impassable glacial barriers, and claim eternal winter dominion.
                       </p>
 
                       {/* Trait Pills */}
                       <div className="flex flex-wrap gap-1 sm:gap-1.5">
                         <span className="px-2 py-0.5 rounded-md bg-ice-light/10 border border-ice-light/20 text-[8px] sm:text-[9px] font-label-caps text-ice-light tracking-wider">
-                          ❄️ Glacial Wall
+                          ❄️ Glacial Domain
                         </span>
                         <span className="px-2 py-0.5 rounded-md bg-ice-light/10 border border-ice-light/20 text-[8px] sm:text-[9px] font-label-caps text-ice-light tracking-wider">
-                          🛡️ Heavy Armor
+                          🛡️ Permafrost Vow
                         </span>
                         <span className="px-2 py-0.5 rounded-md bg-ice-light/10 border border-ice-light/20 text-[8px] sm:text-[9px] font-label-caps text-ice-light tracking-wider">
                           🧊 Chill Aura
@@ -1780,7 +1779,7 @@ export default function Lobby({ navigateTo, onWarm }) {
                   </div>
                 </div>
 
-                {/* ASH TYRANT CARD */}
+                {/* ASH DOMAIN CARD */}
                 <div
                   ref={ashCardRef}
                   className={`card-fire glass-obsidian border rounded-xl overflow-hidden flex flex-col group ${
@@ -1795,8 +1794,8 @@ export default function Lobby({ navigateTo, onWarm }) {
                   onMouseMove={handleCardMouseMove}
                   onMouseLeave={handleCardMouseLeave}
                 >
-                  {/* Hero Artwork Container */}
-                  <div className="relative h-24 sm:h-36 md:h-44 lg:h-48 overflow-hidden bg-void-black">
+                  {/* Faction Banner Artwork Container */}
+                  <div className="relative h-40 sm:h-52 md:h-60 overflow-hidden bg-gradient-to-b from-void-black/95 via-rose-950/20 to-void-black flex items-center justify-center p-3">
                     {/* Atmospheric Glow */}
                     <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(239,68,68,0.28)_0%,_transparent_75%)] pointer-events-none" />
 
@@ -1820,14 +1819,12 @@ export default function Lobby({ navigateTo, onWarm }) {
                       </div>
                     )}
 
-                    <img
-                      alt="Ash Tyrant"
-                      decoding="async"
-                      className="w-full h-full object-cover object-top transition-transform duration-700 ease-out group-hover:scale-108"
-                      src="/units/ash-tyrant.webp"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-void-black via-transparent to-transparent" />
-                    <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-void-black to-transparent" />
+                    {/* Animated Heraldic Faction Banner */}
+                    <div className="h-full w-full max-w-[130px] sm:max-w-[160px] md:max-w-[180px] flex items-center justify-center py-1 transition-transform duration-700 ease-out group-hover:scale-105 group-hover:-translate-y-1">
+                      <FactionBanner faction="ash" idPrefix="lobby-ash" className="h-full w-auto" />
+                    </div>
+
+                    <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-void-black to-transparent pointer-events-none" />
                   </div>
 
                   {/* Card Content */}
@@ -1835,12 +1832,12 @@ export default function Lobby({ navigateTo, onWarm }) {
                     <div>
                       <div className="flex items-center justify-between gap-1 mb-1">
                         <h3 className="text-sm sm:text-base md:text-xl text-magma-core tracking-widest uppercase almendra-font font-bold drop-shadow-[0_0_12px_rgba(239,68,68,0.4)]">
-                          ASH TYRANT
+                          ASH DOMAIN
                         </h3>
                         <span className="text-[8px] sm:text-[9px] font-label-caps tracking-widest text-magma-core/70 hidden sm:inline-block">ASSAULT / BURST</span>
                       </div>
                       <p className="text-on-surface-variant text-[10px] sm:text-xs leading-relaxed mb-2">
-                        Explosive violence and volcanic power. Break enemy lines with raw lava projectiles and scorched-earth hazards.
+                        Explosive violence and volcanic power. Break enemy lines with raw lava bombardments, molten hazards, and scorched-earth dominance.
                       </p>
 
                       {/* Trait Pills */}
@@ -1852,7 +1849,7 @@ export default function Lobby({ navigateTo, onWarm }) {
                           ⚔️ Armor Pierce
                         </span>
                         <span className="px-2 py-0.5 rounded-md bg-magma-core/10 border border-magma-core/20 text-[8px] sm:text-[9px] font-label-caps text-magma-core tracking-wider">
-                          💥 Lava Blast
+                          💥 Volcanic Assault
                         </span>
                       </div>
                     </div>
