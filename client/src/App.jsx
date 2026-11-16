@@ -6,12 +6,14 @@ const loadGuide = () => import('./components/Guide.jsx');
 const loadNotes = () => import('./components/Notes.jsx');
 const loadWheel = () => import('./components/Wheel.jsx');
 const loadSettings = () => import('./components/Settings.jsx');
+const loadPlayground = () => import('./components/BannerPlayground.jsx');
 
 const Game = lazy(loadGame);
 const Guide = lazy(loadGuide);
 const Notes = lazy(loadNotes);
 const Wheel = lazy(loadWheel);
 const Settings = lazy(loadSettings);
+const BannerPlayground = lazy(loadPlayground);
 
 const loadSecondaryFonts = () => {
   if (typeof document === 'undefined') return;
@@ -58,6 +60,7 @@ export default function App() {
     if (page === 'notes' || path.endsWith('/notes')) return 'NOTES';
     if (page === 'wheel' || page === 'destiny' || path.endsWith('/wheel') || path.endsWith('/destiny')) return 'WHEEL';
     if (page === 'settings' || path.endsWith('/settings')) return 'SETTINGS';
+    if (page === 'banners' || page === 'playground' || path.endsWith('/banners') || path.endsWith('/playground')) return 'PLAYGROUND';
     if ((params.get('room') && params.get('team')) || params.get('mode') === 'local') return 'GAME';
     return 'LOBBY';
   };
@@ -96,6 +99,9 @@ export default function App() {
     } else if (target === 'SETTINGS') {
       loadSecondaryFonts();
       loadSettings();
+    } else if (target === 'PLAYGROUND') {
+      loadSecondaryFonts();
+      loadPlayground();
     }
   };
 
@@ -110,6 +116,8 @@ export default function App() {
       url.searchParams.set('page', 'wheel');
     } else if (newView === 'SETTINGS') {
       url.searchParams.set('page', 'settings');
+    } else if (newView === 'PLAYGROUND') {
+      url.searchParams.set('page', 'banners');
     } else if (newView === 'LOBBY') {
       url.search = '';
       Object.entries(params).forEach(([key, val]) => {
@@ -134,6 +142,7 @@ export default function App() {
         {view === 'NOTES' && <Notes navigateTo={navigateTo} />}
         {view === 'WHEEL' && <Wheel navigateTo={navigateTo} />}
         {view === 'SETTINGS' && <Settings navigateTo={navigateTo} />}
+        {view === 'PLAYGROUND' && <BannerPlayground navigateTo={navigateTo} />}
       </Suspense>
     </div>
   );

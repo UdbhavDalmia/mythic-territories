@@ -18,6 +18,7 @@ import {
   Settings,
   Shield,
   Snowflake,
+  Sparkles,
   Swords,
   Users,
   X,
@@ -1202,6 +1203,15 @@ export default function Lobby({ navigateTo, onWarm }) {
           >
             <Settings className="h-4 w-4" aria-hidden="true" />
             <span>Settings</span>
+          </button>
+          <button
+            className="home-resource-link text-ember-gold/90 hover:text-ember-gold"
+            onClick={() => handleNavigate('PLAYGROUND')}
+            onMouseEnter={() => onWarm?.('PLAYGROUND')}
+            title="Design and preview heraldic rods & living banner fabric"
+          >
+            <Sparkles className="h-4 w-4 text-ember-gold" aria-hidden="true" />
+            <span>Banner Studio</span>
           </button>
         </nav>
         <div className="text-[10px] sm:text-xs tracking-wider text-on-surface-variant/60">
