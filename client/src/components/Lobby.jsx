@@ -48,6 +48,7 @@ export default function Lobby({ navigateTo, onWarm }) {
   const [showModes, setShowModes] = useState(false);
   const [showMultiplayer, setShowMultiplayer] = useState(false);
   const [showFactionSelection, setShowFactionSelection] = useState(false);
+  const [hoveredFaction, setHoveredFaction] = useState(null);
   const [roomCode, setRoomCode] = useState('');
 
   const [currentMode, setCurrentMode] = useState(null);
@@ -668,15 +669,15 @@ export default function Lobby({ navigateTo, onWarm }) {
         0
       );
 
-      // Snow card from top-left, Ash card from bottom-right — diagonal clash entrance
+      // Both banners fly in from the sides (Snow from left, Ash from right)
       tl.fromTo(snowCardRef.current,
-        { x: -50, y: -25, opacity: 0, scale: 0.96 },
-        { x: 0, y: 0, opacity: 1, scale: 1, duration: 0.6, ease: 'expo.out' },
+        { x: -50, opacity: 0, scale: 0.96 },
+        { x: 0, opacity: 1, scale: 1, duration: 0.6, ease: 'expo.out' },
         0.05
       );
       tl.fromTo(ashCardRef.current,
-        { x: 50, y: 25, opacity: 0, scale: 0.96 },
-        { x: 0, y: 0, opacity: 1, scale: 1, duration: 0.6, ease: 'expo.out' },
+        { x: 50, opacity: 0, scale: 0.96 },
+        { x: 0, opacity: 1, scale: 1, duration: 0.6, ease: 'expo.out' },
         0.05
       );
 
@@ -1688,74 +1689,100 @@ export default function Lobby({ navigateTo, onWarm }) {
                 </div>
               )}
 
-              {/* Faction Cards - Asymmetrical Diagonal Clash (Frost Top-Left, Ash Bottom-Right) */}
-              <div className="flex flex-col gap-2.5 sm:gap-3.5 md:gap-4 w-full overflow-visible">
+              {/* Faction Arena: Both Banners Side-by-Side, Center Region Divided in Half */}
+              <div className="flex flex-col md:flex-row items-stretch justify-center gap-3 sm:gap-4 md:gap-5 w-full max-w-6xl overflow-visible my-1">
 
-                {/* FROST DOMAIN (TOP-LEFT WING) */}
+                {/* LEFT: FROST HERALDIC BANNER PILLAR */}
                 <div
                   ref={snowCardRef}
-                  className={`card-frost card-no-tilt glass-obsidian border rounded-2xl overflow-hidden flex flex-col sm:flex-row group w-full lg:w-[86%] self-start transition-all duration-300 ${
+                  className={`card-frost card-no-tilt glass-obsidian border rounded-2xl overflow-hidden flex flex-col items-center justify-center relative p-3 sm:p-4 w-full md:w-56 lg:w-64 xl:w-72 h-56 sm:h-68 md:h-[470px] lg:h-[500px] flex-shrink-0 cursor-pointer transition-all duration-300 ${
                     snowBtnState.status === 'mine'
-                      ? 'border-emerald-400/80 ring-2 ring-emerald-400/50 shadow-[0_0_30px_rgba(52,211,153,0.3)]'
+                      ? 'border-emerald-400/80 ring-2 ring-emerald-400/50 shadow-[0_0_35px_rgba(52,211,153,0.3)]'
                       : snowBtnState.status === 'occupied'
                       ? 'border-outline/20 opacity-55 grayscale-[35%]'
-                      : 'border-ice-light/35 hover:border-ice-light/70 shadow-[0_8px_32px_rgba(0,0,0,0.6)] hover:shadow-[0_12px_40px_rgba(56,189,248,0.2)] cursor-pointer'
+                      : hoveredFaction === 'snow'
+                      ? 'border-ice-light ring-2 ring-ice-light/40 shadow-[0_0_35px_rgba(56,189,248,0.35)] bg-sky-950/25'
+                      : 'border-ice-light/35 hover:border-ice-light/70 shadow-[0_8px_32px_rgba(0,0,0,0.6)]'
                   }`}
                   style={{ opacity: 0 }}
+                  onMouseEnter={() => setHoveredFaction('snow')}
+                  onMouseLeave={() => setHoveredFaction(null)}
                   onClick={() => !snowBtnState.disabled && handleSelectFaction('snow')}
                 >
-                  {/* Frost Banner Heraldic Pillar (Left) */}
-                  <div className="relative w-full sm:w-48 md:w-56 lg:w-60 h-44 sm:h-56 md:h-64 flex-shrink-0 overflow-hidden bg-gradient-to-b from-sky-950/45 via-sky-900/20 to-void-black flex items-center justify-center p-3 border-b sm:border-b-0 sm:border-r border-ice-light/20">
-                    {/* Atmospheric Glow */}
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(56,189,248,0.3)_0%,_transparent_75%)] pointer-events-none" />
+                  {/* Atmospheric Radial Aura */}
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(56,189,248,0.28)_0%,_transparent_75%)] pointer-events-none" />
 
-                    {/* Status Badges */}
-                    {snowBtnState.status === 'mine' && (
-                      <div className="absolute top-2.5 left-2.5 sm:left-auto sm:right-2.5 z-10 flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/60 backdrop-blur-md text-emerald-300 font-label-caps text-[9px] sm:text-[10px] tracking-widest shadow-[0_0_12px_rgba(52,211,153,0.3)]">
-                        <Check className="h-3 w-3 text-emerald-400" />
-                        <span>CHOSEN</span>
-                      </div>
-                    )}
-                    {snowBtnState.status === 'occupied' && (
-                      <div className="absolute top-2.5 left-2.5 sm:left-auto sm:right-2.5 z-10 flex items-center gap-1 px-2.5 py-1 rounded-full bg-void-black/80 border border-outline/40 backdrop-blur-md text-on-surface-variant font-label-caps text-[9px] sm:text-[10px] tracking-widest">
-                        <Lock className="h-3 w-3 text-magma-core" />
-                        <span>OCCUPIED</span>
-                      </div>
-                    )}
-
-                    {/* Heraldic Faction Banner */}
-                    <div className="h-full w-full flex items-center justify-center transition-transform duration-700 ease-out group-hover:scale-105 group-hover:-translate-y-1">
-                      <FactionBanner faction="frost" idPrefix="lobby-frost" className="h-full w-auto" />
+                  {/* Status Badges */}
+                  {snowBtnState.status === 'mine' && (
+                    <div className="absolute top-3 left-3 z-10 flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/60 backdrop-blur-md text-emerald-300 font-label-caps text-[9px] sm:text-[10px] tracking-widest shadow-[0_0_12px_rgba(52,211,153,0.3)]">
+                      <Check className="h-3 w-3 text-emerald-400" />
+                      <span>CHOSEN</span>
                     </div>
+                  )}
+                  {snowBtnState.status === 'occupied' && (
+                    <div className="absolute top-3 left-3 z-10 flex items-center gap-1 px-2.5 py-1 rounded-full bg-void-black/80 border border-outline/40 backdrop-blur-md text-on-surface-variant font-label-caps text-[9px] sm:text-[10px] tracking-widest">
+                      <Lock className="h-3 w-3 text-magma-core" />
+                      <span>OCCUPIED</span>
+                    </div>
+                  )}
+
+                  {/* Heraldic Faction Banner */}
+                  <div className={`h-full w-full max-w-[210px] flex items-center justify-center transition-transform duration-500 ease-out ${hoveredFaction === 'snow' ? 'scale-105 -translate-y-1' : ''}`}>
+                    <FactionBanner faction="frost" idPrefix="lobby-frost" className="h-full w-auto" />
                   </div>
 
-                  {/* Frost Info & Command Wing (Top-Right) */}
-                  <div className="p-3.5 sm:p-4 md:p-5 flex flex-col justify-between flex-grow gap-2.5 sm:gap-3">
+                  {/* Realm Pillar Label */}
+                  <div className="absolute bottom-2.5 inset-x-0 flex flex-col items-center pointer-events-none">
+                    <span className="text-[10px] font-label-caps tracking-[0.25em] text-ice-light/80 uppercase font-semibold">
+                      FROST REALM
+                    </span>
+                  </div>
+                </div>
+
+                {/* CENTER: DIVIDED IN HALF (TOP HALF SNOW, BOTTOM HALF ASH) */}
+                <div className="flex-1 flex flex-col justify-between gap-3 sm:gap-3.5 md:gap-4 h-auto md:h-[470px] lg:h-[500px]">
+
+                  {/* TOP HALF: SNOW REGION */}
+                  <div
+                    className={`glass-obsidian border rounded-2xl p-4 sm:p-5 md:p-6 flex flex-col justify-between transition-all duration-300 cursor-pointer h-auto md:h-[calc(50%-8px)] ${
+                      snowBtnState.status === 'mine'
+                        ? 'border-emerald-400/80 ring-2 ring-emerald-400/50 shadow-[0_0_30px_rgba(52,211,153,0.3)]'
+                        : snowBtnState.status === 'occupied'
+                        ? 'border-outline/20 opacity-55 grayscale-[35%]'
+                        : hoveredFaction === 'snow'
+                        ? 'border-ice-light ring-2 ring-ice-light/35 shadow-[0_0_30px_rgba(56,189,248,0.3)] bg-sky-950/30'
+                        : 'border-ice-light/30 hover:border-ice-light/60 bg-sky-950/15'
+                    }`}
+                    onMouseEnter={() => setHoveredFaction('snow')}
+                    onMouseLeave={() => setHoveredFaction(null)}
+                    onClick={() => !snowBtnState.disabled && handleSelectFaction('snow')}
+                  >
                     <div>
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <h3 className="text-base sm:text-lg md:text-2xl text-ice-light tracking-widest uppercase almendra-font font-bold drop-shadow-[0_0_14px_rgba(56,189,248,0.45)]">
-                          FROST DOMAIN
-                        </h3>
-                        <span className="px-2.5 py-0.5 rounded-full bg-ice-light/10 border border-ice-light/25 text-[8px] sm:text-[10px] font-label-caps tracking-widest text-ice-light font-semibold">
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base sm:text-lg">❄</span>
+                          <h3 className="text-base sm:text-lg md:text-xl lg:text-2xl text-ice-light tracking-widest uppercase almendra-font font-bold drop-shadow-[0_0_12px_rgba(56,189,248,0.45)]">
+                            FROST DOMAIN
+                          </h3>
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded-full bg-ice-light/15 border border-ice-light/30 text-[8px] sm:text-[10px] font-label-caps tracking-widest text-ice-light font-semibold">
                           CONTROL / DEFENSE
                         </span>
                       </div>
-                      <p className="text-on-surface-variant text-[11px] sm:text-xs md:text-sm leading-relaxed max-w-xl">
-                        Absolute order and crystalline geometry. Freeze encroaching enemies, raise impassable glacial barriers, and claim eternal winter dominion across the northern rim.
+                      <p className="text-on-surface-variant text-xs sm:text-sm leading-relaxed">
+                        Absolute order and crystalline geometry. Freeze encroaching enemies, raise impassable glacial barriers, and claim eternal winter dominion across the northern tundra.
                       </p>
                     </div>
 
-                    <div className="flex items-center justify-between gap-3 pt-1">
-                      <div className="hidden sm:flex items-center gap-2 text-[10px] text-ice-light/60 font-label-caps tracking-wider">
-                        <span>❄ Glacial Wall</span>
-                        <span>&bull;</span>
-                        <span>Permafrost Vow</span>
-                        <span>&bull;</span>
-                        <span>Chill Aura</span>
+                    <div className="flex items-center justify-between gap-3 pt-2 sm:pt-3 border-t border-ice-light/15">
+                      <div className="hidden sm:flex items-center gap-2 text-[10px] text-ice-light/70 font-label-caps tracking-wider">
+                        <span className="px-2 py-0.5 rounded bg-ice-light/10 border border-ice-light/20">Glacial Wall</span>
+                        <span className="px-2 py-0.5 rounded bg-ice-light/10 border border-ice-light/20">Permafrost Vow</span>
+                        <span className="px-2 py-0.5 rounded bg-ice-light/10 border border-ice-light/20">Chill Aura</span>
                       </div>
                       <button
                         type="button"
-                        className={`py-2 sm:py-2.5 px-4 sm:px-6 rounded-xl tracking-widest transition-all rye-font text-xs sm:text-sm font-bold flex items-center justify-center gap-2 ml-auto ${
+                        className={`py-2 sm:py-2.5 px-5 sm:px-7 rounded-xl tracking-widest transition-all rye-font text-xs sm:text-sm font-bold flex items-center justify-center gap-2 ml-auto ${
                           snowBtnState.status === 'mine'
                             ? 'bg-emerald-500/20 border-2 border-emerald-400 text-emerald-300 shadow-[0_0_20px_rgba(52,211,153,0.3)] cursor-default'
                             : snowBtnState.status === 'occupied'
@@ -1774,41 +1801,48 @@ export default function Lobby({ navigateTo, onWarm }) {
                       </button>
                     </div>
                   </div>
-                </div>
 
-                {/* ASH DOMAIN (BOTTOM-RIGHT WING) */}
-                <div
-                  ref={ashCardRef}
-                  className={`card-fire card-no-tilt glass-obsidian border rounded-2xl overflow-hidden flex flex-col sm:flex-row group w-full lg:w-[86%] self-end transition-all duration-300 ${
-                    ashBtnState.status === 'mine'
-                      ? 'border-emerald-400/80 ring-2 ring-emerald-400/50 shadow-[0_0_30px_rgba(52,211,153,0.3)]'
-                      : ashBtnState.status === 'occupied'
-                      ? 'border-outline/20 opacity-55 grayscale-[35%]'
-                      : 'border-magma-core/35 hover:border-magma-core/70 shadow-[0_8px_32px_rgba(0,0,0,0.6)] hover:shadow-[0_12px_40px_rgba(239,68,68,0.2)] cursor-pointer'
-                  }`}
-                  style={{ opacity: 0 }}
-                  onClick={() => !ashBtnState.disabled && handleSelectFaction('ash')}
-                >
-                  {/* Ash Info & Command Wing (Bottom-Left) */}
-                  <div className="p-3.5 sm:p-4 md:p-5 flex flex-col justify-between flex-grow gap-2.5 sm:gap-3 order-2 sm:order-1">
+                  {/* BOTTOM HALF: ASH REGION */}
+                  <div
+                    className={`glass-obsidian border rounded-2xl p-4 sm:p-5 md:p-6 flex flex-col justify-between transition-all duration-300 cursor-pointer h-auto md:h-[calc(50%-8px)] ${
+                      ashBtnState.status === 'mine'
+                        ? 'border-emerald-400/80 ring-2 ring-emerald-400/50 shadow-[0_0_30px_rgba(52,211,153,0.3)]'
+                        : ashBtnState.status === 'occupied'
+                        ? 'border-outline/20 opacity-55 grayscale-[35%]'
+                        : hoveredFaction === 'ash'
+                        ? 'border-magma-core ring-2 ring-magma-core/35 shadow-[0_0_30px_rgba(239,68,68,0.3)] bg-rose-950/30'
+                        : 'border-magma-core/30 hover:border-magma-core/60 bg-rose-950/15'
+                    }`}
+                    onMouseEnter={() => setHoveredFaction('ash')}
+                    onMouseLeave={() => setHoveredFaction(null)}
+                    onClick={() => !ashBtnState.disabled && handleSelectFaction('ash')}
+                  >
                     <div>
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="px-2.5 py-0.5 rounded-full bg-magma-core/10 border border-magma-core/25 text-[8px] sm:text-[10px] font-label-caps tracking-widest text-magma-core font-semibold">
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base sm:text-lg">🔥</span>
+                          <h3 className="text-base sm:text-lg md:text-xl lg:text-2xl text-magma-core tracking-widest uppercase almendra-font font-bold drop-shadow-[0_0_12px_rgba(239,68,68,0.45)]">
+                            ASH DOMAIN
+                          </h3>
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded-full bg-magma-core/15 border border-magma-core/30 text-[8px] sm:text-[10px] font-label-caps tracking-widest text-magma-core font-semibold">
                           ASSAULT / BURST
                         </span>
-                        <h3 className="text-base sm:text-lg md:text-2xl text-magma-core tracking-widest uppercase almendra-font font-bold drop-shadow-[0_0_14px_rgba(239,68,68,0.45)]">
-                          ASH DOMAIN
-                        </h3>
                       </div>
-                      <p className="text-on-surface-variant text-[11px] sm:text-xs md:text-sm leading-relaxed max-w-xl sm:text-right">
-                        Explosive violence and volcanic power. Break enemy lines with raw lava bombardments, molten hazards, and scorched-earth dominance from the southern caldera.
+                      <p className="text-on-surface-variant text-xs sm:text-sm leading-relaxed">
+                        Explosive violence and volcanic power. Break enemy lines with raw lava bombardments, molten hazards, and scorched-earth dominance from the molten caldera.
                       </p>
                     </div>
 
-                    <div className="flex items-center justify-between gap-3 pt-1">
+                    <div className="flex items-center justify-between gap-3 pt-2 sm:pt-3 border-t border-magma-core/15">
+                      <div className="hidden sm:flex items-center gap-2 text-[10px] sm:text-[11px] text-magma-core/70 font-label-caps tracking-wider">
+                        <span className="px-2 py-0.5 rounded bg-magma-core/10 border border-magma-core/20">Scorched Earth</span>
+                        <span className="px-2 py-0.5 rounded bg-magma-core/10 border border-magma-core/20">Armor Pierce</span>
+                        <span className="px-2 py-0.5 rounded bg-magma-core/10 border border-magma-core/20">Lava Blast</span>
+                      </div>
                       <button
                         type="button"
-                        className={`py-2 sm:py-2.5 px-4 sm:px-6 rounded-xl tracking-widest transition-all rye-font text-xs sm:text-sm font-bold flex items-center justify-center gap-2 ${
+                        className={`py-2 sm:py-2.5 px-5 sm:px-7 rounded-xl tracking-widest transition-all rye-font text-xs sm:text-sm font-bold flex items-center justify-center gap-2 ml-auto ${
                           ashBtnState.status === 'mine'
                             ? 'bg-emerald-500/20 border-2 border-emerald-400 text-emerald-300 shadow-[0_0_20px_rgba(52,211,153,0.3)] cursor-default'
                             : ashBtnState.status === 'occupied'
@@ -1825,40 +1859,55 @@ export default function Lobby({ navigateTo, onWarm }) {
                         <span>{ashBtnState.label}</span>
                         {ashBtnState.status === 'available' && <ChevronRight className="h-4 w-4 text-magma-core group-hover:translate-x-1 transition-transform" />}
                       </button>
-
-                      <div className="hidden sm:flex items-center gap-2 text-[10px] text-magma-core/60 font-label-caps tracking-wider ml-auto">
-                        <span>🔥 Scorched Earth</span>
-                        <span>&bull;</span>
-                        <span>Armor Pierce</span>
-                        <span>&bull;</span>
-                        <span>Lava Blast</span>
-                      </div>
                     </div>
                   </div>
 
-                  {/* Ash Banner Heraldic Pillar (Right) */}
-                  <div className="relative w-full sm:w-48 md:w-56 lg:w-60 h-44 sm:h-56 md:h-64 flex-shrink-0 overflow-hidden bg-gradient-to-b from-rose-950/45 via-amber-950/20 to-void-black flex items-center justify-center p-3 order-1 sm:order-2 border-b sm:border-b-0 sm:border-l border-magma-core/20">
-                    {/* Atmospheric Glow */}
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(239,68,68,0.3)_0%,_transparent_75%)] pointer-events-none" />
+                </div>
 
-                    {/* Status Badges */}
-                    {ashBtnState.status === 'mine' && (
-                      <div className="absolute top-2.5 right-2.5 z-10 flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/60 backdrop-blur-md text-emerald-300 font-label-caps text-[9px] sm:text-[10px] tracking-widest shadow-[0_0_12px_rgba(52,211,153,0.3)]">
-                        <Check className="h-3 w-3 text-emerald-400" />
-                        <span>CHOSEN</span>
-                      </div>
-                    )}
-                    {ashBtnState.status === 'occupied' && (
-                      <div className="absolute top-2.5 right-2.5 z-10 flex items-center gap-1 px-2.5 py-1 rounded-full bg-void-black/80 border border-outline/40 backdrop-blur-md text-on-surface-variant font-label-caps text-[9px] sm:text-[10px] tracking-widest">
-                        <Lock className="h-3 w-3 text-magma-core" />
-                        <span>OCCUPIED</span>
-                      </div>
-                    )}
+                {/* RIGHT: ASH HERALDIC BANNER PILLAR */}
+                <div
+                  ref={ashCardRef}
+                  className={`card-fire card-no-tilt glass-obsidian border rounded-2xl overflow-hidden flex flex-col items-center justify-center relative p-3 sm:p-4 w-full md:w-56 lg:w-64 xl:w-72 h-56 sm:h-68 md:h-[470px] lg:h-[500px] flex-shrink-0 cursor-pointer transition-all duration-300 ${
+                    ashBtnState.status === 'mine'
+                      ? 'border-emerald-400/80 ring-2 ring-emerald-400/50 shadow-[0_0_35px_rgba(52,211,153,0.3)]'
+                      : ashBtnState.status === 'occupied'
+                      ? 'border-outline/20 opacity-55 grayscale-[35%]'
+                      : hoveredFaction === 'ash'
+                      ? 'border-magma-core ring-2 ring-magma-core/40 shadow-[0_0_35px_rgba(239,68,68,0.35)] bg-rose-950/25'
+                      : 'border-magma-core/35 hover:border-magma-core/70 shadow-[0_8px_32px_rgba(0,0,0,0.6)]'
+                  }`}
+                  style={{ opacity: 0 }}
+                  onMouseEnter={() => setHoveredFaction('ash')}
+                  onMouseLeave={() => setHoveredFaction(null)}
+                  onClick={() => !ashBtnState.disabled && handleSelectFaction('ash')}
+                >
+                  {/* Atmospheric Radial Aura */}
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(239,68,68,0.28)_0%,_transparent_75%)] pointer-events-none" />
 
-                    {/* Heraldic Faction Banner */}
-                    <div className="h-full w-full flex items-center justify-center transition-transform duration-700 ease-out group-hover:scale-105 group-hover:-translate-y-1">
-                      <FactionBanner faction="ash" idPrefix="lobby-ash" className="h-full w-auto" />
+                  {/* Status Badges */}
+                  {ashBtnState.status === 'mine' && (
+                    <div className="absolute top-3 right-3 z-10 flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/60 backdrop-blur-md text-emerald-300 font-label-caps text-[9px] sm:text-[10px] tracking-widest shadow-[0_0_12px_rgba(52,211,153,0.3)]">
+                      <Check className="h-3 w-3 text-emerald-400" />
+                      <span>CHOSEN</span>
                     </div>
+                  )}
+                  {ashBtnState.status === 'occupied' && (
+                    <div className="absolute top-3 right-3 z-10 flex items-center gap-1 px-2.5 py-1 rounded-full bg-void-black/80 border border-outline/40 backdrop-blur-md text-on-surface-variant font-label-caps text-[9px] sm:text-[10px] tracking-widest">
+                      <Lock className="h-3 w-3 text-magma-core" />
+                      <span>OCCUPIED</span>
+                    </div>
+                  )}
+
+                  {/* Heraldic Faction Banner */}
+                  <div className={`h-full w-full max-w-[210px] flex items-center justify-center transition-transform duration-500 ease-out ${hoveredFaction === 'ash' ? 'scale-105 -translate-y-1' : ''}`}>
+                    <FactionBanner faction="ash" idPrefix="lobby-ash" className="h-full w-auto" />
+                  </div>
+
+                  {/* Realm Pillar Label */}
+                  <div className="absolute bottom-2.5 inset-x-0 flex flex-col items-center pointer-events-none">
+                    <span className="text-[10px] font-label-caps tracking-[0.25em] text-magma-core/80 uppercase font-semibold">
+                      ASH REALM
+                    </span>
                   </div>
                 </div>
 
