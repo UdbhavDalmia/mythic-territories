@@ -166,6 +166,141 @@ export default function Board({
         if (terrCacheCanvasRef.current) {
           bgCtx.drawImage(terrCacheCanvasRef.current, 0, 0);
         }
+
+        // --- Ground Layer: Death Meteor Scorched Blast Radius ---
+        if (currentGs.deathMeteors && currentGs.deathMeteors.length > 0) {
+          currentGs.deathMeteors.forEach(m => {
+            const radius = 2;
+            const dur = m.duration !== undefined ? m.duration : 6;
+            const decay = Math.max(0.2, dur / 6);
+            for (let dr = -radius; dr <= radius; dr++) {
+              for (let dc = -radius; dc <= radius; dc++) {
+                const dist = Math.hypot(dr, dc);
+                if (dist > radius) continue;
+                const tr = m.r + dr, tc = m.c + dc;
+                if (tr < 0 || tr >= 10 || tc < 0 || tc >= 10) continue;
+                const alpha = Math.max(0.08, (0.65 - dist * 0.16) * decay);
+                bgCtx.save();
+                bgCtx.fillStyle = `rgba(30, 8, 2, ${alpha * 0.85})`;
+                bgCtx.fillRect(tc * CS, tr * CS, CS, CS);
+                bgCtx.strokeStyle = `rgba(255, 60, 0, ${alpha * 0.7})`;
+                bgCtx.lineWidth = 1.5;
+                const cx = (tc + 0.5) * CS;
+                const cy = (tr + 0.5) * CS;
+                for (let si = 0; si < 3; si++) {
+                  const ang = (si / 3) * Math.PI * 2 + (tc * 1.3 + tr * 0.7);
+                  bgCtx.beginPath();
+                  bgCtx.moveTo(cx + Math.cos(ang) * 4, cy + Math.sin(ang) * 4);
+                  bgCtx.lineTo(cx + Math.cos(ang) * (CS * 0.42), cy + Math.sin(ang) * (CS * 0.42));
+                  bgCtx.stroke();
+                }
+                bgCtx.restore();
+              }
+            }
+          });
+        }
+
+        // --- Ground Layer: Special Terrains (Permanent Crater Black Mass, Magma Shards, Icy Ground) ---
+        if (currentGs.specialTerrains && currentGs.specialTerrains.length > 0) {
+          currentGs.specialTerrains.forEach(t => {
+            const cx = (t.col + 0.5) * CS;
+            const cy = (t.row + 0.5) * CS;
+            const x = t.col * CS;
+            const y = t.row * CS;
+
+            if (t.type === 'crater') {
+              bgCtx.save();
+              const seed = (Math.round(t.row) * 73 + Math.round(t.col) * 179);
+              // Deterministic PRNG helper so blocks remain rock-solid and stable each frame
+              const rnd = (i) => {
+                const s = Math.sin(seed * 9.1 + i * 13.37) * 43758.5453;
+                return s - Math.floor(s);
+              };
+
+              // 1. Base Scorched Earth (Irregular dark charcoal rectangular & square blast slabs)
+              const numDebris = 14;
+              for (let d = 0; d < numDebris; d++) {
+                const dw = CS * (0.28 + rnd(d * 2) * 0.38);
+                const dh = CS * (0.28 + rnd(d * 2 + 1) * 0.38);
+                const ox = (rnd(d * 3) - 0.5) * CS * 0.88;
+                const oy = (rnd(d * 3 + 1) - 0.5) * CS * 0.88;
+                const shade = Math.floor(10 + rnd(d) * 15);
+                bgCtx.fillStyle = `rgba(${shade}, ${Math.floor(shade * 0.38)}, ${Math.floor(shade * 0.18)}, 0.88)`;
+                bgCtx.fillRect(cx + ox - dw / 2, cy + oy - dh / 2, dw, dh);
+              }
+
+              // 2. Fractured Basalt Rim Blocks (Solid Random Rectangles and Squares, NO orange borders)
+              const numBlocks = 14;
+              for (let b = 0; b < numBlocks; b++) {
+                const angle = (b / numBlocks) * Math.PI * 2 + (rnd(b) - 0.5) * 0.28;
+                const dist = CS * (0.20 + rnd(b * 4) * 0.20);
+                const bx = cx + Math.cos(angle) * dist;
+                const by = cy + Math.sin(angle) * dist;
+                const bw = CS * (0.26 + rnd(b * 5) * 0.22);
+                const bh = CS * (0.24 + rnd(b * 5 + 1) * 0.22);
+
+                // Deep obsidian rock slab - completely seamless solid dark blocks
+                const tone = Math.floor(4 + rnd(b * 3) * 8);
+                bgCtx.fillStyle = `rgb(${tone}, ${Math.floor(tone * 0.5)}, ${Math.floor(tone * 0.3)})`;
+                bgCtx.fillRect(bx - bw / 2, by - bh / 2, bw, bh);
+
+                // Subtle dark bevel shadow (bottom/right only, NO colored border)
+                bgCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                bgCtx.fillRect(bx - bw / 2, by + bh / 2 - 2, bw, 2);
+                bgCtx.fillRect(bx + bw / 2 - 2, by - bh / 2, 2, bh);
+              }
+
+              // 3. Sunken Central Pit (Deep Abyss Rectangles)
+              const pitW = CS * 0.52;
+              const pitH = CS * 0.48;
+              bgCtx.fillStyle = '#050201';
+              bgCtx.fillRect(cx - pitW / 2, cy - pitH / 2, pitW, pitH);
+
+              const innerPitW = CS * 0.36;
+              const innerPitH = CS * 0.32;
+              bgCtx.fillStyle = '#010000';
+              bgCtx.fillRect(cx - innerPitW / 2, cy - innerPitH / 2, innerPitW, innerPitH);
+
+              // 4. Molten Magma Core (Deep glowing core without any line borders)
+              const pulse = 0.85 + 0.15 * Math.sin(performance.now() * 0.003 + seed);
+              const magmaW = CS * 0.22;
+              const magmaH = CS * 0.20;
+
+              bgCtx.save();
+              bgCtx.shadowColor = 'rgba(255, 60, 0, 0.8)';
+              bgCtx.shadowBlur = 12 * pulse;
+              bgCtx.fillStyle = `rgba(220, 50, 0, ${pulse * 0.9})`;
+              bgCtx.fillRect(cx - magmaW / 2, cy - magmaH / 2, magmaW, magmaH);
+
+              // Hot inner molten core
+              bgCtx.fillStyle = `rgba(255, 160, 30, ${pulse * 0.95})`;
+              bgCtx.fillRect(cx - magmaW * 0.3, cy - magmaH * 0.3, magmaW * 0.6, magmaH * 0.6);
+
+              // Molten gold center sliver
+              bgCtx.fillStyle = `rgba(255, 240, 180, ${pulse})`;
+              bgCtx.fillRect(cx - magmaW * 0.12, cy - magmaH * 0.12, magmaW * 0.24, magmaH * 0.24);
+              bgCtx.restore();
+
+              bgCtx.restore();
+            } else if (t.type === 'magmaShards') {
+              bgCtx.save();
+              bgCtx.fillStyle = 'rgba(255, 60, 0, 0.25)';
+              bgCtx.fillRect(x, y, CS, CS);
+              bgCtx.strokeStyle = 'rgba(255, 120, 0, 0.7)';
+              bgCtx.lineWidth = 1.5;
+              bgCtx.strokeRect(x + 2, y + 2, CS - 4, CS - 4);
+              bgCtx.restore();
+            } else if (t.type === 'icyGround') {
+              bgCtx.save();
+              bgCtx.fillStyle = 'rgba(0, 200, 255, 0.2)';
+              bgCtx.fillRect(x, y, CS, CS);
+              bgCtx.strokeStyle = 'rgba(100, 220, 255, 0.6)';
+              bgCtx.lineWidth = 1.5;
+              bgCtx.strokeRect(x + 2, y + 2, CS - 4, CS - 4);
+              bgCtx.restore();
+            }
+          });
+        }
         bgCtx.restore();
       }
 
@@ -272,42 +407,9 @@ export default function Board({
       if (Effects.drawReignOfFireAnimations) Effects.drawReignOfFireAnimations(currentGs);
       if (Effects.drawDeathMeteorAnimations) Effects.drawDeathMeteorAnimations(currentGs);
 
-      // Death Meteor impact ground & revival shield
-      if (currentGs.deathMeteors && currentGs.deathMeteors.length > 0) {
-        currentGs.deathMeteors.forEach(m => {
-          const radius = 2;
-          const dur = m.duration !== undefined ? m.duration : 6;
-          const decay = dur / 6;
-          for (let dr = -radius; dr <= radius; dr++) {
-            for (let dc = -radius; dc <= radius; dc++) {
-              const dist = Math.hypot(dr, dc);
-              if (dist > radius) continue;
-              const tr = m.r + dr, tc = m.c + dc;
-              if (tr < 0 || tr >= 10 || tc < 0 || tc >= 10) continue;
-              const alpha = Math.max(0.08, (0.6 - dist * 0.14) * decay);
-              ctx.save();
-              ctx.fillStyle = `rgba(35, 10, 0, ${alpha * 0.75})`;
-              ctx.fillRect(tc * CS, tr * CS, CS, CS);
-              ctx.strokeStyle = `rgba(255, 60, 0, ${alpha * 0.85})`;
-              ctx.lineWidth = 1.5;
-              const cx = (tc + 0.5) * CS;
-              const cy = (tr + 0.5) * CS;
-              for (let si = 0; si < 3; si++) {
-                const ang = (si / 3) * Math.PI * 2 + (tc * 1.3 + tr * 0.7);
-                ctx.beginPath();
-                ctx.moveTo(cx + Math.cos(ang) * 4, cy + Math.sin(ang) * 4);
-                ctx.lineTo(cx + Math.cos(ang) * (CS * 0.4), cy + Math.sin(ang) * (CS * 0.4));
-                ctx.stroke();
-              }
-              ctx.restore();
-            }
-          }
-        });
-      }
-
-      const ashTyrant = (currentGs.pieces || []).find(p => p.key === 'ashAshTyrant');
-      if (ashTyrant && Effects.drawDeathMeteorShield) {
-        Effects.drawDeathMeteorShield(ctx, ashTyrant, currentGs);
+      // Shield break shatter animations
+      if (Effects.drawShieldBreakAnimations) {
+        Effects.drawShieldBreakAnimations(ctx, currentGs);
       }
 
       if (Effects.drawShrineEffects) Effects.drawShrineEffects(currentGs);
@@ -349,6 +451,7 @@ export default function Board({
 
   // Render grid cells
   const renderCells = () => {
+    if (!gameState) return null;
     const cells = [];
     const snowSet = gameState?.snowTerritory instanceof Set
       ? gameState.snowTerritory
@@ -358,6 +461,7 @@ export default function Board({
       : new Set(Array.isArray(gameState?.ashTerritory) ? gameState.ashTerritory : []);
     const voidSet = new Set((gameState?.voidSquares || []).map(v => `${v.row},${v.col}`));
     const wallSet = new Set((gameState?.glacialWalls || []).map(w => `${w.row},${w.col}`));
+    const craterSet = new Set((gameState?.specialTerrains || []).filter(st => st.type === 'crater').map(st => `${Math.round(st.row)},${Math.round(st.col)}`));
 
     // Ability targeting highlights
     const isAbilityTargeting = gameState?.currentState === 'ABILITY_TARGETING' || gameState?.currentState === 'WALL_PLACEMENT_FIRST' || gameState?.currentState === 'TETHER_TARGETING' || gameState?.currentState === 'WALL_PLACEMENT_SECOND';
@@ -373,12 +477,13 @@ export default function Board({
       const hasAshTerritory = ashSet.has(posKey);
       const isVoid = voidSet.has(posKey);
       const isWall = wallSet.has(posKey);
+      const hasCrater = craterSet.has(posKey);
       
       const riftOwner = isRiftCell(r, c);
 
       // Check if cell is valid for ability target
       let isAbilityTarget = false;
-      if (isAbilityTargeting && gameState.selectedPiece) {
+      if (isAbilityTargeting && gameState?.selectedPiece) {
         const piece = gameState.selectedPiece;
         const abilityKey = gameState.abilityContext?.abilityKey || piece.ability?.key;
         const ability = C.ABILITIES[abilityKey];
@@ -423,7 +528,6 @@ export default function Board({
                 case 'empty': isAbilityTarget = !targetPiece && !isWall && !isVoid; break;
                 case 'any': {
                   if (abilityKey === 'ObsidianPillar') {
-                    const hasCrater = (gameState.specialTerrains || []).some(st => st.type === 'crater' && Math.round(st.row) === r && Math.round(st.col) === c);
                     isAbilityTarget = !targetPiece && !isWall && !isVoid && !hasCrater;
                   } else {
                     isAbilityTarget = true;
@@ -439,7 +543,10 @@ export default function Board({
       // Base cell borders and state indicators
       let cellStyle = { border: '1px solid rgba(255, 255, 255, 0.03)' };
       let cellClass = 'hover:bg-white/5';
-      if (isVoid) {
+      if (hasCrater) {
+        cellStyle = { border: 'none', outline: 'none' };
+        cellClass = '';
+      } else if (isVoid) {
         cellStyle = { backgroundColor: 'rgba(15, 10, 25, 0.95)', border: '1.5px solid rgba(147, 51, 234, 0.2)' };
       } else if (isWall) {
         cellStyle = { backgroundColor: 'rgba(14, 165, 233, 0.25)', border: '2px solid rgba(125, 211, 252, 0.5)' };
@@ -527,7 +634,7 @@ export default function Board({
     });
 
     // 2. Conduit Link Active (line connecting rifts)
-    if (gameState.conduitLinkActive && gameState.dynamicRifts?.length >= 2) {
+    if (gameState?.conduitLinkActive && gameState.dynamicRifts?.length >= 2) {
       const [r1, r2] = gameState.dynamicRifts;
       const cell1 = r1.cells[4];
       const cell2 = r2.cells[4];
@@ -544,7 +651,7 @@ export default function Board({
         y2 = (9 - cell2[0]) * 10 + 5;
       }
 
-      const conduitColor = gameState.conduitTeam === 'snow' ? 'rgba(56,189,248,0.85)' : 'rgba(239,68,68,0.85)';
+      const conduitColor = gameState?.conduitTeam === 'snow' ? 'rgba(56,189,248,0.85)' : 'rgba(239,68,68,0.85)';
 
       lines.push(
         <line 

@@ -5,11 +5,13 @@ const loadGame = () => import('./components/Game.jsx');
 const loadGuide = () => import('./components/Guide.jsx');
 const loadNotes = () => import('./components/Notes.jsx');
 const loadWheel = () => import('./components/Wheel.jsx');
+const loadSettings = () => import('./components/Settings.jsx');
 
 const Game = lazy(loadGame);
 const Guide = lazy(loadGuide);
 const Notes = lazy(loadNotes);
 const Wheel = lazy(loadWheel);
+const Settings = lazy(loadSettings);
 
 const loadSecondaryFonts = () => {
   if (typeof document === 'undefined') return;
@@ -55,6 +57,7 @@ export default function App() {
     if (page === 'rules' || path.endsWith('/rules') || path.endsWith('/guide')) return 'GUIDE';
     if (page === 'notes' || path.endsWith('/notes')) return 'NOTES';
     if (page === 'wheel' || page === 'destiny' || path.endsWith('/wheel') || path.endsWith('/destiny')) return 'WHEEL';
+    if (page === 'settings' || path.endsWith('/settings')) return 'SETTINGS';
     if ((params.get('room') && params.get('team')) || params.get('mode') === 'local') return 'GAME';
     return 'LOBBY';
   };
@@ -90,6 +93,9 @@ export default function App() {
     } else if (target === 'WHEEL') {
       loadSecondaryFonts();
       loadWheel();
+    } else if (target === 'SETTINGS') {
+      loadSecondaryFonts();
+      loadSettings();
     }
   };
 
@@ -102,6 +108,8 @@ export default function App() {
       url.searchParams.set('page', 'notes');
     } else if (newView === 'WHEEL') {
       url.searchParams.set('page', 'wheel');
+    } else if (newView === 'SETTINGS') {
+      url.searchParams.set('page', 'settings');
     } else if (newView === 'LOBBY') {
       url.search = '';
       Object.entries(params).forEach(([key, val]) => {
@@ -125,6 +133,7 @@ export default function App() {
         {view === 'GUIDE' && <Guide navigateTo={navigateTo} />}
         {view === 'NOTES' && <Notes navigateTo={navigateTo} />}
         {view === 'WHEEL' && <Wheel navigateTo={navigateTo} />}
+        {view === 'SETTINGS' && <Settings navigateTo={navigateTo} />}
       </Suspense>
     </div>
   );

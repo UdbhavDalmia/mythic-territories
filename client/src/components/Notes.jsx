@@ -10,6 +10,7 @@ import {
   Minus,
   Plus,
   ScrollText,
+  Settings as SettingsIcon,
   SlidersHorizontal,
   Sparkles,
   Wrench,
@@ -579,6 +580,13 @@ export default function Notes({ navigateTo }) {
             >
               <ScrollText className="h-3.5 w-3.5" aria-hidden="true" />
               Patch Notes
+            </button>
+            <button
+              className="inline-flex items-center gap-2 text-xs text-on-surface-variant hover:text-ember-gold transition-colors duration-200 cursor-pointer bg-transparent border-none"
+              onClick={() => handleNavigate('SETTINGS')}
+            >
+              <SettingsIcon className="h-3.5 w-3.5" aria-hidden="true" />
+              Settings
             </button>
           </div>
         </div>

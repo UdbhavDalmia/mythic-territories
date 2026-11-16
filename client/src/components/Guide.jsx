@@ -11,6 +11,7 @@ import {
   Landmark,
   Map,
   Search,
+  Settings as SettingsIcon,
   Shield,
   Snowflake,
   Sparkles,
@@ -1272,6 +1273,12 @@ export default function Guide({ navigateTo }) {
               onClick={() => handleNavigate('NOTES')}
             >
               Patch Notes
+            </button>
+            <button
+              className="text-xs text-on-surface-variant hover:text-ember-gold transition-colors duration-200 cursor-pointer bg-transparent border-none"
+              onClick={() => handleNavigate('SETTINGS')}
+            >
+              Settings
             </button>
           </div>
         </div>

@@ -15,10 +15,29 @@ function Piece({
 }) {
   const pieceRef = useRef(null);
   const innerRef = useRef(null);
+  const getPieceInitialHp = (p) => typeof p.currentHp === 'number' ? p.currentHp : (p.maxHp || C.PIECE_TYPES[p.key]?.stats?.hp || 5);
   const prevCoords = useRef({ row: piece.row, col: piece.col });
-  const prevHp = useRef(piece.currentHp || 0);
+  const prevHp = useRef(getPieceInitialHp(piece));
   
   const [damageTexts, setDamageTexts] = useState([]);
+
+  // Shield state tracking for spawn-in and shatter-out break animations
+  const isShieldActive = !!(piece.hasDeathMeteorInvincibility || piece.hasHelpFromAboveActive);
+  const prevShieldActive = useRef(isShieldActive);
+  const [shieldBreaking, setShieldBreaking] = useState(false);
+  const [shieldBreakFaction, setShieldBreakFaction] = useState(null);
+
+  useEffect(() => {
+    if (prevShieldActive.current && !isShieldActive) {
+      setShieldBreaking(true);
+      setShieldBreakFaction(piece.key === 'snowFrostLord' ? 'snow' : 'ash');
+      const timer = setTimeout(() => {
+        setShieldBreaking(false);
+      }, 650);
+      return () => clearTimeout(timer);
+    }
+    prevShieldActive.current = isShieldActive;
+  }, [isShieldActive, piece.key]);
 
   // Faction themes
   const isSnow = piece.team === 'snow';
@@ -50,7 +69,33 @@ function Piece({
     // Check if position actually changed
     const moved = prevCoords.current.row !== piece.row || prevCoords.current.col !== piece.col;
     
-    if (moved) {
+    if (piece.deathMeteorOrigin) {
+      const origR = piece.deathMeteorOrigin.row;
+      const origC = piece.deathMeteorOrigin.col;
+      let originLeft = origC * 10;
+      let originTop = origR * 10;
+      if (isLocalTeamAsh) {
+        originLeft = (9 - origC) * 10;
+        originTop = (9 - origR) * 10;
+      }
+      // Hold at original position while meteor plummets from space
+      gsap.set(pieceRef.current, {
+        left: `${originLeft}%`,
+        top: `${originTop}%`
+      });
+      // Delay moving Tyrant until the meteor impacts (~0.75s)
+      gsap.to(pieceRef.current, {
+        left: `${targetLeft}%`,
+        top: `${targetTop}%`,
+        delay: 0.75,
+        duration: 0.35,
+        ease: "power2.out",
+        onComplete: () => {
+          delete piece.deathMeteorOrigin;
+        }
+      });
+      prevCoords.current = { row: piece.row, col: piece.col };
+    } else if (moved) {
       // Animate movement from previous position
       gsap.to(pieceRef.current, {
         left: `${targetLeft}%`,
@@ -70,7 +115,7 @@ function Piece({
 
   // 3. Detect Damage & Launch Floating Damage Indicator + Hit Jolt on innerRef
   useEffect(() => {
-    const currentHp = piece.currentHp || 0;
+    const currentHp = typeof piece.currentHp === 'number' ? piece.currentHp : (piece.maxHp || C.PIECE_TYPES[piece.key]?.stats?.hp || 5);
     if (currentHp < prevHp.current) {
       const diff = prevHp.current - currentHp;
       const id = Math.random();
@@ -161,6 +206,113 @@ function Piece({
           <div className="selection-ring-outer" />
           <div className="selection-ring-pulse" />
         </>
+      )}
+
+      {/* Meteor Shield (Invulnerability) 3D Glowing Spherical Energy Orb */}
+      {piece.hasDeathMeteorInvincibility && (
+        <div 
+          className="absolute inset-[-12px] rounded-full pointer-events-none z-30 overflow-visible"
+          style={{
+            animation: 'shieldSpawnIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards'
+          }}
+        >
+          {/* 1. Volumetric Shaded Glass Sphere Shell */}
+          <div 
+            className="absolute inset-0 rounded-full"
+            style={{
+              background: 'radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.45) 0%, rgba(254, 240, 138, 0.22) 22%, rgba(245, 158, 11, 0.08) 52%, rgba(217, 119, 6, 0.25) 78%, rgba(250, 204, 21, 0.85) 96%, rgba(255, 255, 240, 0.95) 100%)',
+              boxShadow: 'inset -6px -8px 15px rgba(180, 83, 9, 0.65), inset 5px 6px 12px rgba(255, 255, 255, 0.75), inset 0 0 20px rgba(250, 204, 21, 0.35), 0 0 16px rgba(250, 204, 21, 0.75), 0 0 32px rgba(234, 179, 8, 0.3)',
+              border: '1.5px solid rgba(255, 250, 190, 0.9)'
+            }}
+          />
+          {/* 2. Distinct Top-Left Specular Highlight Glint */}
+          <div 
+            className="absolute rounded-full"
+            style={{
+              width: '44%',
+              height: '24%',
+              top: '12%',
+              left: '14%',
+              transform: 'rotate(-38deg)',
+              background: 'radial-gradient(ellipse at center, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.4) 50%, rgba(255, 255, 255, 0) 100%)',
+              filter: 'blur(0.5px)'
+            }}
+          />
+          {/* 3. Bottom-Right Subtle Fresnel Rim Glow */}
+          <div 
+            className="absolute rounded-full"
+            style={{
+              width: '48%',
+              height: '20%',
+              bottom: '10%',
+              right: '12%',
+              transform: 'rotate(-28deg)',
+              background: 'radial-gradient(ellipse at center, rgba(254, 240, 138, 0.7) 0%, rgba(245, 158, 11, 0.25) 55%, transparent 100%)',
+              filter: 'blur(1.2px)'
+            }}
+          />
+        </div>
+      )}
+
+      {/* Frost Lord Help From Above (Divine Shield) 3D Glowing Spherical Energy Orb */}
+      {piece.hasHelpFromAboveActive && (
+        <div 
+          className="absolute inset-[-12px] rounded-full pointer-events-none z-30 overflow-visible"
+          style={{
+            animation: 'shieldSpawnIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards'
+          }}
+        >
+          {/* 1. Volumetric Shaded Glacial Glass Sphere Shell */}
+          <div 
+            className="absolute inset-0 rounded-full"
+            style={{
+              background: 'radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.5) 0%, rgba(186, 230, 253, 0.25) 22%, rgba(56, 189, 248, 0.08) 52%, rgba(14, 116, 144, 0.25) 78%, rgba(56, 189, 248, 0.85) 96%, rgba(240, 249, 255, 0.95) 100%)',
+              boxShadow: 'inset -6px -8px 15px rgba(12, 74, 110, 0.65), inset 5px 6px 12px rgba(255, 255, 255, 0.8), inset 0 0 20px rgba(56, 189, 248, 0.35), 0 0 16px rgba(56, 189, 248, 0.75), 0 0 32px rgba(14, 165, 233, 0.3)',
+              border: '1.5px solid rgba(224, 242, 254, 0.9)'
+            }}
+          />
+          {/* 2. Distinct Top-Left Specular Highlight Glint */}
+          <div 
+            className="absolute rounded-full"
+            style={{
+              width: '44%',
+              height: '24%',
+              top: '12%',
+              left: '14%',
+              transform: 'rotate(-38deg)',
+              background: 'radial-gradient(ellipse at center, rgba(255, 255, 255, 0.98) 0%, rgba(224, 242, 254, 0.45) 50%, rgba(255, 255, 255, 0) 100%)',
+              filter: 'blur(0.5px)'
+            }}
+          />
+          {/* 3. Bottom-Right Subtle Fresnel Rim Glow */}
+          <div 
+            className="absolute rounded-full"
+            style={{
+              width: '48%',
+              height: '20%',
+              bottom: '10%',
+              right: '12%',
+              transform: 'rotate(-28deg)',
+              background: 'radial-gradient(ellipse at center, rgba(186, 230, 253, 0.7) 0%, rgba(14, 165, 233, 0.25) 55%, transparent 100%)',
+              filter: 'blur(1.2px)'
+            }}
+          />
+        </div>
+      )}
+
+      {/* Shattering Shield Break Animation */}
+      {shieldBreaking && (
+        <div 
+          className="absolute inset-[-10px] rounded-full pointer-events-none z-30 overflow-visible"
+          style={{
+            animation: 'shieldShatterOut 0.65s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards',
+            background: shieldBreakFaction === 'snow'
+              ? 'radial-gradient(circle at center, rgba(186, 230, 253, 0.3) 0%, rgba(56, 189, 248, 0.5) 80%, rgba(255, 255, 255, 0.85) 100%)'
+              : 'radial-gradient(circle at center, rgba(254, 240, 138, 0.3) 0%, rgba(250, 204, 21, 0.5) 80%, rgba(255, 255, 255, 0.85) 100%)',
+            border: `2px solid ${shieldBreakFaction === 'snow' ? '#38bdf8' : '#facc15'}`,
+            boxShadow: `0 0 30px ${shieldBreakFaction === 'snow' ? 'rgba(56, 189, 248, 0.9)' : 'rgba(250, 204, 21, 0.9)'}`
+          }}
+        />
       )}
 
       {/* Floating Damage Text List */}

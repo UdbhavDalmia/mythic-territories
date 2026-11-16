@@ -47,7 +47,7 @@ const VET_DESCS = {
 };
 
 const PASSIVE_DESCS = {
-  'snowFrostLord': { name: 'Help From Above', desc: 'Lethal damage is negated; becomes invulnerable for 5 turns and grants nearby allies +1 Strength.' },
+  'snowFrostLord': { name: 'Help From Above', desc: 'Lethal damage is negated; becomes invulnerable for 3 turns and grants nearby allies +1 Strength.' },
   'ashAshTyrant': { name: 'Death Meteor', desc: 'Lethal damage is negated; survives at 1 HP and triggers an explosion dealing 4 damage to enemies and 2 to allies.' },
   'snowSoulLinker': { name: 'Cold Snap', desc: 'If the bound enemy dies, the Soul Linker heals 2 HP; excess healing is converted into a 1-damage absorb shield.' },
   'ashAshReaper': { name: 'Ashes To Ashes', desc: 'When The Reaper\'s Toll expires, the stolen stats return and the enemy has a 50% chance to take 1 unavoidable damage.' },

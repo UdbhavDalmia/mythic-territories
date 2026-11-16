@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import Board from './Board.jsx';
 import AscensionModal from './AscensionModal.jsx';
+import VictoryScreen from './VictoryScreen.jsx';
 import * as Logic from '../../../shared/logic.js';
 import * as C from '../../../shared/constants.js';
 import * as E from '../../../shared/utils.js';
@@ -163,7 +164,26 @@ export default function Game({ navigateTo }) {
   const [isCompactLayout, setIsCompactLayout] = useState(window.innerWidth <= 1180);
   const [arenaScale, setArenaScale] = useState(1);
   const [battleCountdown, setBattleCountdown] = useState(null);
+  const [showGameOverModal, setShowGameOverModal] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
   const gameStateRef = useRef(gameState);
+
+  // Smooth Game Over entrance transition and hover dismissal
+  useEffect(() => {
+    if (gameState?.gameOver) {
+      setHoveredPiece(null);
+      const timer = setTimeout(() => {
+        setShowGameOverModal(true);
+        requestAnimationFrame(() => {
+          setModalVisible(true);
+        });
+      }, 400);
+      return () => clearTimeout(timer);
+    } else {
+      setShowGameOverModal(false);
+      setModalVisible(false);
+    }
+  }, [gameState?.gameOver]);
 
   useEffect(() => {
     gameStateRef.current = gameState;
@@ -203,8 +223,8 @@ export default function Game({ navigateTo }) {
       const compact = window.innerWidth <= 1180;
       setIsCompactLayout(compact);
       if (!compact) {
-        const availableH = window.innerHeight - 20;
-        const availableW = window.innerWidth - 20;
+        const availableH = window.innerHeight - 8;
+        const availableW = window.innerWidth - 8;
         const sY = availableH / 985;
         const sX = availableW / 1536;
         setArenaScale(Math.min(sY, sX, 1));
@@ -827,7 +847,10 @@ export default function Game({ navigateTo }) {
         break;
       case 'DeathMeteor':
         const ashTyrant = (gs.pieces || []).find(p => p.id === anim.pieceId) || (gs.pieces || []).find(p => p.key === 'ashAshTyrant');
-        if (ashTyrant) Effects.spawnDeathMeteorEffect(ashTyrant, gs);
+        if (ashTyrant) Effects.spawnDeathMeteorEffect(ashTyrant, gs, anim.originR, anim.originC, anim.targetR, anim.targetC);
+        break;
+      case 'ShieldBreak':
+        if (Effects.spawnShieldBreakEffect) Effects.spawnShieldBreakEffect(anim.r, anim.c, anim.faction, gs);
         break;
     }
   };
@@ -835,6 +858,11 @@ export default function Game({ navigateTo }) {
   // Main input action dispatch bridge
   const sendAction = (actionType, data) => {
     if (battleCountdown !== null && battleCountdown > 0) return;
+    if (['ABILITY', 'RIFT_PULSE', 'HANDLE_CLICK'].includes(actionType)) {
+      triggerHaptic('ability');
+    } else if (['SACRIFICE', 'RELEASE', 'ASCENSION_CHOICE'].includes(actionType)) {
+      triggerHaptic('medium');
+    }
     if (isLocal) {
       processLocalAction(actionType, data);
     } else {
@@ -902,22 +930,32 @@ export default function Game({ navigateTo }) {
     if (!isMyTurn || gameState?.gameOver) return;
 
     if (gameState?.currentState === 'ABILITY_TARGETING' || gameState?.currentState === 'WALL_PLACEMENT_FIRST' || gameState?.currentState === 'TETHER_TARGETING' || gameState?.currentState === 'WALL_PLACEMENT_SECOND') {
+      triggerHaptic('ability');
       sendAction('HANDLE_CLICK', { r, c });
     } else if (gameState?.selectedPiece) {
       // Check if clicking on another piece
       const clickedPiece = gameState.pieces.find(p => p.row === r && p.col === c);
       const isAlly = clickedPiece && clickedPiece.team === gameState.selectedPiece.team;
       
-      if (isAlly && clickedPiece.id !== gameState.selectedPiece.id) {
-        sendAction('SELECT_PIECE', { pieceId: clickedPiece.id });
+      if (isAlly) {
+        if (clickedPiece.id === gameState.selectedPiece.id) {
+          triggerHaptic('light');
+          sendAction('SELECT_PIECE', { pieceId: null });
+        } else {
+          triggerHaptic('select');
+          sendAction('SELECT_PIECE', { pieceId: clickedPiece.id });
+        }
       } else {
         // Distance check
         const dist = Math.hypot(r - gameState.selectedPiece.row, c - gameState.selectedPiece.col);
         const maxRadius = E.getPieceMoveRadius ? E.getPieceMoveRadius(gameState.selectedPiece, gameState) : (gameState.selectedPiece.agility || 2);
         
         if (dist <= maxRadius) {
+          const defender = C.getPieceAt(r, c, gameState.pieces);
+          triggerHaptic(defender ? 'capture' : 'move');
           sendAction('MOVE', { pieceId: gameState.selectedPiece.id, r, c, isHighway: false });
         } else {
+          triggerHaptic('light');
           sendAction('SELECT_PIECE', { pieceId: null });
         }
       }
@@ -937,15 +975,23 @@ export default function Game({ navigateTo }) {
     const isTetherTargeting = gameState?.currentState === 'TETHER_TARGETING' || gameState?.currentState === 'ABILITY_TARGETING';
 
     if (isTetherTargeting) {
+      triggerHaptic('ability');
       sendAction('HANDLE_CLICK', { r: piece.row, c: piece.col });
     } else if (piece.team === allowedSelectTeam) {
-      sendAction('SELECT_PIECE', { pieceId: piece.id });
+      if (gameState?.selectedPiece?.id === piece.id) {
+        triggerHaptic('light');
+        sendAction('SELECT_PIECE', { pieceId: null });
+      } else {
+        triggerHaptic('select');
+        sendAction('SELECT_PIECE', { pieceId: piece.id });
+      }
     } else if (gameState?.selectedPiece) {
       // Initiate attack/lunge checks
       const dist = Math.hypot(piece.row - gameState.selectedPiece.row, piece.col - gameState.selectedPiece.col);
       const maxRadius = E.getPieceMoveRadius ? E.getPieceMoveRadius(gameState.selectedPiece, gameState) : (gameState.selectedPiece.agility || 2);
       
       if (dist <= maxRadius) {
+        triggerHaptic('capture');
         sendAction('MOVE', { pieceId: gameState.selectedPiece.id, r: piece.row, c: piece.col, isHighway: false });
       }
     }
@@ -1010,6 +1056,13 @@ export default function Game({ navigateTo }) {
     if (piece.hasDefensiveWard) statuses.push('Ward (Immune)');
     if (piece.canRiftPulse) statuses.push('Rift Pulse Ready');
     if (piece.isTrapped) statuses.push('Trapped by Shrine');
+    if (piece.hasDeathMeteorInvincibility) {
+      const tLeft = piece.deathMeteorInvincibilityTurns || 1;
+      statuses.push(`Meteor Shield (Lethal damage negated - ${tLeft}t)`);
+    } else if (piece.hasHelpFromAboveActive) {
+      const tLeft = piece.helpFromAboveActiveTurns || 1;
+      statuses.push(`Divine Shield (Lethal damage negated - ${tLeft}t)`);
+    }
     const activeShield = (gameState?.shields || []).find(s => s.pieceId === piece.id);
     if (activeShield) {
       if (activeShield.name === 'ObsidianPillarShield') {
@@ -1033,7 +1086,12 @@ export default function Game({ navigateTo }) {
     const handler = C.PASSIVE_DESCRIPTIONS[piece.key];
     if (handler) {
       const cd = piece.helpFromAboveCooldown || piece.deathMeteorCooldown || 0;
-      const active = piece.hasHelpFromAboveActive ? ' [ACTIVE]' : '';
+      let active = piece.hasHelpFromAboveActive ? ' [ACTIVE]' : '';
+      if (piece.hasDeathMeteorInvincibility) {
+        active = ` [SHIELD ACTIVE — Lethal Negated (${piece.deathMeteorInvincibilityTurns || 1}t)]`;
+      } else if (piece.hasHelpFromAboveActive) {
+        active = ` [SHIELD ACTIVE — Lethal Negated (${piece.helpFromAboveActiveTurns || 1}t)]`;
+      }
       const name = piece.key === 'snowFrostLord' ? 'Help From Above' : piece.key === 'ashAshTyrant' ? 'Death Meteor' : '';
       let passiveText = handler;
       if (name) {
@@ -1052,7 +1110,11 @@ export default function Game({ navigateTo }) {
         predHtml += `<div>⚔ ${C.PIECE_TYPES[sel.key]?.name || sel.key} → ${C.PIECE_TYPES[piece.key]?.name || piece.key}</div>`;
         predHtml += `<div>HP: ${hpNow}/${hpMax} &nbsp;|&nbsp; `;
         predHtml += `DMG: <span class="pred-dmg">-${preview.dmg}</span></div>`;
-        if (preview.isFatal) {
+        if (piece.hasDeathMeteorInvincibility) {
+          predHtml += `<div style="color:#facc15;font-weight:bold;margin-top:2px;">🛡 METEOR SHIELD — LETHAL NEGATED</div>`;
+        } else if (piece.hasHelpFromAboveActive) {
+          predHtml += `<div style="color:#38bdf8;font-weight:bold;margin-top:2px;">🛡 DIVINE SHIELD — LETHAL NEGATED</div>`;
+        } else if (preview.isFatal) {
           predHtml += `<div class="pred-fatal" style="color:#EF4444;font-weight:bold;margin-top:2px;">☠ LETHAL STRIKE</div>`;
         } else {
           const hpAfter = Math.max(0, hpNow - preview.dmg);
@@ -1110,7 +1172,7 @@ export default function Game({ navigateTo }) {
   const { fallenSnow, fallenAsh } = getFallenUnits(gameState?.pieces);
 
   return (
-    <div className="game-screen text-on-surface select-none font-body-md overflow-y-auto overflow-x-hidden min-h-screen w-full flex flex-col items-center justify-start relative">
+    <div className="game-screen text-on-surface select-none font-body-md overflow-x-hidden w-full flex flex-col items-center justify-center relative md:h-screen md:max-h-screen md:overflow-hidden max-md:min-h-screen max-md:overflow-y-auto max-md:justify-start">
 
       {/* Atmospheric Battlefield Page Background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden select-none z-0">
@@ -1179,61 +1241,26 @@ export default function Game({ navigateTo }) {
         <AscensionModal gameState={gameState} sendAction={sendAction} />
       )}
 
-      {/* Game Over Modal */}
-      {gameState?.gameOver && (
-        <div id="gameOverModal" className="fixed inset-0 z-[10000] flex items-center justify-center bg-void-black/85 backdrop-blur-md p-4 animate-fadeIn">
-          <div className={`w-full max-w-md glass-obsidian p-8 rounded-2xl text-center shadow-[0_20px_60px_rgba(0,0,0,0.9)] border ${
-            (gameState.winner === 'snow')
-              ? 'border-ice-light/40 shadow-[0_0_50px_rgba(56,189,248,0.25)]'
-              : 'border-magma-glow/40 shadow-[0_0_50px_rgba(249,115,22,0.25)]'
-          }`}>
-            <div className="flex justify-center mb-4">
-              <Trophy className={`h-16 w-16 ${gameState.winner === 'snow' ? 'text-ice-light drop-shadow-[0_0_15px_rgba(56,189,248,0.8)]' : 'text-ember-gold drop-shadow-[0_0_15px_rgba(245,158,11,0.8)]'}`} />
-            </div>
-            
-            <span className={`font-label-caps text-xs tracking-[0.3em] uppercase block mb-2 ${gameState.winner === 'snow' ? 'text-ice-light' : 'text-magma-glow'}`}>
-              Dominion Decided
-            </span>
-            
-            <h2 className="almendra-font text-3xl sm:text-4xl font-bold tracking-widest text-pure-snow uppercase mb-2">
-              {isLocal
-                ? `${gameState.winner === 'snow' ? 'Frost' : 'Ash'} Ascendant!`
-                : (gameState.winner === myTeam ? 'Victory!' : 'Defeat')}
-            </h2>
-            
-            <p className="font-body-md text-sm text-on-surface-variant mb-6">
-              {gameState.winner === 'snow'
-                ? 'The eternal winter claims the realm. Team Frost has conquered the battlefield.'
-                : 'The volcanic pyre incinerates all opposition. Team Ash reigns supreme.'}
-            </p>
+      {/* Game Over Modal — Full-Screen Victory Presentation with Animated Heraldic Banners */}
+      {showGameOverModal && gameState?.gameOver && (() => {
+        const isWinnerSnow = gameState.winner === 'snow';
+        const snowCount = gameState?.snowTerritory ? (gameState.snowTerritory instanceof Set ? gameState.snowTerritory.size : (gameState.snowTerritory.length || 0)) : 0;
+        const ashCount = gameState?.ashTerritory ? (gameState.ashTerritory instanceof Set ? gameState.ashTerritory.size : (gameState.ashTerritory.length || 0)) : 0;
+        const totalTerritory = snowCount + ashCount;
+        const winnerShare = totalTerritory > 0 ? Math.round(((isWinnerSnow ? snowCount : ashCount) / totalTerritory) * 100) : 68;
 
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              {isLocal && (
-                <button
-                  id="playAgainBtn"
-                  className={`action-btn flex-1 py-3 font-label-caps tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 ${
-                    gameState.winner === 'snow'
-                      ? 'bg-ice-light/20 border border-ice-light/50 hover:bg-ice-light/30 text-pure-snow'
-                      : 'bg-magma-glow/20 border border-magma-glow/50 hover:bg-magma-glow/30 text-pure-snow'
-                  }`}
-                  onClick={handleStartReset}
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  <span>Play Again</span>
-                </button>
-              )}
-              <button
-                id="gameOverExitBtn"
-                className="action-btn flex-1 py-3 bg-surface-container/60 border border-outline/30 hover:bg-surface-container text-pure-snow font-label-caps tracking-widest rounded-lg transition-all flex items-center justify-center gap-2"
-                onClick={handleExitToLobby}
-              >
-                <ArrowLeft className="h-4 w-4" />
-                <span>Main Menu</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        return (
+          <VictoryScreen 
+            team={isWinnerSnow ? 'frost' : 'ash'}
+            isLocal={isLocal}
+            myTeam={myTeam}
+            modalVisible={modalVisible}
+            winnerShare={winnerShare}
+            onPlayAgain={handleStartReset}
+            onMainMenu={handleExitToLobby}
+          />
+        );
+      })()}
 
       <div 
         className="arena-scale-container"
@@ -1472,6 +1499,7 @@ export default function Game({ navigateTo }) {
               onBoardClick={handleBoardClick}
               onPieceClick={handlePieceClick}
               onMouseEnterPiece={(piece, event) => {
+                if (gameState?.gameOver) return;
                 setHoveredPiece(piece);
                 if (event) setMousePos({ x: event.clientX, y: event.clientY });
               }}
@@ -1622,7 +1650,7 @@ export default function Game({ navigateTo }) {
       </div>
     </div>
 
-      {hoveredPiece && (
+      {hoveredPiece && !gameState?.gameOver && (
         <div 
           id="piecePopup"
           className="piece-Popup"

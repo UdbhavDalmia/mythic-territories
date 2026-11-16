@@ -15,6 +15,7 @@ import {
   Radio,
   RotateCcw,
   ScrollText,
+  Settings,
   Shield,
   Snowflake,
   Swords,
@@ -1118,8 +1119,6 @@ export default function Lobby({ navigateTo, onWarm }) {
         <div className="home-grid absolute inset-0 opacity-20" />
       </div>
 
-      <div />
-
       {/* ── SCREEN 1: MAIN MENU ── */}
       <main className="relative z-10 w-full flex-grow flex flex-col items-center justify-center px-4 pt-20 pb-12 text-center">
         <div className="flex flex-col items-center mb-10 text-center">
@@ -1194,6 +1193,14 @@ export default function Lobby({ navigateTo, onWarm }) {
           >
             <BookOpen className="h-4 w-4" aria-hidden="true" />
             <span>Rulebook</span>
+          </button>
+          <button
+            className="home-resource-link"
+            onClick={() => handleNavigate('SETTINGS')}
+            onMouseEnter={() => onWarm?.('SETTINGS')}
+          >
+            <Settings className="h-4 w-4" aria-hidden="true" />
+            <span>Settings</span>
           </button>
         </nav>
         <div className="text-[10px] sm:text-xs tracking-wider text-on-surface-variant/60">

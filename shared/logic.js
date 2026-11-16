@@ -130,7 +130,7 @@ export function applyAoeLethalPassives(piece, gameState) {
       piece.currentHp = 1;
       piece.helpFromAboveCooldown = C.ABILITY_VALUES.HelpFromAbove?.cooldown || 15;
       piece.hasHelpFromAboveActive = true;
-      piece.helpFromAboveActiveTurns = C.ABILITY_VALUES.HelpFromAbove?.activeDuration || 4;
+      piece.helpFromAboveActiveTurns = C.ABILITY_VALUES.HelpFromAbove?.activeDuration || 3;
 
       // Emit the animation trigger for the client
       if (typeof window === 'undefined' || gameState.isLocalSimulation !== true) {
@@ -143,6 +143,7 @@ export function applyAoeLethalPassives(piece, gameState) {
           c: piece.col
         });
       }
+
       return true; // intercept: do NOT capture
     }
   }
@@ -159,24 +160,33 @@ export function applyAoeLethalPassives(piece, gameState) {
       piece.hasDeathMeteorInvincibility = true;
       piece.deathMeteorInvincibilityTurns = 2;
       piece.hasTriggeredDeathMeteor = true;
-      emit(gameState, { type: 'ANIMATION', name: 'DeathMeteor', pieceId: piece.id });
-      if (gameState.pieces) {
-        gameState.pieces.forEach(p => {
-          if (C.cellIntersectsCircle(p.row, p.col, piece.row, piece.col, 2) && p.id !== piece.id) {
-            if (p.key === 'snowFrostLord' && p.hasHelpFromAboveActive) {
-              return; // Skip damage due to active Help From Above protective state
-            }
-            if (p.team !== piece.team) {
-              p.currentHp = Math.max(0, (p.currentHp || 5) - 4);
-            } else {
-              p.currentHp = Math.max(0, (p.currentHp || 5) - 2);
-            }
-          }
-        });
-      }
+
       const currentR = Math.round(piece.row);
       const currentC = Math.round(piece.col);
 
+      // 1. AoE Damage to all units within Radius 2 (enemies take 4 dmg, allies take 2 dmg)
+      let aoeHits = 0;
+      if (gameState.pieces) {
+        gameState.pieces.forEach(p => {
+          if (C.cellIntersectsCircle(p.row, p.col, currentR, currentC, 2) && p.id !== piece.id) {
+            if (p.key === 'snowFrostLord' && p.hasHelpFromAboveActive) {
+              return; // Skip damage due to active Help From Above protective state
+            }
+            if (p.key === 'ashAshTyrant' && p.hasDeathMeteorInvincibility) {
+              return;
+            }
+            const maxHp = p.maxHp || C.PIECE_TYPES[p.key]?.stats?.hp || 5;
+            const curHp = typeof p.currentHp === 'number' ? p.currentHp : maxHp;
+            const dmg = p.team !== piece.team ? 4 : 2;
+            p.currentHp = Math.max(0, curHp - dmg);
+            aoeHits++;
+          }
+        });
+      }
+
+      flash(`Death Meteor strikes! 4 AoE damage dealt to nearby enemies.`, piece.team, gameState);
+
+      // 2. Create the permanent crater and scorched ground at original position
       gameState.deathMeteors = gameState.deathMeteors || [];
       gameState.deathMeteors.push({ r: currentR, c: currentC, duration: 6 });
 
@@ -200,7 +210,16 @@ export function applyAoeLethalPassives(piece, gameState) {
         });
       }
 
-      // Find a safe adjacent cell to move the Tyrant to
+      // 3. Find a safe adjacent cell to move the Tyrant to
+      const isCandidateValid = cand => {
+        if (cand.r < 0 || cand.r >= C.ROWS || cand.c < 0 || cand.c >= C.COLS) return false;
+        if ((gameState.voidSquares || []).some(v => v.row === cand.r && v.col === cand.c)) return false;
+        if ((gameState.glacialWalls || []).some(w => w.row === cand.r && w.col === cand.c)) return false;
+        if ((gameState.specialTerrains || []).some(t => t.type === 'crater' && Math.round(t.row) === cand.r && Math.round(t.col) === cand.c && !(Math.round(t.row) === currentR && Math.round(t.col) === currentC))) return false;
+        if ((gameState.pieces || []).some(p => p.id !== piece.id && Math.round(p.row) === cand.r && Math.round(p.col) === cand.c)) return false;
+        return true;
+      };
+
       const candidates = [];
       for (let dr = -1; dr <= 1; dr++) {
         for (let dc = -1; dc <= 1; dc++) {
@@ -208,25 +227,36 @@ export function applyAoeLethalPassives(piece, gameState) {
           candidates.push({ r: currentR + dr, c: currentC + dc });
         }
       }
+      let validCandidates = candidates.filter(isCandidateValid);
 
-      // Filter candidates to ensure no overlap and valid terrain
-      const validCandidates = candidates.filter(cand => {
-        // 1. Check bounds
-        if (cand.r < 0 || cand.r >= C.ROWS || cand.c < 0 || cand.c >= C.COLS) return false;
-        // 2. Check void squares
-        if ((gameState.voidSquares || []).some(v => v.row === cand.r && v.col === cand.c)) return false;
-        // 3. Check glacial walls
-        if ((gameState.glacialWalls || []).some(w => w.row === cand.r && w.col === cand.c)) return false;
-        // 4. Check existing craters (excluding the newly created one at (currentR, currentC))
-        if ((gameState.specialTerrains || []).some(t => t.type === 'crater' && Math.round(t.row) === cand.r && Math.round(t.col) === cand.c && !(Math.round(t.row) === currentR && Math.round(t.col) === currentC))) return false;
-        // 5. Check overlapping other pieces
-        if ((gameState.pieces || []).some(p => p.id !== piece.id && Math.round(p.row) === cand.r && Math.round(p.col) === cand.c)) return false;
-        return true;
+      // Fallback to radius 2 if all adjacent cells are blocked
+      if (validCandidates.length === 0) {
+        const radius2Candidates = [];
+        for (let dr = -2; dr <= 2; dr++) {
+          for (let dc = -2; dc <= 2; dc++) {
+            if (Math.abs(dr) <= 1 && Math.abs(dc) <= 1) continue;
+            radius2Candidates.push({ r: currentR + dr, c: currentC + dc });
+          }
+        }
+        radius2Candidates.sort((a, b) => Math.hypot(a.r - currentR, a.c - currentC) - Math.hypot(b.r - currentR, b.c - currentC));
+        validCandidates = radius2Candidates.filter(isCandidateValid);
+      }
+
+      const choice = validCandidates.length > 0 ? validCandidates[0] : null;
+
+      // Emit DeathMeteor animation with explicit origin and destination
+      emit(gameState, {
+        type: 'ANIMATION',
+        name: 'DeathMeteor',
+        pieceId: piece.id,
+        originR: currentR,
+        originC: currentC,
+        targetR: choice ? choice.r : currentR,
+        targetC: choice ? choice.c : currentC
       });
 
-      if (validCandidates.length > 0) {
-        // Move Tyrant to the first valid candidate
-        const choice = validCandidates[0];
+      if (choice) {
+        piece.deathMeteorOrigin = { row: currentR, col: currentC };
         updatePiecePosition(piece, choice.r, choice.c);
       }
 
@@ -2259,11 +2289,31 @@ function endOfTurnUpkeep() {
       // Active duration is tracked separately from the cooldown timer.
       if (p.helpFromAboveActiveTurns > 0) {
         p.helpFromAboveActiveTurns--;
-        if (p.helpFromAboveActiveTurns <= 0) p.hasHelpFromAboveActive = false;
+        if (p.helpFromAboveActiveTurns <= 0) {
+          p.hasHelpFromAboveActive = false;
+          emit(gameState, {
+            type: 'ANIMATION',
+            name: 'ShieldBreak',
+            pieceId: p.id,
+            r: p.row,
+            c: p.col,
+            faction: 'snow'
+          });
+        }
       }
       if (p.deathMeteorInvincibilityTurns > 0) {
         p.deathMeteorInvincibilityTurns--;
-        if (p.deathMeteorInvincibilityTurns <= 0) p.hasDeathMeteorInvincibility = false;
+        if (p.deathMeteorInvincibilityTurns <= 0) {
+          p.hasDeathMeteorInvincibility = false;
+          emit(gameState, {
+            type: 'ANIMATION',
+            name: 'ShieldBreak',
+            pieceId: p.id,
+            r: p.row,
+            c: p.col,
+            faction: 'ash'
+          });
+        }
       }
       // Ability cooldowns and durations decrement only on the piece's team's turn
       if (p.deathMeteorCooldown > 0) p.deathMeteorCooldown--;

@@ -916,6 +916,9 @@ export function triggerPulse(pieceId) {
 let shakeIntensity = 0;
 let shakeDuration = 0;
 export function triggerScreenshake(intensity, duration = 150) {
+  if (typeof document !== 'undefined' && (document.documentElement.classList.contains('reduced-motion') || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches))) {
+    return;
+  }
   shakeIntensity = intensity;
   shakeDuration = duration;
 }
@@ -1857,7 +1860,7 @@ export function resetMobileAbilityBar() {
 const visualTestTriggers = {
   snowFrostLord: [
     { text: 'Test Active', action: (p, gs) => { if (Effects.spawnFrostfallBlessingEffect) Effects.spawnFrostfallBlessingEffect(p.row, p.col, gs); } },
-    { text: 'Test Passive', action: (p, gs) => { p.hasHelpFromAboveActive = true; p.helpFromAboveActiveTurns = 5; if (Effects.spawnGuardianSaveEffect) Effects.spawnGuardianSaveEffect(p, gs); } }
+    { text: 'Test Passive', action: (p, gs) => { p.hasHelpFromAboveActive = true; p.helpFromAboveActiveTurns = 3; if (Effects.spawnGuardianSaveEffect) Effects.spawnGuardianSaveEffect(p, gs); } }
   ],
   ashAshTyrant: [
     { text: 'Test Active', action: (p, gs) => { if (Effects.spawnReignOfFireEffect) Effects.spawnReignOfFireEffect(p, p.row, Math.min(9, p.col + 2), gs); } },

@@ -158,7 +158,7 @@ export const ABILITY_VALUES = {
   VolatileForge: { places: 2 },
   MagmaAnchor: { powerBoost: 1 },
   SpikeRain: { cooldown: 11, duration: 5, range: 2.5, radius: 2, damage: 2, heal: 1 },
-  HelpFromAbove: { cooldown: 10, radius: 1.5, strengthBoost: 1, activeDuration: 4 },
+  HelpFromAbove: { cooldown: 10, radius: 1.5, strengthBoost: 1, activeDuration: 3 },
   FateLink: { cooldown: 7, range: 3, duration: 4 },
   TheReapersToll: { cooldown: 7, range: 3, duration: 4 },
   ReignOfFire: { cooldown: 11, duration: 3, range: 2.5, radius: 2, damage: 2, allyDamage: 1, strengthBoost: 2 },
@@ -1623,7 +1623,7 @@ export const ABILITY_DESCRIPTIONS = {
 };
 
 export const PASSIVE_DESCRIPTIONS = {
-  snowFrostLord: 'Help From Above — Lethal damage is negated; becomes invulnerable for 5 turns and grants nearby allies (Rad 1.5) +1 Strength.',
+  snowFrostLord: 'Help From Above — Lethal damage is negated; becomes invulnerable for 3 turns and grants nearby allies (Rad 1.5) +1 Strength.',
   ashAshTyrant: 'Death Meteor — Lethal damage is negated; survives at 1 HP and triggers an explosion (Rad 2) dealing 4 damage to enemies and 2 damage to allies.',
   snowSoulLinker: 'Cold Snap — If the bound enemy dies, the Soul Linker heals 2 HP; excess healing is converted into a 1-damage absorb shield.',
   ashAshReaper: "Ashes To Ashes — When The Reaper's Toll expires, the stolen stats return and the enemy has a 50% chance to take 1 unavoidable damage.",
