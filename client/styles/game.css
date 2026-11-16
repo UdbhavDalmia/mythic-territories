@@ -237,22 +237,84 @@
    animation: ashIdle 2.8s ease-in-out infinite;
 }
 
-.selection-ring-outer {
+.selection-container {
+   position: absolute;
+   inset: -8px;
+   pointer-events: none;
+   z-index: 10;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+}
+
+.selection-snow .selection-glow {
    position: absolute;
    inset: -4px;
-   border: 1.5px dashed #ffd700;
    border-radius: 50%;
-   animation: selectionRingSpin 6s linear infinite;
-   pointer-events: none;
+   background: radial-gradient(circle, rgba(56, 189, 248, 0.28) 0%, rgba(14, 165, 233, 0.08) 60%, transparent 100%);
+   filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.75));
+   animation: selectionGlowPulse 2.2s ease-in-out infinite alternate;
+}
+
+.selection-ash .selection-glow {
+   position: absolute;
+   inset: -4px;
+   border-radius: 50%;
+   background: radial-gradient(circle, rgba(239, 68, 68, 0.28) 0%, rgba(249, 115, 22, 0.08) 60%, transparent 100%);
+   filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.75));
+   animation: selectionGlowPulse 2.2s ease-in-out infinite alternate;
+}
+
+.selection-snow .selection-ring {
+   position: absolute;
+   inset: 0;
+   border-radius: 50%;
+   border: 1.5px solid rgba(186, 230, 253, 0.95);
+   box-shadow: 0 0 14px rgba(56, 189, 248, 0.85), inset 0 0 8px rgba(56, 189, 248, 0.45);
+   animation: selectionRingSpin 16s linear infinite;
+}
+
+.selection-ash .selection-ring {
+   position: absolute;
+   inset: 0;
+   border-radius: 50%;
+   border: 1.5px solid rgba(254, 215, 170, 0.95);
+   box-shadow: 0 0 14px rgba(239, 68, 68, 0.85), inset 0 0 8px rgba(249, 115, 22, 0.45);
+   animation: selectionRingSpin 16s linear infinite;
+}
+
+.selection-snow .selection-brackets {
+   position: absolute;
+   inset: -4px;
+   border-radius: 50%;
+   border: 1.5px dashed rgba(56, 189, 248, 0.65);
+   animation: selectionRingSpinReverse 22s linear infinite;
+}
+
+.selection-ash .selection-brackets {
+   position: absolute;
+   inset: -4px;
+   border-radius: 50%;
+   border: 1.5px dashed rgba(249, 115, 22, 0.65);
+   animation: selectionRingSpinReverse 22s linear infinite;
+}
+
+@keyframes selectionGlowPulse {
+   0% { transform: scale(0.96); opacity: 0.65; }
+   100% { transform: scale(1.05); opacity: 1; }
+}
+
+@keyframes selectionRingSpinReverse {
+   0% { transform: rotate(360deg); }
+   100% { transform: rotate(0deg); }
+}
+
+.selection-ring-outer {
+   display: none;
 }
 
 .selection-ring-pulse {
-   position: absolute;
-   inset: -8px;
-   border: 2px solid rgba(255, 215, 0, 0.6);
-   border-radius: 50%;
-   animation: selectionPulseWave 1.8s ease-in-out infinite;
-   pointer-events: none;
+   display: none;
 }
 
 .target-cell-indicator {

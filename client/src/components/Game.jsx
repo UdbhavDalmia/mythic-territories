@@ -19,6 +19,8 @@ import {
 import Board from './Board.jsx';
 import AscensionModal from './AscensionModal.jsx';
 import VictoryScreen from './VictoryScreen.jsx';
+import { triggerHaptic } from '../services/haptics.js';
+import { computePowerDiagram } from '../../../shared/voronoi.js';
 import * as Logic from '../../../shared/logic.js';
 import * as C from '../../../shared/constants.js';
 import * as E from '../../../shared/utils.js';
@@ -59,74 +61,35 @@ const INITIAL_ASH_KEYS = [
 ];
 
 let lastTerritoryCache = {
-  snowTerritory: null,
-  ashTerritory: null,
-  territoryTrails: null,
-  scores: { snow: 13.3, ash: 13.3 }
+  piecesKey: '',
+  scores: { snow: 50.0, ash: 50.0 }
 };
 
 function calculateDynamicTerritoryAreas(gs) {
-  if (!gs) return { snow: 0, ash: 0 };
-  if (
-    lastTerritoryCache.snowTerritory === gs.snowTerritory &&
-    lastTerritoryCache.ashTerritory === gs.ashTerritory &&
-    lastTerritoryCache.territoryTrails === gs.territoryTrails
-  ) {
+  if (!gs || !gs.pieces || gs.pieces.length === 0) return { snow: 50.0, ash: 50.0 };
+  
+  // Fast cache check: piece id, coordinates, hp, power
+  const piecesKey = gs.pieces
+    .map(p => `${p.id}:${Number(p.col).toFixed(2)},${Number(p.row).toFixed(2)},${p.currentHp},${p.power}`)
+    .join('|');
+
+  if (lastTerritoryCache.piecesKey === piecesKey && lastTerritoryCache.scores) {
     return lastTerritoryCache.scores;
   }
-  const N = 6, totalSubcells = 100 * N * N, radius = 1.0;
-  let snowCovered = 0, ashCovered = 0;
-  const snowSet = gs.snowTerritory instanceof Set ? gs.snowTerritory : new Set(gs.snowTerritory || []);
-  const ashSet = gs.ashTerritory instanceof Set ? gs.ashTerritory : new Set(gs.ashTerritory || []);
-  const trailsByCell = Array.from({ length: 10 }, () => Array.from({ length: 10 }, () => []));
-  (gs.territoryTrails || []).forEach(t => {
-    const minR = Math.max(0, Math.floor(t.row - 1)), maxR = Math.min(9, Math.ceil(t.row + 1));
-    const minC = Math.max(0, Math.floor(t.col - 1)), maxC = Math.min(9, Math.ceil(t.col + 1));
-    for (let r = minR; r <= maxR; r++) {
-      for (let c = minC; c <= maxC; c++) {
-        trailsByCell[r][c].push(t);
-      }
-    }
-  });
-  const checkCover = (x, y, bases, trails, team) =>
-    bases.some(b => Math.hypot(x - b.cx, y - b.cy) <= radius) ||
-    trails.some(t => t.team === team && Math.hypot(x - (t.col + 0.5), y - (t.row + 0.5)) <= radius);
-  for (let r = 0; r < 10; r++) {
-    for (let c = 0; c < 10; c++) {
-      const pos = `${r},${c}`;
-      const isSnow = snowSet.has(pos), isAsh = ashSet.has(pos);
-      const cellTrails = trailsByCell[r][c];
-      const nearbyBases = { snow: [], ash: [] };
-      for (let nr = Math.max(0, r - 1); nr <= Math.min(9, r + 1); nr++) {
-        for (let nc = Math.max(0, c - 1); nc <= Math.min(9, c + 1); nc++) {
-          const npos = `${nr},${nc}`;
-          if (snowSet.has(npos)) nearbyBases.snow.push({ cx: nc + 0.5, cy: nr + 0.5 });
-          if (ashSet.has(npos)) nearbyBases.ash.push({ cx: nc + 0.5, cy: nr + 0.5 });
-        }
-      }
-      for (let sr = 0; sr < N; sr++) {
-        const y = r + (sr + 0.5) / N;
-        for (let sc = 0; sc < N; sc++) {
-          const x = c + (sc + 0.5) / N;
-          if (!isAsh && checkCover(x, y, nearbyBases.snow, cellTrails, 'snow')) {
-            snowCovered++;
-          } else if (!isSnow && checkCover(x, y, nearbyBases.ash, cellTrails, 'ash')) {
-            ashCovered++;
-          }
-        }
-      }
-    }
-  }
+
+  const voronoi = computePowerDiagram(gs.pieces);
+  gs.voronoiData = voronoi;
+
   const result = {
-    snow: parseFloat(((snowCovered / totalSubcells) * 100).toFixed(1)),
-    ash: parseFloat(((ashCovered / totalSubcells) * 100).toFixed(1))
+    snow: parseFloat(voronoi.frostShare.toFixed(1)),
+    ash: parseFloat(voronoi.ashShare.toFixed(1))
   };
+
   lastTerritoryCache = {
-    snowTerritory: gs.snowTerritory,
-    ashTerritory: gs.ashTerritory,
-    territoryTrails: gs.territoryTrails,
+    piecesKey,
     scores: result
   };
+
   return result;
 }
 
@@ -933,27 +896,48 @@ export default function Game({ navigateTo }) {
       triggerHaptic('ability');
       sendAction('HANDLE_CLICK', { r, c });
     } else if (gameState?.selectedPiece) {
-      // Check if clicking on another piece
-      const clickedPiece = gameState.pieces.find(p => p.row === r && p.col === c);
-      const isAlly = clickedPiece && clickedPiece.team === gameState.selectedPiece.team;
+      // Check if clicking on or near an allied piece (within body radius 0.65 from unit center)
+      const alliedPiece = gameState.pieces.find(
+        p => p.team === gameState.selectedPiece.team && Math.hypot((p.row + 0.5) - r, (p.col + 0.5) - c) <= 0.65
+      );
       
-      if (isAlly) {
-        if (clickedPiece.id === gameState.selectedPiece.id) {
+      if (alliedPiece) {
+        if (alliedPiece.id === gameState.selectedPiece.id) {
           triggerHaptic('light');
           sendAction('SELECT_PIECE', { pieceId: null });
         } else {
           triggerHaptic('select');
-          sendAction('SELECT_PIECE', { pieceId: clickedPiece.id });
+          sendAction('SELECT_PIECE', { pieceId: alliedPiece.id });
         }
       } else {
-        // Distance check
-        const dist = Math.hypot(r - gameState.selectedPiece.row, c - gameState.selectedPiece.col);
+        // Continuous Euclidean distance check from selected piece center
+        const selCenterR = gameState.selectedPiece.row + 0.5;
+        const selCenterC = gameState.selectedPiece.col + 0.5;
+        const dist = Math.hypot(r - selCenterR, c - selCenterC);
         const maxRadius = E.getPieceMoveRadius ? E.getPieceMoveRadius(gameState.selectedPiece, gameState) : (gameState.selectedPiece.agility || 2);
         
-        if (dist <= maxRadius) {
-          const defender = C.getPieceAt(r, c, gameState.pieces);
-          triggerHaptic(defender ? 'capture' : 'move');
-          sendAction('MOVE', { pieceId: gameState.selectedPiece.id, r, c, isHighway: false });
+        if (dist <= maxRadius + 0.15) {
+          // Check if clicking near an enemy piece to trigger capture/combat
+          const defender = gameState.pieces.find(
+            p => p.team !== gameState.selectedPiece.team && Math.hypot((p.row + 0.5) - r, (p.col + 0.5) - c) <= 0.65
+          );
+
+          if (defender) {
+            triggerHaptic('capture');
+            sendAction('MOVE', { pieceId: gameState.selectedPiece.id, r: defender.row, c: defender.col, isHighway: false });
+          } else {
+            // Freeform continuous ground movement: places piece center EXACTLY where clicked
+            const placeCol = Math.max(0, Math.min(9, c - 0.5));
+            const placeRow = Math.max(0, Math.min(9, r - 0.5));
+
+            const tooCloseToAlly = gameState.pieces.some(
+              p => p.team === gameState.selectedPiece.team && p.id !== gameState.selectedPiece.id && Math.hypot((p.row + 0.5) - r, (p.col + 0.5) - c) < 0.65
+            );
+            if (!tooCloseToAlly) {
+              triggerHaptic('move');
+              sendAction('MOVE', { pieceId: gameState.selectedPiece.id, r: Number(placeRow.toFixed(2)), c: Number(placeCol.toFixed(2)), isHighway: false });
+            }
+          }
         } else {
           triggerHaptic('light');
           sendAction('SELECT_PIECE', { pieceId: null });
@@ -1244,10 +1228,8 @@ export default function Game({ navigateTo }) {
       {/* Game Over Modal — Full-Screen Victory Presentation with Animated Heraldic Banners */}
       {showGameOverModal && gameState?.gameOver && (() => {
         const isWinnerSnow = gameState.winner === 'snow';
-        const snowCount = gameState?.snowTerritory ? (gameState.snowTerritory instanceof Set ? gameState.snowTerritory.size : (gameState.snowTerritory.length || 0)) : 0;
-        const ashCount = gameState?.ashTerritory ? (gameState.ashTerritory instanceof Set ? gameState.ashTerritory.size : (gameState.ashTerritory.length || 0)) : 0;
-        const totalTerritory = snowCount + ashCount;
-        const winnerShare = totalTerritory > 0 ? Math.round(((isWinnerSnow ? snowCount : ashCount) / totalTerritory) * 100) : 68;
+        const voronoi = gameState?.voronoiData || computePowerDiagram(gameState?.pieces || []);
+        const winnerShare = isWinnerSnow ? voronoi.frostShare : voronoi.ashShare;
 
         return (
           <VictoryScreen 
@@ -1509,7 +1491,14 @@ export default function Game({ navigateTo }) {
                <div id="snowLabel" className="label snow"><span>Frost control</span><strong>{terrScores.snow.toFixed(1)}%</strong></div>
                <div id="turnLabel" className={`label turn ${gameState?.currentTurn || 'snow'}`}>
                  <Clock3 className="h-4 w-4" aria-hidden="true" />
-                 <span>{turnLabel}</span>
+                 <div className="flex flex-col items-center leading-tight">
+                   <span>{turnLabel}</span>
+                   {terrScores.neutral !== undefined && terrScores.neutral > 0 && (
+                     <span className="text-[9px] text-slate-400 font-sans tracking-widest font-medium uppercase mt-0.5">
+                       Uncontested: {terrScores.neutral.toFixed(1)}%
+                     </span>
+                   )}
+                 </div>
                </div>
                <div id="ashLabel" className="label ash"><span>Ash control</span><strong>{terrScores.ash.toFixed(1)}%</strong></div>
             </div>

@@ -78,12 +78,14 @@ export const CONDUIT_VALUES = {
 };
 
 export function cellIntersectsCircle(r, c, targetR, targetC, radius) {
+  // Support both continuous float unit coordinates and legacy grid tiles
   const cx = targetC + 0.5;
   const cy = targetR + 0.5;
-  const closestX = Math.max(c, Math.min(cx, c + 1));
-  const closestY = Math.max(r, Math.min(cy, r + 1));
-  const distSq = (closestX - cx) ** 2 + (closestY - cy) ** 2;
-  return distSq <= radius ** 2 + 1e-5;
+  const unitCx = c + 0.5;
+  const unitCy = r + 0.5;
+  const dist = Math.hypot(unitCx - cx, unitCy - cy);
+  // Unit body radius is ~0.45; if body overlaps the circle, it intersects
+  return dist <= radius + 0.45;
 }
 
 export function cellIntersectsSector(r, c, sourceR, sourceC, targetR, targetC, range, sectorAngleWidth = Math.PI / 3) {
@@ -91,28 +93,21 @@ export function cellIntersectsSector(r, c, sourceR, sourceC, targetR, targetC, r
   const cy = sourceR + 0.5;
   const tx = targetC + 0.5;
   const ty = targetR + 0.5;
-  const theta = Math.atan2(ty - cy, tx - cx);
+  const unitX = c + 0.5;
+  const unitY = r + 0.5;
 
-  const steps = 4;
-  for (let i = 0; i <= steps; i++) {
-    const x = c + i / steps;
-    for (let j = 0; j <= steps; j++) {
-      const y = r + j / steps;
-      const dx = x - cx;
-      const dy = y - cy;
-      const dist = Math.hypot(dx, dy);
-      if (dist <= range + 1e-5) {
-        let angle = Math.atan2(dy, dx);
-        let diff = angle - theta;
-        while (diff < -Math.PI) diff += Math.PI * 2;
-        while (diff > Math.PI) diff -= Math.PI * 2;
-        if (Math.abs(diff) <= sectorAngleWidth / 2 + 1e-5) {
-          return true;
-        }
-      }
-    }
-  }
-  return false;
+  const dx = unitX - cx;
+  const dy = unitY - cy;
+  const dist = Math.hypot(dx, dy);
+
+  if (dist > range + 0.45) return false;
+
+  const theta = Math.atan2(ty - cy, tx - cx);
+  let angle = Math.atan2(dy, dx);
+  let diff = angle - theta;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  return Math.abs(diff) <= sectorAngleWidth / 2 + 0.2;
 }
 
 export const ABILITY_VALUES = {
@@ -475,9 +470,9 @@ export const ABILITIES = {
     effect: (p, t, gs) => {
       const tp = getPieceAt(t.r, t.c, gs.pieces);
       if (!tp) {
-        const hasWall = (gs.glacialWalls || []).some(w => w.row === t.r && w.col === t.c);
-        const hasVoid = (gs.voidSquares || []).some(v => v.row === t.r && v.col === t.c);
-        const hasCrater = (gs.specialTerrains || []).some(st => st.type === 'crater' && Math.round(st.row) === t.r && Math.round(st.col) === t.c);
+        const hasWall = (gs.glacialWalls || []).some(w => Math.hypot(w.row - t.r, w.col - t.c) < 0.6);
+        const hasVoid = (gs.voidSquares || []).some(v => Math.hypot(v.row - t.r, v.col - t.c) < 0.6);
+        const hasCrater = (gs.specialTerrains || []).some(st => st.type === 'crater' && Math.hypot(st.row - t.r, st.col - t.c) < 0.6);
         if (hasWall || hasVoid || hasCrater) return;
 
         gs.glacialWalls = gs.glacialWalls || [];

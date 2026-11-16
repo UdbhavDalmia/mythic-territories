@@ -3,6 +3,24 @@ import Piece from './Piece.jsx';
 import * as C from '../../../shared/constants.js';
 import * as Effects from '../../js/effects.js';
 import { getValidMoves, getPieceMoveRadius } from '../../../shared/utils.js';
+import { computePowerDiagram, isPointInPolygon } from '../../../shared/voronoi.js';
+
+function isPointInTeamTerritory(px, py, cells, CS) {
+  if (!cells || cells.length === 0) return false;
+  const gx = px / CS;
+  const gy = py / CS;
+  for (let c = 0; c < cells.length; c++) {
+    const cell = cells[c];
+    const dx = gx - cell.center.x;
+    const dy = gy - cell.center.y;
+    const maxR = (cell.radius || 2.5) * 1.05;
+    if (dx * dx + dy * dy > maxR * maxR) continue;
+    if (cell.polygon && cell.polygon.length >= 3 && isPointInPolygon(gx, gy, cell.polygon)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 export default function Board({ 
   gameState, 
@@ -24,6 +42,10 @@ export default function Board({
 
   const playerTeam = gameState?.playerTeam || myTeam || 'snow';
   const isAsh = playerTeam === 'ash';
+
+  const mousePosRef = useRef({ r: -1, c: -1, visualCol: -1, visualRow: -1, active: false });
+  const ambientSnowRef = useRef([]);
+  const ambientEmbersRef = useRef([]);
 
   const gameStateRef = useRef(gameState);
   gameStateRef.current = gameState;
@@ -82,12 +104,11 @@ export default function Board({
           bgCtx.rotate(Math.PI);
         }
 
-        const trails = currentGs.territoryTrails || [];
-        const snowTerr = currentGs.snowTerritory || [];
-        const ashTerr = currentGs.ashTerritory || [];
-        const snowCount = typeof snowTerr.size === 'number' ? snowTerr.size : snowTerr.length || 0;
-        const ashCount = typeof ashTerr.size === 'number' ? ashTerr.size : ashTerr.length || 0;
-        const newKey = `${snowCount}/${ashCount}/${trails.length}_${currentGs.gameStarted ? 1 : 0}_${currentGs.turnCount || 1}`;
+        const pieces = currentGs.pieces || [];
+        const piecesKey = pieces
+          .map(p => `${p.id}:${Number(p.col).toFixed(2)},${Number(p.row).toFixed(2)},${p.currentHp},${p.power}`)
+          .join('|');
+        const newKey = `${piecesKey}_${currentGs.gameStarted ? 1 : 0}_${currentGs.turnCount || 1}`;
 
         if (newKey !== terrCacheKeyRef.current || !terrCacheCanvasRef.current) {
           terrCacheKeyRef.current = newKey;
@@ -99,68 +120,86 @@ export default function Board({
           const tCtx = terrCacheCanvasRef.current.getContext('2d');
           tCtx.clearRect(0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
 
-          // 1. Draw base captured territory tiles with soft glowing aura
-          const drawTerrCells = (terrData, isSnow) => {
-            let list = [];
-            if (typeof terrData.size === 'number') list = Array.from(terrData);
-            else if (Array.isArray(terrData)) list = terrData;
-            list.forEach(posStr => {
-              if (typeof posStr !== 'string') return;
-              const [r, c] = posStr.split(',').map(Number);
-              if (isNaN(r) || isNaN(c)) return;
-              const cx = (c + 0.5) * CS;
-              const cy = (r + 0.5) * CS;
-              const rad = CS * 0.7;
-              const g = tCtx.createRadialGradient(cx, cy, 0, cx, cy, rad);
-              if (isSnow) {
-                g.addColorStop(0, 'rgba(0, 190, 255, 0.42)');
-                g.addColorStop(0.6, 'rgba(0, 150, 255, 0.22)');
-                g.addColorStop(1, 'rgba(0, 120, 255, 0.0)');
-              } else {
-                g.addColorStop(0, 'rgba(255, 95, 20, 0.42)');
-                g.addColorStop(0.6, 'rgba(235, 65, 0, 0.22)');
-                g.addColorStop(1, 'rgba(200, 40, 0, 0.0)');
-              }
-              tCtx.fillStyle = g;
-              tCtx.beginPath();
-              tCtx.arc(cx, cy, rad, 0, Math.PI * 2);
-              tCtx.fill();
-            });
-          };
-          drawTerrCells(snowTerr, true);
-          drawTerrCells(ashTerr, false);
+          const voronoi = currentGs.voronoiData || computePowerDiagram(pieces);
 
-          // 2. Draw dynamic movement trails
-          trails.forEach(t => {
-            const cx = (t.col + 0.5) * CS;
-            const cy = (t.row + 0.5) * CS;
-            const rPxRound = Math.round(Math.max(0.1, t.radius || 0.6) * CS * 1.15);
-            const cacheKey = `${t.team}-${rPxRound}`;
-            let cachedGrad = gradCacheRef.current.get(cacheKey);
-            if (!cachedGrad) {
-              cachedGrad = document.createElement('canvas');
-              cachedGrad.width = cachedGrad.height = rPxRound * 2;
-              const tempCtx = cachedGrad.getContext('2d');
-              const g = tempCtx.createRadialGradient(rPxRound, rPxRound, 0, rPxRound, rPxRound, rPxRound);
-              if (t.team === 'snow') {
-                g.addColorStop(0, 'rgba(0, 190, 255, 0.48)');
-                g.addColorStop(0.55, 'rgba(0, 150, 255, 0.25)');
-                g.addColorStop(0.85, 'rgba(0, 100, 255, 0.08)');
-                g.addColorStop(1, 'rgba(0, 100, 255, 0.0)');
-              } else {
-                g.addColorStop(0, 'rgba(255, 95, 20, 0.48)');
-                g.addColorStop(0.55, 'rgba(235, 65, 0, 0.25)');
-                g.addColorStop(0.85, 'rgba(200, 40, 0, 0.08)');
-                g.addColorStop(1, 'rgba(200, 40, 0, 0.0)');
-              }
-              tempCtx.fillStyle = g;
-              tempCtx.beginPath();
-              tempCtx.arc(rPxRound, rPxRound, rPxRound, 0, Math.PI * 2);
-              tempCtx.fill();
-              gradCacheRef.current.set(cacheKey, cachedGrad);
+          // 1. Draw each unit's bounded territorial influence with seamless organic elemental blending
+          (voronoi.cells || []).forEach(cell => {
+            if (!cell.polygon || cell.polygon.length < 3) return;
+
+            tCtx.beginPath();
+            tCtx.moveTo(cell.polygon[0].x * CS, cell.polygon[0].y * CS);
+            for (let k = 1; k < cell.polygon.length; k++) {
+              tCtx.lineTo(cell.polygon[k].x * CS, cell.polygon[k].y * CS);
             }
-            tCtx.drawImage(cachedGrad, cx - rPxRound, cy - rPxRound);
+            tCtx.closePath();
+
+            const cx = cell.center.x * CS;
+            const cy = cell.center.y * CS;
+            const radiusPx = (cell.radius || 2.0) * CS;
+            const grad = tCtx.createRadialGradient(cx, cy, CS * 0.1, cx, cy, radiusPx);
+
+            if (cell.team === 'snow') {
+              // Deep Glacial Permafrost (Darkened, Rich Cold Ice)
+              grad.addColorStop(0, 'rgba(8, 47, 73, 0.72)');
+              grad.addColorStop(0.3, 'rgba(3, 105, 161, 0.42)');
+              grad.addColorStop(0.65, 'rgba(14, 165, 233, 0.18)');
+              grad.addColorStop(0.85, 'rgba(56, 189, 248, 0.06)');
+              grad.addColorStop(1, 'rgba(2, 132, 199, 0.0)');
+            } else {
+              // Deep Volcanic Scorched Magma (Darkened, Basalt Obsidian)
+              grad.addColorStop(0, 'rgba(50, 10, 8, 0.76)');
+              grad.addColorStop(0.3, 'rgba(153, 27, 27, 0.44)');
+              grad.addColorStop(0.65, 'rgba(220, 38, 38, 0.18)');
+              grad.addColorStop(0.85, 'rgba(239, 68, 68, 0.06)');
+              grad.addColorStop(1, 'rgba(185, 28, 28, 0.0)');
+            }
+
+            tCtx.fillStyle = grad;
+            tCtx.fill();
+            // No strokes on individual friendly cells: allied territory merges seamlessly into one unified domain
           });
+
+          // 2. Contested Clash Boundary: Fiery Border with Lessened Opacity (No static white line)
+          if (voronoi.frontlines && voronoi.frontlines.length > 0) {
+            tCtx.save();
+            voronoi.frontlines.forEach(fl => {
+              const x1 = fl.p1.x * CS;
+              const y1 = fl.p1.y * CS;
+              const x2 = fl.p2.x * CS;
+              const y2 = fl.p2.y * CS;
+
+              // Soft molten heat aura (diffuse glow, lessened opacity)
+              tCtx.beginPath();
+              tCtx.moveTo(x1, y1);
+              tCtx.lineTo(x2, y2);
+              tCtx.strokeStyle = 'rgba(234, 88, 12, 0.22)';
+              tCtx.shadowColor = '#ea580c';
+              tCtx.shadowBlur = 8;
+              tCtx.lineWidth = 3.6;
+              tCtx.stroke();
+
+              // Fiery border flame contour (warm amber-orange, softened opacity)
+              tCtx.beginPath();
+              tCtx.moveTo(x1, y1);
+              tCtx.lineTo(x2, y2);
+              tCtx.strokeStyle = 'rgba(249, 115, 22, 0.38)';
+              tCtx.shadowColor = '#f97316';
+              tCtx.shadowBlur = 5;
+              tCtx.lineWidth = 1.8;
+              tCtx.stroke();
+
+              // Soft warm ember filament (subtle molten core with lessened opacity, replacing static straight white line)
+              tCtx.beginPath();
+              tCtx.moveTo(x1, y1);
+              tCtx.lineTo(x2, y2);
+              tCtx.strokeStyle = 'rgba(254, 215, 170, 0.40)';
+              tCtx.shadowColor = '#fed7aa';
+              tCtx.shadowBlur = 3;
+              tCtx.lineWidth = 0.9;
+              tCtx.stroke();
+            });
+            tCtx.restore();
+          }
         }
 
         if (terrCacheCanvasRef.current) {
@@ -340,45 +379,269 @@ export default function Board({
         ctx.shadowColor = 'mediumpurple';
         ctx.shadowBlur = 12;
       } else {
-        ctx.strokeStyle = 'rgba(218, 165, 32, 0.5)';
-        ctx.lineWidth = 2.5;
+        // Subtle ancient arcane resonance ring (blends smoothly into the stone dais art, NO raw yellow wire)
+        ctx.strokeStyle = 'rgba(192, 132, 252, 0.22)';
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = 'rgba(192, 132, 252, 0.4)';
+        ctx.shadowBlur = 6;
       }
       ctx.beginPath();
       ctx.arc(shrineCx, shrineCy, shrineRadius, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
 
-      // Draw Selected Piece Movement Radius Circle
+      // Draw Selected Piece Movement: Highlight possible move region, and highlight final spot a bit
       if (currentGs.selectedPiece && currentGs.currentState !== 'ABILITY_TARGETING' && currentGs.currentState !== 'TETHER_TARGETING' && currentGs.currentState !== 'WALL_PLACEMENT_FIRST' && currentGs.currentState !== 'WALL_PLACEMENT_SECOND') {
         const selP = currentGs.selectedPiece;
-        const selCx = selP.col * CS + CS / 2;
-        const selCy = selP.row * CS + CS / 2;
+        const selCenterC = selP.col + 0.5;
+        const selCenterR = selP.row + 0.5;
+        const selCx = selCenterC * CS;
+        const selCy = selCenterR * CS;
         const maxRadius = (typeof getPieceMoveRadius === 'function') ? getPieceMoveRadius(selP, currentGs) : (selP.agility || 2);
         const moveRadiusPx = maxRadius * CS;
-        const animTime = performance.now() * 0.003;
-        const pulseRadius = Math.max(0.1, moveRadiusPx + Math.sin(performance.now() * 0.005) * 4);
+        const isSnow = selP.team === 'snow';
+        const primaryColor = isSnow ? 'rgba(56, 189, 248, ' : 'rgba(249, 115, 22, ';
+        const glowColor = isSnow ? 'rgba(56, 189, 248, 0.65)' : 'rgba(239, 68, 68, 0.65)';
 
         ctx.save();
-        // Inner fill
-        ctx.fillStyle = selP.team === 'snow' ? 'rgba(0, 180, 255, 0.08)' : 'rgba(255, 70, 0, 0.08)';
+
+        // 1. Highlight the possible move region
+        const moveGrad = ctx.createRadialGradient(selCx, selCy, moveRadiusPx * 0.25, selCx, selCy, moveRadiusPx);
+        moveGrad.addColorStop(0, `${primaryColor}0.0)`);
+        moveGrad.addColorStop(0.7, `${primaryColor}0.05)`);
+        moveGrad.addColorStop(1, `${primaryColor}0.13)`);
+
+        ctx.fillStyle = moveGrad;
         ctx.beginPath();
-        ctx.arc(selCx, selCy, pulseRadius, 0, Math.PI * 2);
+        ctx.arc(selCx, selCy, moveRadiusPx, 0, Math.PI * 2);
         ctx.fill();
 
-        // Pulsing outer boundary circle
-        ctx.strokeStyle = selP.team === 'snow' ? 'rgba(0, 220, 255, 0.85)' : 'rgba(255, 90, 30, 0.85)';
-        ctx.lineWidth = 2.5;
-        ctx.shadowColor = ctx.strokeStyle;
-        ctx.shadowBlur = 10;
+        // Elegant perimeter line defining the possible move boundary
+        ctx.strokeStyle = `${primaryColor}0.55)`;
+        ctx.lineWidth = 1.4;
+        ctx.shadowColor = glowColor;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(selCx, selCy, moveRadiusPx, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Dashed rotating halo
-        ctx.setLineDash([6, 8]);
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(selCx, selCy, Math.max(0.1, pulseRadius + 5), -animTime * 0.5, -animTime * 0.5 + Math.PI * 2);
-        ctx.stroke();
+        // 2. Highlight the final destination spot under the mouse with exact pixel synchronization
+        if (mousePosRef.current.active) {
+          const mouseR = mousePosRef.current.r;
+          const mouseC = mousePosRef.current.c;
+          const mouseDist = Math.hypot(mouseC - selCenterC, mouseR - selCenterR);
+
+          if (mouseDist <= maxRadius + 0.15) {
+            // Exact canvas coordinates matching mouse position directly (zero offset)
+            const mCx = mouseC * CS;
+            const mCy = mouseR * CS;
+
+            // Check if hovering near an enemy piece to attack
+            const nearbyEnemy = (currentGs.pieces || []).find(
+              p => p.team !== selP.team && Math.hypot((p.row + 0.5) - mouseR, (p.col + 0.5) - mouseC) <= 0.65
+            );
+
+            if (nearbyEnemy) {
+              const enCx = (nearbyEnemy.col + 0.5) * CS;
+              const enCy = (nearbyEnemy.row + 0.5) * CS;
+              
+              // Tactical corner brackets framing the enemy
+              const effR = CS * 0.44;
+              const bracketLen = CS * 0.14;
+
+              ctx.strokeStyle = 'rgba(239, 68, 68, 0.85)';
+              ctx.lineWidth = 1.6;
+              ctx.shadowColor = 'rgba(239, 68, 68, 0.5)';
+              ctx.shadowBlur = 6;
+
+              // Top-Left
+              ctx.beginPath();
+              ctx.moveTo(enCx - effR, enCy - effR + bracketLen);
+              ctx.lineTo(enCx - effR, enCy - effR);
+              ctx.lineTo(enCx - effR + bracketLen, enCy - effR);
+              ctx.stroke();
+
+              // Top-Right
+              ctx.beginPath();
+              ctx.moveTo(enCx + effR - bracketLen, enCy - effR);
+              ctx.lineTo(enCx + effR, enCy - effR);
+              ctx.lineTo(enCx + effR, enCy - effR + bracketLen);
+              ctx.stroke();
+
+              // Bottom-Left
+              ctx.beginPath();
+              ctx.moveTo(enCx - effR, enCy + effR - bracketLen);
+              ctx.lineTo(enCx - effR, enCy + effR);
+              ctx.lineTo(enCx - effR + bracketLen, enCy + effR);
+              ctx.stroke();
+
+              // Bottom-Right
+              ctx.beginPath();
+              ctx.moveTo(enCx + effR - bracketLen, enCy + effR);
+              ctx.lineTo(enCx + effR, enCy + effR);
+              ctx.lineTo(enCx + effR, enCy + effR - bracketLen);
+              ctx.stroke();
+            } else {
+              // Highlight the final spot a bit
+              const spotRadius = CS * 0.38;
+
+              // Soft radial destination ground glow
+              const spotGrad = ctx.createRadialGradient(mCx, mCy, 0, mCx, mCy, spotRadius);
+              if (isSnow) {
+                spotGrad.addColorStop(0, 'rgba(56, 189, 248, 0.26)');
+                spotGrad.addColorStop(0.7, 'rgba(14, 165, 233, 0.08)');
+                spotGrad.addColorStop(1, 'rgba(2, 132, 199, 0.0)');
+              } else {
+                spotGrad.addColorStop(0, 'rgba(239, 68, 68, 0.26)');
+                spotGrad.addColorStop(0.7, 'rgba(220, 38, 38, 0.08)');
+                spotGrad.addColorStop(1, 'rgba(185, 28, 28, 0.0)');
+              }
+
+              ctx.fillStyle = spotGrad;
+              ctx.beginPath();
+              ctx.arc(mCx, mCy, spotRadius, 0, Math.PI * 2);
+              ctx.fill();
+
+              // Clean destination ring
+              ctx.strokeStyle = isSnow ? 'rgba(186, 230, 253, 0.65)' : 'rgba(254, 215, 170, 0.65)';
+              ctx.lineWidth = 1.3;
+              ctx.shadowColor = isSnow ? 'rgba(56, 189, 248, 0.45)' : 'rgba(239, 68, 68, 0.45)';
+              ctx.shadowBlur = 5;
+              ctx.beginPath();
+              ctx.arc(mCx, mCy, spotRadius, 0, Math.PI * 2);
+              ctx.stroke();
+
+              // Subtle center pip
+              ctx.fillStyle = isSnow ? 'rgba(224, 242, 254, 0.85)' : 'rgba(254, 240, 138, 0.85)';
+              ctx.shadowBlur = 3;
+              ctx.beginPath();
+              ctx.arc(mCx, mCy, 2.0, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+        }
         ctx.restore();
+      }
+
+      // Continuous Vector Ability Reticles for Reworked Units (Phase 4)
+      if (currentGs.currentState === 'ABILITY_TARGETING' && currentGs.selectedPiece) {
+        const caster = currentGs.selectedPiece;
+        const abilityKey = currentGs.abilityContext?.abilityKey || caster.ability?.key;
+        const ability = C.ABILITIES[abilityKey];
+
+        if (ability && ['FrostfallBlessing', 'ReignOfFire', 'GlacialFracture', 'ObsidianPillar'].includes(abilityKey)) {
+          const casterCenterC = caster.col + 0.5;
+          const casterCenterR = caster.row + 0.5;
+          const cCx = casterCenterC * CS;
+          const cCy = casterCenterR * CS;
+          const rangePx = (ability.range || 2.5) * CS;
+          const radiusPx = (ability.radius || (abilityKey === 'ObsidianPillar' ? 1.0 : 2.0)) * CS;
+
+          ctx.save();
+          // 1. Faint, subtle max range boundary ring
+          ctx.strokeStyle = caster.team === 'snow' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(245, 158, 11, 0.2)';
+          ctx.setLineDash([4, 6]);
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.arc(cCx, cCy, rangePx, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // 2. Continuous Vector Reticle at Mouse Position
+          if (mousePosRef.current.active) {
+            const mR = mousePosRef.current.r;
+            const mC = mousePosRef.current.c;
+            const distFromCaster = Math.hypot(mC - casterCenterC, mR - casterCenterR);
+
+            if (distFromCaster <= (ability.range || 2.5) + 0.15) {
+              const mCx = mC * CS;
+              const mCy = mR * CS;
+
+              ctx.setLineDash([]);
+              if (abilityKey === 'FrostfallBlessing') {
+                // Frosted Glacial Reticle (Frost Lord)
+                const grad = ctx.createRadialGradient(mCx, mCy, 0, mCx, mCy, radiusPx);
+                grad.addColorStop(0, 'rgba(186, 230, 253, 0.35)');
+                grad.addColorStop(0.7, 'rgba(56, 189, 248, 0.15)');
+                grad.addColorStop(1, 'rgba(14, 165, 233, 0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(mCx, mCy, radiusPx, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(224, 242, 254, 0.9)';
+                ctx.lineWidth = 2;
+                ctx.shadowColor = 'rgba(56, 189, 248, 0.8)';
+                ctx.shadowBlur = 12;
+                ctx.stroke();
+
+                // Diamond Frost Rune at center
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(mCx, mCy - 12);
+                ctx.lineTo(mCx + 12, mCy);
+                ctx.lineTo(mCx, mCy + 12);
+                ctx.lineTo(mCx - 12, mCy);
+                ctx.closePath();
+                ctx.stroke();
+              } else if (abilityKey === 'ReignOfFire') {
+                // Molten Magma Reticle (Ash Tyrant)
+                const grad = ctx.createRadialGradient(mCx, mCy, 0, mCx, mCy, radiusPx);
+                grad.addColorStop(0, 'rgba(254, 240, 138, 0.4)');
+                grad.addColorStop(0.7, 'rgba(239, 68, 68, 0.18)');
+                grad.addColorStop(1, 'rgba(185, 28, 28, 0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(mCx, mCy, radiusPx, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(254, 240, 138, 0.95)';
+                ctx.lineWidth = 2;
+                ctx.shadowColor = 'rgba(239, 68, 68, 0.9)';
+                ctx.shadowBlur = 12;
+                ctx.stroke();
+
+                // Flaming Crosshair at center
+                ctx.strokeStyle = '#ffedd5';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(mCx - 14, mCy);
+                ctx.lineTo(mCx + 14, mCy);
+                ctx.moveTo(mCx, mCy - 14);
+                ctx.lineTo(mCx, mCy + 14);
+                ctx.stroke();
+              } else if (abilityKey === 'GlacialFracture') {
+                // Crystalline Fracture Reticle (Glacial Mage)
+                const grad = ctx.createRadialGradient(mCx, mCy, 0, mCx, mCy, radiusPx);
+                grad.addColorStop(0, 'rgba(165, 243, 252, 0.35)');
+                grad.addColorStop(0.8, 'rgba(6, 182, 212, 0.12)');
+                grad.addColorStop(1, 'rgba(8, 145, 178, 0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(mCx, mCy, radiusPx, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(165, 243, 252, 0.9)';
+                ctx.lineWidth = 2;
+                ctx.shadowColor = 'rgba(6, 182, 212, 0.8)';
+                ctx.shadowBlur = 10;
+                ctx.stroke();
+              } else if (abilityKey === 'ObsidianPillar') {
+                // Volcanic Placement Disk (Magma Shaper)
+                ctx.fillStyle = 'rgba(147, 51, 234, 0.25)';
+                ctx.strokeStyle = 'rgba(192, 132, 252, 0.9)';
+                ctx.lineWidth = 2.5;
+                ctx.shadowColor = 'rgba(147, 51, 234, 0.8)';
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(mCx, mCy, radiusPx, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+              }
+            }
+          }
+          ctx.restore();
+        }
       }
 
       // Draw all particle systems from effects.js
@@ -413,6 +676,222 @@ export default function Board({
       }
 
       if (Effects.drawShrineEffects) Effects.drawShrineEffects(currentGs);
+
+      // --- Ambient Elemental Territory Effects & Contested Frontline Particle Tension ---
+      const isReducedMotion = typeof window !== 'undefined' && (
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+        document.body.classList.contains('reduced-motion')
+      );
+
+      if (!isReducedMotion && currentGs.voronoiData) {
+        const voronoi = currentGs.voronoiData;
+        const now = performance.now();
+
+        // 1. Contested Frontline: Living Fiery Border Undulation & Particle Tension
+        if (voronoi.frontlines && voronoi.frontlines.length > 0) {
+          ctx.save();
+          voronoi.frontlines.forEach((fl, fIdx) => {
+            const x1 = fl.p1.x * CS, y1 = fl.p1.y * CS;
+            const x2 = fl.p2.x * CS, y2 = fl.p2.y * CS;
+            const dx = x2 - x1, dy = y2 - y1;
+            const len = Math.hypot(dx, dy);
+            if (len < 5) return;
+
+            const ux = dx / len, uy = dy / len;
+            const nx = -uy, ny = ux;
+
+            // Living Fiery Border (undulating flame contour with lessened opacity, replacing static straight lines)
+            const segments = Math.max(5, Math.floor(len / 8));
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            for (let seg = 1; seg < segments; seg++) {
+              const st = seg / segments;
+              const lx = x1 + st * dx;
+              const ly = y1 + st * dy;
+              const flameWave = Math.sin(now * 0.005 + seg * 0.6 + fIdx * 2.0) * 1.8 
+                              + Math.cos(now * 0.008 + seg * 1.1) * 1.0;
+              ctx.lineTo(lx + nx * flameWave, ly + ny * flameWave);
+            }
+            ctx.lineTo(x2, y2);
+            ctx.strokeStyle = 'rgba(251, 146, 60, 0.35)';
+            ctx.shadowColor = '#ea580c';
+            ctx.shadowBlur = 6;
+            ctx.lineWidth = 1.6;
+            ctx.stroke();
+
+            const ac = (voronoi.cells || []).find(c => c.pieceId === fl.ashPieceId);
+            const midX = (x1 + x2) / 2, midY = (y1 + y2) / 2;
+            const dotAsh = ac ? (ac.center.x * CS - midX) * nx + (ac.center.y * CS - midY) * ny : 1;
+            const nxAsh = dotAsh >= 0 ? nx : -nx;
+            const nyAsh = dotAsh >= 0 ? ny : -ny;
+            const nxFrost = -nxAsh;
+            const nyFrost = -nyAsh;
+
+            const numTensionParticles = Math.min(18, Math.max(8, Math.floor(len / 12)));
+
+            for (let i = 0; i < numTensionParticles; i++) {
+              const t = (i + 0.5) / numTensionParticles;
+              const baseLX = x1 + t * dx;
+              const baseLY = y1 + t * dy;
+
+              // Ash side: Fiery particle tension (vibrating micro-flames & embers pushing against the clash line)
+              const firePhase = now * 0.012 + i * 1.7 + fIdx;
+              const fireDist = 5 + Math.sin(firePhase) * 6 + (Math.sin(firePhase * 2.3) * 3);
+              const fireJitter = Math.cos(firePhase * 1.8) * 3;
+              const fx = baseLX + nxAsh * fireDist + ux * fireJitter;
+              const fy = baseLY + nyAsh * fireDist + uy * fireJitter;
+              const fireSize = 1.3 + 0.9 * Math.abs(Math.sin(firePhase));
+              const fireAlpha = 0.55 + 0.45 * Math.sin(firePhase * 1.5);
+
+              ctx.fillStyle = i % 2 === 0 ? `rgba(255, 69, 0, ${fireAlpha})` : `rgba(255, 170, 0, ${fireAlpha})`;
+              ctx.shadowColor = '#ff4500';
+              ctx.shadowBlur = 5;
+              ctx.beginPath();
+              ctx.arc(fx, fy, fireSize, 0, Math.PI * 2);
+              ctx.fill();
+
+              // Frost side: Snowy particle tension (shivering ice crystal sparks resisting the flame)
+              const frostPhase = now * 0.010 + i * 2.1 + fIdx * 0.5;
+              const frostDist = 5 + Math.sin(frostPhase) * 5 + (Math.cos(frostPhase * 1.9) * 3);
+              const frostJitter = Math.sin(frostPhase * 2.1) * 3;
+              const sx = baseLX + nxFrost * frostDist + ux * frostJitter;
+              const sy = baseLY + nyFrost * frostDist + uy * frostJitter;
+              const frostSize = 1.2 + 0.8 * Math.abs(Math.cos(frostPhase));
+              const frostAlpha = 0.50 + 0.45 * Math.cos(frostPhase * 1.4);
+
+              ctx.fillStyle = i % 2 === 0 ? `rgba(224, 242, 254, ${frostAlpha})` : `rgba(56, 189, 248, ${frostAlpha})`;
+              ctx.shadowColor = '#38bdf8';
+              ctx.shadowBlur = 5;
+              ctx.beginPath();
+              ctx.arc(sx, sy, frostSize, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          });
+          ctx.restore();
+        }
+
+        // 2. Ambient Snow across Map (Full intensity in Frost territory, lessened intensity in rest of map)
+        const snowCells = (voronoi.cells || []).filter(c => c.team === 'snow' && c.polygon && c.polygon.length >= 3);
+        ctx.save();
+        while (ambientSnowRef.current.length < 28) {
+          const inTerritorySpawn = snowCells.length > 0 && Math.random() < 0.65;
+          let sx, sy;
+          if (inTerritorySpawn) {
+            const cell = snowCells[Math.floor(Math.random() * snowCells.length)];
+            const ang = Math.random() * Math.PI * 2;
+            const dist = Math.sqrt(Math.random()) * ((cell.radius || 2) * CS * 0.95);
+            sx = cell.center.x * CS + Math.cos(ang) * dist;
+            sy = cell.center.y * CS + Math.sin(ang) * dist - Math.random() * 20;
+          } else {
+            sx = Math.random() * C.CANVAS_SIZE;
+            sy = Math.random() * C.CANVAS_SIZE * 0.85 - 20;
+          }
+          ambientSnowRef.current.push({
+            x: sx,
+            y: sy,
+            vy: Math.random() * 0.60 + 0.40,
+            vx: (Math.random() - 0.5) * 0.35,
+            size: Math.random() * 1.6 + 1.2,
+            baseAlpha: Math.random() * 0.35 + 0.45,
+            life: Math.floor(Math.random() * 140 + 90),
+            maxLife: 230,
+            sway: Math.random() * Math.PI * 2,
+            swaySpeed: Math.random() * 0.025 + 0.015,
+            intensity: inTerritorySpawn ? 1.0 : 0.25
+          });
+        }
+
+        ctx.shadowColor = 'rgba(186, 230, 253, 0.6)';
+
+        for (let i = ambientSnowRef.current.length - 1; i >= 0; i--) {
+          const flake = ambientSnowRef.current[i];
+          flake.y += flake.vy;
+          flake.sway += flake.swaySpeed;
+          flake.x += flake.vx + Math.sin(flake.sway) * 0.28;
+          flake.life--;
+
+          // Check if currently inside Frost occupied territory
+          const inFrost = isPointInTeamTerritory(flake.x, flake.y, snowCells, CS);
+          const targetIntensity = inFrost ? 1.0 : 0.25;
+          flake.intensity = flake.intensity !== undefined ? flake.intensity + (targetIntensity - flake.intensity) * 0.12 : targetIntensity;
+
+          const fadeIn = Math.min(1, (flake.maxLife - flake.life) / 25);
+          const fadeOut = Math.min(1, flake.life / 25);
+          const a = flake.baseAlpha * fadeIn * fadeOut * flake.intensity;
+
+          ctx.shadowBlur = inFrost ? 3 : 1;
+          ctx.fillStyle = `rgba(224, 242, 254, ${a})`;
+          ctx.beginPath();
+          ctx.arc(flake.x, flake.y, flake.size * (inFrost ? 1.0 : 0.85), 0, Math.PI * 2);
+          ctx.fill();
+
+          if (flake.life <= 0 || flake.y > C.CANVAS_SIZE || flake.x < 0 || flake.x > C.CANVAS_SIZE) {
+            ambientSnowRef.current.splice(i, 1);
+          }
+        }
+        ctx.restore();
+
+        // 3. Ambient Flickering Embers across Map (Full intensity in Ash territory, lessened intensity in rest of map)
+        const ashCells = (voronoi.cells || []).filter(c => c.team === 'ash' && c.polygon && c.polygon.length >= 3);
+        ctx.save();
+        while (ambientEmbersRef.current.length < 28) {
+          const inTerritorySpawn = ashCells.length > 0 && Math.random() < 0.65;
+          let ex, ey;
+          if (inTerritorySpawn) {
+            const cell = ashCells[Math.floor(Math.random() * ashCells.length)];
+            const ang = Math.random() * Math.PI * 2;
+            const dist = Math.sqrt(Math.random()) * ((cell.radius || 2) * CS * 0.95);
+            ex = cell.center.x * CS + Math.cos(ang) * dist;
+            ey = cell.center.y * CS + Math.sin(ang) * dist + Math.random() * 15;
+          } else {
+            ex = Math.random() * C.CANVAS_SIZE;
+            ey = Math.random() * C.CANVAS_SIZE * 0.85 + 20;
+          }
+          ambientEmbersRef.current.push({
+            x: ex,
+            y: ey,
+            vy: -(Math.random() * 0.55 + 0.30),
+            vx: (Math.random() - 0.5) * 0.35,
+            size: Math.random() * 1.8 + 1.1,
+            baseAlpha: Math.random() * 0.40 + 0.50,
+            life: Math.floor(Math.random() * 130 + 80),
+            maxLife: 210,
+            flickerSpeed: Math.random() * 0.08 + 0.05,
+            seed: Math.random() * 10,
+            color: Math.random() > 0.45 ? '255, 80, 20' : '255, 175, 35',
+            intensity: inTerritorySpawn ? 1.0 : 0.25
+          });
+        }
+
+        for (let i = ambientEmbersRef.current.length - 1; i >= 0; i--) {
+          const ember = ambientEmbersRef.current[i];
+          ember.y += ember.vy;
+          ember.x += ember.vx;
+          ember.life--;
+
+          // Check if currently inside Ash occupied territory
+          const inAsh = isPointInTeamTerritory(ember.x, ember.y, ashCells, CS);
+          const targetIntensity = inAsh ? 1.0 : 0.25;
+          ember.intensity = ember.intensity !== undefined ? ember.intensity + (targetIntensity - ember.intensity) * 0.12 : targetIntensity;
+
+          const fadeIn = Math.min(1, (ember.maxLife - ember.life) / 20);
+          const fadeOut = Math.min(1, ember.life / 20);
+          const flick = 0.55 + 0.45 * Math.sin(now * ember.flickerSpeed + ember.seed);
+          const a = ember.baseAlpha * fadeIn * fadeOut * Math.max(0.15, flick) * ember.intensity;
+
+          ctx.fillStyle = `rgba(${ember.color}, ${a})`;
+          ctx.shadowColor = `rgba(${ember.color}, ${inAsh ? 0.75 : 0.25})`;
+          ctx.shadowBlur = inAsh ? 4 : 1.5;
+          ctx.beginPath();
+          ctx.arc(ember.x, ember.y, ember.size * (inAsh ? 1.0 : 0.85), 0, Math.PI * 2);
+          ctx.fill();
+
+          if (ember.life <= 0 || ember.y < 0 || ember.x < 0 || ember.x > C.CANVAS_SIZE) {
+            ambientEmbersRef.current.splice(i, 1);
+          }
+        }
+        ctx.restore();
+      }
 
       if (didTransform) ctx.restore();
       ctx.restore();
@@ -540,12 +1019,11 @@ export default function Board({
         }
       }
 
-      // Base cell borders and state indicators
-      let cellStyle = { border: '1px solid rgba(255, 255, 255, 0.03)' };
-      let cellClass = 'hover:bg-white/5';
+      // Boundless continuous board styling (no rigid box boundaries)
+      let cellStyle = { border: 'none' };
+      let cellClass = '';
       if (hasCrater) {
         cellStyle = { border: 'none', outline: 'none' };
-        cellClass = '';
       } else if (isVoid) {
         cellStyle = { backgroundColor: 'rgba(15, 10, 25, 0.95)', border: '1.5px solid rgba(147, 51, 234, 0.2)' };
       } else if (isWall) {
@@ -557,20 +1035,31 @@ export default function Board({
         <div 
           key={i}
           style={cellStyle}
-          className={`relative w-full aspect-square flex items-center justify-center transition-all cursor-pointer ${cellClass}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (onBoardClick) {
-              onBoardClick(r, c);
-            } else if (onCellClick) {
-              onCellClick(r, c);
-            }
-          }}
+          className={`relative w-full aspect-square flex items-center justify-center pointer-events-none ${cellClass}`}
         >
-          {/* Valid Ability Target Highlights */}
-          {isAbilityTarget && (
-            <div className="absolute inset-0 bg-emerald-500/20 border border-emerald-400/80 target-cell-indicator pointer-events-none rounded-[2px] shadow-[inset_0_0_12px_rgba(52,211,153,0.35)] flex items-center justify-center">
-              <span className="text-[9px] text-emerald-300 font-bold opacity-75">✦</span>
+          {/* Faction-tuned ethereal ability target rune */}
+          {isAbilityTarget && !['FrostfallBlessing', 'ReignOfFire', 'GlacialFracture', 'ObsidianPillar'].includes(gameState?.abilityContext?.abilityKey || gameState?.selectedPiece?.ability?.key) && (
+            <div 
+              className="absolute inset-1 pointer-events-none rounded-full flex items-center justify-center"
+              style={{
+                background: gameState?.selectedPiece?.team === 'snow'
+                  ? 'radial-gradient(circle, rgba(56, 189, 248, 0.25) 0%, rgba(14, 165, 233, 0.08) 65%, transparent 100%)'
+                  : 'radial-gradient(circle, rgba(249, 115, 22, 0.25) 0%, rgba(239, 68, 68, 0.08) 65%, transparent 100%)',
+                border: gameState?.selectedPiece?.team === 'snow'
+                  ? '1.5px solid rgba(186, 230, 253, 0.75)'
+                  : '1.5px solid rgba(254, 215, 170, 0.75)',
+                boxShadow: gameState?.selectedPiece?.team === 'snow'
+                  ? '0 0 10px rgba(56, 189, 248, 0.5), inset 0 0 6px rgba(56, 189, 248, 0.2)'
+                  : '0 0 10px rgba(249, 115, 22, 0.5), inset 0 0 6px rgba(249, 115, 22, 0.2)',
+              }}
+            >
+              <div 
+                className="w-2 h-2 rounded-full"
+                style={{
+                  backgroundColor: gameState?.selectedPiece?.team === 'snow' ? '#e0f2fe' : '#fef3c7',
+                  boxShadow: '0 0 6px #ffffff'
+                }}
+              />
             </div>
           )}
         </div>
@@ -680,13 +1169,34 @@ export default function Board({
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const clickY = e.clientY - rect.top;
-    let visualCol = Math.floor((clickX / rect.width) * 10);
-    let visualRow = Math.floor((clickY / rect.height) * 10);
-    visualCol = Math.max(0, Math.min(9, visualCol));
-    visualRow = Math.max(0, Math.min(9, visualRow));
-    const r = isAsh ? 9 - visualRow : visualRow;
-    const c = isAsh ? 9 - visualCol : visualCol;
+    const visualCol = Math.max(0, Math.min(10, (clickX / rect.width) * 10));
+    const visualRow = Math.max(0, Math.min(10, (clickY / rect.height) * 10));
+    const rawR = isAsh ? 10 - visualRow : visualRow;
+    const rawC = isAsh ? 10 - visualCol : visualCol;
+    const r = Number(rawR.toFixed(2));
+    const c = Number(rawC.toFixed(2));
     onBoardClick(r, c);
+  };
+
+  const handlePointerMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    const visualCol = Math.max(0, Math.min(10, (clickX / rect.width) * 10));
+    const visualRow = Math.max(0, Math.min(10, (clickY / rect.height) * 10));
+    const rawR = isAsh ? 10 - visualRow : visualRow;
+    const rawC = isAsh ? 10 - visualCol : visualCol;
+    mousePosRef.current = {
+      r: Number(rawR.toFixed(2)),
+      c: Number(rawC.toFixed(2)),
+      visualCol,
+      visualRow,
+      active: true
+    };
+  };
+
+  const handlePointerLeave = () => {
+    mousePosRef.current.active = false;
   };
 
   return (
@@ -694,6 +1204,8 @@ export default function Board({
       id="gameBoard"
       className="relative select-none"
       onClick={handleBoardContainerClick}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
       style={{
         backgroundImage: isAsh ? "url('/images/bg-game2.webp')" : "url('/images/bg-game.webp')",
         backgroundSize: '100% 100%'

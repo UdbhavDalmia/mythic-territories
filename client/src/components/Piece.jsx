@@ -200,12 +200,13 @@ function Piece({
       onMouseEnter={(e) => onMouseEnter && onMouseEnter(piece, e)}
       onMouseLeave={() => onMouseLeave && onMouseLeave()}
     >
-      {/* Selection Rotating Rings & Aura */}
+      {/* Modern Faction Selection Reticle & Pedestal */}
       {isSelected && (
-        <>
-          <div className="selection-ring-outer" />
-          <div className="selection-ring-pulse" />
-        </>
+        <div className={`selection-container pointer-events-none ${isSnow ? 'selection-snow' : 'selection-ash'}`}>
+          <div className="selection-glow" />
+          <div className="selection-ring" />
+          <div className="selection-brackets" />
+        </div>
       )}
 
       {/* Meteor Shield (Invulnerability) 3D Glowing Spherical Energy Orb */}

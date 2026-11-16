@@ -1,8 +1,20 @@
 import * as C from "./constants.js";
 import { updateBoardMap, isCaptureSuccessful, getValidMoves, dealDamage, previewDamage, getPieceMoveRadius, getEffectiveControl } from "./utils.js";
 import { executeAscensionChoice as _executeAscensionLogic } from "./ascension.js";
+import { computePowerDiagram, syncTerritorySetsFromVoronoi } from "./voronoi.js";
 
 let gameState = {};
+
+/**
+ * Updates the continuous Weighted Voronoi (Power Diagram) state
+ * and synchronizes the discrete territory sets for existing mechanics.
+ */
+export function updateVoronoiState(gs = gameState) {
+  if (!gs || !gs.pieces) return;
+  const voronoi = computePowerDiagram(gs.pieces);
+  gs.voronoiData = voronoi;
+  syncTerritorySetsFromVoronoi(gs, voronoi);
+}
 
 export const GameState = {
   AWAITING_PIECE_SELECTION: "AWAITING_PIECE_SELECTION",
@@ -102,13 +114,18 @@ function ensureSets(gs) {
 
 export function resolveDeaths(gs, defaultAttacker = null) {
   let deathResolved = true;
+  let anyDied = false;
   while (deathResolved) {
     deathResolved = false;
     const dyingPiece = gs.pieces.find(p => typeof p.currentHp === "number" && p.currentHp <= 0);
     if (dyingPiece) {
       handlePieceCapture(dyingPiece, defaultAttacker, gs);
       deathResolved = true;
+      anyDied = true;
     }
+  }
+  if (anyDied) {
+    updateVoronoiState(gs);
   }
 }
 
@@ -161,8 +178,8 @@ export function applyAoeLethalPassives(piece, gameState) {
       piece.deathMeteorInvincibilityTurns = 2;
       piece.hasTriggeredDeathMeteor = true;
 
-      const currentR = Math.round(piece.row);
-      const currentC = Math.round(piece.col);
+      const currentR = piece.row;
+      const currentC = piece.col;
 
       // 1. AoE Damage to all units within Radius 2 (enemies take 4 dmg, allies take 2 dmg)
       let aoeHits = 0;
@@ -198,9 +215,9 @@ export function applyAoeLethalPassives(piece, gameState) {
         duration: 99999
       });
 
-      // Secondary explosive payload logic: spawn Unstable Ground with isBurningGround on center square
+      // Secondary explosive payload logic: spawn Unstable Ground with isBurningGround on center position
       gameState.unstableGrounds = gameState.unstableGrounds || [];
-      if (!gameState.unstableGrounds.some(g => g.row === currentR && g.col === currentC)) {
+      if (!gameState.unstableGrounds.some(g => Math.hypot(g.row - currentR, g.col - currentC) < 0.4)) {
         gameState.unstableGrounds.push({
           row: currentR,
           col: currentC,
@@ -210,13 +227,13 @@ export function applyAoeLethalPassives(piece, gameState) {
         });
       }
 
-      // 3. Find a safe adjacent cell to move the Tyrant to
+      // 3. Find a safe adjacent point to move the Tyrant to
       const isCandidateValid = cand => {
         if (cand.r < 0 || cand.r >= C.ROWS || cand.c < 0 || cand.c >= C.COLS) return false;
-        if ((gameState.voidSquares || []).some(v => v.row === cand.r && v.col === cand.c)) return false;
-        if ((gameState.glacialWalls || []).some(w => w.row === cand.r && w.col === cand.c)) return false;
-        if ((gameState.specialTerrains || []).some(t => t.type === 'crater' && Math.round(t.row) === cand.r && Math.round(t.col) === cand.c && !(Math.round(t.row) === currentR && Math.round(t.col) === currentC))) return false;
-        if ((gameState.pieces || []).some(p => p.id !== piece.id && Math.round(p.row) === cand.r && Math.round(p.col) === cand.c)) return false;
+        if ((gameState.voidSquares || []).some(v => Math.hypot(v.row - cand.r, v.col - cand.c) < 0.6)) return false;
+        if ((gameState.glacialWalls || []).some(w => Math.hypot(w.row - cand.r, w.col - cand.c) < 0.6)) return false;
+        if ((gameState.specialTerrains || []).some(t => t.type === 'crater' && Math.hypot(t.row - cand.r, t.col - cand.c) < 0.6 && !(Math.hypot(t.row - currentR, t.col - currentC) < 0.2))) return false;
+        if ((gameState.pieces || []).some(p => p.id !== piece.id && Math.hypot(p.row - cand.r, p.col - cand.c) < 0.7)) return false;
         return true;
       };
 
@@ -575,9 +592,19 @@ export function executeAbility(
     if (abilityKey === "FrenziedDash") {
       emit(gameStateLocal, { type: "ANIMATION", name: "FrenziedDash", pieceId: piece.id, oldRow, oldCol, targetR: target.r, targetC: target.c });
     } else if (abilityKey === "GlacialFracture") {
-      // 1. Convert territory to snow
+      // 1. Damage enemies within continuous radius
       let enemiesCaught = [];
       const rad = C.ABILITY_VALUES.GlacialFracture.radius;
+      (gameStateLocal.pieces || []).forEach(p => {
+        if (p.team !== piece.team && p.currentHp > 0) {
+          if (Math.hypot(p.row - target.r, p.col - target.c) <= rad + 0.45) {
+            enemiesCaught.push(p);
+            p.currentHp = Math.max(0, p.currentHp - C.ABILITY_VALUES.GlacialFracture.damage);
+          }
+        }
+      });
+
+      // Convert nearby ground to snow territory
       for (let r = -Math.floor(rad + 0.5); r <= Math.ceil(rad + 0.5); r++) {
         for (let c = -Math.floor(rad + 0.5); c <= Math.ceil(rad + 0.5); c++) {
           if (Math.hypot(r, c) <= rad + 0.5) {
@@ -586,13 +613,6 @@ export function executeAbility(
             if (inBounds(tr, tc)) {
               gameStateLocal.snowTerritory.add(`${tr},${tc}`);
               gameStateLocal.ashTerritory.delete(`${tr},${tc}`);
-
-              // 2. Damage enemies
-              const p = C.getPieceAt(tr, tc, gameStateLocal.pieces);
-              if (p && p.team !== piece.team && p.currentHp > 0) {
-                enemiesCaught.push(p);
-                p.currentHp = Math.max(0, p.currentHp - C.ABILITY_VALUES.GlacialFracture.damage);
-              }
             }
           }
         }
@@ -605,7 +625,7 @@ export function executeAbility(
         return false; // Preserves turn action
       }
 
-      // 4. Spawn Ice Wisp logic
+      // 4. Spawn Ice Wisp logic at optimal open continuous location
       let bestTile = null;
       let maxDistSum = -1;
       let closestToMage = Infinity;
@@ -613,11 +633,12 @@ export function executeAbility(
       for (let r = -Math.floor(rad); r <= Math.ceil(rad); r++) {
         for (let c = -Math.floor(rad); c <= Math.ceil(rad); c++) {
           if (Math.hypot(r, c) <= rad) {
-            const tr = Math.round(target.r + r);
-            const tc = Math.round(target.c + c);
-            if (inBounds(tr, tc) && !C.getPieceAt(tr, tc, gameStateLocal.pieces) &&
-              !C.getPieceAt(tr - 0.5, tc - 0.5, gameStateLocal.pieces)) {
-
+            const tr = Math.round((target.r + r) * 10) / 10;
+            const tc = Math.round((target.c + c) * 10) / 10;
+            const isBlocked = (gameStateLocal.pieces || []).some(p => Math.hypot(p.row - tr, p.col - tc) < 0.7) ||
+                              (gameStateLocal.glacialWalls || []).some(w => Math.hypot(w.row - tr, w.col - tc) < 0.6) ||
+                              (gameStateLocal.voidSquares || []).some(v => Math.hypot(v.row - tr, v.col - tc) < 0.6);
+            if (inBounds(Math.round(tr), Math.round(tc)) && !isBlocked) {
               if (enemiesCaught.length > 0) {
                 let distSum = 0;
                 enemiesCaught.forEach(ep => {
@@ -1107,10 +1128,10 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
       // flash(`${C.PIECE_TYPES[piece.key]?.name || 'Unit'} attacked but ${C.PIECE_TYPES[defender.key]?.name || 'Defender'} survived!`, piece.team, gameState);
     }
   } else {
-    // Empty square move: ensure target square is not an impassable obstacle
-    const isBlocked = (gameState.voidSquares || []).some(v => v.row === targetRow && v.col === targetCol) ||
-                      (gameState.glacialWalls || []).some(w => w.row === targetRow && w.col === targetCol) ||
-                      (gameState.specialTerrains || []).some(t => t.type === 'crater' && Math.round(t.row) === targetRow && Math.round(t.col) === targetCol);
+    // Empty ground move: ensure target position is not blocked by an impassable obstacle
+    const isBlocked = (gameState.voidSquares || []).some(v => Math.hypot(v.row - targetRow, v.col - targetCol) < 0.6) ||
+                      (gameState.glacialWalls || []).some(w => Math.hypot(w.row - targetRow, w.col - targetCol) < 0.6) ||
+                      (gameState.specialTerrains || []).some(t => t.type === 'crater' && Math.hypot(t.row - targetRow, t.col - targetCol) < 0.65);
     if (isBlocked) return false;
 
     if (!gameState.movePulses) gameState.movePulses = [];
@@ -1213,6 +1234,7 @@ function updatePiecePosition(p, r, c) {
   p.row = r;
   p.col = c;
   paintTerritoryPath(p, startR, startC, r, c, gameState);
+  updateVoronoiState(gameState);
 }
 
 // ============================================================================
@@ -2596,14 +2618,20 @@ export function resetGame() {
 
 export function initGameState(initialState) {
   gameState = initialState;
-  if (gameState) ensureSets(gameState);
+  if (gameState) {
+    ensureSets(gameState);
+    updateVoronoiState(gameState);
+  }
 }
 
 export function withGameState(gs, fn) {
   const prev = gameState;
   try {
     gameState = gs;
-    if (gameState) ensureSets(gameState);
+    if (gameState) {
+      ensureSets(gameState);
+      updateVoronoiState(gameState);
+    }
     return fn();
   } finally {
     gameState = prev;
@@ -2709,6 +2737,8 @@ export function initGame() {
   gameState.pieces.forEach((p) => {
     paintTerritoryPath(p, p.row, p.col, p.row, p.col, gameState);
   });
+
+  updateVoronoiState(gameState);
 
   emit(gameState, { type: "INIT_BOARD" });
   updateBoardMap(gameState);
