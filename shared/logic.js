@@ -149,6 +149,26 @@ export function applyAoeLethalPassives(piece, gameState) {
       piece.hasHelpFromAboveActive = true;
       piece.helpFromAboveActiveTurns = C.ABILITY_VALUES.HelpFromAbove?.activeDuration || 3;
 
+      // Grant nearby allies (Rad 1.5) +1 Strength for 3 turns
+      const rad = C.ABILITY_VALUES.HelpFromAbove?.radius || 1.5;
+      const strBoost = C.ABILITY_VALUES.HelpFromAbove?.strengthBoost || 1;
+      const duration = C.ABILITY_VALUES.HelpFromAbove?.activeDuration || 3;
+      if (gameState.pieces) {
+        gameState.temporaryBoosts = gameState.temporaryBoosts || [];
+        gameState.pieces.forEach(p => {
+          if (p.team === piece.team && p.id !== piece.id && Math.hypot(p.row - piece.row, p.col - piece.col) <= rad) {
+            gameState.temporaryBoosts.push({
+              pieceId: p.id,
+              duration: duration,
+              amount: strBoost,
+              name: 'HelpFromAboveStr'
+            });
+          }
+        });
+      }
+
+      flash(`Help From Above! Frost Lord is shielded and bolsters nearby allies.`, piece.team, gameState);
+
       // Emit the animation trigger for the client
       if (typeof window === 'undefined' || gameState.isLocalSimulation !== true) {
         if (!gameState.events) gameState.events = [];

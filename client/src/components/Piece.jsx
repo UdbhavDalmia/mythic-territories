@@ -11,7 +11,8 @@ function Piece({
   onClick, 
   onLungeComplete,
   onMouseEnter,
-  onMouseLeave
+  onMouseLeave,
+  onMouseMove
 }) {
   const pieceRef = useRef(null);
   const innerRef = useRef(null);
@@ -198,6 +199,7 @@ function Piece({
         onClick(piece);
       }}
       onMouseEnter={(e) => onMouseEnter && onMouseEnter(piece, e)}
+      onMouseMove={(e) => onMouseMove && onMouseMove(piece, e)}
       onMouseLeave={() => onMouseLeave && onMouseLeave()}
     >
       {/* Modern Faction Selection Reticle & Pedestal */}

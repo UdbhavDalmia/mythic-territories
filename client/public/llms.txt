@@ -1,43 +1,52 @@
 # Mythic Territories
 
-> A premium turn-based strategy game where you command elemental factions — Frost or Ash — in tactical head-to-head combat. Free to play in your browser.
+> A free browser-based, turn-based strategy game where players command elemental factions — Frost or Ash — in tactical head-to-head combat. No installation or registration required.
 
 ## About the Game
 
-Mythic Territories is a browser-based, turn-based strategy game built with modern web technologies (React, Vite). Two players — or one player vs an AI — battle across a tactical board using unique faction units, each with special abilities. The game features an Ascension mechanic, Destiny Wheel spins, and a detailed faction guide (Rulebook).
+Mythic Territories is a competitive, grid-based tactical strategy game built for the modern web (React 19, Vite, Firebase). Two commanders battle across an elemental board using distinct faction units, each possessing unique movement ranges, combat stats, and passive or active abilities. The game features an Ascension progression mechanic, Destiny Wheel bonus spins, single-player vs AI with strategic pathfinding, local 2-player pass-and-play, and real-time online multiplayer with room codes.
 
 ## Key Pages
 
-- [Home / Lobby](https://mythic-territories.xyz/) — Start a local match, create an online room, or spin the Destiny Wheel
-- [Rulebook / Guide](https://mythic-territories.xyz/?page=rules) — Full game rules, unit stats, faction abilities, and strategy tips
-- [Patch Notes](https://mythic-territories.xyz/?page=notes) — Changelog and balance updates
-- [Destiny Wheel](https://mythic-territories.xyz/?page=wheel) — Spin for a random unit unlock or bonus
+- [Home / Lobby](https://mythic-territories.xyz/) — Start a local match, play vs AI, create or join an online room, or spin the Destiny Wheel
+- [Rulebook & Unit Stats](https://mythic-territories.xyz/?page=rules) — Complete game rules, turn phases, combat formulas, unit stats, and strategy guide
+- [Patch Notes & Changelog](https://mythic-territories.xyz/?page=notes) — Balance adjustments, unit reworks, and feature updates
+- [Destiny Wheel](https://mythic-territories.xyz/?page=wheel) — Spin for randomized unit unlocks, blessings, and faction buffs
+- [AI Resource Catalog](https://mythic-territories.xyz/.well-known/ai-catalog.json) — ARD capability manifest for AI agents
+- [Sitemap](https://mythic-territories.xyz/sitemap.xml) — XML sitemap indexing all public pages
 
-## Factions
+## Elemental Factions
 
-**Ash Faction** — Fire and volcanic units. Aggressive, high-damage playstyle.
-Units include: Ash Reaper, Ash Tyrant, Blaze Runner, Cinder Scout, Hell Hound, Magma Prowler, Magma Shaper, Magma Spitter, Rift Forger, Scorch Priest, Obsidian Shaper.
+### Frost Faction (Ice / Control)
+- **Playstyle:** Defensive positioning, lane denial, freeze status effects, high survivability, and battlefield manipulation.
+- **Key Units:** Arctic Trapper, Cryomancer, Frost Lord, Glacial Brute, Hoarfrost Mystic, Ice Weaver, Snow Wolf, Soul Freeze, Soul Linker, Void Chanter, Wisp, Yeti.
 
-**Frost Faction** — Frost and arctic units. Defensive, control-based playstyle.
-Units include: Arctic Trapper, Cryomancer, Frost Lord, Glacial Brute, Hoarfrost Mystic, Ice Weaver, Snow Wolf, Soul Freeze, Soul Linker, Void Chanter, Wisp, Yeti.
+### Ash Faction (Fire / Aggression)
+- **Playstyle:** High offensive burst, aggressive zone control, burn effects, high mobility, and explosive frontline pressure.
+- **Key Units:** Ash Reaper, Ash Tyrant, Blaze Runner, Cinder Scout, Hell Hound, Magma Prowler, Magma Shaper, Magma Spitter, Rift Forger, Scorch Priest, Obsidian Shaper.
 
-## Game Mechanics
+## Core Mechanics
 
-- Turn-based grid combat
-- Each faction has a unique Leader with special abilities
-- Ascension system: units can ascend to stronger forms
-- Destiny Wheel: randomised bonuses and unit unlocks
-- Online multiplayer (room codes) and local 2-player mode
-- AI opponent available for single-player
+- **Turn-Based Grid Combat:** Move and attack on a tactical grid with terrain and line-of-sight considerations.
+- **Faction Leaders:** Each commander leads their army with signature abilities that can shift the momentum of the match.
+- **Ascension System:** Units can ascend into empowered forms during combat, gaining enhanced stats and abilities.
+- **Destiny Wheel:** Spin between matches to earn blessings, unlocks, or cosmetic enhancements.
+- **Game Modes:**
+  - *Single-Player vs AI:* Dedicated Web Worker AI providing responsive tactical play without UI stutter.
+  - *Local 2-Player:* Pass-and-play on a shared screen.
+  - *Online Multiplayer:* Low-latency serverless room matchmaking and real-time game state synchronization via Firebase Firestore.
 
-## Technical Stack
+## Technical Architecture
 
-- Frontend: React 18, Vite, Tailwind CSS, GSAP animations
-- Multiplayer: Socket.IO (real-time)
-- Assets: WebP images, SVG badges, Web Workers for AI
+- **Frontend:** React 19, Vite, Tailwind CSS, GSAP for smooth animations
+- **Multiplayer Backend:** Serverless Firebase Cloud Firestore for real-time room synchronization and matchmaking
+- **AI Processing:** Dedicated client-side Web Worker for asynchronous move calculation
+- **Optimization:** Brotli & Gzip pre-compression, responsive WebP asset pipeline, PWA manifest, self-hosted fonts
 
-## Domain
+## Discovery & Machine Readability
 
-- Primary URL: https://mythic-territories.xyz/
-- Sitemap: https://mythic-territories.xyz/sitemap.xml
-
+- **Primary URL:** https://mythic-territories.xyz/
+- **Agentic Resource Discovery (ARD):** https://mythic-territories.xyz/.well-known/ard.json
+- **AI Catalog:** https://mythic-territories.xyz/.well-known/ai-catalog.json
+- **Sitemap Index:** https://mythic-territories.xyz/sitemap.xml
+- **Robots Policy:** https://mythic-territories.xyz/robots.txt (Permits search engines and verified AI crawlers including GPTBot, Claude-Web, PerplexityBot, Google-Extended, and Applebot)

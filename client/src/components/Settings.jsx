@@ -8,14 +8,17 @@ import {
   Settings as SettingsIcon,
   Sparkles,
   Zap,
+  Smartphone
 } from 'lucide-react';
 import { getMotionPreference, applyMotionPreference } from '../services/motionPreference.js';
+import { getHapticsEnabled, setHapticsEnabled, triggerHaptic } from '../services/haptics.js';
 
 export { getMotionPreference, applyMotionPreference };
 
 export default function Settings({ navigateTo }) {
   const pageRef = useRef(null);
   const [motionMode, setMotionMode] = useState(getMotionPreference);
+  const [hapticsEnabled, setHapticsEnabledState] = useState(getHapticsEnabled);
 
   useLayoutEffect(() => {
     gsap.fromTo(
@@ -42,6 +45,13 @@ export default function Settings({ navigateTo }) {
   const handleSelectMotion = (mode) => {
     setMotionMode(mode);
     applyMotionPreference(mode);
+  };
+
+  const handleToggleHaptics = () => {
+    const next = !hapticsEnabled;
+    setHapticsEnabledState(next);
+    setHapticsEnabled(next);
+    if (next) triggerHaptic('light');
   };
 
   return (
@@ -95,105 +105,137 @@ export default function Settings({ navigateTo }) {
           </p>
         </header>
 
-        {/* Settings Card */}
-        <div className="rounded-2xl border border-ember-gold/25 bg-surface-container/70 backdrop-blur-xl p-5 sm:p-7 shadow-[0_20px_50px_rgba(0,0,0,0.8),0_0_30px_rgba(245,158,11,0.08)]">
-          {/* Section Header */}
-          <div className="pb-4 border-b border-outline/10">
-            <h2 className="font-almendra text-lg sm:text-xl font-bold text-on-surface tracking-wide">
-              Motion & Visual Intensity
-            </h2>
-            <p className="font-label-caps text-[10px] tracking-wider text-on-surface-variant uppercase">
-              Display & Accessibility
+        {/* Unified Settings Menu */}
+        <div className="rounded-2xl border border-ember-gold/25 bg-surface-container/70 backdrop-blur-xl p-6 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.8),0_0_30px_rgba(245,158,11,0.08)] divide-y divide-outline/15">
+          {/* Section 1: Motion */}
+          <div className="pb-8">
+            <div className="pb-4">
+              <h2 className="font-almendra text-lg sm:text-xl font-bold text-on-surface tracking-wide">
+                Motion & Visual Intensity
+              </h2>
+              <p className="font-label-caps text-[10px] tracking-wider text-on-surface-variant uppercase">
+                Display & Accessibility
+              </p>
+            </div>
+
+            <p className="mt-1 text-xs sm:text-sm text-on-surface-variant leading-relaxed">
+              Choose between full atmospheric animations or reduced motion for optimized performance.
             </p>
+
+            {/* Vertically Stacked Horizontal Choice Cards */}
+            <div className="flex flex-col gap-3 mt-5">
+              {/* Full Motion Option */}
+              <button
+                type="button"
+                onClick={() => handleSelectMotion('full')}
+                className={`relative flex items-center justify-between p-4 sm:p-4.5 rounded-xl border text-left transition-all duration-300 cursor-pointer ${
+                  motionMode === 'full'
+                    ? 'border-ember-gold bg-gradient-to-r from-ember-gold/15 via-ember-gold/5 to-transparent shadow-[0_0_20px_rgba(245,158,11,0.2)]'
+                    : 'border-outline/15 bg-void-black/40 hover:border-outline/30 hover:bg-void-black/60'
+                }`}
+              >
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div
+                    className={`p-2 rounded-lg border shrink-0 transition-colors ${
+                      motionMode === 'full'
+                        ? 'bg-ember-gold/20 border-ember-gold/50 text-ember-gold'
+                        : 'bg-void-black/50 border-outline/15 text-on-surface-variant'
+                    }`}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-almendra text-base font-bold text-on-surface tracking-wide">
+                      Full Motion
+                    </div>
+                    <p className="text-xs text-on-surface-variant truncate sm:text-clip">
+                      Dynamic particles, banner physics, and combat camera shakes
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  className={`h-5 w-5 rounded-full border flex items-center justify-center shrink-0 ml-4 transition-all ${
+                    motionMode === 'full'
+                      ? 'border-ember-gold bg-ember-gold text-void-black shadow-[0_0_10px_rgba(245,158,11,0.5)]'
+                      : 'border-outline/30 bg-void-black/50 text-transparent'
+                  }`}
+                >
+                  <Check className="h-3 w-3 stroke-[3]" />
+                </div>
+              </button>
+
+              {/* Reduced Motion Option */}
+              <button
+                type="button"
+                onClick={() => handleSelectMotion('reduced')}
+                className={`relative flex items-center justify-between p-4 sm:p-4.5 rounded-xl border text-left transition-all duration-300 cursor-pointer ${
+                  motionMode === 'reduced'
+                    ? 'border-cyan-400 bg-gradient-to-r from-cyan-500/15 via-cyan-500/5 to-transparent shadow-[0_0_20px_rgba(56,189,248,0.2)]'
+                    : 'border-outline/15 bg-void-black/40 hover:border-outline/30 hover:bg-void-black/60'
+                }`}
+              >
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div
+                    className={`p-2 rounded-lg border shrink-0 transition-colors ${
+                      motionMode === 'reduced'
+                        ? 'bg-cyan-500/20 border-cyan-400/50 text-cyan-300'
+                        : 'bg-void-black/50 border-outline/15 text-on-surface-variant'
+                    }`}
+                  >
+                    <Zap className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-almendra text-base font-bold text-on-surface tracking-wide">
+                      Reduced Motion
+                    </div>
+                    <p className="text-xs text-on-surface-variant truncate sm:text-clip">
+                      Disables screen shakes, ambient particles, and background sways
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  className={`h-5 w-5 rounded-full border flex items-center justify-center shrink-0 ml-4 transition-all ${
+                    motionMode === 'reduced'
+                      ? 'border-cyan-400 bg-cyan-400 text-void-black shadow-[0_0_10px_rgba(56,189,248,0.5)]'
+                      : 'border-outline/30 bg-void-black/50 text-transparent'
+                  }`}
+                >
+                  <Check className="h-3 w-3 stroke-[3]" />
+                </div>
+              </button>
+            </div>
           </div>
 
-          <p className="mt-4 text-xs sm:text-sm text-on-surface-variant leading-relaxed">
-            Choose between full atmospheric animations or reduced motion for optimized performance.
-          </p>
-
-          {/* Vertically Stacked Horizontal Choice Cards */}
-          <div className="flex flex-col gap-3 mt-5">
-            {/* Full Motion Option */}
-            <button
-              type="button"
-              onClick={() => handleSelectMotion('full')}
-              className={`relative flex items-center justify-between p-4 sm:p-4.5 rounded-xl border text-left transition-all duration-300 cursor-pointer ${
-                motionMode === 'full'
-                  ? 'border-ember-gold bg-gradient-to-r from-ember-gold/15 via-ember-gold/5 to-transparent shadow-[0_0_20px_rgba(245,158,11,0.2)]'
-                  : 'border-outline/15 bg-void-black/40 hover:border-outline/30 hover:bg-void-black/60'
-              }`}
-            >
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div
-                  className={`p-2 rounded-lg border shrink-0 transition-colors ${
-                    motionMode === 'full'
-                      ? 'bg-ember-gold/20 border-ember-gold/50 text-ember-gold'
-                      : 'bg-void-black/50 border-outline/15 text-on-surface-variant'
-                  }`}
-                >
-                  <Sparkles className="h-4 w-4" />
-                </div>
-                <div className="min-w-0">
-                  <div className="font-almendra text-base font-bold text-on-surface tracking-wide">
-                    Full Motion
-                  </div>
-                  <p className="text-xs text-on-surface-variant truncate sm:text-clip">
-                    Dynamic particles, banner physics, and combat camera shakes
-                  </p>
-                </div>
+          {/* Section 2: Mobile Haptic Feedback */}
+          <div className="pt-8">
+            <div className="pb-4 flex items-center justify-between">
+              <div>
+                <h2 className="font-almendra text-lg sm:text-xl font-bold text-on-surface tracking-wide">
+                  Mobile Haptic Feedback
+                </h2>
+                <p className="font-label-caps text-[10px] tracking-wider text-on-surface-variant uppercase">
+                  Physical Vibration Response
+                </p>
               </div>
-
-              <div
-                className={`h-5 w-5 rounded-full border flex items-center justify-center shrink-0 ml-4 transition-all ${
-                  motionMode === 'full'
-                    ? 'border-ember-gold bg-ember-gold text-void-black shadow-[0_0_10px_rgba(245,158,11,0.5)]'
-                    : 'border-outline/30 bg-void-black/50 text-transparent'
+              <button
+                type="button"
+                onClick={handleToggleHaptics}
+                className={`px-3 py-1.5 rounded-lg border flex items-center gap-2 font-label-caps text-xs tracking-wider transition-all cursor-pointer ${
+                  hapticsEnabled
+                    ? 'border-emerald-400 bg-emerald-500/20 text-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.3)]'
+                    : 'border-outline/20 bg-void-black/50 text-on-surface-variant'
                 }`}
               >
-                <Check className="h-3 w-3 stroke-[3]" />
-              </div>
-            </button>
+                <Smartphone className="h-4 w-4" />
+                <span>{hapticsEnabled ? 'ENABLED' : 'DISABLED'}</span>
+              </button>
+            </div>
 
-            {/* Reduced Motion Option */}
-            <button
-              type="button"
-              onClick={() => handleSelectMotion('reduced')}
-              className={`relative flex items-center justify-between p-4 sm:p-4.5 rounded-xl border text-left transition-all duration-300 cursor-pointer ${
-                motionMode === 'reduced'
-                  ? 'border-cyan-400 bg-gradient-to-r from-cyan-500/15 via-cyan-500/5 to-transparent shadow-[0_0_20px_rgba(56,189,248,0.2)]'
-                  : 'border-outline/15 bg-void-black/40 hover:border-outline/30 hover:bg-void-black/60'
-              }`}
-            >
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div
-                  className={`p-2 rounded-lg border shrink-0 transition-colors ${
-                    motionMode === 'reduced'
-                      ? 'bg-cyan-500/20 border-cyan-400/50 text-cyan-300'
-                      : 'bg-void-black/50 border-outline/15 text-on-surface-variant'
-                  }`}
-                >
-                  <Zap className="h-4 w-4" />
-                </div>
-                <div className="min-w-0">
-                  <div className="font-almendra text-base font-bold text-on-surface tracking-wide">
-                    Reduced Motion
-                  </div>
-                  <p className="text-xs text-on-surface-variant truncate sm:text-clip">
-                    Disables screen shakes, ambient particles, and background sways
-                  </p>
-                </div>
-              </div>
-
-              <div
-                className={`h-5 w-5 rounded-full border flex items-center justify-center shrink-0 ml-4 transition-all ${
-                  motionMode === 'reduced'
-                    ? 'border-cyan-400 bg-cyan-400 text-void-black shadow-[0_0_10px_rgba(56,189,248,0.5)]'
-                    : 'border-outline/30 bg-void-black/50 text-transparent'
-                }`}
-              >
-                <Check className="h-3 w-3 stroke-[3]" />
-              </div>
-            </button>
+            <p className="mt-1 text-xs sm:text-sm text-on-surface-variant leading-relaxed">
+              Tactile vibration pulses on piece movement, tactical abilities, unit captures, and turn notifications for supported mobile devices.
+            </p>
           </div>
         </div>
       </main>

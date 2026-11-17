@@ -61,12 +61,47 @@ export function getOrCreatePlayerId() {
     tabId = 'mt_tab_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
     window.name = tabId;
   }
-  let pid = sessionStorage.getItem('mythic_pid_' + tabId);
+  let pid = sessionStorage.getItem('mythic_pid_' + tabId) || localStorage.getItem('mythic_player_id');
   if (!pid) {
     pid = 'p_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
-    sessionStorage.setItem('mythic_pid_' + tabId, pid);
   }
+  sessionStorage.setItem('mythic_pid_' + tabId, pid);
+  localStorage.setItem('mythic_player_id', pid);
   return pid;
 }
 
 export const getPlayerId = getOrCreatePlayerId;
+
+export function saveActiveSession(session) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem('mythic_active_room_session', JSON.stringify({
+      ...session,
+      savedAt: Date.now()
+    }));
+  } catch (_) { }
+}
+
+export function getActiveSession() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('mythic_active_room_session');
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    // Discard sessions older than 2 hours
+    if (!data.savedAt || (Date.now() - data.savedAt) > 2 * 60 * 60 * 1000) {
+      localStorage.removeItem('mythic_active_room_session');
+      return null;
+    }
+    return data;
+  } catch (_) {
+    return null;
+  }
+}
+
+export function clearActiveSession() {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem('mythic_active_room_session');
+  } catch (_) { }
+}

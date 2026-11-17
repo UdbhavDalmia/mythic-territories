@@ -6,14 +6,12 @@ const loadGuide = () => import('./components/Guide.jsx');
 const loadNotes = () => import('./components/Notes.jsx');
 const loadWheel = () => import('./components/Wheel.jsx');
 const loadSettings = () => import('./components/Settings.jsx');
-const loadPlayground = () => import('./components/BannerPlayground.jsx');
 
 const Game = lazy(loadGame);
 const Guide = lazy(loadGuide);
 const Notes = lazy(loadNotes);
 const Wheel = lazy(loadWheel);
 const Settings = lazy(loadSettings);
-const BannerPlayground = lazy(loadPlayground);
 
 const loadSecondaryFonts = () => {
   if (typeof document === 'undefined') return;
@@ -39,6 +37,39 @@ const warmGameAssets = () => {
   });
 };
 
+const ROUTE_METADATA = {
+  LOBBY: {
+    title: 'Mythic Territories — Elemental Turn-Based Strategy Game',
+    description: 'Command elemental factions in Mythic Territories — free browser turn-based strategy. Deploy unique units, master abilities, and battle for dominion.',
+    canonical: 'https://mythic-territories.xyz/'
+  },
+  GUIDE: {
+    title: 'Rulebook & Unit Guide — Mythic Territories',
+    description: 'Master Mythic Territories rules, unit combat stats, faction traits, movement ranges, and special abilities for Frost and Ash.',
+    canonical: 'https://mythic-territories.xyz/?page=rules'
+  },
+  NOTES: {
+    title: 'Patch Notes & Changelog — Mythic Territories',
+    description: 'Official patch notes, balance adjustments, unit reworks, and feature updates for Mythic Territories.',
+    canonical: 'https://mythic-territories.xyz/?page=notes'
+  },
+  WHEEL: {
+    title: 'Destiny Wheel — Mythic Territories',
+    description: 'Spin the Destiny Wheel to unlock randomized bonuses, blessings, and elemental unit buffs in Mythic Territories.',
+    canonical: 'https://mythic-territories.xyz/?page=wheel'
+  },
+  SETTINGS: {
+    title: 'Settings — Mythic Territories',
+    description: 'Configure display, audio, animation, and accessibility settings for Mythic Territories.',
+    canonical: 'https://mythic-territories.xyz/?page=settings'
+  },
+  GAME: {
+    title: 'Battlefield — Mythic Territories',
+    description: 'Active tactical match in Mythic Territories — command your elemental units and battle for dominion.',
+    canonical: 'https://mythic-territories.xyz/'
+  }
+};
+
 function ScreenLoader() {
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-void-black text-on-surface">
@@ -60,7 +91,6 @@ export default function App() {
     if (page === 'notes' || path.endsWith('/notes')) return 'NOTES';
     if (page === 'wheel' || page === 'destiny' || path.endsWith('/wheel') || path.endsWith('/destiny')) return 'WHEEL';
     if (page === 'settings' || path.endsWith('/settings')) return 'SETTINGS';
-    if (page === 'banners' || page === 'playground' || path.endsWith('/banners') || path.endsWith('/playground')) return 'PLAYGROUND';
     if ((params.get('room') && params.get('team')) || params.get('mode') === 'local') return 'GAME';
     return 'LOBBY';
   };
@@ -83,6 +113,30 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const meta = ROUTE_METADATA[view] || ROUTE_METADATA.LOBBY;
+    document.title = meta.title;
+
+    const descEl = document.querySelector('meta[name="description"]');
+    if (descEl) descEl.setAttribute('content', meta.description);
+
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    if (ogTitle) ogTitle.setAttribute('content', meta.title);
+
+    const ogDesc = document.querySelector('meta[property="og:description"]');
+    if (ogDesc) ogDesc.setAttribute('content', meta.description);
+
+    const twTitle = document.querySelector('meta[name="twitter:title"]');
+    if (twTitle) twTitle.setAttribute('content', meta.title);
+
+    const twDesc = document.querySelector('meta[name="twitter:description"]');
+    if (twDesc) twDesc.setAttribute('content', meta.description);
+
+    const canonicalEl = document.querySelector('link[rel="canonical"]');
+    if (canonicalEl) canonicalEl.setAttribute('href', meta.canonical);
+  }, [view]);
+
   const warmRoute = (target) => {
     if (target === 'GAME') {
       loadSecondaryFonts();
@@ -99,9 +153,6 @@ export default function App() {
     } else if (target === 'SETTINGS') {
       loadSecondaryFonts();
       loadSettings();
-    } else if (target === 'PLAYGROUND') {
-      loadSecondaryFonts();
-      loadPlayground();
     }
   };
 
@@ -116,8 +167,6 @@ export default function App() {
       url.searchParams.set('page', 'wheel');
     } else if (newView === 'SETTINGS') {
       url.searchParams.set('page', 'settings');
-    } else if (newView === 'PLAYGROUND') {
-      url.searchParams.set('page', 'banners');
     } else if (newView === 'LOBBY') {
       url.search = '';
       Object.entries(params).forEach(([key, val]) => {
@@ -142,7 +191,6 @@ export default function App() {
         {view === 'NOTES' && <Notes navigateTo={navigateTo} />}
         {view === 'WHEEL' && <Wheel navigateTo={navigateTo} />}
         {view === 'SETTINGS' && <Settings navigateTo={navigateTo} />}
-        {view === 'PLAYGROUND' && <BannerPlayground navigateTo={navigateTo} />}
       </Suspense>
     </div>
   );

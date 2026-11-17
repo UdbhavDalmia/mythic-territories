@@ -15,7 +15,8 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
   <link rel="shortcut icon" href="/favicon.ico" />
   <link rel="manifest" href="/site.webmanifest" />
-  <!-- AI agent resource discovery -->
+  <!-- AI agent resource discovery (ARD) -->
+  <link rel="ard" type="application/json" href="/.well-known/ard.json" />
   <link rel="ai-catalog" type="application/json" href="/.well-known/ai-catalog.json" />
   <link rel="alternate" type="application/json" href="/ai-catalog.json" />
   <meta name="theme-color" content="#0a0a0c" />
@@ -37,6 +38,8 @@
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
   <meta name="google-site-verification" content="Ky-9MYR1w657UmFBw0vQxYQt5mjP-0bkYCbzkClnPSk" />
   <link rel="canonical" href="https://mythic-territories.xyz/" />
+  <link rel="alternate" hreflang="x-default" href="https://mythic-territories.xyz/" />
+  <link rel="alternate" hreflang="en" href="https://mythic-territories.xyz/" />
 
   <!-- ═══════════════════════════════════════════
        Open Graph (Facebook, LinkedIn, Discord)
@@ -65,32 +68,113 @@
   <meta name="twitter:image:alt" content="Mythic Territories — Frost vs Ash elemental turn-based strategy game" />
 
   <!-- ═══════════════════════════════════════════
-       Structured Data (JSON-LD)
+       Structured Data (JSON-LD — VideoGame, WebSite, BreadcrumbList, FAQPage)
   ════════════════════════════════════════════ -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
-    "@type": "VideoGame",
-    "name": "Mythic Territories",
-    "url": "https://mythic-territories.xyz/",
-    "description": "A free browser-based turn-based strategy game where players command elemental factions — Frost or Ash — in tactical head-to-head combat.",
-    "image": "https://mythic-territories.xyz/og-card.png",
-    "gamePlatform": "Web Browser",
-    "applicationCategory": "Game",
-    "genre": ["Strategy", "Turn-Based Strategy", "Multiplayer"],
-    "numberOfPlayers": {
-      "@type": "QuantitativeValue",
-      "minValue": 1,
-      "maxValue": 2
-    },
-    "operatingSystem": "Any (browser-based)",
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "USD",
-      "availability": "https://schema.org/InStock"
-    },
-    "inLanguage": "en"
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://mythic-territories.xyz/#website",
+        "url": "https://mythic-territories.xyz/",
+        "name": "Mythic Territories",
+        "description": "A free browser-based turn-based strategy game where players command elemental factions in tactical combat.",
+        "inLanguage": "en"
+      },
+      {
+        "@type": "VideoGame",
+        "@id": "https://mythic-territories.xyz/#game",
+        "name": "Mythic Territories",
+        "url": "https://mythic-territories.xyz/",
+        "description": "A free browser-based turn-based strategy game where players command elemental factions — Frost or Ash — in tactical head-to-head combat.",
+        "image": "https://mythic-territories.xyz/og-card.png",
+        "gamePlatform": "Web Browser",
+        "applicationCategory": "Game",
+        "genre": ["Strategy", "Turn-Based Strategy", "Tactical", "Multiplayer"],
+        "numberOfPlayers": {
+          "@type": "QuantitativeValue",
+          "minValue": 1,
+          "maxValue": 2
+        },
+        "operatingSystem": "Any (browser-based)",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD",
+          "availability": "https://schema.org/InStock"
+        },
+        "inLanguage": "en"
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://mythic-territories.xyz/#breadcrumbs",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://mythic-territories.xyz/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Rulebook",
+            "item": "https://mythic-territories.xyz/?page=rules"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "Patch Notes",
+            "item": "https://mythic-territories.xyz/?page=notes"
+          },
+          {
+            "@type": "ListItem",
+            "position": 4,
+            "name": "Destiny Wheel",
+            "item": "https://mythic-territories.xyz/?page=wheel"
+          }
+        ]
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://mythic-territories.xyz/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is Mythic Territories?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Mythic Territories is a free browser-based, turn-based strategy game where players command elemental factions — Frost or Ash — in tactical grid combat across local 2-player, single-player vs AI, or online multiplayer matches."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is Mythic Territories free to play?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, Mythic Territories is completely free to play directly in your web browser with no download, installation, registration, or microtransactions required."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What factions can I play in Mythic Territories?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Players choose between two elemental factions: Frost (defensive, crowd-control ice units such as Cryomancer, Frost Lord, and Glacial Brute) and Ash (high-damage, aggressive fire units such as Ash Reaper, Blaze Runner, and Magma Spitter)."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I play against an AI opponent or with friends online?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Mythic Territories supports single-player vs AI, local pass-and-play on the same device, and real-time online multiplayer using custom room codes or public matchmaking."
+            }
+          }
+        ]
+      }
+    ]
   }
   </script>
 
@@ -687,6 +771,33 @@
 </head>
 
 <body class="text-on-surface select-none font-body-md overflow-x-hidden min-h-screen bg-surface">
+  <noscript>
+    <div style="background-color: #0b1019; color: #dee2f0; padding: 2rem; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; line-height: 1.6;">
+      <h1 style="color: #f59e0b; font-size: 1.8rem; margin-bottom: 1rem;">Mythic Territories — Elemental Turn-Based Strategy Game</h1>
+      <p>Mythic Territories is a free-to-play tactical browser game where two commanders clash in head-to-head combat using the opposing forces of Frost and Ash. Play online multiplayer, challenge an AI opponent, or duel locally on the same device.</p>
+      
+      <h2 style="color: #89ceff; font-size: 1.3rem; margin-top: 1.5rem; margin-bottom: 0.5rem;">Core Game Modes</h2>
+      <ul>
+        <li><strong>Online Multiplayer:</strong> Create private realm rooms with custom codes or match with open rooms worldwide.</li>
+        <li><strong>Single-Player vs AI:</strong> Battle against an intelligent tactical AI with strategic pathfinding.</li>
+        <li><strong>Local 2-Player:</strong> Pass-and-play combat on a single device.</li>
+      </ul>
+
+      <h2 style="color: #89ceff; font-size: 1.3rem; margin-top: 1.5rem; margin-bottom: 0.5rem;">Elemental Factions</h2>
+      <p><strong>Frost Faction:</strong> Mastery over ice, defensive reinforcement, and battlefield control. Units include Arctic Trapper, Cryomancer, Frost Lord, Glacial Brute, Hoarfrost Mystic, Ice Weaver, Snow Wolf, Soul Freeze, Soul Linker, Void Chanter, Wisp, and Yeti.</p>
+      <p><strong>Ash Faction:</strong> Destructive fire, high offensive burst, and area domination. Units include Ash Reaper, Ash Tyrant, Blaze Runner, Cinder Scout, Hell Hound, Magma Prowler, Magma Shaper, Magma Spitter, Rift Forger, Scorch Priest, and Obsidian Shaper.</p>
+
+      <h2 style="color: #89ceff; font-size: 1.3rem; margin-top: 1.5rem; margin-bottom: 0.5rem;">Game Resources &amp; Guides</h2>
+      <nav aria-label="Game navigation links">
+        <ul>
+          <li><a href="/?page=rules" style="color: #f59e0b;">Official Rulebook &amp; Unit Stats</a> — Complete breakdown of stats, abilities, and tactics.</li>
+          <li><a href="/?page=notes" style="color: #f59e0b;">Patch Notes &amp; Changelog</a> — Latest updates, balance patches, and new features.</li>
+          <li><a href="/?page=wheel" style="color: #f59e0b;">Destiny Wheel</a> — Randomized battle buffs and rewards.</li>
+        </ul>
+      </nav>
+      <p style="margin-top: 1.5rem; font-size: 0.85rem; color: #94a3b8;"><em>JavaScript is required to run the interactive tactical game client. Enable JavaScript in your browser to play.</em></p>
+    </div>
+  </noscript>
   <div id="root">
     <div
       class="relative min-h-screen flex flex-col justify-between overflow-hidden bg-void-black text-on-surface select-none font-body-md">
@@ -742,26 +853,28 @@
       </main>
       <footer
         class="relative z-10 w-full flex flex-col items-center px-6 md:px-12 py-6 bg-gradient-to-t from-void-black via-void-black/80 to-transparent gap-5 font-label-caps">
-        <nav aria-label="Game resources" class="flex flex-wrap justify-center gap-2 sm:gap-3 items-center"><button
-            class="home-resource-link"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+        <nav aria-label="Game resources" class="flex flex-wrap justify-center gap-2 sm:gap-3 items-center">
+          <a href="/?page=notes" class="home-resource-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
               <path d="M15 12h-5"></path>
               <path d="M15 8h-5"></path>
               <path d="M19 17V5a2 2 0 0 0-2-2H4"></path>
-              <path
-                d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3">
-              </path>
-            </svg><span>Patch Notes</span></button><button class="home-resource-link"><svg
-              xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"
-              aria-hidden="true">
+              <path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"></path>
+            </svg><span>Patch Notes</span>
+          </a>
+          <a href="/?page=rules" class="home-resource-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
               <path d="M12 7v14"></path>
-              <path
-                d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z">
-              </path>
-            </svg><span>Rulebook</span></button></nav>
-        <div class="text-[10px] sm:text-xs tracking-wider text-on-surface-variant/60">© 2025 Mythic Territories</div>
+              <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"></path>
+            </svg><span>Rulebook</span>
+          </a>
+          <a href="/?page=wheel" class="home-resource-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+              <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path>
+            </svg><span>Destiny Wheel</span>
+          </a>
+        </nav>
+        <div class="text-[10px] sm:text-xs tracking-wider text-on-surface-variant/60">© 2026 Mythic Territories</div>
       </footer>
     </div>
   </div>

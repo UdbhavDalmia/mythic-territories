@@ -2,8 +2,23 @@
  * Safe mobile haptic feedback helper
  * Gracefully ignores unsupported devices, desktop browsers, or restricted execution contexts.
  */
+
+export function getHapticsEnabled() {
+  if (typeof window === 'undefined') return true;
+  const val = localStorage.getItem('mt_haptics_enabled');
+  return val === null ? true : val === 'true';
+}
+
+export function setHapticsEnabled(enabled) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('mt_haptics_enabled', enabled ? 'true' : 'false');
+}
+
 export function triggerHaptic(type = 'light') {
   if (typeof window === 'undefined' || typeof navigator === 'undefined' || !('vibrate' in navigator)) {
+    return;
+  }
+  if (!getHapticsEnabled()) {
     return;
   }
   try {

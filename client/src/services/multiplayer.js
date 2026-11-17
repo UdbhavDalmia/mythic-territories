@@ -11,9 +11,10 @@ import {
   limit,
   Timestamp
 } from 'firebase/firestore';
-import { db } from './firebase.js';
+import { db, getAuthUser } from './firebase.js';
 import * as Logic from '../../../shared/logic.js';
 import * as C from '../../../shared/constants.js';
+import * as E from '../../../shared/utils.js';
 import {
   REALM_WORDS,
   INACTIVITY_TIMEOUT_MS,
@@ -22,7 +23,10 @@ import {
   formatRoomCodeInput,
   isValidRoomCode,
   getOrCreatePlayerId,
-  getPlayerId
+  getPlayerId,
+  saveActiveSession,
+  getActiveSession,
+  clearActiveSession
 } from './roomCode.js';
 export {
   REALM_WORDS,
@@ -32,7 +36,10 @@ export {
   formatRoomCodeInput,
   isValidRoomCode,
   getOrCreatePlayerId,
-  getPlayerId
+  getPlayerId,
+  saveActiveSession,
+  getActiveSession,
+  clearActiveSession
 };
 
 // Automated TTL (Time-To-Live) generator for native Cloud Firestore retention policies
@@ -289,6 +296,8 @@ export function subscribeToOpenRooms(callback, onError) {
 export async function joinOrCreateRoom(roomId, playerId) {
   const normalizedId = roomId.trim().toUpperCase();
   const roomRef = doc(db, 'rooms', normalizedId);
+  const authUser = await getAuthUser();
+  const authUid = authUser?.uid || null;
 
   return await runTransaction(db, async (transaction) => {
     const roomSnap = await transaction.get(roomRef);
@@ -306,7 +315,10 @@ export async function joinOrCreateRoom(roomId, playerId) {
         status: 'WAITING',
         createdAt: Date.now(),
         updatedAt: Date.now(),
-        players: [{ id: playerId, team: null, lastSeen: Date.now() }],
+        moveIndex: 0,
+        playerIds: [playerId],
+        playerUids: authUid ? [authUid] : [],
+        players: [{ id: playerId, uid: authUid, team: null, lastSeen: Date.now() }],
         gameState: freshSerialized
       };
 
@@ -344,7 +356,10 @@ export async function joinOrCreateRoom(roomId, playerId) {
         updatedAt: now,
         expireAt: getRoomTtl('WAITING'),
         hostId: playerId,
-        players: [{ id: playerId, team: null, lastSeen: now }],
+        moveIndex: 0,
+        playerIds: [playerId],
+        playerUids: authUid ? [authUid] : [],
+        players: [{ id: playerId, uid: authUid, team: null, lastSeen: now }],
         gameState: freshSerialized
       };
 
@@ -364,8 +379,14 @@ export async function joinOrCreateRoom(roomId, playerId) {
     if (existing) {
       // Reconnecting player
       existing.lastSeen = Date.now();
+      if (authUid && !existing.uid) existing.uid = authUid;
+      const updatedPlayerUids = room.playerUids || [];
+      if (authUid && !updatedPlayerUids.includes(authUid)) updatedPlayerUids.push(authUid);
+
       transaction.update(roomRef, {
         players: room.players,
+        playerIds: room.playerIds || room.players.map(p => p.id),
+        playerUids: updatedPlayerUids,
         updatedAt: Date.now()
       });
       return {
@@ -378,9 +399,14 @@ export async function joinOrCreateRoom(roomId, playerId) {
     }
 
     if (room.players?.length < 2) {
-      const updatedPlayers = [...room.players, { id: playerId, team: null, lastSeen: Date.now() }];
+      const updatedPlayers = [...room.players, { id: playerId, uid: authUid, team: null, lastSeen: Date.now() }];
+      const updatedPlayerIds = Array.from(new Set([...(room.playerIds || room.players.map(p => p.id)), playerId]));
+      const updatedPlayerUids = Array.from(new Set([...(room.playerUids || []), ...(authUid ? [authUid] : [])]));
+
       transaction.update(roomRef, {
         players: updatedPlayers,
+        playerIds: updatedPlayerIds,
+        playerUids: updatedPlayerUids,
         updatedAt: Date.now()
       });
       return {
@@ -444,6 +470,8 @@ export async function selectFaction(roomId, playerId, faction) {
 
     transaction.update(roomRef, {
       players,
+      playerIds: room.playerIds || players.map(p => p.id),
+      playerUids: room.playerUids || [],
       gameState: serializedGS,
       status,
       expireAt: getRoomTtl(status),
@@ -525,38 +553,28 @@ export async function dispatchGameAction(roomId, playerId, actionType, data = {}
     }
 
     if (actionType === 'RESET_GAME') {
-      Logic.withGameState(gs, () => {
-        Logic.resetGame();
-        gs.timers = { snow: 600, ash: 600 };
-      });
-      transaction.update(roomRef, { gameState: serializeGameState(gs), updatedAt: Date.now() });
-      return;
+      throw new Error('Anti-Cheat: Arbitrary game resets are prohibited in active multiplayer matches.');
     }
 
     if (actionType === 'TOGGLE_TEST_MODE') {
-      Logic.withGameState(gs, () => {
-        gs.testMode = data.enabled;
-        if (gs.testMode) {
-          if (!gs.originalPieces) gs.originalPieces = JSON.parse(JSON.stringify(gs.pieces));
-          gs.pieces = gs.pieces.filter(p => p.key === 'snowFrostLord' || p.key === 'ashAshTyrant' || p.key === 'ashMagmaShaper');
-        } else {
-          if (gs.originalPieces) {
-            gs.pieces = JSON.parse(JSON.stringify(gs.originalPieces));
-            delete gs.originalPieces;
-          }
-        }
-      });
-      transaction.update(roomRef, { gameState: serializeGameState(gs), updatedAt: Date.now() });
-      return;
+      throw new Error('Anti-Cheat: Test mode is disabled in multiplayer matches.');
     }
 
     if (actionType === 'TIMEOUT') {
+      const victimTeam = data?.team;
+      // Anti-Cheat: Validate that player clock has legitimately expired (<= 0)
+      if (!victimTeam || (gs.timers && gs.timers[victimTeam] > 0)) {
+        throw new Error('Anti-Cheat: Cannot declare timeout; player timer has not expired.');
+      }
       Logic.withGameState(gs, () => {
-        Logic.endGame(data.team === 'snow' ? 'ash' : 'snow');
+        Logic.endGame(victimTeam === 'snow' ? 'ash' : 'snow');
       });
+      const nextMoveIndex = (room.moveIndex || 0) + 1;
       transaction.update(roomRef, {
         gameState: serializeGameState(gs),
         status: 'FINISHED',
+        moveIndex: nextMoveIndex,
+        playerIds: room.playerIds || room.players.map(p => p.id),
         expireAt: getRoomTtl('FINISHED'),
         updatedAt: Date.now()
       });
@@ -570,7 +588,16 @@ export async function dispatchGameAction(roomId, playerId, actionType, data = {}
 
     if (!gs.gameStarted) throw new Error('Game has not started yet.');
 
-    if (actionType === 'MOVE' && !coordsOk({ r: data.r, c: data.c })) throw new Error('Invalid move coordinates');
+    if (actionType === 'MOVE') {
+      if (!coordsOk({ r: data.r, c: data.c })) throw new Error('Invalid move coordinates');
+      const p = gs.pieces?.find(x => x.id === data?.pieceId);
+      if (!p || p.team !== player.team) throw new Error('Anti-Cheat: Cannot move enemy or non-existent unit');
+      const validMoves = E.getValidMoves ? E.getValidMoves(p, gs) : [];
+      const isLegal = validMoves.some(m => Math.hypot(m.r - data.r, m.c - data.c) < 0.35);
+      if (!isLegal) {
+        throw new Error('Anti-Cheat: Target tile is outside legal movement paths.');
+      }
+    }
     if (actionType === 'HANDLE_CLICK' && !coordsOk({ r: data.r, c: data.c })) throw new Error('Invalid target coordinates');
     if (actionType === 'ABILITY' && data.target && !coordsOk(data.target)) throw new Error('Invalid ability target');
 
@@ -590,6 +617,7 @@ export async function dispatchGameAction(roomId, playerId, actionType, data = {}
           break;
         case 'ABILITY':
           if (p && p.team === player.team) {
+            if (p.abilityCooldown > 0) throw new Error('Anti-Cheat: Ability is currently on cooldown');
             if (data.target) turnEnded = Logic.executeAbility(p, data.target, data.abilityKey, gs);
             else turnEnded = Logic.activateAbility(p, data.abilityKey || 0);
           }
@@ -614,9 +642,27 @@ export async function dispatchGameAction(roomId, playerId, actionType, data = {}
     });
 
     const finalStatus = gs.gameOver ? 'FINISHED' : room.status;
+    const nextMoveIndex = (room.moveIndex || 0) + 1;
+    const lastAction = {
+      type: actionType,
+      pieceId: data?.pieceId || null,
+      r: data?.r ?? null,
+      c: data?.c ?? null,
+      isHighway: !!data?.isHighway,
+      target: data?.target || null,
+      abilityKey: data?.abilityKey ?? null,
+      choice: data?.choice ?? null,
+      senderId: playerId,
+      moveIndex: nextMoveIndex,
+      timestamp: Date.now()
+    };
+
     transaction.update(roomRef, {
       gameState: serializeGameState(gs),
       status: finalStatus,
+      moveIndex: nextMoveIndex,
+      lastAction,
+      playerIds: room.playerIds || room.players.map(p => p.id),
       expireAt: getRoomTtl(finalStatus),
       updatedAt: Date.now()
     });
@@ -651,6 +697,7 @@ export async function leaveRoom(roomId, playerId) {
       if (room.status === 'WAITING' && room.hostId === playerId) {
         transaction.update(roomRef, {
           players: updatedPlayers,
+          playerIds: (room.playerIds || []).filter(id => id !== playerId),
           status: 'DISBANDED',
           disbandReason: 'HOST_LEFT',
           expireAt: getRoomTtl('DISBANDED'),
@@ -661,6 +708,7 @@ export async function leaveRoom(roomId, playerId) {
 
       transaction.update(roomRef, {
         players: updatedPlayers,
+        playerIds: (room.playerIds || []).filter(id => id !== playerId),
         updatedAt: Date.now()
       });
     });
@@ -684,6 +732,7 @@ export async function disbandRoom(roomId, reason = 'INACTIVITY') {
         status: 'DISBANDED',
         disbandReason: reason,
         players: [],
+        playerIds: [],
         expireAt: getRoomTtl('DISBANDED'),
         updatedAt: Date.now()
       });
@@ -718,6 +767,7 @@ export async function updatePlayerHeartbeat(roomId, playerId) {
       if (changed) {
         transaction.update(roomRef, {
           players,
+          playerIds: room.playerIds || room.players.map(p => p.id),
           updatedAt: now
         });
       }
@@ -725,4 +775,88 @@ export async function updatePlayerHeartbeat(roomId, playerId) {
   } catch (e) {
     // Non-critical background ping
   }
+}
+
+// ── Room Recovery Inspector ──────────────────────────────────────────────────
+export async function checkRoomStatus(roomId, playerId) {
+  if (!roomId) return { exists: false, active: false };
+  const normalizedId = roomId.trim().toUpperCase();
+  const roomRef = doc(db, 'rooms', normalizedId);
+  try {
+    const snap = await getDoc(roomRef);
+    if (!snap.exists()) return { exists: false, active: false };
+    const data = snap.data();
+    if (data.status === 'DISBANDED' || data.status === 'FINISHED') {
+      return { exists: true, active: false, reason: data.disbandReason || 'FINISHED' };
+    }
+    const me = (data.players || []).find(p => p.id === playerId);
+    const parsedGS = parseAndRehydrateGameState(data.gameState);
+    return {
+      exists: true,
+      active: true,
+      room: { ...data, gameState: parsedGS },
+      team: me?.team || null,
+      status: data.status,
+      gameStarted: !!parsedGS?.gameStarted,
+      isMember: !!me
+    };
+  } catch (err) {
+    console.warn('Failed to check recoverable room status:', err);
+    return { exists: false, active: false };
+  }
+}
+
+// ── Peer Move Verification (Anti-Cheat) ───────────────────────────────────────
+export function validatePeerAction(prevGameState, lastAction, reportedGameState) {
+  if (!prevGameState || !lastAction || !reportedGameState) {
+    return { valid: true };
+  }
+
+  const { type, pieceId, r, c, isHighway, target, abilityKey, senderId } = lastAction;
+
+  // 1. Actions can only happen while match is active
+  if (!prevGameState.gameStarted || prevGameState.gameOver) {
+    return { valid: false, reason: 'Action dispatched while match was inactive' };
+  }
+
+  // 2. Turn validation: acting piece must match current turn in previous state
+  const actingTeam = prevGameState.currentTurn;
+  const findPiece = (state, id) => state.pieces?.find(p => p.id === id);
+  const prevPiece = pieceId ? findPiece(prevGameState, pieceId) : null;
+
+  if (prevPiece && prevPiece.team !== actingTeam) {
+    return { valid: false, reason: `Action attempted on unit (${pieceId}) not owned by active team (${actingTeam})` };
+  }
+
+  // 3. Movement range and boundary validation
+  if (type === 'MOVE') {
+    if (!prevPiece) {
+      return { valid: false, reason: 'Move targeted non-existent piece' };
+    }
+    if (!C.inBounds(r, c)) {
+      return { valid: false, reason: 'Target coordinates out of arena bounds' };
+    }
+    const validMoves = E.getValidMoves ? E.getValidMoves(prevPiece, prevGameState) : [];
+    const isLegalTarget = validMoves.some(m => Math.hypot(m.r - r, m.c - c) < 0.35);
+    if (!isLegalTarget) {
+      return { valid: false, reason: `Illegal move: (${r}, ${c}) is outside unit's valid movement paths` };
+    }
+  }
+
+  // 4. Ability readiness validation
+  if (type === 'ABILITY') {
+    if (prevPiece && (prevPiece.abilityCooldown || 0) > 0) {
+      return { valid: false, reason: 'Ability triggered while still on cooldown' };
+    }
+  }
+
+  // 5. Piece Count Tampering (Opponent cannot arbitrarily eliminate pieces)
+  const prevOpponentCount = prevGameState.pieces?.filter(p => p.team !== actingTeam).length || 0;
+  const repOpponentCount = reportedGameState.pieces?.filter(p => p.team !== actingTeam).length || 0;
+
+  if (prevOpponentCount - repOpponentCount > 2) {
+    return { valid: false, reason: 'Abnormal elimination of multiple units in a single action' };
+  }
+
+  return { valid: true };
 }

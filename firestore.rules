@@ -6,22 +6,48 @@ service cloud.firestore {
       // Allow reading rooms for matchmaking, active room subscriptions, and open lobby lists.
       allow read: if true;
 
-      // 2. Room Creation Guard:
-      // Room ID must be standard length (<= 20 chars).
-      // Required initial fields and type constraints to prevent malformed injections.
+      // 2. Room Creation Guard (Anti-Cheat):
+      // - Room ID must be standard length (<= 20 chars) matching document path.
+      // - Required initial fields, strictly 1 initial player, safe size limits.
+      // - Verifies participant authorization if authenticated.
       allow create: if roomId.size() <= 20
-        && request.resource.data.keys().hasAll(['id', 'status', 'createdAt', 'updatedAt', 'players', 'gameState'])
+        && request.resource.data.keys().hasAll(['id', 'status', 'createdAt', 'updatedAt', 'players', 'gameState', 'playerIds'])
+        && request.resource.data.id == roomId
+        && request.resource.data.status in ['WAITING', 'PLAYING', 'DISBANDED', 'FINISHED']
+        && request.resource.data.players is list
+        && request.resource.data.players.size() == 1
+        && request.resource.data.playerIds is list
+        && request.resource.data.playerIds.size() == 1
+        && request.resource.data.gameState is string
+        && request.resource.data.gameState.size() <= 150000
+        && (request.auth == null || !('playerUids' in request.resource.data) || request.auth.uid in request.resource.data.playerUids);
+
+      // 3. Room Update Guard (Moves, Factions, Heartbeats, Disbands):
+      // Anti-Cheat constraints:
+      // - Cannot change room ID.
+      // - Player capacity strictly capped at 2.
+      // - Once 2 players exist, player identities cannot be hijacked or replaced.
+      // - Move index must be monotonically non-decreasing (prevents turn rollback/replay).
+      // - State payload size strictly constrained (prevents DDoS or malformed JSON injections).
+      allow update: if request.resource.data.id == resource.data.id
         && request.resource.data.status in ['WAITING', 'PLAYING', 'DISBANDED', 'FINISHED']
         && request.resource.data.players is list
         && request.resource.data.players.size() <= 2
-        && request.resource.data.gameState is string
-        && request.resource.data.gameState.size() <= 150000;
-
-      // 3. Room Update Guard (Moves, Factions, Heartbeats, Disbands):
-      // Restricts status to valid enums and prevents expanding player capacity beyond 2.
-      allow update: if request.resource.data.status in ['WAITING', 'PLAYING', 'DISBANDED', 'FINISHED']
-        && request.resource.data.players is list
-        && request.resource.data.players.size() <= 2
+        && (
+          // Case A: Disbanded or player leaves
+          request.resource.data.status == 'DISBANDED'
+          || request.resource.data.players.size() < resource.data.players.size()
+          ||
+          // Case B: Player 2 joins waiting lobby
+          (resource.data.status == 'WAITING' && resource.data.players.size() <= 1 && request.resource.data.players.size() <= 2)
+          ||
+          // Case C: Active room updates (moves, factions, heartbeat):
+          (
+            (!('playerIds' in resource.data) || !('playerIds' in request.resource.data) || request.resource.data.playerIds == resource.data.playerIds)
+            && (!('moveIndex' in resource.data) || !('moveIndex' in request.resource.data) || request.resource.data.moveIndex >= resource.data.moveIndex)
+            && (request.auth == null || !('playerUids' in resource.data) || request.auth.uid in resource.data.playerUids)
+          )
+        )
         && request.resource.data.gameState is string
         && request.resource.data.gameState.size() <= 150000;
 

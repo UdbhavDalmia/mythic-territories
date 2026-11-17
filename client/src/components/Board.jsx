@@ -29,7 +29,8 @@ export default function Board({
   onPieceClick,
   onBoardClick,
   onMouseEnterPiece,
-  onMouseLeavePiece
+  onMouseLeavePiece,
+  onMouseMovePiece
 }) {
   const canvasRef = useRef(null);
   const bgCanvasRef = useRef(null);
@@ -158,48 +159,6 @@ export default function Board({
             tCtx.fill();
             // No strokes on individual friendly cells: allied territory merges seamlessly into one unified domain
           });
-
-          // 2. Contested Clash Boundary: Fiery Border with Lessened Opacity (No static white line)
-          if (voronoi.frontlines && voronoi.frontlines.length > 0) {
-            tCtx.save();
-            voronoi.frontlines.forEach(fl => {
-              const x1 = fl.p1.x * CS;
-              const y1 = fl.p1.y * CS;
-              const x2 = fl.p2.x * CS;
-              const y2 = fl.p2.y * CS;
-
-              // Soft molten heat aura (diffuse glow, lessened opacity)
-              tCtx.beginPath();
-              tCtx.moveTo(x1, y1);
-              tCtx.lineTo(x2, y2);
-              tCtx.strokeStyle = 'rgba(234, 88, 12, 0.22)';
-              tCtx.shadowColor = '#ea580c';
-              tCtx.shadowBlur = 8;
-              tCtx.lineWidth = 3.6;
-              tCtx.stroke();
-
-              // Fiery border flame contour (warm amber-orange, softened opacity)
-              tCtx.beginPath();
-              tCtx.moveTo(x1, y1);
-              tCtx.lineTo(x2, y2);
-              tCtx.strokeStyle = 'rgba(249, 115, 22, 0.38)';
-              tCtx.shadowColor = '#f97316';
-              tCtx.shadowBlur = 5;
-              tCtx.lineWidth = 1.8;
-              tCtx.stroke();
-
-              // Soft warm ember filament (subtle molten core with lessened opacity, replacing static straight white line)
-              tCtx.beginPath();
-              tCtx.moveTo(x1, y1);
-              tCtx.lineTo(x2, y2);
-              tCtx.strokeStyle = 'rgba(254, 215, 170, 0.40)';
-              tCtx.shadowColor = '#fed7aa';
-              tCtx.shadowBlur = 3;
-              tCtx.lineWidth = 0.9;
-              tCtx.stroke();
-            });
-            tCtx.restore();
-          }
         }
 
         if (terrCacheCanvasRef.current) {
@@ -687,90 +646,7 @@ export default function Board({
         const voronoi = currentGs.voronoiData;
         const now = performance.now();
 
-        // 1. Contested Frontline: Living Fiery Border Undulation & Particle Tension
-        if (voronoi.frontlines && voronoi.frontlines.length > 0) {
-          ctx.save();
-          voronoi.frontlines.forEach((fl, fIdx) => {
-            const x1 = fl.p1.x * CS, y1 = fl.p1.y * CS;
-            const x2 = fl.p2.x * CS, y2 = fl.p2.y * CS;
-            const dx = x2 - x1, dy = y2 - y1;
-            const len = Math.hypot(dx, dy);
-            if (len < 5) return;
-
-            const ux = dx / len, uy = dy / len;
-            const nx = -uy, ny = ux;
-
-            // Living Fiery Border (undulating flame contour with lessened opacity, replacing static straight lines)
-            const segments = Math.max(5, Math.floor(len / 8));
-            ctx.beginPath();
-            ctx.moveTo(x1, y1);
-            for (let seg = 1; seg < segments; seg++) {
-              const st = seg / segments;
-              const lx = x1 + st * dx;
-              const ly = y1 + st * dy;
-              const flameWave = Math.sin(now * 0.005 + seg * 0.6 + fIdx * 2.0) * 1.8 
-                              + Math.cos(now * 0.008 + seg * 1.1) * 1.0;
-              ctx.lineTo(lx + nx * flameWave, ly + ny * flameWave);
-            }
-            ctx.lineTo(x2, y2);
-            ctx.strokeStyle = 'rgba(251, 146, 60, 0.35)';
-            ctx.shadowColor = '#ea580c';
-            ctx.shadowBlur = 6;
-            ctx.lineWidth = 1.6;
-            ctx.stroke();
-
-            const ac = (voronoi.cells || []).find(c => c.pieceId === fl.ashPieceId);
-            const midX = (x1 + x2) / 2, midY = (y1 + y2) / 2;
-            const dotAsh = ac ? (ac.center.x * CS - midX) * nx + (ac.center.y * CS - midY) * ny : 1;
-            const nxAsh = dotAsh >= 0 ? nx : -nx;
-            const nyAsh = dotAsh >= 0 ? ny : -ny;
-            const nxFrost = -nxAsh;
-            const nyFrost = -nyAsh;
-
-            const numTensionParticles = Math.min(18, Math.max(8, Math.floor(len / 12)));
-
-            for (let i = 0; i < numTensionParticles; i++) {
-              const t = (i + 0.5) / numTensionParticles;
-              const baseLX = x1 + t * dx;
-              const baseLY = y1 + t * dy;
-
-              // Ash side: Fiery particle tension (vibrating micro-flames & embers pushing against the clash line)
-              const firePhase = now * 0.012 + i * 1.7 + fIdx;
-              const fireDist = 5 + Math.sin(firePhase) * 6 + (Math.sin(firePhase * 2.3) * 3);
-              const fireJitter = Math.cos(firePhase * 1.8) * 3;
-              const fx = baseLX + nxAsh * fireDist + ux * fireJitter;
-              const fy = baseLY + nyAsh * fireDist + uy * fireJitter;
-              const fireSize = 1.3 + 0.9 * Math.abs(Math.sin(firePhase));
-              const fireAlpha = 0.55 + 0.45 * Math.sin(firePhase * 1.5);
-
-              ctx.fillStyle = i % 2 === 0 ? `rgba(255, 69, 0, ${fireAlpha})` : `rgba(255, 170, 0, ${fireAlpha})`;
-              ctx.shadowColor = '#ff4500';
-              ctx.shadowBlur = 5;
-              ctx.beginPath();
-              ctx.arc(fx, fy, fireSize, 0, Math.PI * 2);
-              ctx.fill();
-
-              // Frost side: Snowy particle tension (shivering ice crystal sparks resisting the flame)
-              const frostPhase = now * 0.010 + i * 2.1 + fIdx * 0.5;
-              const frostDist = 5 + Math.sin(frostPhase) * 5 + (Math.cos(frostPhase * 1.9) * 3);
-              const frostJitter = Math.sin(frostPhase * 2.1) * 3;
-              const sx = baseLX + nxFrost * frostDist + ux * frostJitter;
-              const sy = baseLY + nyFrost * frostDist + uy * frostJitter;
-              const frostSize = 1.2 + 0.8 * Math.abs(Math.cos(frostPhase));
-              const frostAlpha = 0.50 + 0.45 * Math.cos(frostPhase * 1.4);
-
-              ctx.fillStyle = i % 2 === 0 ? `rgba(224, 242, 254, ${frostAlpha})` : `rgba(56, 189, 248, ${frostAlpha})`;
-              ctx.shadowColor = '#38bdf8';
-              ctx.shadowBlur = 5;
-              ctx.beginPath();
-              ctx.arc(sx, sy, frostSize, 0, Math.PI * 2);
-              ctx.fill();
-            }
-          });
-          ctx.restore();
-        }
-
-        // 2. Ambient Snow across Map (Full intensity in Frost territory, lessened intensity in rest of map)
+        // 1. Ambient Snow across Map (Full intensity in Frost territory, lessened intensity in rest of map)
         const snowCells = (voronoi.cells || []).filter(c => c.team === 'snow' && c.polygon && c.polygon.length >= 3);
         ctx.save();
         while (ambientSnowRef.current.length < 28) {
@@ -1250,6 +1126,7 @@ export default function Board({
             isSelected={gameState.selectedPiece?.id === piece.id}
             onClick={onPieceClick}
             onMouseEnter={onMouseEnterPiece}
+            onMouseMove={onMouseMovePiece}
             onMouseLeave={onMouseLeavePiece}
           />
         );

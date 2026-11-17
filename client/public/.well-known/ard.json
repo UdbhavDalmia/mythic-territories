@@ -1,0 +1,135 @@
+{
+  "specVersion": "1.0",
+  "host": {
+    "displayName": "Mythic Territories",
+    "documentationUrl": "https://mythic-territories.xyz/llms.txt",
+    "logoUrl": "https://mythic-territories.xyz/android-chrome-512x512.png"
+  },
+  "entries": [
+    {
+      "identifier": "urn:air:mythic-territories.xyz:game:lobby",
+      "displayName": "Mythic Territories Game Lobby",
+      "type": "text/html",
+      "url": "https://mythic-territories.xyz/",
+      "description": "Browser-based elemental turn-based strategy game. Play local 2-player matches, face AI, or create an online multiplayer room.",
+      "tags": [
+        "game",
+        "strategy",
+        "turn-based",
+        "browser-game",
+        "tactical"
+      ],
+      "capabilities": [
+        "PlayOnlineMatch",
+        "PlayLocalMatch",
+        "PlayAIMatch"
+      ],
+      "representativeQueries": [
+        "play Mythic Territories strategy game",
+        "turn-based elemental combat game in browser",
+        "play online turn-based strategy game"
+      ]
+    },
+    {
+      "identifier": "urn:air:mythic-territories.xyz:game:rules",
+      "displayName": "Mythic Territories Rules & Unit Guide",
+      "type": "text/html",
+      "url": "https://mythic-territories.xyz/?page=rules",
+      "description": "Complete rules, turn structure, combat calculations, and unit stats for Frost and Ash factions.",
+      "tags": [
+        "rules",
+        "units",
+        "guide",
+        "strategy"
+      ],
+      "capabilities": [
+        "LookupGameRules",
+        "LookupUnitStats",
+        "ViewFactionMechanics"
+      ],
+      "representativeQueries": [
+        "Mythic Territories unit stats and rules",
+        "Frost vs Ash faction abilities and counters",
+        "how to play Mythic Territories"
+      ]
+    },
+    {
+      "identifier": "urn:air:mythic-territories.xyz:game:wheel",
+      "displayName": "Mythic Territories Destiny Wheel",
+      "type": "text/html",
+      "url": "https://mythic-territories.xyz/?page=wheel",
+      "description": "Destiny Wheel mini-game to spin for random unit unlocks, bonuses, and special faction buffs.",
+      "tags": [
+        "game-mode",
+        "rewards",
+        "wheel"
+      ],
+      "capabilities": [
+        "SpinDestinyWheel"
+      ],
+      "representativeQueries": [
+        "spin Mythic Territories Destiny Wheel",
+        "Mythic Territories rewards and bonuses"
+      ]
+    },
+    {
+      "identifier": "urn:air:mythic-territories.xyz:game:notes",
+      "displayName": "Mythic Territories Patch Notes",
+      "type": "text/html",
+      "url": "https://mythic-territories.xyz/?page=notes",
+      "description": "Changelog and release notes detailing balance patches, unit tweaks, and new features.",
+      "tags": [
+        "changelog",
+        "patch-notes",
+        "updates"
+      ],
+      "capabilities": [
+        "ViewChangelog",
+        "CheckBalanceUpdates"
+      ],
+      "representativeQueries": [
+        "Mythic Territories latest patch notes",
+        "Mythic Territories game updates and balance changes"
+      ]
+    },
+    {
+      "identifier": "urn:air:mythic-territories.xyz:doc:llms",
+      "displayName": "Mythic Territories LLMs Context",
+      "type": "text/plain",
+      "url": "https://mythic-territories.xyz/llms.txt",
+      "description": "AI-friendly markdown specification providing game context, mechanics, units, and faction overviews for LLMs and autonomous agents.",
+      "tags": [
+        "llms-txt",
+        "ai-context",
+        "markdown"
+      ],
+      "capabilities": [
+        "GetGameKnowledge",
+        "ExtractGameContext"
+      ],
+      "representativeQueries": [
+        "Mythic Territories llms.txt context",
+        "AI summary of Mythic Territories mechanics and rules"
+      ]
+    },
+    {
+      "identifier": "urn:air:mythic-territories.xyz:meta:sitemap",
+      "displayName": "Mythic Territories XML Sitemap",
+      "type": "application/xml",
+      "url": "https://mythic-territories.xyz/sitemap.xml",
+      "description": "XML sitemap indexing all public URLs and game pages.",
+      "tags": [
+        "sitemap",
+        "seo",
+        "navigation"
+      ],
+      "capabilities": [
+        "ListSiteUrls"
+      ],
+      "representativeQueries": [
+        "Mythic Territories sitemap XML",
+        "discover Mythic Territories URLs"
+      ]
+    }
+  ]
+}

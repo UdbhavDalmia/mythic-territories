@@ -28,10 +28,13 @@ import * as Effects from '../../js/effects.js';
 import {
   subscribeToRoom,
   dispatchGameAction,
+  validatePeerAction,
   leaveRoom,
   disbandRoom,
   updatePlayerHeartbeat,
-  getOrCreatePlayerId
+  getOrCreatePlayerId,
+  saveActiveSession,
+  clearActiveSession
 } from '../services/multiplayer.js';
 
 const INITIAL_SNOW_KEYS = [
@@ -66,7 +69,7 @@ let lastTerritoryCache = {
 };
 
 function calculateDynamicTerritoryAreas(gs) {
-  if (!gs || !gs.pieces || gs.pieces.length === 0) return { snow: 50.0, ash: 50.0 };
+  if (!gs || !gs.pieces || gs.pieces.length === 0) return { snow: 50.0, ash: 50.0, neutral: 0.0 };
   
   // Fast cache check: piece id, coordinates, hp, power
   const piecesKey = gs.pieces
@@ -80,9 +83,14 @@ function calculateDynamicTerritoryAreas(gs) {
   const voronoi = computePowerDiagram(gs.pieces);
   gs.voronoiData = voronoi;
 
+  const frost = parseFloat((voronoi.frostShare ?? 0).toFixed(1));
+  const ash = parseFloat((voronoi.ashShare ?? 0).toFixed(1));
+  const neutral = parseFloat(Math.max(0, 100 - (frost + ash)).toFixed(1));
+
   const result = {
-    snow: parseFloat(voronoi.frostShare.toFixed(1)),
-    ash: parseFloat(voronoi.ashShare.toFixed(1))
+    snow: frost,
+    ash: ash,
+    neutral: neutral
   };
 
   lastTerritoryCache = {
@@ -122,7 +130,10 @@ export default function Game({ navigateTo }) {
   const [disconnectTimeout, setDisconnectTimeout] = useState(60);
   const [eventLog, setEventLog] = useState([]);
   const [hoveredPiece, setHoveredPiece] = useState(null);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const popupRef = useRef(null);
+  const targetMousePosRef = useRef({ x: 0, y: 0 });
+  const currentMousePosRef = useRef({ x: 0, y: 0 });
+  const popupRafRef = useRef(null);
   const [drawerExpanded, setDrawerExpanded] = useState(false);
   const [isCompactLayout, setIsCompactLayout] = useState(window.innerWidth <= 1180);
   const [arenaScale, setArenaScale] = useState(1);
@@ -134,6 +145,13 @@ export default function Game({ navigateTo }) {
   // Smooth Game Over entrance transition and hover dismissal
   useEffect(() => {
     if (gameState?.gameOver) {
+      clearActiveSession();
+      const isWinner = gameState.winner === myTeam;
+      if (isWinner) {
+        triggerHaptic('victory');
+      } else {
+        triggerHaptic('defeat');
+      }
       setHoveredPiece(null);
       const timer = setTimeout(() => {
         setShowGameOverModal(true);
@@ -146,11 +164,68 @@ export default function Game({ navigateTo }) {
       setShowGameOverModal(false);
       setModalVisible(false);
     }
-  }, [gameState?.gameOver]);
+  }, [gameState?.gameOver, myTeam]);
 
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
+
+  // Smooth mouse-trailing physics for hovered piece popup menu
+  useEffect(() => {
+    if (!hoveredPiece) {
+      if (popupRafRef.current) {
+        cancelAnimationFrame(popupRafRef.current);
+        popupRafRef.current = null;
+      }
+      return;
+    }
+
+    const handlePointerMove = (e) => {
+      targetMousePosRef.current = { x: e.clientX, y: e.clientY };
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+
+    const updatePosition = () => {
+      const target = targetMousePosRef.current;
+      const current = currentMousePosRef.current;
+
+      // Organic fluid trailing lerp (factor: 0.22): rapid response with silky glide
+      current.x += (target.x - current.x) * 0.22;
+      current.y += (target.y - current.y) * 0.22;
+
+      if (popupRef.current) {
+        const tooltipWidth = popupRef.current.offsetWidth || 400;
+        const tooltipHeight = popupRef.current.offsetHeight || 280;
+
+        let left = current.x + 18;
+        let top = current.y + 18;
+
+        if (left + tooltipWidth > window.innerWidth - 15) {
+          left = current.x - tooltipWidth - 18;
+        }
+        if (top + tooltipHeight > window.innerHeight - 15) {
+          top = window.innerHeight - tooltipHeight - 15;
+        }
+        left = Math.max(10, left);
+        top = Math.max(10, top);
+
+        popupRef.current.style.transform = `translate3d(${Math.round(left)}px, ${Math.round(top)}px, 0)`;
+      }
+
+      popupRafRef.current = requestAnimationFrame(updatePosition);
+    };
+
+    popupRafRef.current = requestAnimationFrame(updatePosition);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      if (popupRafRef.current) {
+        cancelAnimationFrame(popupRafRef.current);
+        popupRafRef.current = null;
+      }
+    };
+  }, [hoveredPiece]);
 
   // Global 5s Battle Countdown when match begins in multiplayer
   useEffect(() => {
@@ -203,6 +278,7 @@ export default function Game({ navigateTo }) {
   const preloadedImagesRef = useRef({});
   const roomUnsubRef = useRef(null);
   const lastProcessedEventsRef = useRef(null);
+  const lastVerifiedGsRef = useRef(null);
   const prevPlayersCountRef = useRef(1);
   const aiWorkerRef = useRef(null);
   const timerIntervalRef = useRef(null);
@@ -368,6 +444,19 @@ export default function Game({ navigateTo }) {
         const gs = roomData.gameState;
         if (!gs) return;
 
+        // Anti-Cheat Peer Move Verification
+        if (roomData.lastAction && lastVerifiedGsRef.current) {
+          const action = roomData.lastAction;
+          if (action.senderId !== playerId && ['MOVE', 'ABILITY', 'HANDLE_CLICK', 'SACRIFICE', 'RELEASE', 'RIFT_PULSE', 'DESPAWN'].includes(action.type)) {
+            const verification = validatePeerAction(lastVerifiedGsRef.current, action, gs);
+            if (!verification.valid) {
+              console.warn('[Anti-Cheat] Flagged invalid opponent action:', verification.reason);
+              showFlash(`Anti-Cheat Alert: ${verification.reason}`, 'error');
+            }
+          }
+        }
+        lastVerifiedGsRef.current = cloneState(gs);
+
         const players = roomData.players || [];
         setPlayerCount(players.length);
 
@@ -401,9 +490,13 @@ export default function Game({ navigateTo }) {
           isFirstSync = false;
           showFlash(`Joined realm ${roomId} as Team ${effectiveTeam.toUpperCase()}`, 'neutral');
           if (gs.gameStarted && !gs.gameOver) {
+            saveActiveSession({ roomId, team: effectiveTeam, mode: 'online' });
             startCountdown();
           }
         } else {
+          if (gs.gameStarted && !gs.gameOver) {
+            saveActiveSession({ roomId, team: effectiveTeam, mode: 'online' });
+          }
           // Detect player joins / disconnects
           if (players.length > prevPlayersCountRef.current) {
             showFlash('An opponent has entered the realm!', 'neutral');
@@ -425,6 +518,24 @@ export default function Game({ navigateTo }) {
         console.error('Firestore room error:', err);
         alert(err.message || 'Unable to connect to realm.');
       });
+
+      const handleOnline = () => {
+        showFlash('Connection restored. Resyncing realm...', 'neutral');
+        updatePlayerHeartbeat(roomId, playerId);
+      };
+      window.addEventListener('online', handleOnline);
+
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        if (heartbeatIntervalRef.current) {
+          clearInterval(heartbeatIntervalRef.current);
+          heartbeatIntervalRef.current = null;
+        }
+        if (roomUnsubRef.current) {
+          roomUnsubRef.current();
+          roomUnsubRef.current = null;
+        }
+      };
     }
 
     return () => {
@@ -492,6 +603,7 @@ export default function Game({ navigateTo }) {
   }, [gameState?.selectedPiece?.id]);
 
   const handleExitToLobby = () => {
+    clearActiveSession();
     if (heartbeatIntervalRef.current) {
       clearInterval(heartbeatIntervalRef.current);
       heartbeatIntervalRef.current = null;
@@ -830,7 +942,7 @@ export default function Game({ navigateTo }) {
       processLocalAction(actionType, data);
     } else {
       // Optimistic local update for instantaneous UI feedback
-      if (['SELECT_PIECE', 'TOGGLE_TEST_MODE'].includes(actionType)) {
+      if (actionType === 'SELECT_PIECE') {
         processLocalAction(actionType, data);
       }
       const playerId = getOrCreatePlayerId();
@@ -1112,20 +1224,6 @@ export default function Game({ navigateTo }) {
     }
 
     return info;
-  };
-
-  const getTooltipPosition = () => {
-    const tooltipWidth = 400;
-    let left = mousePos.x + 15;
-    let top = mousePos.y + 15;
-    if (left + tooltipWidth > window.innerWidth - 15) {
-      left = mousePos.x - tooltipWidth - 15;
-    }
-    if (top + 300 > window.innerHeight - 15) {
-      top = window.innerHeight - 315;
-    }
-    top = Math.max(10, top);
-    return { left: `${left}px`, top: `${top}px` };
   };
 
   const selectedPiece = gameState?.selectedPiece;
@@ -1482,25 +1580,43 @@ export default function Game({ navigateTo }) {
               onPieceClick={handlePieceClick}
               onMouseEnterPiece={(piece, event) => {
                 if (gameState?.gameOver) return;
+                if (event) {
+                  targetMousePosRef.current = { x: event.clientX, y: event.clientY };
+                  currentMousePosRef.current = { x: event.clientX, y: event.clientY };
+                }
                 setHoveredPiece(piece);
-                if (event) setMousePos({ x: event.clientX, y: event.clientY });
+              }}
+              onMouseMovePiece={(piece, event) => {
+                if (event) {
+                  targetMousePosRef.current = { x: event.clientX, y: event.clientY };
+                }
               }}
               onMouseLeavePiece={() => setHoveredPiece(null)}
             />
             <div className="labels-bar">
-               <div id="snowLabel" className="label snow"><span>Frost control</span><strong>{terrScores.snow.toFixed(1)}%</strong></div>
-               <div id="turnLabel" className={`label turn ${gameState?.currentTurn || 'snow'}`}>
-                 <Clock3 className="h-4 w-4" aria-hidden="true" />
-                 <div className="flex flex-col items-center leading-tight">
-                   <span>{turnLabel}</span>
-                   {terrScores.neutral !== undefined && terrScores.neutral > 0 && (
-                     <span className="text-[9px] text-slate-400 font-sans tracking-widest font-medium uppercase mt-0.5">
-                       Uncontested: {terrScores.neutral.toFixed(1)}%
-                     </span>
-                   )}
-                 </div>
-               </div>
-               <div id="ashLabel" className="label ash"><span>Ash control</span><strong>{terrScores.ash.toFixed(1)}%</strong></div>
+              <div id="snowLabel" className="label snow">
+                <span>Frost Control</span>
+                <strong>{terrScores.snow.toFixed(1)}%</strong>
+              </div>
+
+              <div id="turnLabel" className={`label turn ${gameState?.currentTurn || 'snow'}`}>
+                <div className="turn-content">
+                  <div className="turn-main">
+                    <Clock3 className="turn-clock-icon" aria-hidden="true" />
+                    <span>{turnLabel}</span>
+                  </div>
+                  {terrScores.neutral !== undefined && terrScores.neutral > 0 && (
+                    <span className="uncontested-label">
+                      Uncontested: {terrScores.neutral.toFixed(1)}%
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div id="ashLabel" className="label ash">
+                <span>Ash Control</span>
+                <strong>{terrScores.ash.toFixed(1)}%</strong>
+              </div>
             </div>
           </div>
 
@@ -1641,12 +1757,16 @@ export default function Game({ navigateTo }) {
 
       {hoveredPiece && !gameState?.gameOver && (
         <div 
+          ref={popupRef}
           id="piecePopup"
-          className="piece-Popup"
+          className="piece-Popup pointer-events-none"
           style={{
             display: 'block',
             position: 'fixed',
-            ...getTooltipPosition(),
+            top: 0,
+            left: 0,
+            willChange: 'transform',
+            transform: `translate3d(${Math.round(currentMousePosRef.current.x + 18)}px, ${Math.round(currentMousePosRef.current.y + 18)}px, 0)`,
           }}
           dangerouslySetInnerHTML={{ __html: generatePieceInfoHtml(hoveredPiece) }}
         />

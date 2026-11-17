@@ -1039,7 +1039,7 @@ export const ABILITIES = {
 
       const toRemove = [];
       gs.pieces.forEach(target => {
-        if (cellIntersectsSector(target.row, target.col, p.row, p.col, t.r, t.c, ABILITY_VALUES.ReignOfFire.range, Math.PI / 3)) {
+        if (cellIntersectsCircle(target.row, target.col, t.r, t.c, radius)) {
           if (target.key === 'snowFrostLord' && target.hasHelpFromAboveActive) {
             return; // Immune to damage
           }
