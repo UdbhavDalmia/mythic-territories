@@ -1,0 +1,1004 @@
+/**
+ * Master Ability Registry
+ * Contains targeting logic and state-mutation execution effects for all active abilities.
+ */
+import {
+  CANVAS_SIZE,
+  CELL_SIZE,
+  COLS,
+  ROWS,
+  cellIntersectsCircle,
+  cellIntersectsSector,
+  getPieceAt,
+  inBounds,
+  emit,
+  applyDebuff
+} from './constants.js';
+
+export const ABILITY_VALUES = {
+  ChillingAura: { cooldown: 4, duration: 3, powerDebuff: 1 },
+  FrenziedDash: { range: 2, cooldown: 3 },
+  FrigidPath: { range: 4, cooldown: 5, duration: 4 },
+  FrostArmor: { duration: 3, cooldown: 4, powerBoost: 1 },
+  GlacialWall: { cooldown: 6, duration: 3 },
+  Hamstring: { range: 1, duration: 2, cooldown: 3 },
+  HoarfrostArmaments: { duration: 4, powerBoost: 1 },
+  HuntersRage: { duration: 3, cooldown: 4, powerBoost: 1 },
+  InnerFurnace: { duration: 4, powerBoost: 1 },
+  KindleArmor: { range: 1, duration: 3, cooldown: 3, powerBoost: 1 },
+  KingsEdict: { duration: 4, powerDebuff: 1 },
+  LavaGlob: { cooldown: 10, range: 4, damage: 1, maxTargetPower: 2 },
+  ObsidianPillar: { range: 2, duration: 2, cooldown: 5 },
+  MarkOfCinder: { cooldown: 4, range: 2, duration: 3, powerDebuff: 1 },
+  PowerInfusion: { powerBoost: 4, duration: 5 },
+  Pummel: { range: 1, cooldown: 3 },
+  RiftAnchor: { powerBoost: 2 },
+  ScorchedRetreat: { range: 1, cooldown: 3 },
+  SetSnare: { range: 2, cooldown: 4, duration: 3 },
+  Shrine: { powerBoost: 1, overloadCharges: 2 },
+  Siphon: { maxCharges: 3 },
+  GlacialFracture: { cooldown: 9, range: 2.5, radius: 2, damage: 2, wispCap: 2, remnantDuration: 3 },
+  AColdFarewell: { radius: 1.5, duration: 4, damage: 2, heal: 1, strengthBoost: 1, agilityDebuff: 0.4 },
+  SummonIceWisp: { cooldown: 4, range: 4 },
+  UnstableGround: { cooldown: 4, range: 4, duration: 3, damage: 1 },
+  FrostStomp: { cooldown: 3, duration: 1 },
+  HardenedIce: { cooldown: 5, duration: 4 },
+  GlacialBeacon: { cooldown: 4, range: 3, duration: 2 },
+  FrostbiteCurse: { cooldown: 4, range: 2, duration: 2, powerDebuff: 1 },
+  DistractingRoar: { cooldown: 2, range: 1, duration: 2, powerDebuff: 1 },
+  IcyShift: { cooldown: 5, range: 2, duration: 2 },
+  SiphonCharge: { permDamageCost: 1, cooldownReset: "FrenziedDash" },
+  BlazeLunge: { cooldown: 4, range: 2 },
+  VolatileCinder: { cooldown: 4, range: 3, damage: 1 },
+  SoulfireBurst: { cooldown: 6, range: 3, damage: 1 },
+  TacticalSwapAsh: { cooldown: 4, range: 2, duration: 2 },
+  CinderSurge: { cooldown: 4, range: 1 },
+  WispEnhancement: { powerBoost: 1 },
+  GlacialFortress: { cooldown: 8, duration: 3 },
+  VolatileForge: { places: 2 },
+  MagmaAnchor: { powerBoost: 1 },
+  SpikeRain: { cooldown: 11, duration: 5, range: 2.5, radius: 2, damage: 2, heal: 1 },
+  HelpFromAbove: { cooldown: 10, radius: 1.5, strengthBoost: 1, activeDuration: 3 },
+  FateLink: { cooldown: 7, range: 3, duration: 4 },
+  TheReapersToll: { cooldown: 7, range: 3, duration: 4 },
+  ReignOfFire: { cooldown: 11, duration: 3, range: 2.5, radius: 2, damage: 2, allyDamage: 1, strengthBoost: 2 },
+  FrostfallBlessing: { cooldown: 11, duration: 5, range: 2.5, radius: 2, damage: 2, heal: 1 }
+};
+
+const glacialWallTargeting = (p, t, gs) => {
+  if (!inBounds(t.r, t.c)) return false;
+  return (
+    Math.max(Math.abs(p.row - t.r), Math.abs(p.col - t.c)) === 1 &&
+    !getPieceAt(t.r, t.c, gs.pieces) &&
+    !(gs.voidSquares || []).some((v) => v.row === t.r && v.col === t.c) &&
+    !(gs.glacialWalls || []).some((w) => w.row === t.r && w.col === t.c)
+  );
+};
+
+const unstableGroundEffect = (p, t, gs) => {
+  gs.unstableGrounds.push({
+    row: t.r,
+    col: t.c,
+    duration: ABILITY_VALUES.UnstableGround.duration,
+    creator: p
+  });
+  if (!p.ability?.isVeteranForge) return;
+  let placedCount = 0;
+  for (const [dr, dc] of [
+    [0, 1],
+    [0, -1],
+    [1, 0],
+    [-1, 0],
+    [1, 1],
+    [1, -1],
+    [-1, 1],
+    [-1, -1]
+  ]) {
+    if (placedCount >= ABILITY_VALUES.VolatileForge.places - 1) break;
+    const r2 = t.r + dr,
+      c2 = t.c + dc;
+    if (
+      inBounds(r2, c2) &&
+      !getPieceAt(r2, c2, gs.pieces) &&
+      !gs.unstableGrounds.some((g) => g.row === r2 && g.col === c2) &&
+      !gs.glacialWalls.some((w) => w.row === r2 && w.col === c2) &&
+      !(gs.voidSquares || []).some((v) => v.row === r2 && v.col === c2)
+    ) {
+      gs.unstableGrounds.push({
+        row: r2,
+        col: c2,
+        duration: ABILITY_VALUES.UnstableGround.duration,
+        creator: p
+      });
+      placedCount++;
+    }
+  }
+};
+
+/* ==========================================================================
+   SECTION 5: ABILITY REGISTRY
+   The master list of all active abilities. Contains targeting logic and 
+   the state-mutation effects applied when an ability is triggered.
+   ========================================================================== */
+export const ABILITIES = {
+  SpikeRain: {
+    name: "Spike Rain",
+    cooldown: ABILITY_VALUES.SpikeRain.cooldown,
+    range: ABILITY_VALUES.SpikeRain.range,
+    targetType: "any",
+    requiresTargeting: true,
+    effect: (p, t, gs) => {
+      if (!gs.spikeRains) gs.spikeRains = [];
+      gs.spikeRains.push({
+        creatorId: p.id,
+        team: p.team,
+        r: t.r,
+        c: t.c,
+        duration: ABILITY_VALUES.SpikeRain.duration,
+        radius: ABILITY_VALUES.SpikeRain.radius,
+        damage: ABILITY_VALUES.SpikeRain.damage,
+        heal: ABILITY_VALUES.SpikeRain.heal
+      });
+    }
+  },
+  ChillingAura: {
+    name: "Chilling Aura",
+    cooldown: ABILITY_VALUES.ChillingAura.cooldown,
+    requiresTargeting: false,
+    effect: (p) => {
+      p.ability.active = true;
+      p.ability.duration = ABILITY_VALUES.ChillingAura.duration;
+    }
+  },
+  FrenziedDash: {
+    name: "Frenzied Dash",
+    cooldown: ABILITY_VALUES.FrenziedDash.cooldown,
+    range: ABILITY_VALUES.FrenziedDash.range,
+    targetType: "special",
+    requiresTargeting: true,
+    specialTargeting: (p, t, gs) => {
+      const dr = t.r - p.row,
+        dc = t.c - p.col;
+      if (getPieceAt(t.r, t.c, gs.pieces)) return false;
+      const isRampage =
+        p.key === TEAM_PIECES.ash.Warrior &&
+        gs.factionPassives.ash.ascension.Rampage;
+      if (
+        (Math.abs(dr) === 2 && dc === 0) ||
+        (Math.abs(dc) === 2 && dr === 0)
+      ) {
+        const midP = getPieceAt(p.row + dr / 2, p.col + dc / 2, gs.pieces);
+        return (
+          (isRampage ? !midP || midP.team === p.team : !midP) &&
+          !gs.glacialWalls.some(
+            (w) => w.row === p.row + dr / 2 && w.col === p.col + dc / 2
+          )
+        );
+      }
+      return false;
+    },
+    effect: (p, t, gs) => {
+      p.row = t.r;
+      p.col = t.c;
+      const pos = `${t.r},${t.c}`;
+      (p.team === "snow" ? gs.snowTerritory : gs.ashTerritory).add(pos);
+      (p.team === "snow" ? gs.ashTerritory : gs.snowTerritory).delete(pos);
+      gs.territoryCaptureTurn[pos] = gs.turnCount;
+    }
+  },
+  FrigidPath: {
+    name: "Frigid Path",
+    cooldown: ABILITY_VALUES.FrigidPath.cooldown,
+    range: ABILITY_VALUES.FrigidPath.range,
+    targetType: "empty",
+    canBeBlocked: false,
+    requiresTargeting: true,
+    effect: (p, t, gs) => {
+      [
+        { r: t.r, c: t.c - 1 },
+        { r: t.r, c: t.c },
+        { r: t.r, c: t.c + 1 }
+      ].forEach((target) => {
+        if (
+          inBounds(target.r, target.c) &&
+          !getPieceAt(target.r, target.c, gs.pieces) &&
+          !gs.glacialWalls.some(
+            (w) => w.row === target.r && w.col === target.c
+          ) &&
+          !(gs.voidSquares || []).some(
+            (v) => v.row === target.r && v.col === target.c
+          )
+        ) {
+          // Place icy ground but DO NOT claim it into snow territory here — ice is a temporary special terrain only
+          gs.specialTerrains.push({
+            row: target.r,
+            col: target.c,
+            type: "icyGround",
+            duration:
+              (ABILITY_VALUES.FrigidPath &&
+                ABILITY_VALUES.FrigidPath.duration) ||
+              3,
+            age: 0
+          });
+        }
+      });
+    }
+  },
+  FrostArmor: {
+    name: "Frost Armor",
+    cooldown: ABILITY_VALUES.FrostArmor.cooldown,
+    requiresTargeting: false,
+    effect: (p, t, gs) =>
+      gs.temporaryBoosts.push({
+        pieceId: p.id,
+        amount: ABILITY_VALUES.FrostArmor.powerBoost,
+        duration: ABILITY_VALUES.FrostArmor.duration,
+        name: "FrostArmor"
+      })
+  },
+  GlacialWall: {
+    name: "Glacial Wall",
+    cooldown: ABILITY_VALUES.GlacialWall.cooldown,
+    requiresTargeting: true,
+    range: 1,
+    targetType: "special",
+    specialTargeting: glacialWallTargeting,
+    effect: (p, t, gs) => {
+      if (t)
+        gs.glacialWalls.push({
+          row: t.r,
+          col: t.c,
+          duration: ABILITY_VALUES.GlacialWall.duration
+        });
+    }
+  },
+  Hamstring: {
+    name: "Hamstring",
+    cooldown: ABILITY_VALUES.Hamstring.cooldown,
+    range: ABILITY_VALUES.Hamstring.range,
+    targetType: "enemy",
+    canBeBlocked: true,
+    requiresTargeting: true,
+    effect: (p, t, gs) => {
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
+      if (tp)
+        applyDebuff(gs, {
+          pieceId: tp.id,
+          amount: 0,
+          duration: ABILITY_VALUES.Hamstring.duration,
+          name: "Hamstrung"
+        });
+    }
+  },
+  HuntersRage: {
+    name: "Hunter's Rage",
+    cooldown: ABILITY_VALUES.HuntersRage.cooldown,
+    requiresTargeting: false,
+    effect: (p, t, gs) =>
+      gs.temporaryBoosts.push({
+        pieceId: p.id,
+        amount: ABILITY_VALUES.HuntersRage.powerBoost,
+        duration: ABILITY_VALUES.HuntersRage.duration,
+        name: "HuntersRage"
+      })
+  },
+  KingsEdict: {
+    name: "King's Edict",
+    requiresTargeting: false,
+    isUltimate: true,
+    effect: (p, t, gs) =>
+      gs.pieces.forEach((op) => {
+        if (op.team !== p.team && !op.hasDefensiveWard)
+          applyDebuff(gs, {
+            pieceId: op.id,
+            amount: ABILITY_VALUES.KingsEdict.powerDebuff,
+            duration: ABILITY_VALUES.KingsEdict.duration,
+            name: "Edict"
+          });
+      })
+  },
+  KindleArmor: {
+    name: "Kindle Armor",
+    cooldown: ABILITY_VALUES.KindleArmor.cooldown,
+    range: ABILITY_VALUES.KindleArmor.range,
+    targetType: "friendly",
+    canBeBlocked: false,
+    requiresTargeting: true,
+    effect: (p, t, gs) => {
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
+      if (tp)
+        gs.temporaryBoosts.push({
+          pieceId: tp.id,
+          amount: ABILITY_VALUES.KindleArmor.powerBoost,
+          duration: ABILITY_VALUES.KindleArmor.duration,
+          name: "KindleArmor"
+        });
+    }
+  },
+  LavaGlob: {
+    name: "Lava Glob",
+    cooldown: ABILITY_VALUES.LavaGlob.cooldown,
+    range: ABILITY_VALUES.LavaGlob.range,
+    targetType: "special",
+    canBeBlocked: true,
+    requiresTargeting: true,
+    specialTargeting: (p, t, gs) => {
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
+      if (!tp || tp.team === p.team) return false;
+      return (
+        gs.markedPieces.some((m) => m.targetId === tp.id) ||
+        PIECE_TYPES[tp.key]?.power <=
+        (gs.factionPassives.ash.ascension.lavaGlobPower ||
+          ABILITY_VALUES.LavaGlob.maxTargetPower)
+      );
+    },
+    effect: (p, t, gs) => {
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
+      if (tp) {
+        const dmg = ABILITY_VALUES.LavaGlob.damage;
+        tp.power = Math.max(0, tp.power - dmg);
+        if (typeof tp.currentHp === "number") {
+          if (!(tp.key === 'snowFrostLord' && tp.hasHelpFromAboveActive)) {
+            tp.currentHp = Math.max(0, tp.currentHp - dmg);
+          }
+        }
+      }
+    }
+  },
+  ObsidianPillar: {
+    name: "Obsidian Pillar",
+    cooldown: ABILITY_VALUES.ObsidianPillar.cooldown,
+    range: ABILITY_VALUES.ObsidianPillar.range,
+    targetType: "any",
+    canBeBlocked: true,
+    requiresTargeting: true,
+    effect: (p, t, gs) => {
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
+      if (!tp) {
+        const hasWall = (gs.glacialWalls || []).some(w => Math.hypot(w.row - t.r, w.col - t.c) < 0.6);
+        const hasVoid = (gs.voidSquares || []).some(v => Math.hypot(v.row - t.r, v.col - t.c) < 0.6);
+        const hasCrater = (gs.specialTerrains || []).some(st => st.type === 'crater' && Math.hypot(st.row - t.r, st.col - t.c) < 0.6);
+        if (hasWall || hasVoid || hasCrater) return;
+
+        gs.glacialWalls = gs.glacialWalls || [];
+        gs.glacialWalls.push({
+          row: t.r,
+          col: t.c,
+          duration: 4,
+          type: 'obsidianPillar'
+        });
+        return;
+      }
+      if (tp.team === p.team) {
+        gs.shields = gs.shields || [];
+        if (!gs.shields.some((s) => s.pieceId === tp.id)) {
+          gs.shields.push({
+            pieceId: tp.id,
+            duration: ABILITY_VALUES.ObsidianPillar.duration,
+            hp: 2,
+            maxHp: 2,
+            name: "ObsidianPillarShield"
+          });
+        }
+      } else {
+        const dmg = 1;
+        tp.power = Math.max(0, tp.power - dmg);
+        if (typeof tp.currentHp === "number") {
+          if (!(tp.key === 'snowFrostLord' && tp.hasHelpFromAboveActive)) {
+            tp.currentHp = Math.max(0, tp.currentHp - dmg);
+          }
+        }
+
+        const dr = tp.row - p.row;
+        const dc = tp.col - p.col;
+        const maxDist = Math.max(Math.abs(dr), Math.abs(dc));
+        const stepR = maxDist > 0 ? Math.round(dr / maxDist) : 0;
+        const stepC = maxDist > 0 ? Math.round(dc / maxDist) : 0;
+
+        const destR = tp.row + stepR;
+        const destC = tp.col + stepC;
+
+        const isValid = inBounds(destR, destC) &&
+          !getPieceAt(destR, destC, gs.pieces) &&
+          !gs.glacialWalls.some(w => w.row === destR && w.col === destC) &&
+          !(gs.voidSquares || []).some(v => v.row === destR && v.col === destC);
+
+        if (isValid) {
+          emit(gs, {
+            type: "ANIMATION",
+            name: "PummelKnockback",
+            targetPieceId: tp.id,
+            attackerR: p.row,
+            attackerC: p.col,
+            oldRow: tp.row,
+            oldCol: tp.col,
+            newRow: destR,
+            newCol: destC
+          });
+          tp.row = destR;
+          tp.col = destC;
+
+          const pos = `${destR},${destC}`;
+          (tp.team === "snow" ? gs.snowTerritory : gs.ashTerritory).add(pos);
+          (tp.team === "snow" ? gs.ashTerritory : gs.snowTerritory).delete(pos);
+          gs.territoryCaptureTurn[pos] = gs.turnCount;
+
+          gs.glacialWalls = gs.glacialWalls || [];
+          gs.glacialWalls.push({
+            row: t.r,
+            col: t.c,
+            duration: 4,
+            type: 'obsidianPillar'
+          });
+        } else {
+          tp.isDazed = true;
+          tp.dazedFor = Math.max(tp.dazedFor || 0, 2);
+
+          const blocker = getPieceAt(destR, destC, gs.pieces);
+          if (blocker && !blocker.isSteadfast) {
+            blocker.isDazed = true;
+            blocker.dazedFor = Math.max(blocker.dazedFor || 0, 2);
+          }
+        }
+      }
+    }
+  },
+  MarkOfCinder: {
+    name: "Mark of Cinder",
+    cooldown: ABILITY_VALUES.MarkOfCinder.cooldown,
+    range: ABILITY_VALUES.MarkOfCinder.range,
+    targetType: "enemy",
+    canBeBlocked: true,
+    requiresTargeting: true,
+    effect: (p, t, gs) => {
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
+      if (!tp) return;
+      if (p.isElementalHarmony) {
+        const dmg = ABILITY_VALUES.LavaGlob.damage;
+        tp.power = Math.max(0, tp.power - dmg);
+        if (typeof tp.currentHp === "number") {
+          if (!(tp.key === 'snowFrostLord' && tp.hasHelpFromAboveActive)) {
+            tp.currentHp = Math.max(0, tp.currentHp - dmg);
+          }
+        }
+      }
+      gs.markedPieces.push({
+        targetId: tp.id,
+        duration: ABILITY_VALUES.MarkOfCinder.duration
+      });
+    }
+  },
+  Pummel: {
+    name: "Pummel",
+    cooldown: ABILITY_VALUES.Pummel.cooldown,
+    range: ABILITY_VALUES.Pummel.range,
+    targetType: "enemy",
+    canBeBlocked: true,
+    requiresTargeting: true,
+    effect: (p, t, gs) => {
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
+      if (!tp) return;
+      const pushR = t.r + (t.r - p.row) * 2,
+        pushC = t.c + (t.c - p.col) * 2,
+        stepR = t.r + (t.r - p.row),
+        stepC = t.c + (t.c - p.col);
+      const isValid = (r, c) =>
+        inBounds(r, c) &&
+        !getPieceAt(r, c, gs.pieces) &&
+        !gs.glacialWalls.some((w) => w.row === r && w.col === c) &&
+        !(gs.voidSquares || []).some((v) => v.row === r && v.col === c);
+      let finalR = tp.row,
+        finalC = tp.col;
+      if (isValid(stepR, stepC) && isValid(pushR, pushC)) {
+        finalR = pushR;
+        finalC = pushC;
+      } else if (isValid(stepR, stepC)) {
+        finalR = stepR;
+        finalC = stepC;
+        const blocker = getPieceAt(pushR, pushC, gs.pieces);
+        if (blocker && !blocker.isSteadfast) {
+          blocker.isDazed = true;
+          blocker.dazedFor = 2;
+        }
+      } else {
+        const blocker = getPieceAt(stepR, stepC, gs.pieces);
+        if (blocker && !blocker.isSteadfast) {
+          blocker.isDazed = true;
+          blocker.dazedFor = 2;
+        }
+      }
+
+      if (finalR !== tp.row || finalC !== tp.col) {
+        tp.row = finalR;
+        tp.col = finalC;
+        const pos = `${finalR},${finalC}`;
+        (tp.team === "snow" ? gs.snowTerritory : gs.ashTerritory).add(pos);
+        (tp.team === "snow" ? gs.ashTerritory : gs.snowTerritory).delete(pos);
+        gs.territoryCaptureTurn[pos] = gs.turnCount;
+      }
+      if (!tp.isSteadfast) {
+        tp.isDazed = true;
+        tp.dazedFor = 2;
+      }
+    }
+  },
+  ScorchedRetreat: {
+    name: "Scorched Retreat",
+    type: "utility",
+    range: 1,
+    requiresTargeting: true,
+    targetType: "special",
+    specialTargeting: (p, t, gs) => {
+      const backDir = p.team === "snow" ? 1 : -1;
+      return (
+        t.r === p.row + backDir &&
+        Math.abs(t.c - p.col) <= 1 &&
+        !getPieceAt(t.r, t.c, gs.pieces) &&
+        !gs.glacialWalls.some((w) => w.row === t.r && w.col === t.c)
+      );
+    },
+    effect: (p, t, gs) => {
+      const oR = p.row,
+        oC = p.col;
+      p.row = t.r;
+      p.col = t.c;
+      const pos = `${t.r},${t.c}`;
+      (p.team === "snow" ? gs.snowTerritory : gs.ashTerritory).add(pos);
+      (p.team === "snow" ? gs.ashTerritory : gs.snowTerritory).delete(pos);
+      gs.territoryCaptureTurn[pos] = gs.turnCount;
+      gs.unstableGrounds = gs.unstableGrounds || [];
+      if (!gs.unstableGrounds.some((g) => g.row === oR && g.col === oC))
+        gs.unstableGrounds.push({
+          row: oR,
+          col: oC,
+          duration: 2,
+          isBurningGround: true
+        });
+    }
+  },
+  SetSnare: {
+    name: "Set Snare",
+    type: "utility",
+    range: 2,
+    cooldown: 4,
+    requiresTargeting: true,
+    targetType: "empty",
+    effect: (p, t, gs) => {
+      gs.specialTerrains = gs.specialTerrains || [];
+      gs.specialTerrains.push({
+        type: "snare",
+        row: t.r,
+        col: t.c,
+        team: p.team,
+        duration: 99,
+        age: 0
+      });
+    }
+  },
+  GlacialFracture: {
+    name: "Glacial Fracture",
+    cooldown: ABILITY_VALUES.GlacialFracture.cooldown,
+    requiresTargeting: true,
+    circularRange: true,
+    range: ABILITY_VALUES.GlacialFracture.range,
+    radius: ABILITY_VALUES.GlacialFracture.radius,
+    targetType: "any",
+    effect: (piece, target, gameState, createPiece) => {
+      // Handled in logic.js
+    }
+  },
+  SummonIceWisp: {
+    name: "Summon Ice Wisp",
+    cooldown: ABILITY_VALUES.SummonIceWisp.cooldown,
+    range: ABILITY_VALUES.SummonIceWisp.range,
+    targetType: "empty",
+    canBeBlocked: false,
+    requiresTargeting: true,
+    effect: (p, t, gs, createPiece) => {
+      const wisp = createPiece(t.r, t.c, "snowIceWisp", "snow");
+      wisp.power = Math.max(
+        gs.factionPassives?.snow?.ascension?.wispPower || 0,
+        p.isVeteranWispEnhancement
+          ? ABILITY_VALUES.WispEnhancement.powerBoost
+          : 0
+      );
+      gs.pieces.push(wisp);
+      const pos = `${t.r},${t.c}`;
+      gs.snowTerritory.add(pos);
+      gs.ashTerritory.delete(pos);
+      gs.territoryCaptureTurn[pos] = gs.turnCount;
+    }
+  },
+  UnstableGround: {
+    name: "Unstable Ground",
+    cooldown: ABILITY_VALUES.UnstableGround.cooldown,
+    range: ABILITY_VALUES.UnstableGround.range,
+    targetType: "empty",
+    canBeBlocked: false,
+    requiresTargeting: true,
+    effect: unstableGroundEffect
+  },
+  FrostStomp: {
+    name: "Frost Stomp",
+    cooldown: ABILITY_VALUES.FrostStomp.cooldown,
+    requiresTargeting: true,
+    range: 1,
+    targetType: "enemy",
+    canBeBlocked: true,
+    effect: (p, t, gs) => {
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
+      if (tp) {
+        tp.isDazed = true;
+        tp.dazedFor = ABILITY_VALUES.FrostStomp.duration * 2;
+      }
+    }
+  },
+  HardenedIce: {
+    name: "Hardened Ice",
+    cooldown: ABILITY_VALUES.HardenedIce.cooldown,
+    requiresTargeting: true,
+    range: 1,
+    targetType: "friendly",
+    effect: (p, t, gs) => {
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
+      if (tp) {
+        tp.isSteadfast = true;
+        applyDebuff(gs, {
+          pieceId: tp.id,
+          amount: 0,
+          duration: ABILITY_VALUES.HardenedIce.duration,
+          name: "HardenedIce"
+        });
+      }
+    }
+  },
+  GlacialFortress: {
+    name: "Glacial Wall (Fortress)",
+    cooldown: ABILITY_VALUES.GlacialFortress.cooldown,
+    requiresTargeting: true,
+    range: 1,
+    targetType: "special",
+    specialTargeting: glacialWallTargeting,
+    effect: () => { }
+  },
+  GlacialBeacon: {
+    name: "Glacial Beacon",
+    cooldown: ABILITY_VALUES.GlacialBeacon.cooldown,
+    requiresTargeting: true,
+    range: ABILITY_VALUES.GlacialBeacon.range,
+    targetType: "empty",
+    effect: (p, t, gs) =>
+      gs.specialTerrains.push({
+        row: t.r,
+        col: t.c,
+        type: "beacon",
+        duration: ABILITY_VALUES.GlacialBeacon.duration * 2
+      })
+  },
+  FrostbiteCurse: {
+    name: "Frostbite Curse",
+    cooldown: ABILITY_VALUES.FrostbiteCurse.cooldown,
+    requiresTargeting: true,
+    range: ABILITY_VALUES.FrostbiteCurse.range,
+    targetType: "any",
+    canBeBlocked: true,
+    effect: (p, t, gs) => {
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
+      if (!tp) return;
+      const bIdx = gs.temporaryBoosts.findIndex(
+        (b) => b.pieceId === tp.id && b.amount > 0
+      );
+      if (bIdx !== -1) {
+        gs.temporaryBoosts.splice(bIdx, 1);
+        applyDebuff(gs, {
+          pieceId: tp.id,
+          amount: ABILITY_VALUES.FrostbiteCurse.powerDebuff,
+          duration: ABILITY_VALUES.FrostbiteCurse.duration * 2,
+          name: "FrostbiteCurse"
+        });
+      }
+    }
+  },
+  DistractingRoar: {
+    name: "Distracting Roar",
+    cooldown: ABILITY_VALUES.DistractingRoar.cooldown,
+    requiresTargeting: true,
+    range: ABILITY_VALUES.DistractingRoar.range,
+    targetType: "enemy",
+    canBeBlocked: true,
+    effect: (p, t, gs) => {
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
+      if (tp)
+        applyDebuff(gs, {
+          pieceId: tp.id,
+          amount: ABILITY_VALUES.DistractingRoar.powerDebuff,
+          duration: ABILITY_VALUES.DistractingRoar.duration,
+          name: "DistractingRoar"
+        });
+    }
+  },
+  IcyShift: {
+    name: "Icy Shift",
+    cooldown: ABILITY_VALUES.IcyShift.cooldown,
+    requiresTargeting: true,
+    range: ABILITY_VALUES.IcyShift.range,
+    targetType: "any",
+    effect: () => { }
+  },
+  SiphonCharge: {
+    name: "Siphon Charge",
+    requiresTargeting: false,
+    effect: () => { }
+  },
+  BlazeLunge: {
+    name: "Blaze Lunge",
+    cooldown: ABILITY_VALUES.BlazeLunge.cooldown,
+    requiresTargeting: true,
+    range: ABILITY_VALUES.BlazeLunge.range,
+    targetType: "special",
+    specialTargeting: (p, t, gs) => {
+      if (getPieceAt(t.r, t.c, gs.pieces)) return false;
+      for (let dr = -1; dr <= 1; dr++)
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const adj = getPieceAt(t.r + dr, t.c + dc, gs.pieces);
+          if (adj && adj.team !== p.team) return true;
+        }
+      return false;
+    },
+    effect: (p, t, gs) => {
+      p.row = t.r;
+      p.col = t.c;
+      const pos = `${t.r},${t.c}`;
+      (p.team === "snow" ? gs.snowTerritory : gs.ashTerritory).add(pos);
+      (p.team === "snow" ? gs.ashTerritory : gs.snowTerritory).delete(pos);
+      gs.territoryCaptureTurn[pos] = gs.turnCount;
+    }
+  },
+  VolatileForge: {
+    name: "Volatile Forge",
+    cooldown: ABILITY_VALUES.UnstableGround.cooldown,
+    requiresTargeting: true,
+    range: ABILITY_VALUES.UnstableGround.range,
+    targetType: "empty",
+    effect: unstableGroundEffect
+  },
+  VolatileCinder: {
+    name: "Volatile Cinder",
+    cooldown: ABILITY_VALUES.VolatileCinder.cooldown,
+    requiresTargeting: true,
+    range: ABILITY_VALUES.VolatileCinder.range,
+    targetType: "enemy",
+    canBeBlocked: true,
+    specialTargeting: (p, t, gs) => {
+      if (
+        Math.max(Math.abs(p.row - t.r), Math.abs(p.col - t.c)) >
+        ABILITY_VALUES.VolatileCinder.range
+      )
+        return false;
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
+      return (
+        tp &&
+        tp.team !== p.team &&
+        gs.markedPieces.some((m) => m.targetId === tp.id)
+      );
+    },
+    effect: (p, t, gs) => {
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
+      if (tp) {
+        const dmg = ABILITY_VALUES.VolatileCinder.damage;
+        tp.power = Math.max(0, tp.power - dmg);
+        if (typeof tp.currentHp === "number") {
+          if (!(tp.key === 'snowFrostLord' && tp.hasHelpFromAboveActive)) {
+            tp.currentHp = Math.max(0, tp.currentHp - dmg);
+          }
+        }
+      }
+    }
+  },
+  SoulfireBurst: {
+    name: "Soulfire Burst",
+    cooldown: ABILITY_VALUES.SoulfireBurst.cooldown,
+    requiresTargeting: true,
+    range: ABILITY_VALUES.SoulfireBurst.range,
+    targetType: "special",
+    specialTargeting: (p, t, gs) =>
+      gs.unstableGrounds.some(
+        (g) =>
+          g.row === t.r &&
+          g.col === t.c &&
+          (g.isBurningGround || g.creator?.team === p.team)
+      ),
+    effect: (p, t, gs) => {
+      const gr = gs.unstableGrounds.find((g) => g.row === t.r && g.col === t.c);
+      if (!gr) return;
+      const dmg = ABILITY_VALUES.SoulfireBurst.damage;
+      for (let dr = -1; dr <= 1; dr++)
+        for (let dc = -1; dc <= 1; dc++) {
+          const tp = getPieceAt(t.r + dr, t.c + dc, gs.pieces);
+          if (tp) {
+            tp.power = Math.max(0, tp.power - dmg);
+            if (typeof tp.currentHp === "number") {
+              if (!(tp.key === 'snowFrostLord' && tp.hasHelpFromAboveActive)) {
+                tp.currentHp = Math.max(0, tp.currentHp - dmg);
+              }
+            }
+          }
+        }
+      gs.unstableGrounds = gs.unstableGrounds.filter((g) => g !== gr);
+    }
+  },
+  TacticalSwapAsh: {
+    name: "Tactical Swap",
+    cooldown: ABILITY_VALUES.TacticalSwapAsh.cooldown,
+    requiresTargeting: true,
+    range: ABILITY_VALUES.TacticalSwapAsh.range,
+    targetType: "friendly",
+    effect: () => { }
+  },
+  CinderSurge: {
+    name: "Cinder Surge",
+    cooldown: ABILITY_VALUES.CinderSurge.cooldown,
+    requiresTargeting: true,
+    range: 1,
+    targetType: "friendly",
+    effect: (p, t, gs) => {
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
+      if (tp) {
+        tp.isDazed = false;
+        tp.dazedFor = 0;
+        tp.stuck = 0;
+        gs.debuffs = gs.debuffs.filter(
+          (d) => (d.name !== "FrostArmor" && d.name !== "KindleArmor")
+        );
+      }
+    }
+  },
+  FateLink: {
+    name: "Fate Link",
+    cooldown: ABILITY_VALUES.FateLink.cooldown,
+    requiresTargeting: true,
+    range: ABILITY_VALUES.FateLink.range,
+    targetType: "special",
+    specialTargeting: (p, t, gs) => {
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
+      if (gs.abilityContext && gs.abilityContext.abilityKey === 'FateLink' && gs.abilityContext.step === 1) {
+        return tp && tp.team === p.team;
+      }
+      return tp && tp.team !== p.team;
+    },
+    effect: (p, t, gs) => {
+      const target2 = getPieceAt(t.r, t.c, gs.pieces);
+      const target1 = t.target1 ? gs.pieces.find(pc => pc.id === t.target1.id) : null;
+      if (target1 && target2) {
+        gs.fateLinks = gs.fateLinks || [];
+        gs.fateLinks.push({
+          sourceId: target1.id,
+          targetId: target2.id,
+          duration: ABILITY_VALUES.FateLink.duration
+        });
+        emit(gs, { type: "ANIMATION", name: "FateLinkCast", sourceId: target1.id, targetId: target2.id });
+      }
+    }
+  },
+  TheReapersToll: {
+    name: "The Reaper's Toll",
+    cooldown: ABILITY_VALUES.TheReapersToll.cooldown,
+    requiresTargeting: true,
+    range: ABILITY_VALUES.TheReapersToll.range,
+    targetType: "enemy",
+    canBeBlocked: true,
+    effect: (p, t, gs) => {
+      const tp = getPieceAt(t.r, t.c, gs.pieces);
+      if (tp) {
+        const defSteal = 1;
+        const agiSteal = 0.4;
+        gs.TheReapersTolls = gs.TheReapersTolls || [];
+        gs.TheReapersTolls.push({
+          harvesterId: p.id,
+          targetId: tp.id,
+          duration: ABILITY_VALUES.TheReapersToll.duration,
+          defStolen: defSteal,
+          agiStolen: agiSteal
+        });
+        // Immediately steal stats
+        tp.def = Math.max(0, (tp.def || 0) - defSteal);
+        tp.agility = Math.max(0.1, (tp.agility || 1) - agiSteal);
+        p.def = (p.def || 0) + defSteal;
+        p.agility = (p.agility || 1) + agiSteal;
+      }
+    }
+  },
+  ReignOfFire: {
+    name: "Reign of Fire",
+    cooldown: ABILITY_VALUES.ReignOfFire.cooldown,
+    requiresTargeting: true,
+    circularRange: true,
+    range: ABILITY_VALUES.ReignOfFire.range,
+    radius: ABILITY_VALUES.ReignOfFire.radius,
+    targetType: "any", // AoE targets an area
+    effect: (p, t, gs) => {
+      const dmg = ABILITY_VALUES.ReignOfFire.damage;
+      const allyDmg = ABILITY_VALUES.ReignOfFire.allyDamage;
+      const radius = ABILITY_VALUES.ReignOfFire.radius;
+      const strBoost = ABILITY_VALUES.ReignOfFire.strengthBoost;
+      const duration = ABILITY_VALUES.ReignOfFire.duration;
+
+      const toRemove = [];
+      gs.pieces.forEach(target => {
+        if (cellIntersectsCircle(target.row, target.col, t.r, t.c, radius)) {
+          if (target.key === 'snowFrostLord' && target.hasHelpFromAboveActive) {
+            return; // Immune to damage
+          }
+          if (target.key === 'ashAshTyrant' && target.hasDeathMeteorInvincibility) {
+            return; // Immune to damage
+          }
+          if (target.team !== p.team) {
+            target.currentHp = Math.max(0, (target.currentHp || target.stats?.hp || 5) - dmg);
+            if (target.currentHp <= 0) toRemove.push({ piece: target });
+          } else {
+            // Deals 1 damage to allies caught in the radius
+            target.currentHp = Math.max(0, (target.currentHp || target.stats?.hp || 5) - allyDmg);
+            if (target.currentHp <= 0) toRemove.push({ piece: target });
+
+            // Grants +2 Strength for 3 turns
+            gs.temporaryBoosts = gs.temporaryBoosts || [];
+            gs.temporaryBoosts = gs.temporaryBoosts.filter(b => !(b.pieceId === target.id && b.name === "ReignOfFireStr"));
+            gs.temporaryBoosts.push({
+              pieceId: target.id,
+              duration: duration,
+              amount: strBoost,
+              name: "ReignOfFireStr"
+            });
+          }
+        }
+      });
+      // Handle deaths AFTER iterating to avoid mutating array during loop
+      toRemove.forEach(({ piece }) => {
+        // Import not available here; use gs.pendingCaptures array processed in logic.js
+        gs.pendingCaptures = gs.pendingCaptures || [];
+        gs.pendingCaptures.push({ capturedId: piece.id, attackerId: p.id });
+      });
+      gs.reignOfFires = gs.reignOfFires || [];
+      gs.reignOfFires.push({ r: t.r, c: t.c, duration: duration, radius: radius });
+    }
+  },
+  FrostfallBlessing: {
+    name: "Frostfall Blessing",
+    cooldown: ABILITY_VALUES.FrostfallBlessing.cooldown,
+    requiresTargeting: true,
+    circularRange: true,
+    range: ABILITY_VALUES.FrostfallBlessing.range,
+    radius: ABILITY_VALUES.FrostfallBlessing.radius,
+    targetType: "any",
+    effect: (p, t, gs) => {
+      if (!gs.frostfallBlessings) gs.frostfallBlessings = [];
+      const radius = ABILITY_VALUES.FrostfallBlessing.radius;
+      gs.frostfallBlessings.push({
+        creatorId: p.id,
+        team: p.team,
+        r: t.r,
+        c: t.c,
+        duration: ABILITY_VALUES.FrostfallBlessing.duration,
+        radius: radius,
+        damage: ABILITY_VALUES.FrostfallBlessing.damage,
+        heal: ABILITY_VALUES.FrostfallBlessing.heal
+      });
+
+      // Glacial Shrouding: friendly units inside the circle receive a Frost Shield
+      gs.shields = gs.shields || [];
+      gs.pieces.forEach(ally => {
+        if (ally.team === p.team && cellIntersectsCircle(ally.row, ally.col, t.r, t.c, radius)) {
+          if (!gs.shields.some(s => s.pieceId === ally.id)) {
+            gs.shields.push({
+              pieceId: ally.id,
+              duration: 2,
+              name: 'FrostShield'
+            });
+          }
+        }
+      });
+    }
+  }
+};
+

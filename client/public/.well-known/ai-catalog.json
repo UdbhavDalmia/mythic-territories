@@ -54,25 +54,6 @@
       ]
     },
     {
-      "identifier": "urn:air:mythic-territories.xyz:game:wheel",
-      "displayName": "Mythic Territories Destiny Wheel",
-      "type": "text/html",
-      "url": "https://mythic-territories.xyz/?page=wheel",
-      "description": "Destiny Wheel mini-game to spin for random unit unlocks, bonuses, and special faction buffs.",
-      "tags": [
-        "game-mode",
-        "rewards",
-        "wheel"
-      ],
-      "capabilities": [
-        "SpinDestinyWheel"
-      ],
-      "representativeQueries": [
-        "spin Mythic Territories Destiny Wheel",
-        "Mythic Territories rewards and bonuses"
-      ]
-    },
-    {
       "identifier": "urn:air:mythic-territories.xyz:game:notes",
       "displayName": "Mythic Territories Patch Notes",
       "type": "text/html",

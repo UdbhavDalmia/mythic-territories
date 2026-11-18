@@ -1,5 +1,5 @@
-import * as C from '../../../shared/constants.js';
-import { getValidMoves, getEffectivePower, isCaptureSuccessful } from '../../../shared/utils.js';
+import * as C from '@shared/constants.js';
+import { getValidMoves, getEffectivePower, isCaptureSuccessful } from '@shared/utils.js';
 
 // Worker-side piece counter for simulations
 let workerPieceIdCounter = 1000;

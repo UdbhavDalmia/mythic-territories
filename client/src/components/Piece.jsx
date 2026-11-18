@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
-import { IMAGES, PIECE_TYPES } from '../../../shared/constants.js';
-import { getEffectivePower } from '../../../shared/utils.js';
+import { IMAGES, PIECE_TYPES } from '@shared/constants.js';
+import { getEffectivePower } from '@shared/utils.js';
 
 function Piece({ 
   piece, 
@@ -16,7 +16,7 @@ function Piece({
 }) {
   const pieceRef = useRef(null);
   const innerRef = useRef(null);
-  const getPieceInitialHp = (p) => typeof p.currentHp === 'number' ? p.currentHp : (p.maxHp || C.PIECE_TYPES[p.key]?.stats?.hp || 5);
+  const getPieceInitialHp = (p) => typeof p.currentHp === 'number' ? p.currentHp : (p.maxHp || PIECE_TYPES[p.key]?.stats?.hp || 5);
   const prevCoords = useRef({ row: piece.row, col: piece.col });
   const prevHp = useRef(getPieceInitialHp(piece));
   
@@ -116,7 +116,7 @@ function Piece({
 
   // 3. Detect Damage & Launch Floating Damage Indicator + Hit Jolt on innerRef
   useEffect(() => {
-    const currentHp = typeof piece.currentHp === 'number' ? piece.currentHp : (piece.maxHp || C.PIECE_TYPES[piece.key]?.stats?.hp || 5);
+    const currentHp = typeof piece.currentHp === 'number' ? piece.currentHp : (piece.maxHp || PIECE_TYPES[piece.key]?.stats?.hp || 5);
     if (currentHp < prevHp.current) {
       const diff = prevHp.current - currentHp;
       const id = Math.random();
@@ -393,4 +393,43 @@ function Piece({
   );
 }
 
-export default React.memo(Piece);
+export default React.memo(Piece, (prev, next) => {
+  if (prev.isSelected !== next.isSelected) return false;
+  if (prev.isAsh !== next.isAsh) return false;
+  if (prev.piece !== next.piece) {
+    const p1 = prev.piece;
+    const p2 = next.piece;
+    if (
+      p1.row !== p2.row ||
+      p1.col !== p2.col ||
+      p1.currentHp !== p2.currentHp ||
+      p1.maxHp !== p2.maxHp ||
+      p1.power !== p2.power ||
+      p1.hasHelpFromAboveActive !== p2.hasHelpFromAboveActive ||
+      p1.hasDeathMeteorInvincibility !== p2.hasDeathMeteorInvincibility ||
+      p1.isStuck !== p2.isStuck ||
+      p1.stuck !== p2.stuck ||
+      p1.isDazed !== p2.isDazed ||
+      p1.shrineBoost !== p2.shrineBoost ||
+      p1.anchorBoost !== p2.anchorBoost ||
+      p1.tethers?.length !== p2.tethers?.length ||
+      p1.damageDealt !== p2.damageDealt
+    ) {
+      return false;
+    }
+  }
+
+  // Check if status shields for this specific piece changed
+  const prevShield = (prev.gameState?.shields || []).find(s => s.pieceId === prev.piece.id);
+  const nextShield = (next.gameState?.shields || []).find(s => s.pieceId === next.piece.id);
+  if (prevShield?.duration !== nextShield?.duration || prevShield?.name !== nextShield?.name) {
+    return false;
+  }
+
+  // Check if effective power changed for badge display
+  const prevPower = Math.floor(getEffectivePower(prev.piece, prev.gameState) || 0);
+  const nextPower = Math.floor(getEffectivePower(next.piece, next.gameState) || 0);
+  if (prevPower !== nextPower) return false;
+
+  return true;
+});

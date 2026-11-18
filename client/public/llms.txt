@@ -4,14 +4,13 @@
 
 ## About the Game
 
-Mythic Territories is a competitive, grid-based tactical strategy game built for the modern web (React 19, Vite, Firebase). Two commanders battle across an elemental board using distinct faction units, each possessing unique movement ranges, combat stats, and passive or active abilities. The game features an Ascension progression mechanic, Destiny Wheel bonus spins, single-player vs AI with strategic pathfinding, local 2-player pass-and-play, and real-time online multiplayer with room codes.
+Mythic Territories is a competitive, grid-based tactical strategy game built for the modern web (React 19, Vite, Firebase). Two commanders battle across an elemental board using distinct faction units, each possessing unique movement ranges, combat stats, and passive or active abilities. The game features an Ascension progression mechanic, single-player vs AI with strategic pathfinding, local 2-player pass-and-play, and real-time online multiplayer with room codes.
 
 ## Key Pages
 
-- [Home / Lobby](https://mythic-territories.xyz/) — Start a local match, play vs AI, create or join an online room, or spin the Destiny Wheel
+- [Home / Lobby](https://mythic-territories.xyz/) — Start a local match, play vs AI, or create/join an online room
 - [Rulebook & Unit Stats](https://mythic-territories.xyz/?page=rules) — Complete game rules, turn phases, combat formulas, unit stats, and strategy guide
 - [Patch Notes & Changelog](https://mythic-territories.xyz/?page=notes) — Balance adjustments, unit reworks, and feature updates
-- [Destiny Wheel](https://mythic-territories.xyz/?page=wheel) — Spin for randomized unit unlocks, blessings, and faction buffs
 - [AI Resource Catalog](https://mythic-territories.xyz/.well-known/ai-catalog.json) — ARD capability manifest for AI agents
 - [Sitemap](https://mythic-territories.xyz/sitemap.xml) — XML sitemap indexing all public pages
 
@@ -30,7 +29,6 @@ Mythic Territories is a competitive, grid-based tactical strategy game built for
 - **Turn-Based Grid Combat:** Move and attack on a tactical grid with terrain and line-of-sight considerations.
 - **Faction Leaders:** Each commander leads their army with signature abilities that can shift the momentum of the match.
 - **Ascension System:** Units can ascend into empowered forms during combat, gaining enhanced stats and abilities.
-- **Destiny Wheel:** Spin between matches to earn blessings, unlocks, or cosmetic enhancements.
 - **Game Modes:**
   - *Single-Player vs AI:* Dedicated Web Worker AI providing responsive tactical play without UI stutter.
   - *Local 2-Player:* Pass-and-play on a shared screen.

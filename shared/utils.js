@@ -39,8 +39,8 @@ export function getEffectivePower(
   if (
     !piece ||
     piece.stuck > 0 ||
-    piece.key === "snowIceWisp" ||
-    piece.isTrapped
+    piece.isTrapped ||
+    (piece.key === "snowIceWisp" && (piece.power || 0) <= 0)
   )
     return 0;
 
@@ -184,9 +184,9 @@ export function getEffectiveStrength(piece, gameState, opponent = null) {
 
   // Help From Above aura removed
 
-  // Debuffs reduce strength
+  // Debuffs reduce strength (only STR/power debuffs, ignoring agility or control locks)
   (gameState.debuffs || [])
-    .filter((x) => x.pieceId === piece.id)
+    .filter((x) => x.pieceId === piece.id && x.name !== "ColdFarewellAgi" && x.name !== "ColdFarewellControlLock" && x.name !== "Hamstrung")
     .forEach((d) => { if (d.amount > 0) str -= safe(d.amount); });
 
   if ((gameState.markedPieces || []).some((m) => m.targetId === piece.id))
@@ -305,8 +305,8 @@ export function getEffectiveControl(piece, gameState) {
 export function dealDamage(attacker, defender, gameState) {
   if (!attacker || !defender) return 0;
 
-  const str = getEffectiveStrength(attacker, gameState, defender);
-  const def = getEffectiveDefense(defender, gameState);
+  const str = Math.round(getEffectiveStrength(attacker, gameState, defender));
+  const def = Math.round(getEffectiveDefense(defender, gameState));
   const dmg = Math.max(1, str - def);
 
   // Guard against missing stat (pieces from old serialized states)
@@ -354,7 +354,10 @@ export function dealDamage(attacker, defender, gameState) {
     }
   }
 
-  defender.currentHp = Math.max(0, defender.currentHp - actualDmg);
+  defender.currentHp = Math.max(0, Math.round((defender.currentHp - actualDmg) * 10) / 10);
+  if (Math.abs(defender.currentHp - Math.round(defender.currentHp)) < 1e-4) {
+    defender.currentHp = Math.round(defender.currentHp);
+  }
 
   // Fate Link: When the friendly (source) takes damage, mirror to the bound enemy
   if (gameState.fateLinks && actualDmg > 0) {
@@ -362,7 +365,10 @@ export function dealDamage(attacker, defender, gameState) {
       if (fl.sourceId === defender.id) {
         const boundEnemy = gameState.pieces.find(p => p.id === fl.targetId);
         if (boundEnemy) {
-          boundEnemy.currentHp = Math.max(0, boundEnemy.currentHp - actualDmg);
+          boundEnemy.currentHp = Math.max(0, Math.round((boundEnemy.currentHp - actualDmg) * 10) / 10);
+          if (Math.abs(boundEnemy.currentHp - Math.round(boundEnemy.currentHp)) < 1e-4) {
+            boundEnemy.currentHp = Math.round(boundEnemy.currentHp);
+          }
           // Note: if boundEnemy.currentHp <= 0, handlePieceCapture will fire
           // from isCaptureSuccessful's caller and Cold Snap will trigger there.
         }
@@ -452,40 +458,11 @@ export function previewDamage(attacker, defender, gameState) {
 }
 
 /**
- * Returns a piece's BFS movement budget.
- * Now reads from the agility stat on the piece object (initialized by createPiece).
- * Falls back to the old key-pattern heuristic for backward-compat with old saves.
+ * Returns a piece's effective Agility stat after buffs and debuffs.
  */
-export function getPieceMoveRadius(piece, gameState) {
+export function getEffectiveAgility(piece, gameState) {
   if (!piece) return 2;
-
-  if (gameState?.testMode) {
-    if (piece.key === 'snowFrostLord' || piece.key === 'ashAshTyrant' || piece.key === 'ashMagmaShaper') {
-      return 10;
-    }
-    return 0;
-  }
-
-  let agi = 2;
-  // New stat-based radius — agility IS the move budget
-  if (typeof piece.agility === "number") {
-    agi = piece.agility;
-  } else {
-    // Legacy fallback (pieces from old saves without agility stat)
-    const key = piece.key || "";
-    if (
-      key.includes("Strider") ||
-      key.includes("Trapper") ||
-      key.includes("Stalker") ||
-      key.includes("Scout") ||
-      key.includes("Prowler") ||
-      key.includes("Brute") ||
-      key.includes("Yeti") ||
-      key.includes("Beast")
-    ) {
-      agi = 3;
-    }
-  }
+  let agi = typeof piece.agility === "number" ? piece.agility : 2;
 
   // Apply Frost Duo bonus
   if (piece.key === "snowGlacialMage" && gameState) {
@@ -502,6 +479,24 @@ export function getPieceMoveRadius(piece, gameState) {
   }
 
   return Math.max(0, agi);
+}
+
+/**
+ * Returns a piece's BFS movement budget.
+ * Now reads from the agility stat on the piece object (initialized by createPiece).
+ * Falls back to the old key-pattern heuristic for backward-compat with old saves.
+ */
+export function getPieceMoveRadius(piece, gameState) {
+  if (!piece) return 2;
+
+  if (gameState?.testMode) {
+    if (piece.key === 'snowFrostLord' || piece.key === 'ashAshTyrant' || piece.key === 'ashMagmaShaper' || piece.key === 'snowGlacialMage' || piece.key === 'snowIceWisp') {
+      return 10;
+    }
+    return 0;
+  }
+
+  return getEffectiveAgility(piece, gameState);
 }
 
 export function getValidMoves(piece, gameState) {
@@ -739,9 +734,13 @@ export function updateBoardMap(gameState) {
 
 
 export function preloadImages(sources, callback, options = {}) {
-  const imgs = {},
-    keys = Object.keys(sources || {});
-  if (!keys.length) return callback(imgs);
+  const imgs = {};
+  if (typeof Image === "undefined") {
+    if (callback) callback(imgs);
+    return;
+  }
+  const keys = Object.keys(sources || {});
+  if (!keys.length) return callback ? callback(imgs) : undefined;
   const { fetchPriority = "auto" } = options;
   let loaded = 0;
   keys.forEach((k) => {
@@ -751,11 +750,11 @@ export function preloadImages(sources, callback, options = {}) {
     img.src = sources[k];
     img.onload = () => {
       imgs[k] = img;
-      if (++loaded === keys.length) callback(imgs);
+      if (++loaded === keys.length && callback) callback(imgs);
     };
     img.onerror = () => {
       imgs[k] = img;
-      if (++loaded === keys.length) callback(imgs);
+      if (++loaded === keys.length && callback) callback(imgs);
     };
   });
 }

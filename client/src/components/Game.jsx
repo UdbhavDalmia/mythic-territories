@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import '../../styles/game.css';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import '@/styles/game.css';
 import {
   ArrowLeft,
   ChevronDown,
@@ -19,12 +19,14 @@ import {
 import Board from './Board.jsx';
 import AscensionModal from './AscensionModal.jsx';
 import VictoryScreen from './VictoryScreen.jsx';
+import PieceTooltip from './game/PieceTooltip.jsx';
+import GameActionDrawer from './game/GameActionDrawer.jsx';
 import { triggerHaptic } from '../services/haptics.js';
-import { computePowerDiagram } from '../../../shared/voronoi.js';
-import * as Logic from '../../../shared/logic.js';
-import * as C from '../../../shared/constants.js';
-import * as E from '../../../shared/utils.js';
-import * as Effects from '../../js/effects.js';
+import { computePowerDiagram } from '@shared/voronoi.js';
+import * as Logic from '@shared/logic.js';
+import * as C from '@shared/constants.js';
+import * as E from '@shared/utils.js';
+import * as Effects from '@/effects';
 import {
   subscribeToRoom,
   dispatchGameAction,
@@ -36,89 +38,11 @@ import {
   saveActiveSession,
   clearActiveSession
 } from '../services/multiplayer.js';
-
-const INITIAL_SNOW_KEYS = [
-  'snowFrostLord',
-  'snowSoulLinker',
-  'snowRampagingYeti',
-  'snowIceWeaver',
-  'snowGlacialMage',
-  'snowSoulFreeze',
-  'snowArcticTrapper',
-  'snowGlacialBrute',
-  'snowFrostbiteStalker',
-  'snowHoarfrostMystic'
-];
-
-const INITIAL_ASH_KEYS = [
-  'ashAshTyrant',
-  'ashAshReaper',
-  'ashBlazeboundBeast',
-  'ashRiftForger',
-  'ashMagmaSpitter',
-  'ashScorchPriest',
-  'ashAshStrider',
-  'ashMagmaProwler',
-  'ashCinderScout',
-  'ashMagmaShaper'
-];
-
-let lastTerritoryCache = {
-  piecesKey: '',
-  scores: { snow: 50.0, ash: 50.0 }
-};
-
-function calculateDynamicTerritoryAreas(gs) {
-  if (!gs || !gs.pieces || gs.pieces.length === 0) return { snow: 50.0, ash: 50.0, neutral: 0.0 };
-  
-  // Fast cache check: piece id, coordinates, hp, power
-  const piecesKey = gs.pieces
-    .map(p => `${p.id}:${Number(p.col).toFixed(2)},${Number(p.row).toFixed(2)},${p.currentHp},${p.power}`)
-    .join('|');
-
-  if (lastTerritoryCache.piecesKey === piecesKey && lastTerritoryCache.scores) {
-    return lastTerritoryCache.scores;
-  }
-
-  const voronoi = computePowerDiagram(gs.pieces);
-  gs.voronoiData = voronoi;
-
-  const frost = parseFloat((voronoi.frostShare ?? 0).toFixed(1));
-  const ash = parseFloat((voronoi.ashShare ?? 0).toFixed(1));
-  const neutral = parseFloat(Math.max(0, 100 - (frost + ash)).toFixed(1));
-
-  const result = {
-    snow: frost,
-    ash: ash,
-    neutral: neutral
-  };
-
-  lastTerritoryCache = {
-    piecesKey,
-    scores: result
-  };
-
-  return result;
-}
-
-let lastPiecesRef = null;
-let lastFallenCache = {
-  fallenSnow: [],
-  fallenAsh: []
-};
-
-function getFallenUnits(pieces) {
-  if (pieces === lastPiecesRef && lastPiecesRef !== null) {
-    return lastFallenCache;
-  }
-  const aliveSnowKeys = new Set(pieces ? pieces.filter(p => p.team === 'snow').map(p => p.key) : []);
-  const aliveAshKeys = new Set(pieces ? pieces.filter(p => p.team === 'ash').map(p => p.key) : []);
-  const fallenSnow = INITIAL_SNOW_KEYS.filter(k => !aliveSnowKeys.has(k));
-  const fallenAsh = INITIAL_ASH_KEYS.filter(k => !aliveAshKeys.has(k));
-  lastPiecesRef = pieces;
-  lastFallenCache = { fallenSnow, fallenAsh };
-  return lastFallenCache;
-}
+import {
+  calculateDynamicTerritoryAreas,
+  getFallenUnits,
+  resetTerritoryCache
+} from '../services/gameTerritory.js';
 
 export default function Game({ navigateTo }) {
   const [gameState, setGameState] = useState(null);
@@ -130,10 +54,8 @@ export default function Game({ navigateTo }) {
   const [disconnectTimeout, setDisconnectTimeout] = useState(60);
   const [eventLog, setEventLog] = useState([]);
   const [hoveredPiece, setHoveredPiece] = useState(null);
-  const popupRef = useRef(null);
-  const targetMousePosRef = useRef({ x: 0, y: 0 });
-  const currentMousePosRef = useRef({ x: 0, y: 0 });
-  const popupRafRef = useRef(null);
+  const [hoveredMousePos, setHoveredMousePos] = useState(null);
+  const [hoveredAbilityKey, setHoveredAbilityKey] = useState(null);
   const [drawerExpanded, setDrawerExpanded] = useState(false);
   const [isCompactLayout, setIsCompactLayout] = useState(window.innerWidth <= 1180);
   const [arenaScale, setArenaScale] = useState(1);
@@ -141,6 +63,10 @@ export default function Game({ navigateTo }) {
   const [showGameOverModal, setShowGameOverModal] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const gameStateRef = useRef(gameState);
+
+  useEffect(() => {
+    setHoveredAbilityKey(null);
+  }, [gameState?.selectedPiece?.id, gameState?.currentState]);
 
   // Smooth Game Over entrance transition and hover dismissal
   useEffect(() => {
@@ -169,63 +95,6 @@ export default function Game({ navigateTo }) {
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
-
-  // Smooth mouse-trailing physics for hovered piece popup menu
-  useEffect(() => {
-    if (!hoveredPiece) {
-      if (popupRafRef.current) {
-        cancelAnimationFrame(popupRafRef.current);
-        popupRafRef.current = null;
-      }
-      return;
-    }
-
-    const handlePointerMove = (e) => {
-      targetMousePosRef.current = { x: e.clientX, y: e.clientY };
-    };
-
-    window.addEventListener('pointermove', handlePointerMove, { passive: true });
-
-    const updatePosition = () => {
-      const target = targetMousePosRef.current;
-      const current = currentMousePosRef.current;
-
-      // Organic fluid trailing lerp (factor: 0.22): rapid response with silky glide
-      current.x += (target.x - current.x) * 0.22;
-      current.y += (target.y - current.y) * 0.22;
-
-      if (popupRef.current) {
-        const tooltipWidth = popupRef.current.offsetWidth || 400;
-        const tooltipHeight = popupRef.current.offsetHeight || 280;
-
-        let left = current.x + 18;
-        let top = current.y + 18;
-
-        if (left + tooltipWidth > window.innerWidth - 15) {
-          left = current.x - tooltipWidth - 18;
-        }
-        if (top + tooltipHeight > window.innerHeight - 15) {
-          top = window.innerHeight - tooltipHeight - 15;
-        }
-        left = Math.max(10, left);
-        top = Math.max(10, top);
-
-        popupRef.current.style.transform = `translate3d(${Math.round(left)}px, ${Math.round(top)}px, 0)`;
-      }
-
-      popupRafRef.current = requestAnimationFrame(updatePosition);
-    };
-
-    popupRafRef.current = requestAnimationFrame(updatePosition);
-
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      if (popupRafRef.current) {
-        cancelAnimationFrame(popupRafRef.current);
-        popupRafRef.current = null;
-      }
-    };
-  }, [hoveredPiece]);
 
   // Global 5s Battle Countdown when match begins in multiplayer
   useEffect(() => {
@@ -389,7 +258,7 @@ export default function Game({ navigateTo }) {
       Logic.initGameState({});
       Logic.initGame();
       const gs = Logic.getGameState();
-      
+
       // Attach images so effects.js canvas drawing won't crash
       gs.images = preloadedImagesRef.current;
       gs.boardImgs = {
@@ -410,7 +279,7 @@ export default function Game({ navigateTo }) {
       gs.playerTeam = params.get('team') || 'snow';
       E.updateBoardMap(gs);
       setGameState(cloneState(gs));
-      
+
       // If AI goes first
       if (vsAI && gs.currentTurn !== (params.get('team') || 'snow')) {
         setTimeout(checkAITurn, 200);
@@ -553,18 +422,18 @@ export default function Game({ navigateTo }) {
   // Local clock ticking interval
   const startCountdown = () => {
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-    
+
     timerIntervalRef.current = setInterval(() => {
       setGameState(prev => {
         if (!prev || prev.gameOver || !prev.gameStarted) return prev;
-        
+
         // Hold turn timers during pre-battle countdown
         if (prev.battleStartTime && Date.now() < prev.battleStartTime) return prev;
 
         const turn = prev.currentTurn || 'snow';
         const updated = { ...prev };
         if (!updated.timers) updated.timers = { snow: 600, ash: 600 };
-        
+
         if (updated.timers[turn] > 0) {
           updated.timers[turn] -= 1;
         } else {
@@ -602,6 +471,9 @@ export default function Game({ navigateTo }) {
     }
   }, [gameState?.selectedPiece?.id]);
 
+  const terrScores = useMemo(() => calculateDynamicTerritoryAreas(gameState), [gameState?.pieces]);
+  const { fallenSnow, fallenAsh } = useMemo(() => getFallenUnits(gameState?.pieces), [gameState?.pieces]);
+
   const handleExitToLobby = () => {
     clearActiveSession();
     if (heartbeatIntervalRef.current) {
@@ -621,7 +493,7 @@ export default function Game({ navigateTo }) {
   // Disconnect countdown timer
   const startDisconnectTimer = () => {
     if (disconnectTimerIntervalRef.current) clearInterval(disconnectTimerIntervalRef.current);
-    
+
     disconnectTimerIntervalRef.current = setInterval(() => {
       setDisconnectTimeout(prev => {
         if (prev <= 1) {
@@ -639,12 +511,12 @@ export default function Game({ navigateTo }) {
   // Web Worker AI player decision execution
   const checkAITurn = () => {
     if (!isLocal || !vsAI || !gameState || gameState.gameOver) return;
-    
+
     const aiTeam = myTeam === 'snow' ? 'ash' : 'snow';
     if (gameState.currentTurn !== aiTeam) return;
 
     if (aiWorkerRef.current) aiWorkerRef.current.terminate();
-    
+
     const worker = new Worker(new URL('../workers/ai.worker.js', import.meta.url), { type: 'module' });
     aiWorkerRef.current = worker;
 
@@ -652,17 +524,17 @@ export default function Game({ navigateTo }) {
       const { bestAction } = ev.data;
       if (bestAction) {
         if (bestAction.type === 'move') {
-          processLocalAction('MOVE', { 
-            pieceId: bestAction.piece.id, 
-            r: bestAction.target.row, 
-            c: bestAction.target.col, 
-            isHighway: bestAction.target.isHighway || false 
+          processLocalAction('MOVE', {
+            pieceId: bestAction.piece.id,
+            r: bestAction.target.row,
+            c: bestAction.target.col,
+            isHighway: bestAction.target.isHighway || false
           });
         } else if (bestAction.type === 'ability') {
-          processLocalAction('ABILITY', { 
-            pieceId: bestAction.piece.id, 
-            abilityKey: bestAction.abilityKey, 
-            target: bestAction.target 
+          processLocalAction('ABILITY', {
+            pieceId: bestAction.piece.id,
+            abilityKey: bestAction.abilityKey,
+            target: bestAction.target
           });
         }
       }
@@ -675,9 +547,9 @@ export default function Game({ navigateTo }) {
       delete workerState.images;
       delete workerState.boardImgs;
     }
-    worker.postMessage({ 
-      gameState: workerState, 
-      aiConfig: {} 
+    worker.postMessage({
+      gameState: workerState,
+      aiConfig: {}
     });
   };
 
@@ -685,13 +557,13 @@ export default function Game({ navigateTo }) {
   const processLocalAction = (actionType, data) => {
     setGameState(prev => {
       if (!prev) return null;
-      
+
       const nextState = cloneState(prev);
       nextState.events = [];
-      
+
       // Load standard Logic engine with current state
       Logic.initGameState(nextState);
-      
+
       // 1. Process damage animations & lunges
       let turnEnded = false;
       const find = (id) => nextState.pieces.find(x => x.id === id);
@@ -780,12 +652,32 @@ export default function Game({ navigateTo }) {
             if (!nextState.originalPieces) {
               nextState.originalPieces = JSON.parse(JSON.stringify(nextState.pieces));
             }
-            nextState.pieces = nextState.pieces.filter(x => x.key === 'snowFrostLord' || x.key === 'ashAshTyrant' || x.key === 'ashMagmaShaper');
+            nextState.pieces = nextState.pieces.filter(x =>
+              x.key === 'snowFrostLord' ||
+              x.key === 'ashAshTyrant' ||
+              x.key === 'ashMagmaShaper' ||
+              x.key === 'snowGlacialMage' ||
+              x.key === 'snowIceWisp'
+            );
+            // Spawn a test Ice Wisp next to Glacial Mage if one isn't present yet
+            const hasWisp = nextState.pieces.some(x => x.key === 'snowIceWisp');
+            const mage = nextState.pieces.find(x => x.key === 'snowGlacialMage');
+            if (!hasWisp && mage) {
+              const testWisp = Logic.createPiece(Math.min(9, mage.row + 1), mage.col, 'snowIceWisp', 'snow');
+              if (testWisp) nextState.pieces.push(testWisp);
+            }
           } else {
             if (nextState.originalPieces) {
               nextState.pieces = JSON.parse(JSON.stringify(nextState.originalPieces));
               delete nextState.originalPieces;
             }
+            nextState.glacialRemnants = [];
+            nextState.knownGlacialRemnants = [];
+            nextState.dyingGlacialRemnants = [];
+            nextState.blizzardStorms = [];
+            nextState.glacialFractureAnimations = [];
+            nextState.aColdFarewellAnimations = [];
+            nextState.farewellVignette = null;
           }
           break;
       }
@@ -801,7 +693,7 @@ export default function Game({ navigateTo }) {
 
       // Sync and retrieve updated state from logic engine
       const finalState = Logic.getGameState();
-      
+
       // Keep preloaded image assets intact
       finalState.images = preloadedImagesRef.current;
       finalState.boardImgs = {
@@ -851,6 +743,13 @@ export default function Game({ navigateTo }) {
 
         case 'RESET_GAME':
           setEventLog([]);
+          gs.glacialRemnants = [];
+          gs.knownGlacialRemnants = [];
+          gs.dyingGlacialRemnants = [];
+          gs.blizzardStorms = [];
+          gs.glacialFractureAnimations = [];
+          gs.aColdFarewellAnimations = [];
+          gs.farewellVignette = null;
           Effects.initParticles(gs);
           break;
       }
@@ -860,8 +759,8 @@ export default function Game({ navigateTo }) {
   // Map incoming visual events to effects.js spawning arrays
   const playVisualParticleAnimation = (anim, gs) => {
     switch (anim.name) {
-      case 'VentEffect': 
-        Effects.spawnVentEffect(anim.r, anim.c, anim.team, gs); 
+      case 'VentEffect':
+        Effects.spawnVentEffect(anim.r, anim.c, anim.team, gs);
         break;
       case 'FrenziedDash':
         const dashPiece = gs.pieces.find(p => p.id === anim.pieceId);
@@ -875,24 +774,24 @@ export default function Game({ navigateTo }) {
         const wisp = gs.pieces.find(p => p.id === anim.wispId);
         Effects.spawnSummonWispEffect(anim.r, anim.c, wisp, gs);
         break;
-      case 'LavaGlob': 
-        Effects.spawnLavaGlobEffect(anim.oldRow, anim.oldCol, anim.targetR, anim.targetC, gs); 
+      case 'LavaGlob':
+        Effects.spawnLavaGlobEffect(anim.oldRow, anim.oldCol, anim.targetR, anim.targetC, gs);
         break;
       case 'PummelKnockback':
         const target = gs.pieces.find(p => p.id === anim.targetPieceId);
         Effects.spawnPummelKnockbackEffect(target, anim.attackerR, anim.attackerC, anim.oldRow, anim.oldCol, anim.newRow, anim.newCol, gs);
         break;
-      case 'TrapDeployment': 
-        Effects.spawnTrapDeploymentEffect(anim.oldRow, anim.oldCol, anim.targetR, anim.targetC, gs); 
+      case 'TrapDeployment':
+        Effects.spawnTrapDeploymentEffect(anim.oldRow, anim.oldCol, anim.targetR, anim.targetC, gs);
         break;
-      case 'FrigidPath': 
-        Effects.spawnFrigidPathEffect(anim.oldRow, anim.oldCol, anim.targetR, anim.targetC, gs); 
+      case 'FrigidPath':
+        Effects.spawnFrigidPathEffect(anim.oldRow, anim.oldCol, anim.targetR, anim.targetC, gs);
         break;
-      case 'GlacialWall': 
-        Effects.spawnGlacialWallEffect(anim.r, anim.c, gs); 
+      case 'GlacialWall':
+        Effects.spawnGlacialWallEffect(anim.r, anim.c, gs);
         break;
-      case 'WallShatter': 
-        Effects.spawnWallShatterEffect(anim.r, anim.c, gs); 
+      case 'WallShatter':
+        Effects.spawnWallShatterEffect(anim.r, anim.c, gs);
         break;
       case 'SiphonParticles':
         const siphoner = gs.pieces.find(p => p.id === anim.pieceId);
@@ -982,14 +881,15 @@ export default function Game({ navigateTo }) {
         nextGs.frostVignette = null;
         nextGs.deathMeteors = [];
         nextGs.deathMeteorAnimations = [];
+        nextGs.glacialRemnants = [];
+        nextGs.knownGlacialRemnants = [];
+        nextGs.dyingGlacialRemnants = [];
+        nextGs.blizzardStorms = [];
+        nextGs.glacialFractureAnimations = [];
+        nextGs.aColdFarewellAnimations = [];
+        nextGs.farewellVignette = null;
         Effects.initParticles(nextGs);
-        lastTerritoryCache = {
-          snowTerritory: null,
-          ashTerritory: null,
-          territoryTrails: null,
-          scores: { snow: 13.3, ash: 13.3 }
-        };
-        lastPiecesRef = null;
+        resetTerritoryCache();
         E.updateBoardMap(nextGs);
         setEventLog([]);
         return cloneState(nextGs);
@@ -1012,7 +912,7 @@ export default function Game({ navigateTo }) {
       const alliedPiece = gameState.pieces.find(
         p => p.team === gameState.selectedPiece.team && Math.hypot((p.row + 0.5) - r, (p.col + 0.5) - c) <= 0.65
       );
-      
+
       if (alliedPiece) {
         if (alliedPiece.id === gameState.selectedPiece.id) {
           triggerHaptic('light');
@@ -1027,7 +927,7 @@ export default function Game({ navigateTo }) {
         const selCenterC = gameState.selectedPiece.col + 0.5;
         const dist = Math.hypot(r - selCenterR, c - selCenterC);
         const maxRadius = E.getPieceMoveRadius ? E.getPieceMoveRadius(gameState.selectedPiece, gameState) : (gameState.selectedPiece.agility || 2);
-        
+
         if (dist <= maxRadius + 0.15) {
           // Check if clicking near an enemy piece to trigger capture/combat
           const defender = gameState.pieces.find(
@@ -1085,145 +985,12 @@ export default function Game({ navigateTo }) {
       // Initiate attack/lunge checks
       const dist = Math.hypot(piece.row - gameState.selectedPiece.row, piece.col - gameState.selectedPiece.col);
       const maxRadius = E.getPieceMoveRadius ? E.getPieceMoveRadius(gameState.selectedPiece, gameState) : (gameState.selectedPiece.agility || 2);
-      
+
       if (dist <= maxRadius) {
         triggerHaptic('capture');
         sendAction('MOVE', { pieceId: gameState.selectedPiece.id, r: piece.row, c: piece.col, isHighway: false });
       }
     }
-  };
-
-  const generatePieceInfoHtml = (piece) => {
-    if (!piece) return '';
-    const typeInfo = C.PIECE_TYPES[piece.key] || {};
-    const effectivePower = E.getEffectivePower(piece, gameState, null, null);
-    let info = `<b>${typeInfo.name || 'Unit'}</b> (${piece.team?.charAt(0).toUpperCase() + piece.team?.slice(1)})<br>`;
-    const hp = typeof piece.currentHp === 'number' ? piece.currentHp : (piece.maxHp || effectivePower);
-    const maxHp = piece.maxHp || hp;
-    const hpPct = maxHp > 0 ? Math.round((hp / maxHp) * 100) : 100;
-    const hpColor = hpPct > 60 ? '#44dd88' : hpPct > 30 ? '#ffcc44' : '#ff4444';
-    info += `<div style="margin:3px 0 4px;">`;
-    info += `<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;"><span>HP</span><span style="color:${hpColor}">${hp}/${maxHp}</span></div>`;
-    info += `<div style="height:5px;background:rgba(255,255,255,0.12);border-radius:3px;"><div style="width:${hpPct}%;height:100%;background:${hpColor};border-radius:3px;transition:width 0.3s;"></div></div>`;
-    info += `</div>`;
-    if (!piece.isVeteran && maxHp > 0) {
-      const dmgDealt = piece.damageDealt || 0;
-      const vetPct = Math.min(100, Math.round((dmgDealt / maxHp) * 100));
-      info += `<div style="margin:3px 0 4px;">`;
-      info += `<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;color:#aaccff"><span>Veteran Progress</span><span>${dmgDealt}/${maxHp}</span></div>`;
-      info += `<div style="height:4px;background:rgba(255,255,255,0.12);border-radius:2px;"><div style="width:${vetPct}%;height:100%;background:#00aaff;border-radius:2px;transition:width 0.3s;box-shadow:0 0 4px #00aaff;"></div></div>`;
-      info += `</div>`;
-    } else if (piece.isVeteran) {
-      info += `<div style="font-size:11px;color:#00aaff;font-weight:bold;text-shadow:0 0 4px #00aaff;margin-bottom:4px;">★ VETERAN</div>`;
-    }
-    const s = piece.stats || C.PIECE_TYPES[piece.key]?.stats;
-    if (s || typeof piece.strength === 'number') {
-      const str = Math.round(piece.strength ?? s?.str ?? piece.power ?? 0);
-      const def = Math.round(piece.def ?? s?.def ?? 0);
-      const rng = Number((piece.range ?? s?.rng ?? 1).toFixed(1));
-      const agi = Number((piece.agility ?? s?.agi ?? 2).toFixed(1));
-      info += `<div style="font-size:11px;color:#aac;margin-bottom:4px;display:flex;gap:6px;flex-wrap:wrap;">`;
-      info += `<span title="Strength">⚔${str}</span>`;
-      info += `<span title="Defense">🛡${def}</span>`;
-      info += `<span title="Range">🎯${rng}</span>`;
-      info += `<span title="Agility">💨${agi}</span>`;
-      info += `</div>`;
-    } else {
-      info += `Power: ${effectivePower} (Base: ${typeInfo.power || 0})<br>`;
-    }
-    const boosts = [];
-    if (piece.shrineBoost > 0) boosts.push(`Shrine (+${piece.shrineBoost})`);
-    if (piece.anchorBoost > 0) boosts.push(`Anchor (+${piece.anchorBoost})`);
-    if (piece.overloadBoost?.duration > 0) boosts.push(`Infusion (+${piece.overloadBoost.amount}, ${piece.overloadBoost.duration} turns)`);
-    (gameState?.temporaryBoosts || []).filter(b => b.pieceId === piece.id).forEach(boost => {
-      const boostName = C.ABILITIES[boost.name]?.name || boost.name;
-      boosts.push(`${boostName} (+${boost.amount}, ${boost.duration} turns)`);
-    });
-    if (boosts.length > 0) info += `<span class="buff-text" style="color:#44ffaa;font-size:11px;">${boosts.join('<br>')}</span><br>`;
-    const debuffs = [];
-    if ((gameState?.markedPieces || []).some(m => m.targetId === piece.id)) debuffs.push(`Marked (-${C.ABILITY_VALUES.MarkOfCinder.powerDebuff})`);
-    (gameState?.debuffs || []).filter(d => d.pieceId === piece.id).forEach(debuff => {
-      if (debuff.amount < 0) debuffs.push(`${C.ABILITIES[debuff.name]?.name || debuff.name} (${debuff.amount}, ${debuff.duration} turns)`);
-    });
-    if (debuffs.length > 0) info += `<span class="debuff-text" style="color:#ff5555;font-size:11px;">${debuffs.join('<br>')}</span><br>`;
-    const statuses = [];
-    if (piece.stuck > 0) statuses.push(`Stuck (${piece.stuck} turns)`);
-    if (piece.isDazed) statuses.push('Dazed');
-    if (piece.hasDefensiveWard) statuses.push('Ward (Immune)');
-    if (piece.canRiftPulse) statuses.push('Rift Pulse Ready');
-    if (piece.isTrapped) statuses.push('Trapped by Shrine');
-    if (piece.hasDeathMeteorInvincibility) {
-      const tLeft = piece.deathMeteorInvincibilityTurns || 1;
-      statuses.push(`Meteor Shield (Lethal damage negated - ${tLeft}t)`);
-    } else if (piece.hasHelpFromAboveActive) {
-      const tLeft = piece.helpFromAboveActiveTurns || 1;
-      statuses.push(`Divine Shield (Lethal damage negated - ${tLeft}t)`);
-    }
-    const activeShield = (gameState?.shields || []).find(s => s.pieceId === piece.id);
-    if (activeShield) {
-      if (activeShield.name === 'ObsidianPillarShield') {
-        statuses.push(`Obsidian Shield (${activeShield.duration} turns)`);
-      } else {
-        statuses.push(`Frost Shield (${activeShield.duration} turns)`);
-      }
-    }
-    if (statuses.length > 0) info += `<span style="color:#ffff55;font-size:11px;">Status: ${statuses.join(', ')}</span><br>`;
-    
-    if (piece.ability?.key && piece.ability.key !== 'Siphon') {
-      const cdText = (piece.ability.cooldown || 0) > 0 ? `CD: ${piece.ability.cooldown}` : 'Ready';
-      info += `<div style="margin-top:5px;font-size:11px;line-height:1.3;"><span style="color:#88ccff">Active:</span> <span style="color:#ffcc00">${piece.ability.name}</span> (${cdText})`;
-      const desc = C.ABILITY_DESCRIPTIONS[piece.ability.key];
-      if (desc) {
-        info += `<br><span style="color:#ddd">${desc}</span>`;
-      }
-      info += `</div>`;
-    }
-    
-    const handler = C.PASSIVE_DESCRIPTIONS[piece.key];
-    if (handler) {
-      const cd = piece.helpFromAboveCooldown || piece.deathMeteorCooldown || 0;
-      let active = piece.hasHelpFromAboveActive ? ' [ACTIVE]' : '';
-      if (piece.hasDeathMeteorInvincibility) {
-        active = ` [SHIELD ACTIVE — Lethal Negated (${piece.deathMeteorInvincibilityTurns || 1}t)]`;
-      } else if (piece.hasHelpFromAboveActive) {
-        active = ` [SHIELD ACTIVE — Lethal Negated (${piece.helpFromAboveActiveTurns || 1}t)]`;
-      }
-      const name = piece.key === 'snowFrostLord' ? 'Help From Above' : piece.key === 'ashAshTyrant' ? 'Death Meteor' : '';
-      let passiveText = handler;
-      if (name) {
-        passiveText = `${name} — ${cd > 0 ? `CD: ${cd} turns` : 'Ready'}${active}<br><span style="color:#ccc">${handler.split(' — ')[1] || handler}</span>`;
-      }
-      info += `<div style="margin-top:3px;font-size:11px;line-height:1.3;"><span style="color:#aaffaa">Passive:</span> ${passiveText}</div>`;
-    }
-
-    const sel = gameState?.selectedPiece;
-    if (sel && sel.team !== piece.team) {
-      try {
-        const preview = E.previewDamage(sel, piece, gameState);
-        const hpNow = typeof piece.currentHp === 'number' ? piece.currentHp : (piece.maxHp || '?');
-        const hpMax = piece.maxHp || hpNow;
-        let predHtml = `<div id="tacticalPredictor">`;
-        predHtml += `<div>⚔ ${C.PIECE_TYPES[sel.key]?.name || sel.key} → ${C.PIECE_TYPES[piece.key]?.name || piece.key}</div>`;
-        predHtml += `<div>HP: ${hpNow}/${hpMax} &nbsp;|&nbsp; `;
-        predHtml += `DMG: <span class="pred-dmg">-${preview.dmg}</span></div>`;
-        if (piece.hasDeathMeteorInvincibility) {
-          predHtml += `<div style="color:#facc15;font-weight:bold;margin-top:2px;">🛡 METEOR SHIELD — LETHAL NEGATED</div>`;
-        } else if (piece.hasHelpFromAboveActive) {
-          predHtml += `<div style="color:#38bdf8;font-weight:bold;margin-top:2px;">🛡 DIVINE SHIELD — LETHAL NEGATED</div>`;
-        } else if (preview.isFatal) {
-          predHtml += `<div class="pred-fatal" style="color:#EF4444;font-weight:bold;margin-top:2px;">☠ LETHAL STRIKE</div>`;
-        } else {
-          const hpAfter = Math.max(0, hpNow - preview.dmg);
-          predHtml += `<div>Remaining HP: <span class="pred-chip" style="color:#44ffaa;">${hpAfter}</span></div>`;
-        }
-        predHtml += `</div>`;
-        info += predHtml;
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    return info;
   };
 
   const selectedPiece = gameState?.selectedPiece;
@@ -1246,12 +1013,9 @@ export default function Game({ navigateTo }) {
   }
 
   const isMyTurn = isLocal || gameState?.currentTurn === myTeam;
-  const terrScores = calculateDynamicTerritoryAreas(gameState);
-  const turnLabel = gameState?.gameOver 
-    ? 'GAME OVER' 
+  const turnLabel = gameState?.gameOver
+    ? 'GAME OVER'
     : `TURN ${gameState?.turnCount || 1}: ${gameState?.currentTurn === 'ash' ? 'ASH' : 'FROST'}`;
-
-  const { fallenSnow, fallenAsh } = getFallenUnits(gameState?.pieces);
 
   return (
     <div className="game-screen text-on-surface select-none font-body-md overflow-x-hidden w-full flex flex-col items-center justify-center relative md:h-screen md:max-h-screen md:overflow-hidden max-md:min-h-screen max-md:overflow-y-auto max-md:justify-start">
@@ -1281,7 +1045,7 @@ export default function Game({ navigateTo }) {
             <h2 className="almendra-font text-2xl sm:text-3xl font-bold tracking-widest text-pure-snow uppercase mb-4">
               {battleCountdown > 0 ? 'Battle Commences In' : 'Battle Commences!'}
             </h2>
-            
+
             <div className="relative flex items-center justify-center my-3">
               {battleCountdown > 0 ? (
                 <div key={battleCountdown} className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 border-ember-gold/60 bg-ember-gold/15 flex items-center justify-center shadow-[0_0_35px_rgba(245,158,11,0.5)] animate-pulse">
@@ -1330,7 +1094,7 @@ export default function Game({ navigateTo }) {
         const winnerShare = isWinnerSnow ? voronoi.frostShare : voronoi.ashShare;
 
         return (
-          <VictoryScreen 
+          <VictoryScreen
             team={isWinnerSnow ? 'frost' : 'ash'}
             isLocal={isLocal}
             myTeam={myTeam}
@@ -1342,7 +1106,7 @@ export default function Game({ navigateTo }) {
         );
       })()}
 
-      <div 
+      <div
         className="arena-scale-container"
         style={isCompactLayout ? { width: '100%' } : {
           width: `${1536 * arenaScale}px`,
@@ -1352,7 +1116,7 @@ export default function Game({ navigateTo }) {
           flexShrink: 0,
         }}
       >
-        <div 
+        <div
           id="game-wrapper"
           className="relative z-10"
           style={isCompactLayout ? {} : {
@@ -1365,412 +1129,287 @@ export default function Game({ navigateTo }) {
             left: 0,
           }}
         >
-        <div id="mobileHeader" className="mobile-only-header">
-          <button id="menuButton-mobile" className="top-menu-btn icon-btn" aria-label="Return to main menu" onClick={handleExitToLobby}>
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            <span>Menu</span>
-          </button>
-          {isLocal && (
-            <div id="testModeContainer-mobile" className="test-mode-control mobile-test-mode">
-              <FlaskConical className="h-3.5 w-3.5" aria-hidden="true" />
-              <input 
-                type="checkbox" 
-                id="testModeToggle-mobile"
-                checked={!!gameState?.testMode}
-                onChange={(e) => sendAction('TOGGLE_TEST_MODE', { enabled: e.target.checked })}
-                style={{ cursor: 'pointer', width: '14px', height: '14px', margin: 0 }}
-              />
-              <label htmlFor="testModeToggle-mobile">Test</label>
-            </div>
-          )}
-          <div className="mini-timer-block">
-            <span id="miniTimerSnow" className={`timer-tag snow ${gameState?.currentTurn === 'snow' ? 'active' : ''}`}>{formatTime(gameState?.timers?.snow)}</span>
-            <span className="vs-text">VS</span>
-            <span id="miniTimerAsh" className={`timer-tag ash ${gameState?.currentTurn === 'ash' ? 'active' : ''}`}>{formatTime(gameState?.timers?.ash)}</span>
-          </div>
-          {isLocal && (
-            <button id="startResetBtn-mobile" className="menu-btn start-btn-mobile" onClick={handleStartReset}>
-              {gameState?.gameStarted ? <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> : <Play className="h-3.5 w-3.5" aria-hidden="true" />}
-              <span>{gameState?.gameStarted ? 'Reset' : 'Start'}</span>
-            </button>
-          )}
-        </div>
-
-        <div className="main-layout">
-          <div id="left-column" className="ui-column primal-snow">
-            <div className="battle-controls-heading">
-              <div className="battle-controls-title">
-                <Swords className="h-4 w-4 text-ice-light" aria-hidden="true" />
-                <span>Battle Controls</span>
-              </div>
-            </div>
-
-            <button id="menuButton" className="top-menu-btn" onClick={handleExitToLobby}>
+          <div id="mobileHeader" className="mobile-only-header">
+            <button id="menuButton-mobile" className="top-menu-btn icon-btn" aria-label="Return to main menu" onClick={handleExitToLobby}>
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              <span>Main menu</span>
+              <span>Menu</span>
             </button>
-
             {isLocal && (
-              <button id="startResetBtn" className="top-menu-btn" onClick={handleStartReset}>
-                {gameState?.gameStarted ? <RotateCcw className="h-4 w-4" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
-                <span>{gameState?.gameStarted ? 'Reset battle' : 'Start battle'}</span>
-              </button>
-            )}
-
-            <div className="timer-stack">
-              <div className={`timer-card snow-card ${gameState?.currentTurn === 'snow' ? 'active' : ''}`}>
-                <span className="timer-faction-name">Frost</span>
-                <div id="snowTimer" className="timer-display">{formatTime(gameState?.timers?.snow)}</div>
-              </div>
-              <div className={`timer-card ash-card ${gameState?.currentTurn === 'ash' ? 'active' : ''}`}>
-                <span className="timer-faction-name">Ash</span>
-                <div id="ashTimer" className="timer-display">{formatTime(gameState?.timers?.ash)}</div>
-              </div>
-            </div>
-            
-            <div id="ability-info-panel" className="ability-panel">
-              <div className="selected-unit-heading">
-                <span className="panel-kicker">Selected unit</span>
-                <div className="unit-name-container">
-                  {selectedPiece ? (
-                    <h3 key={selectedPiece.id} id="ability-name" className="unit-name-active">{selectedPieceName}</h3>
-                  ) : (
-                    <span key="no-unit" className="no-unit-text">No unit selected</span>
-                  )}
-                </div>
-              </div>
-
-              <div className={`ability-actions-wrapper ${selectedPiece && (hasPrimaryAbility || hasSiphon || (selectedPiece.tethers && selectedPiece.tethers.length > 0) || hasRiftPulse || canDespawn) ? 'open' : ''}`}>
-                <div className="ability-actions-inner">
-                  {hasPrimaryAbility && (
-                    <button
-                      id="abilityBtn"
-                      className={!isMyTurn || (selectedPiece.ability.cooldown || 0) > 0 ? 'disabled' : ''}
-                      onClick={() => isMyTurn && (selectedPiece.ability.cooldown || 0) <= 0 && sendAction('ABILITY', { pieceId: selectedPiece.id, abilityKey: selectedPiece.ability.key })}
-                      disabled={!isMyTurn || (selectedPiece.ability.cooldown || 0) > 0}
-                    >
-                      {selectedPiece.ability.name || 'Use Ability'}
-                      {(selectedPiece.ability.cooldown || 0) > 0 ? ` (CD: ${selectedPiece.ability.cooldown})` : ''}
-                    </button>
-                  )}
-                  {hasSiphon && (
-                    <button
-                      id="siphonBtn"
-                      className={!isMyTurn ? 'disabled' : ''}
-                      onClick={() => isMyTurn && sendAction('ABILITY', { pieceId: selectedPiece.id, abilityKey: 'Siphon' })}
-                      disabled={!isMyTurn}
-                    >
-                      Siphon
-                    </button>
-                  )}
-                  <button 
-                    id="releaseBtn" 
-                    className="unleash-btn"
-                    style={{ display: (selectedPiece?.tethers && selectedPiece.tethers.length > 0) ? 'block' : 'none' }}
-                    onClick={() => sendAction('RELEASE', { pieceId: selectedPiece.id })}
-                  >
-                    Release
-                  </button>
-                  {hasRiftPulse && (
-                    <button
-                      id="riftPulseBtn"
-                      className={!isMyTurn ? 'disabled' : ''}
-                      onClick={() => isMyTurn && sendAction('RIFT_PULSE', { pieceId: selectedPiece.id })}
-                      disabled={!isMyTurn}
-                    >
-                      Rift Pulse
-                    </button>
-                  )}
-                  {canDespawn && (
-                    <button
-                      id="despawnBtn"
-                      onClick={() => sendAction('DESPAWN', { pieceId: selectedPiece.id })}
-                    >
-                      Despawn
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div id="fallenUnitsPanel" className="fallen-units-panel">
-              <div className="fallen-units-header">
-                <div className="fallen-units-title">
-                  <Skull className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
-                  <span>Fallen Units</span>
-                </div>
-                <div className="fallen-units-counts">
-                  <span className="frost-count">❄ {fallenSnow.length}</span>
-                  <span className="ash-count">🔥 {fallenAsh.length}</span>
-                </div>
-              </div>
-
-              <div className="fallen-units-columns">
-                {/* Frost Casualties */}
-                <div className="fallen-column snow-column">
-                  <div className="fallen-column-label">Frost ({10 - fallenSnow.length}/10)</div>
-                  <div className="fallen-list">
-                    {fallenSnow.length === 0 ? (
-                      <div className="fallen-empty-card">
-                        <span className="empty-sub">Vanguard Intact</span>
-                        <span className="empty-count">10 Active</span>
-                      </div>
-                    ) : (
-                      fallenSnow.map(key => {
-                        const info = C.PIECE_TYPES[key] || {};
-                        const imgPath = C.IMAGES[key] ? `/${C.IMAGES[key]}` : null;
-                        return (
-                          <div key={key} className="fallen-unit-card snow" title={info.name || key}>
-                            {imgPath && <img src={imgPath} alt={info.name || key} className="fallen-unit-avatar" />}
-                            <span className="fallen-unit-name">{info.name || key}</span>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-
-                {/* Ash Casualties */}
-                <div className="fallen-column ash-column">
-                  <div className="fallen-column-label">Ash ({10 - fallenAsh.length}/10)</div>
-                  <div className="fallen-list">
-                    {fallenAsh.length === 0 ? (
-                      <div className="fallen-empty-card">
-                        <span className="empty-sub">Vanguard Intact</span>
-                        <span className="empty-count">10 Active</span>
-                      </div>
-                    ) : (
-                      fallenAsh.map(key => {
-                        const info = C.PIECE_TYPES[key] || {};
-                        const imgPath = C.IMAGES[key] ? `/${C.IMAGES[key]}` : null;
-                        return (
-                          <div key={key} className="fallen-unit-card ash" title={info.name || key}>
-                            {imgPath && <img src={imgPath} alt={info.name || key} className="fallen-unit-avatar" />}
-                            <span className="fallen-unit-name">{info.name || key}</span>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {isLocal && (
-              <div id="testModeContainer" className="test-mode-control mt-auto">
-                <FlaskConical className="h-4 w-4" aria-hidden="true" />
-                <input 
-                  type="checkbox" 
-                  id="testModeToggle" 
+              <div id="testModeContainer-mobile" className="test-mode-control mobile-test-mode">
+                <FlaskConical className="h-3.5 w-3.5" aria-hidden="true" />
+                <input
+                  type="checkbox"
+                  id="testModeToggle-mobile"
                   checked={!!gameState?.testMode}
                   onChange={(e) => sendAction('TOGGLE_TEST_MODE', { enabled: e.target.checked })}
-                  style={{ cursor: 'pointer', width: '16px', height: '16px', margin: 0 }}
+                  style={{ cursor: 'pointer', width: '14px', height: '14px', margin: 0 }}
                 />
-                <label htmlFor="testModeToggle">Test mode</label>
+                <label htmlFor="testModeToggle-mobile">Test</label>
               </div>
+            )}
+            <div className="mini-timer-block">
+              <span id="miniTimerSnow" className={`timer-tag snow ${gameState?.currentTurn === 'snow' ? 'active' : ''}`}>{formatTime(gameState?.timers?.snow)}</span>
+              <span className="vs-text">VS</span>
+              <span id="miniTimerAsh" className={`timer-tag ash ${gameState?.currentTurn === 'ash' ? 'active' : ''}`}>{formatTime(gameState?.timers?.ash)}</span>
+            </div>
+            {isLocal && (
+              <button id="startResetBtn-mobile" className="menu-btn start-btn-mobile" onClick={handleStartReset}>
+                {gameState?.gameStarted ? <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> : <Play className="h-3.5 w-3.5" aria-hidden="true" />}
+                <span>{gameState?.gameStarted ? 'Reset' : 'Start'}</span>
+              </button>
             )}
           </div>
 
-          <div className="game-container">
-            <Board 
-              gameState={gameState}
-              myTeam={myTeam}
-              onCellClick={handleCellClick}
-              onBoardClick={handleBoardClick}
-              onPieceClick={handlePieceClick}
-              onMouseEnterPiece={(piece, event) => {
-                if (gameState?.gameOver) return;
-                if (event) {
-                  targetMousePosRef.current = { x: event.clientX, y: event.clientY };
-                  currentMousePosRef.current = { x: event.clientX, y: event.clientY };
-                }
-                setHoveredPiece(piece);
-              }}
-              onMouseMovePiece={(piece, event) => {
-                if (event) {
-                  targetMousePosRef.current = { x: event.clientX, y: event.clientY };
-                }
-              }}
-              onMouseLeavePiece={() => setHoveredPiece(null)}
-            />
-            <div className="labels-bar">
-              <div id="snowLabel" className="label snow">
-                <span>Frost Control</span>
-                <strong>{terrScores.snow.toFixed(1)}%</strong>
-              </div>
-
-              <div id="turnLabel" className={`label turn ${gameState?.currentTurn || 'snow'}`}>
-                <div className="turn-content">
-                  <div className="turn-main">
-                    <Clock3 className="turn-clock-icon" aria-hidden="true" />
-                    <span>{turnLabel}</span>
-                  </div>
-                  {terrScores.neutral !== undefined && terrScores.neutral > 0 && (
-                    <span className="uncontested-label">
-                      Uncontested: {terrScores.neutral.toFixed(1)}%
-                    </span>
-                  )}
+          <div className="main-layout">
+            <div id="left-column" className="ui-column primal-snow hidden xl:flex">
+              <div className="battle-controls-heading">
+                <div className="battle-controls-title">
+                  <Swords className="h-4 w-4 text-ice-light" aria-hidden="true" />
+                  <span>Battle Controls</span>
                 </div>
               </div>
 
-              <div id="ashLabel" className="label ash">
-                <span>Ash Control</span>
-                <strong>{terrScores.ash.toFixed(1)}%</strong>
-              </div>
-            </div>
-          </div>
+              <button id="menuButton" className="top-menu-btn" onClick={handleExitToLobby}>
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                <span>Main menu</span>
+              </button>
 
-          <div id="right-column" className="ui-column primal-ash">
-            <div id="messageLogContainer">
-              <div className="event-log-heading">
-                <div className="event-log-title">
-                  <ScrollText className="h-4 w-4 text-magma-core" aria-hidden="true" />
-                  <span>Battle Chronicle</span>
-                </div>
-              </div>
-              <ul id="messageLog" aria-live="polite" aria-label="Battle chronicle event log">
-                {eventLog.length === 0 ? (
-                  <li className="event-log-empty">Battle events will appear here after the first move.</li>
-                ) : eventLog.map((log, i) => {
-                  const turnNum = typeof log === 'object' && log.turn ? log.turn : 1;
-                  const message = typeof log === 'object' && log.text ? log.text : log;
-                  const team = typeof log === 'object' && log.team ? log.team : 'neutral';
-                  const badgeColor = team === 'snow'
-                    ? 'border-sky-400/40 bg-sky-500/15 text-sky-300'
-                    : team === 'ash'
-                    ? 'border-rose-500/40 bg-rose-500/15 text-rose-300'
-                    : 'border-ember-gold/40 bg-ember-gold/15 text-amber-300';
-
-                  return (
-                    <li key={i} className="event-log-item">
-                      <span className={`event-turn-badge ${badgeColor}`}>
-                        T{turnNum}
-                      </span>
-                      <span className="event-text">{message}</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-            
-            <div id="roomStatusOverlay">
-              {!isLocal && (
-                <div id="playerCountDisplay">
-                  <Users className="h-4 w-4" aria-hidden="true" />
-                  <span>Realm players</span>
-                  <strong>{playerCount}/2</strong>
-                </div>
+              {isLocal && (
+                <button id="startResetBtn" className="top-menu-btn" onClick={handleStartReset}>
+                  {gameState?.gameStarted ? <RotateCcw className="h-4 w-4" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
+                  <span>{gameState?.gameStarted ? 'Reset battle' : 'Start battle'}</span>
+                </button>
               )}
-              {isOpponentDisconnected && (
-                <div id="disconnectTimerDisplay" style={{ backgroundColor: '#ff4444', color: 'white', fontWeight: 'bold', padding: '10px', borderRadius: '5px', textAlign: 'center', margin: '10px 0', display: 'block' }}>
-                  Opponent disconnected. Closing in {disconnectTimeout}s
+
+              <div className="timer-stack">
+                <div className={`timer-card snow-card ${gameState?.currentTurn === 'snow' ? 'active' : ''}`}>
+                  <span className="timer-faction-name">Frost</span>
+                  <div id="snowTimer" className="timer-display">{formatTime(gameState?.timers?.snow)}</div>
                 </div>
-              )}
-            </div>
-          </div>
-          
-          <div id="mobileDrawer" className={`mobile-drawer ${drawerExpanded ? 'expanded' : 'peek'}`}>
-            <button
-              className="drawer-handle"
-              onClick={() => setDrawerExpanded(!drawerExpanded)}
-              aria-label={drawerExpanded ? 'Collapse unit actions' : 'Expand unit actions'}
-              aria-expanded={drawerExpanded}
-            >
-              {drawerExpanded ? <ChevronDown className="h-4 w-4" aria-hidden="true" /> : <ChevronUp className="h-4 w-4" aria-hidden="true" />}
-            </button>
-            <div className="drawer-content">
-              {!selectedPiece ? (
-                <div id="drawerPeek" className="drawer-peek-info" onClick={() => setDrawerExpanded(!drawerExpanded)}>
-                  <div className="peek-summary">
-                    <span id="peek-name" className="peek-name">Select a Unit</span>
-                    <span id="peek-desc" className="peek-desc">Tap any friendly unit to view stats & cast abilities</span>
+                <div className={`timer-card ash-card ${gameState?.currentTurn === 'ash' ? 'active' : ''}`}>
+                  <span className="timer-faction-name">Ash</span>
+                  <div id="ashTimer" className="timer-display">{formatTime(gameState?.timers?.ash)}</div>
+                </div>
+              </div>
+
+              <div id="ability-info-panel" className="ability-panel">
+                <div className="selected-unit-heading">
+                  <span className="panel-kicker">Selected unit</span>
+                  <div className="unit-name-container">
+                    {selectedPiece ? (
+                      <h3 key={selectedPiece.id} id="ability-name" className="unit-name-active">{selectedPieceName}</h3>
+                    ) : (
+                      <span key="no-unit" className="no-unit-text">No unit selected</span>
+                    )}
                   </div>
                 </div>
-              ) : (
-                <>
-                  <div id="drawerPeek" className="drawer-peek-info" onClick={() => setDrawerExpanded(!drawerExpanded)}>
-                    <div className="peek-summary">
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                        <span id="peek-name" className="peek-name">{selectedPieceName}</span>
-                        <span className="drawer-toggle-badge">{drawerExpanded ? '▼ Close' : '▲ Actions'}</span>
-                      </div>
-                      <span id="peek-desc" className="peek-desc">{`${selectedPiece.currentHp} HP | ${selectedPiece.strength} STR | ${selectedPiece.def} DEF | ${selectedPiece.agility} AGI`}</span>
-                    </div>
+
+                <div className={`ability-actions-wrapper ${selectedPiece && (hasPrimaryAbility || hasSiphon || (selectedPiece.tethers && selectedPiece.tethers.length > 0) || hasRiftPulse || canDespawn) ? 'open' : ''}`}>
+                  <div className="ability-actions-inner">
+                    {hasPrimaryAbility && (
+                      <button
+                        id="abilityBtn"
+                        className={!isMyTurn || (selectedPiece.ability.cooldown || 0) > 0 ? 'disabled' : ''}
+                        onClick={() => isMyTurn && (selectedPiece.ability.cooldown || 0) <= 0 && sendAction('ABILITY', { pieceId: selectedPiece.id, abilityKey: selectedPiece.ability.key })}
+                        onMouseEnter={() => setHoveredAbilityKey(selectedPiece.ability.key)}
+                        onMouseLeave={() => setHoveredAbilityKey(null)}
+                        disabled={!isMyTurn || (selectedPiece.ability.cooldown || 0) > 0}
+                      >
+                        {selectedPiece.ability.name || 'Use Ability'}
+                        {(selectedPiece.ability.cooldown || 0) > 0 ? ` (CD: ${selectedPiece.ability.cooldown})` : ''}
+                      </button>
+                    )}
+                    {hasSiphon && (
+                      <button
+                        id="siphonBtn"
+                        className={!isMyTurn ? 'disabled' : ''}
+                        onClick={() => isMyTurn && sendAction('ABILITY', { pieceId: selectedPiece.id, abilityKey: 'Siphon' })}
+                        disabled={!isMyTurn}
+                      >
+                        Siphon
+                      </button>
+                    )}
+                    <button
+                      id="releaseBtn"
+                      className="unleash-btn"
+                      style={{ display: (selectedPiece?.tethers && selectedPiece.tethers.length > 0) ? 'block' : 'none' }}
+                      onClick={() => sendAction('RELEASE', { pieceId: selectedPiece.id })}
+                    >
+                      Release
+                    </button>
+                    {hasRiftPulse && (
+                      <button
+                        id="riftPulseBtn"
+                        className={!isMyTurn ? 'disabled' : ''}
+                        onClick={() => isMyTurn && sendAction('RIFT_PULSE', { pieceId: selectedPiece.id })}
+                        disabled={!isMyTurn}
+                      >
+                        Rift Pulse
+                      </button>
+                    )}
+                    {canDespawn && (
+                      <button
+                        id="despawnBtn"
+                        className={!isMyTurn ? 'disabled' : ''}
+                        onClick={() => isMyTurn && sendAction('DESPAWN', { pieceId: selectedPiece.id })}
+                        disabled={!isMyTurn}
+                      >
+                        Despawn
+                      </button>
+                    )}
                   </div>
-                  <div className="drawer-expanded">
-                    <div className="unit-header-mobile">
-                      {selectedPiece.ability && (
-                        <div className="mobile-ability-desc-card">
-                          <div style={{ color: '#E8C15E', fontWeight: 'bold', fontSize: '12px', marginBottom: '2px' }}>
-                            Active: {selectedPiece.ability.name} {(selectedPiece.ability.cooldown || 0) > 0 ? `(CD: ${selectedPiece.ability.cooldown})` : '(Ready)'}
-                          </div>
-                          <div style={{ color: '#cbd5e1', fontSize: '11px', lineHeight: '1.3' }}>
-                            {C.ABILITY_DESCRIPTIONS[selectedPiece.ability.key]}
-                          </div>
+                </div>
+              </div>
+
+              <div id="fallenUnitsPanel" className="fallen-units-panel">
+                <div className="fallen-units-header">
+                  <div className="fallen-units-title">
+                    <Skull className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
+                    <span>Fallen Units</span>
+                  </div>
+                  <div className="fallen-units-counts">
+                    <span className="frost-count">❄ {fallenSnow.length}</span>
+                    <span className="ash-count">🔥 {fallenAsh.length}</span>
+                  </div>
+                </div>
+
+                <div className="fallen-units-columns">
+                  {/* Frost Casualties */}
+                  <div className="fallen-column snow-column">
+                    <div className="fallen-column-label">Frost ({10 - fallenSnow.length}/10)</div>
+                    <div className="fallen-list">
+                      {fallenSnow.length === 0 ? (
+                        <div className="fallen-empty-card">
+                          <span className="empty-sub">Vanguard Intact</span>
+                          <span className="empty-count">10 Active</span>
                         </div>
-                      )}
-                      {C.PASSIVE_DESCRIPTIONS[selectedPiece.key] && (
-                        <div className="mobile-ability-desc-card" style={{ marginTop: '4px', borderColor: 'rgba(74, 222, 128, 0.3)' }}>
-                          <div style={{ color: '#4ade80', fontWeight: 'bold', fontSize: '12px', marginBottom: '2px' }}>
-                            Passive
-                          </div>
-                          <div style={{ color: '#cbd5e1', fontSize: '11px', lineHeight: '1.3' }}>
-                            {C.PASSIVE_DESCRIPTIONS[selectedPiece.key]}
-                          </div>
-                        </div>
+                      ) : (
+                        fallenSnow.map(key => {
+                          const info = C.PIECE_TYPES[key] || {};
+                          const imgPath = C.IMAGES[key] ? `/${C.IMAGES[key]}` : null;
+                          return (
+                            <div key={key} className="fallen-unit-card snow" title={info.name || key}>
+                              {imgPath && <img src={imgPath} alt={info.name || key} className="fallen-unit-avatar" />}
+                              <span className="fallen-unit-name">{info.name || key}</span>
+                            </div>
+                          );
+                        })
                       )}
                     </div>
-                    <div className="mobile-action-container">
-                      <div className="mobile-button-grid">
-                        {hasPrimaryAbility && (
-                          <button 
-                            className="ability-btn-mobile primary-action" 
-                            onClick={() => isMyTurn && (selectedPiece.ability.cooldown || 0) <= 0 && sendAction('ABILITY', { pieceId: selectedPiece.id, abilityKey: selectedPiece.ability.key })} 
-                            disabled={!isMyTurn || (selectedPiece.ability.cooldown || 0) > 0}
-                          >
-                            {selectedPiece.ability.name || 'Use Ability'}
-                            {(selectedPiece.ability.cooldown || 0) > 0 ? ` (CD: ${selectedPiece.ability.cooldown})` : ''}
-                          </button>
-                        )}
-                        {hasSiphon && (
-                          <button className="ability-btn-mobile primary-action" onClick={() => isMyTurn && sendAction('ABILITY', { pieceId: selectedPiece.id, abilityKey: 'Siphon' })} disabled={!isMyTurn}>Siphon</button>
-                        )}
-                        {hasRiftPulse && (
-                          <button className="ability-btn-mobile" onClick={() => isMyTurn && sendAction('RIFT_PULSE', { pieceId: selectedPiece.id })} disabled={!isMyTurn}>Rift Pulse</button>
-                        )}
-                        {selectedPiece.tethers && selectedPiece.tethers.length > 0 && (
-                          <button className="ability-btn-mobile unleash-btn" onClick={() => sendAction('RELEASE', { pieceId: selectedPiece.id })}>Release</button>
-                        )}
-                        {canDespawn && (
-                          <button className="ability-btn-mobile" onClick={() => sendAction('DESPAWN', { pieceId: selectedPiece.id })}>Despawn</button>
+                  </div>
+
+                  {/* Ash Casualties */}
+                  <div className="fallen-column ash-column">
+                      <div className="fallen-column-label">Ash ({10 - fallenAsh.length}/10)</div>
+                      <div className="fallen-list">
+                        {fallenAsh.length === 0 ? (
+                          <div className="fallen-empty-card">
+                            <span className="empty-sub">Vanguard Intact</span>
+                            <span className="empty-count">10 Active</span>
+                          </div>
+                        ) : (
+                          fallenAsh.map(key => {
+                            const info = C.PIECE_TYPES[key] || {};
+                            const imgPath = C.IMAGES[key] ? `/${C.IMAGES[key]}` : null;
+                            return (
+                              <div key={key} className="fallen-unit-card ash" title={info.name || key}>
+                                {imgPath && <img src={imgPath} alt={info.name || key} className="fallen-unit-avatar" />}
+                                <span className="fallen-unit-name">{info.name || key}</span>
+                              </div>
+                            );
+                          })
                         )}
                       </div>
                     </div>
                   </div>
-                </>
-              )}
+                </div>
+
+                {isLocal && (
+                  <div id="testModeContainer" className="test-mode-control mt-auto">
+                    <FlaskConical className="h-4 w-4" aria-hidden="true" />
+                    <input
+                      type="checkbox"
+                      id="testModeToggle"
+                      checked={!!gameState?.testMode}
+                      onChange={(e) => sendAction('TOGGLE_TEST_MODE', { enabled: e.target.checked })}
+                      style={{ cursor: 'pointer', width: '16px', height: '16px', margin: 0 }}
+                    />
+                    <label htmlFor="testModeToggle">Test mode</label>
+                  </div>
+                )}
+              </div>
+
+              <div className="game-container">
+                <Board
+                  gameState={gameState}
+                  myTeam={myTeam}
+                  hoveredAbilityKey={hoveredAbilityKey}
+                  onCellClick={handleCellClick}
+                  onBoardClick={handleBoardClick}
+                  onPieceClick={handlePieceClick}
+                  onMouseEnterPiece={(piece, e) => {
+                    if (gameState?.gameOver) return;
+                    if (e) setHoveredMousePos({ x: e.clientX, y: e.clientY });
+                    setHoveredPiece(piece);
+                  }}
+                  onMouseMovePiece={(piece, e) => {
+                    if (e) setHoveredMousePos({ x: e.clientX, y: e.clientY });
+                  }}
+                  onMouseLeavePiece={() => {
+                    setHoveredPiece(null);
+                    setHoveredMousePos(null);
+                  }}
+                />
+                <div className="labels-bar">
+                  <div id="snowLabel" className="label snow">
+                    <span>Frost Control</span>
+                    <strong>{terrScores.snow.toFixed(1)}%</strong>
+                  </div>
+
+                  <div id="turnLabel" className={`label turn ${gameState?.currentTurn || 'snow'}`}>
+                    <div className="turn-content">
+                      <div className="turn-main">
+                        <Clock3 className="turn-clock-icon" aria-hidden="true" />
+                        <span>{turnLabel}</span>
+                      </div>
+                      {terrScores.neutral !== undefined && terrScores.neutral > 0 && (
+                        <span className="uncontested-label">
+                          Uncontested: {terrScores.neutral.toFixed(1)}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div id="ashLabel" className="label ash">
+                    <span>Ash Control</span>
+                    <strong>{terrScores.ash.toFixed(1)}%</strong>
+                  </div>
+                </div>
+              </div>
+
+              <GameActionDrawer
+                eventLog={eventLog}
+                isLocal={isLocal}
+                playerCount={playerCount}
+                isOpponentDisconnected={isOpponentDisconnected}
+                disconnectTimeout={disconnectTimeout}
+                drawerExpanded={drawerExpanded}
+                setDrawerExpanded={setDrawerExpanded}
+                selectedPiece={selectedPiece}
+                selectedPieceName={selectedPieceName}
+                hasPrimaryAbility={hasPrimaryAbility}
+                hasSiphon={hasSiphon}
+                hasRiftPulse={hasRiftPulse}
+                canDespawn={canDespawn}
+                isMyTurn={isMyTurn}
+                sendAction={sendAction}
+                setHoveredAbilityKey={setHoveredAbilityKey}
+              />
             </div>
           </div>
         </div>
-      </div>
-    </div>
 
-      {hoveredPiece && !gameState?.gameOver && (
-        <div 
-          ref={popupRef}
-          id="piecePopup"
-          className="piece-Popup pointer-events-none"
-          style={{
-            display: 'block',
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            willChange: 'transform',
-            transform: `translate3d(${Math.round(currentMousePosRef.current.x + 18)}px, ${Math.round(currentMousePosRef.current.y + 18)}px, 0)`,
-          }}
-          dangerouslySetInnerHTML={{ __html: generatePieceInfoHtml(hoveredPiece) }}
-        />
-      )}
-    </div>
-  );
+        <PieceTooltip hoveredPiece={hoveredPiece} gameState={gameState} initialMousePos={hoveredMousePos} />
+      </div>
+    );
 }

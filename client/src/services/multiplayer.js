@@ -12,9 +12,9 @@ import {
   Timestamp
 } from 'firebase/firestore';
 import { db, getAuthUser } from './firebase.js';
-import * as Logic from '../../../shared/logic.js';
-import * as C from '../../../shared/constants.js';
-import * as E from '../../../shared/utils.js';
+import * as Logic from '@shared/logic.js';
+import * as C from '@shared/constants.js';
+import * as E from '@shared/utils.js';
 import {
   REALM_WORDS,
   INACTIVITY_TIMEOUT_MS,
@@ -113,6 +113,8 @@ export async function createRoom(playerId, options = {}) {
     : null;
 
   let chosenRoomId = customCode || generateRoomCode();
+  const authUser = await getAuthUser();
+  const authUid = authUser?.uid || null;
 
   // Retry up to 3 times if an auto-generated code collides with an active room
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -148,7 +150,10 @@ export async function createRoom(playerId, options = {}) {
           createdAt: Date.now(),
           updatedAt: Date.now(),
           expireAt: getRoomTtl('WAITING'),
-          players: [{ id: playerId, team: preferredFaction, lastSeen: Date.now() }],
+          moveIndex: 0,
+          playerIds: [playerId],
+          playerUids: authUid ? [authUid] : [],
+          players: [{ id: playerId, uid: authUid, team: preferredFaction, lastSeen: Date.now() }],
           gameState: freshSerialized
         };
 
@@ -235,6 +240,12 @@ export async function quickMatch(playerId) {
     room: created.room,
     team: created.team
   };
+}
+
+export const findQuickMatch = quickMatch;
+
+export async function createCustomRoom(code, isPublic, playerId) {
+  return createRoom(playerId, { customCode: code, isPublic });
 }
 
 // ── Realtime Open Realms Browser ──────────────────────────────────────────────

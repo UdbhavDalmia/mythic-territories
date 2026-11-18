@@ -1,5 +1,5 @@
 import React from 'react';
-import * as C from '../../../shared/constants.js';
+import * as C from '@shared/constants.js';
 
 export default function AscensionModal({ gameState, sendAction }) {
   const pending = gameState?.pendingAscension;

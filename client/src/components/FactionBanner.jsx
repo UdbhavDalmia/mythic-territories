@@ -1,4 +1,5 @@
 import React from 'react';
+import '@/styles/banners.css';
 
 /**
  * Heraldic Animated Faction Banner Component

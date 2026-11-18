@@ -4,13 +4,11 @@ import Lobby from './components/Lobby.jsx';
 const loadGame = () => import('./components/Game.jsx');
 const loadGuide = () => import('./components/Guide.jsx');
 const loadNotes = () => import('./components/Notes.jsx');
-const loadWheel = () => import('./components/Wheel.jsx');
 const loadSettings = () => import('./components/Settings.jsx');
 
 const Game = lazy(loadGame);
 const Guide = lazy(loadGuide);
 const Notes = lazy(loadNotes);
-const Wheel = lazy(loadWheel);
 const Settings = lazy(loadSettings);
 
 const loadSecondaryFonts = () => {
@@ -53,11 +51,6 @@ const ROUTE_METADATA = {
     description: 'Official patch notes, balance adjustments, unit reworks, and feature updates for Mythic Territories.',
     canonical: 'https://mythic-territories.xyz/?page=notes'
   },
-  WHEEL: {
-    title: 'Destiny Wheel — Mythic Territories',
-    description: 'Spin the Destiny Wheel to unlock randomized bonuses, blessings, and elemental unit buffs in Mythic Territories.',
-    canonical: 'https://mythic-territories.xyz/?page=wheel'
-  },
   SETTINGS: {
     title: 'Settings — Mythic Territories',
     description: 'Configure display, audio, animation, and accessibility settings for Mythic Territories.',
@@ -89,7 +82,6 @@ export default function App() {
 
     if (page === 'rules' || path.endsWith('/rules') || path.endsWith('/guide')) return 'GUIDE';
     if (page === 'notes' || path.endsWith('/notes')) return 'NOTES';
-    if (page === 'wheel' || page === 'destiny' || path.endsWith('/wheel') || path.endsWith('/destiny')) return 'WHEEL';
     if (page === 'settings' || path.endsWith('/settings')) return 'SETTINGS';
     if ((params.get('room') && params.get('team')) || params.get('mode') === 'local') return 'GAME';
     return 'LOBBY';
@@ -105,7 +97,7 @@ export default function App() {
     };
     window.addEventListener('popstate', handlePopState);
 
-    // Only load secondary fonts if the user landed directly on a game/guide/wheel subpage
+    // Only load secondary fonts if the user landed directly on a game/guide/notes/settings subpage
     if (view !== 'LOBBY') {
       loadSecondaryFonts();
     }
@@ -147,9 +139,6 @@ export default function App() {
     } else if (target === 'GUIDE') {
       loadSecondaryFonts();
       loadGuide();
-    } else if (target === 'WHEEL') {
-      loadSecondaryFonts();
-      loadWheel();
     } else if (target === 'SETTINGS') {
       loadSecondaryFonts();
       loadSettings();
@@ -163,8 +152,6 @@ export default function App() {
       url.searchParams.set('page', 'rules');
     } else if (newView === 'NOTES') {
       url.searchParams.set('page', 'notes');
-    } else if (newView === 'WHEEL') {
-      url.searchParams.set('page', 'wheel');
     } else if (newView === 'SETTINGS') {
       url.searchParams.set('page', 'settings');
     } else if (newView === 'LOBBY') {
@@ -189,7 +176,6 @@ export default function App() {
         {view === 'GAME' && <Game navigateTo={navigateTo} />}
         {view === 'GUIDE' && <Guide navigateTo={navigateTo} />}
         {view === 'NOTES' && <Notes navigateTo={navigateTo} />}
-        {view === 'WHEEL' && <Wheel navigateTo={navigateTo} />}
         {view === 'SETTINGS' && <Settings navigateTo={navigateTo} />}
       </Suspense>
     </div>

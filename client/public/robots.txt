@@ -2,7 +2,6 @@ User-agent: *
 Allow: /
 Allow: /?page=rules
 Allow: /?page=notes
-Allow: /?page=wheel
 
 # Block ephemeral game session URLs — not indexable content
 Disallow: /?room=
