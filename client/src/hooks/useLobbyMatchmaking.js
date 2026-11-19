@@ -44,23 +44,27 @@ export function useLobbyMatchmaking({
   const playersListRef = useRef([]);
   const mySelectedFactionRef = useRef(null);
 
-  // Active Battle Recovery Detection
+  // Active Battle Recovery Detection (deferred so it never blocks initial paint)
   useEffect(() => {
     const session = getActiveSession();
     if (!session || !session.roomId) return;
 
-    loadMultiplayer().then(async ({ checkRoomStatus }) => {
-      const pId = getPlayerId();
-      const status = await checkRoomStatus(session.roomId, pId);
-      if (status.exists && status.active) {
-        setRecoverableSession({
-          roomId: session.roomId,
-          team: status.myTeam || session.team || 'snow'
-        });
-      } else {
-        clearActiveSession();
-      }
-    }).catch(() => { });
+    const timer = setTimeout(() => {
+      loadMultiplayer().then(async ({ checkRoomStatus }) => {
+        const pId = getPlayerId();
+        const status = await checkRoomStatus(session.roomId, pId);
+        if (status.exists && status.active) {
+          setRecoverableSession({
+            roomId: session.roomId,
+            team: status.myTeam || session.team || 'snow'
+          });
+        } else {
+          clearActiveSession();
+        }
+      }).catch(() => { });
+    }, 1500);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const handleResumeSession = () => {

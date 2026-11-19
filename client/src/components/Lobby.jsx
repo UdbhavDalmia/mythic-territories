@@ -1,34 +1,13 @@
-import ModeSelectModal from './lobby/ModeSelectModal.jsx';
-import MultiplayerModal from './lobby/MultiplayerModal.jsx';
-import FactionSelectionOverlay from './lobby/FactionSelectionOverlay.jsx';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import LobbyHero from './lobby/LobbyHero.jsx';
 import LobbyFooter from './lobby/LobbyFooter.jsx';
 import { useLobbyMatchmaking } from '../hooks/useLobbyMatchmaking.js';
-import React, { useState, useEffect, useRef } from 'react';
 import '@/styles/menu.css';
-import {
-  ArrowLeft,
-  Bot,
-  Check,
-  ChevronRight,
-  Clock,
-  Copy,
-  Flame,
-  Globe2,
-  Lock,
-  PlusCircle,
-  Radio,
-  RotateCcw,
-  Shield,
-  Snowflake,
-  Sparkles,
-  Swords,
-  Users,
-  X,
-  Zap,
-} from 'lucide-react';
 import { triggerHaptic } from '../services/haptics.js';
-import FactionBanner from './FactionBanner.jsx';
+
+const ModeSelectModal = lazy(() => import('./lobby/ModeSelectModal.jsx'));
+const MultiplayerModal = lazy(() => import('./lobby/MultiplayerModal.jsx'));
+const FactionSelectionOverlay = lazy(() => import('./lobby/FactionSelectionOverlay.jsx'));
 
 const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const loadMultiplayer = () => import('../services/multiplayer.js');
@@ -135,18 +114,22 @@ export default function Lobby({ navigateTo, onWarm }) {
   const ashCardRef = useRef(null);
   const factionBackRef = useRef(null);
 
-  // ── Warm up GSAP during idle time so it is ready on interaction ────────────
+  // ── Warm up GSAP on first user interaction intent ─────────────────────────
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const idleId = window.requestIdleCallback
-      ? window.requestIdleCallback(() => loadGsap(), { timeout: 3500 })
-      : setTimeout(() => loadGsap(), 2500);
+    const warmGsap = () => {
+      loadGsap();
+      window.removeEventListener('pointerdown', warmGsap);
+      window.removeEventListener('keydown', warmGsap);
+      window.removeEventListener('scroll', warmGsap);
+    };
+    window.addEventListener('pointerdown', warmGsap, { passive: true, once: true });
+    window.addEventListener('keydown', warmGsap, { passive: true, once: true });
+    window.addEventListener('scroll', warmGsap, { passive: true, once: true });
     return () => {
-      if (window.cancelIdleCallback && typeof idleId === 'number') {
-        window.cancelIdleCallback(idleId);
-      } else {
-        clearTimeout(idleId);
-      }
+      window.removeEventListener('pointerdown', warmGsap);
+      window.removeEventListener('keydown', warmGsap);
+      window.removeEventListener('scroll', warmGsap);
     };
   }, []);
 
@@ -763,72 +746,77 @@ export default function Lobby({ navigateTo, onWarm }) {
         onWarm={onWarm}
       />
 
-      {/* ── SCREEN 2: GAME MODES OVERLAY ── */}
-      {/* ── SCREEN 2: MODE SELECTION MODAL ── */}
-      <ModeSelectModal
-        showModes={showModes}
-        showMultiplayer={showMultiplayer}
-        modesOverlayRef={modesOverlayRef}
-        modeCardsRef={modeCardsRef}
-        modesBackRef={modesBackRef}
-        isTransitioningRef={isTransitioningRef}
-        handleCloseModes={handleCloseModes}
-        handleModesToMultiplayer={handleModesToMultiplayer}
-        loadMultiplayer={loadMultiplayer}
-        handleCardMouseMove={handleCardMouseMove}
-        handleCardMouseLeave={handleCardMouseLeave}
-        navigateTo={navigateTo}
-      />
+      {/* ── MODALS (LAZY LOADED ON DEMAND) ── */}
+      <Suspense fallback={null}>
+        {(showModes || showMultiplayer) && (
+          <ModeSelectModal
+            showModes={showModes}
+            showMultiplayer={showMultiplayer}
+            modesOverlayRef={modesOverlayRef}
+            modeCardsRef={modeCardsRef}
+            modesBackRef={modesBackRef}
+            isTransitioningRef={isTransitioningRef}
+            handleCloseModes={handleCloseModes}
+            handleModesToMultiplayer={handleModesToMultiplayer}
+            loadMultiplayer={loadMultiplayer}
+            handleCardMouseMove={handleCardMouseMove}
+            handleCardMouseLeave={handleCardMouseLeave}
+            navigateTo={navigateTo}
+          />
+        )}
 
-      {/* ── SCREEN 3: MULTIPLAYER REALM HUB ── */}
-      <MultiplayerModal
-        showMultiplayer={showMultiplayer}
-        showModes={showModes}
-        mpOverlayRef={mpOverlayRef}
-        isTransitioningRef={isTransitioningRef}
-        handleCloseMp={handleCloseMp}
-        handleMpToModes={handleMpToModes}
-        handleQuickMatch={handleQuickMatch}
-        isMatching={isMatching}
-        handleCardMouseMove={handleCardMouseMove}
-        handleCardMouseLeave={handleCardMouseLeave}
-        mpCardsRef={mpCardsRef}
-        mpBackRef={mpBackRef}
-        mpPanel={mpPanel}
-        setMpPanel={setMpPanel}
-        hostIsPublic={hostIsPublic}
-        setHostIsPublic={setHostIsPublic}
-        hostAutoCode={hostAutoCode}
-        handleRerollCode={handleRerollCode}
-        handleHostRealm={handleHostRealm}
-        isHosting={isHosting}
-        roomCode={roomCode}
-        handleRoomCodeChange={handleRoomCodeChange}
-        handlePasteCode={handlePasteCode}
-        handleJoinSpecificRoom={handleJoinSpecificRoom}
-        openRooms={openRooms}
-      />
+        {(showMultiplayer || showModes) && (
+          <MultiplayerModal
+            showMultiplayer={showMultiplayer}
+            showModes={showModes}
+            mpOverlayRef={mpOverlayRef}
+            isTransitioningRef={isTransitioningRef}
+            handleCloseMp={handleCloseMp}
+            handleMpToModes={handleMpToModes}
+            handleQuickMatch={handleQuickMatch}
+            isMatching={isMatching}
+            handleCardMouseMove={handleCardMouseMove}
+            handleCardMouseLeave={handleCardMouseLeave}
+            mpCardsRef={mpCardsRef}
+            mpBackRef={mpBackRef}
+            mpPanel={mpPanel}
+            setMpPanel={setMpPanel}
+            hostIsPublic={hostIsPublic}
+            setHostIsPublic={setHostIsPublic}
+            hostAutoCode={hostAutoCode}
+            handleRerollCode={handleRerollCode}
+            handleHostRealm={handleHostRealm}
+            isHosting={isHosting}
+            roomCode={roomCode}
+            handleRoomCodeChange={handleRoomCodeChange}
+            handlePasteCode={handlePasteCode}
+            handleJoinSpecificRoom={handleJoinSpecificRoom}
+            openRooms={openRooms}
+          />
+        )}
 
-      {/* ── SCREEN 4: FACTION SELECTION MODAL ── */}
-      <FactionSelectionOverlay
-        showFactionSelection={showFactionSelection}
-        factionOverlayRef={factionOverlayRef}
-        currentRoomId={currentRoomId}
-        copiedLink={copiedLink}
-        handleCopyInviteLink={handleCopyInviteLink}
-        disbandCountdown={disbandCountdown}
-        playersList={playersList}
-        snowCardRef={snowCardRef}
-        ashCardRef={ashCardRef}
-        hoveredFaction={hoveredFaction}
-        setHoveredFaction={setHoveredFaction}
-        handleSelectFaction={handleSelectFaction}
-        factionBackRef={factionBackRef}
-        handleCancelFaction={handleCancelFaction}
-        currentMode={currentMode}
-        snowBtnState={snowBtnState}
-        ashBtnState={ashBtnState}
-      />
+        {showFactionSelection && (
+          <FactionSelectionOverlay
+            showFactionSelection={showFactionSelection}
+            factionOverlayRef={factionOverlayRef}
+            currentRoomId={currentRoomId}
+            copiedLink={copiedLink}
+            handleCopyInviteLink={handleCopyInviteLink}
+            disbandCountdown={disbandCountdown}
+            playersList={playersList}
+            snowCardRef={snowCardRef}
+            ashCardRef={ashCardRef}
+            hoveredFaction={hoveredFaction}
+            setHoveredFaction={setHoveredFaction}
+            handleSelectFaction={handleSelectFaction}
+            factionBackRef={factionBackRef}
+            handleCancelFaction={handleCancelFaction}
+            currentMode={currentMode}
+            snowBtnState={snowBtnState}
+            ashBtnState={ashBtnState}
+          />
+        )}
+      </Suspense>
 
     </div>
   );

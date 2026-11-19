@@ -13,6 +13,12 @@ export default function LobbyHero({
   onWarm,
   setShowModes
 }) {
+  const prewarmLobbyFlow = () => {
+    onWarm?.('GAME');
+    import('./ModeSelectModal.jsx');
+    import('gsap');
+  };
+
   return (
     <main className="relative z-10 w-full flex-grow flex flex-col items-center justify-center px-4 pt-20 pb-12 text-center">
       <RecoverableSessionBanner
@@ -62,7 +68,10 @@ export default function LobbyHero({
         <button
           ref={playBtnRef}
           className="home-play-button min-w-56 px-10 py-4 glass-obsidian transition-all duration-300 active:scale-95 group rounded-xl border border-ember-gold/40 hover:border-ember-gold/80 flex items-center justify-center gap-4 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-gold focus-visible:ring-offset-4 focus-visible:ring-offset-void-black"
-          onClick={() => { triggerHaptic('light'); onWarm?.('GAME'); setShowModes(true); }}
+          onMouseEnter={prewarmLobbyFlow}
+          onTouchStart={prewarmLobbyFlow}
+          onFocus={prewarmLobbyFlow}
+          onClick={() => { triggerHaptic('light'); prewarmLobbyFlow(); setShowModes(true); }}
         >
           <span className="relative rye-font text-xl md:text-2xl text-ember-gold tracking-[0.32em] group-hover:translate-x-1 transition-transform block">
             PLAY

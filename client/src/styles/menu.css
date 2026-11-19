@@ -51,9 +51,19 @@
   }
 }
 
-.animate-title-shimmer {
-  background-size: 200% 200% !important;
-  animation: titleShimmer 6s ease-in-out infinite;
+@media (hover: hover) and (pointer: fine) {
+  .animate-title-shimmer {
+    background-size: 200% 200% !important;
+    animation: titleShimmer 6s ease-in-out infinite;
+    animation-delay: 2.5s;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .animate-title-shimmer {
+    background-size: 100% 100% !important;
+    animation: none !important;
+  }
 }
 
 .animate-pulse-glow {
@@ -157,8 +167,18 @@
   }
 }
 
-.animate-slow-zoom {
-  animation: slow-zoom 20s ease-in-out infinite alternate;
+@media (hover: hover) and (pointer: fine) {
+  .animate-slow-zoom {
+    animation: slow-zoom 20s ease-in-out infinite alternate;
+    animation-delay: 2.5s;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .animate-slow-zoom {
+    transform: scale(1.04);
+    animation: none !important;
+  }
 }
 
 body {

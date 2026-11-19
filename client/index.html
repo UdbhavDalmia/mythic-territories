@@ -706,23 +706,29 @@
       }
     }
 
-    .animate-title-shimmer {
-      background-size: 200% 200% !important;
-      animation: titleShimmer 6s ease-in-out infinite;
-    }
-
-    @keyframes slow-zoom {
-      0% {
-        transform: scale(1.03);
+    @media (hover: hover) and (pointer: fine) {
+      .animate-title-shimmer {
+        background-size: 200% 200% !important;
+        animation: titleShimmer 6s ease-in-out infinite;
+        animation-delay: 2.5s;
       }
 
-      100% {
-        transform: scale(1.12);
+      .animate-slow-zoom {
+        animation: slow-zoom 20s ease-in-out infinite alternate;
+        animation-delay: 2.5s;
       }
     }
 
-    .animate-slow-zoom {
-      animation: slow-zoom 20s ease-in-out infinite alternate;
+    @media (hover: none), (pointer: coarse) {
+      .animate-title-shimmer {
+        background-size: 100% 100% !important;
+        animation: none !important;
+      }
+
+      .animate-slow-zoom {
+        transform: scale(1.04);
+        animation: none !important;
+      }
     }
 
     @media (min-width: 640px) {
