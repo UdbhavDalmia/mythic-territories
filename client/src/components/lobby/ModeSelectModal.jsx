@@ -1,5 +1,8 @@
 import React from 'react';
-import { Users, Globe2, Bot, ArrowLeft } from 'lucide-react';
+import Users from 'lucide-react/dist/esm/icons/users.js';
+import Globe2 from 'lucide-react/dist/esm/icons/globe-2.js';
+import Bot from 'lucide-react/dist/esm/icons/bot.js';
+import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left.js';
 
 export default function ModeSelectModal({
   showModes,

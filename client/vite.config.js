@@ -12,9 +12,17 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@shared': path.resolve(__dirname, '../shared'),
+      'lucide-react/dist/esm/icons': path.resolve(__dirname, './node_modules/lucide-react/dist/esm/icons'),
     },
   },
+  optimizeDeps: {
+    include: ['lucide-react'],
+  },
   build: {
+    target: 'es2020',
+    minify: 'esbuild',
+    sourcemap: false,
+    reportCompressedSize: false,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -26,6 +34,9 @@ export default defineConfig({
           }
           if (id.includes('node_modules/firebase') || id.includes('node_modules/@firebase')) {
             return 'vendor-firebase';
+          }
+          if (id.includes('src/services/multiplayer')) {
+            return 'multiplayer';
           }
         }
       }

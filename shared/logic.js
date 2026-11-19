@@ -27,30 +27,37 @@ export const GameState = {
   TETHER_TARGETING: "TETHER_TARGETING"
 };
 
-export const getGameState = () => gameState;
-export const getCurrentState = () => gameState.currentState || GameState.AWAITING_PIECE_SELECTION;
-export const setCurrentState = (s) => {
-  gameState.currentState = s;
-  emit(gameState, { type: "STATE_CHANGE", state: s });
+export const getGameState = (gs = gameState) => gs;
+export const getCurrentState = (gs = gameState) => (gs && gs.currentState) || GameState.AWAITING_PIECE_SELECTION;
+export const setCurrentState = (s, gs = gameState) => {
+  if (gs) {
+    gs.currentState = s;
+    emit(gs, { type: "STATE_CHANGE", state: s });
+  }
 };
-export const isState = (s) => getCurrentState() === s;
+export const isState = (s, gs = gameState) => getCurrentState(gs) === s;
 
 // ============================================================================
 // THE EVENT QUEUE (Multiplayer Architecture)
 // ============================================================================
-export function emit(gs, eventPayload) {
+export function emit(gs = gameState, eventPayload) {
+  if (!eventPayload && typeof gs === 'object' && gs?.type) {
+    eventPayload = gs;
+    gs = gameState;
+  }
+  if (!gs) return;
   if (!gs.events) gs.events = [];
   gs.events.push(eventPayload);
 }
 
 // Helper to replace all old UI flash calls
-const flash = (msg, team, gs) =>
+const flash = (msg, team, gs = gameState) =>
   emit(gs, { type: "FLASH", message: msg, team });
 
 // ============================================================================
 // LOGIC HELPERS
 // ============================================================================
-export function checkTerritoryThresholds(gs) {
+export function checkTerritoryThresholds(gs = gameState) {
   if (!gs || !gs.factionPassives) return;
   const snowSize = gs.snowTerritory ? (typeof gs.snowTerritory.size === 'number' ? gs.snowTerritory.size : gs.snowTerritory.length) : 0;
   const ashSize = gs.ashTerritory ? (typeof gs.ashTerritory.size === 'number' ? gs.ashTerritory.size : gs.ashTerritory.length) : 0;
@@ -64,7 +71,7 @@ const isLeader = (piece) =>
   piece && (piece.key.includes("Lord") || piece.key.includes("Tyrant"));
 const inBounds = (r, c) => r >= 0 && r < C.ROWS && c >= 0 && c < C.COLS;
 
-export function checkSpecialTerrains(p, r, c, gs) {
+export function checkSpecialTerrains(p, r, c, gs = gameState) {
   const trapIndex = gs.specialTerrains.findIndex(
     (t) => Math.round(t.row) === Math.round(r) && Math.round(t.col) === Math.round(c)
   );
@@ -106,13 +113,13 @@ export function checkSpecialTerrains(p, r, c, gs) {
 }
 
 // Internal helper for state normalization
-function ensureSets(gs) {
+function ensureSets(gs = gameState) {
   if (Array.isArray(gs.snowTerritory)) gs.snowTerritory = new Set(gs.snowTerritory);
   if (Array.isArray(gs.ashTerritory)) gs.ashTerritory = new Set(gs.ashTerritory);
   if (!gs.territoryTrails) gs.territoryTrails = [];
 }
 
-export function resolveDeaths(gs, defaultAttacker = null) {
+export function resolveDeaths(gs = gameState, defaultAttacker = null) {
   let deathResolved = true;
   let anyDied = false;
   while (deathResolved) {
@@ -134,7 +141,7 @@ export function resolveDeaths(gs, defaultAttacker = null) {
  * before an AoE source removes a piece. Returns true if the passive intercepted the kill.
  * Call this in AoE upkeep loops instead of directly invoking handlePieceCapture when HP <= 0.
  */
-export function applyAoeLethalPassives(piece, gameState) {
+export function applyAoeLethalPassives(piece, gs = gameState) {
   if (!piece || typeof piece.currentHp !== "number" || piece.currentHp > 0) return false;
 
   // Frost Lord – Help From Above
@@ -153,11 +160,11 @@ export function applyAoeLethalPassives(piece, gameState) {
       const rad = C.ABILITY_VALUES.HelpFromAbove?.radius || 1.5;
       const strBoost = C.ABILITY_VALUES.HelpFromAbove?.strengthBoost || 1;
       const duration = C.ABILITY_VALUES.HelpFromAbove?.activeDuration || 3;
-      if (gameState.pieces) {
-        gameState.temporaryBoosts = gameState.temporaryBoosts || [];
-        gameState.pieces.forEach(p => {
+      if (gs.pieces) {
+        gs.temporaryBoosts = gs.temporaryBoosts || [];
+        gs.pieces.forEach(p => {
           if (p.team === piece.team && p.id !== piece.id && Math.hypot(p.row - piece.row, p.col - piece.col) <= rad) {
-            gameState.temporaryBoosts.push({
+            gs.temporaryBoosts.push({
               pieceId: p.id,
               duration: duration,
               amount: strBoost,
@@ -167,12 +174,12 @@ export function applyAoeLethalPassives(piece, gameState) {
         });
       }
 
-      flash(`Help From Above! Frost Lord is shielded and bolsters nearby allies.`, piece.team, gameState);
+      flash(`Help From Above! Frost Lord is shielded and bolsters nearby allies.`, piece.team, gs);
 
       // Emit the animation trigger for the client
-      if (typeof window === 'undefined' || gameState.isLocalSimulation !== true) {
-        if (!gameState.events) gameState.events = [];
-        gameState.events.push({
+      if (typeof window === 'undefined' || gs.isLocalSimulation !== true) {
+        if (!gs.events) gs.events = [];
+        gs.events.push({
           type: "ANIMATION",
           name: "GuardianSave",
           pieceId: piece.id,
@@ -203,8 +210,8 @@ export function applyAoeLethalPassives(piece, gameState) {
 
       // 1. AoE Damage to all units within Radius 2 (enemies take 4 dmg, allies take 2 dmg)
       let aoeHits = 0;
-      if (gameState.pieces) {
-        gameState.pieces.forEach(p => {
+      if (gs.pieces) {
+        gs.pieces.forEach(p => {
           if (C.cellIntersectsCircle(p.row, p.col, currentR, currentC, 2) && p.id !== piece.id) {
             if (p.key === 'snowFrostLord' && p.hasHelpFromAboveActive) {
               return; // Skip damage due to active Help From Above protective state
@@ -221,14 +228,14 @@ export function applyAoeLethalPassives(piece, gameState) {
         });
       }
 
-      flash(`Death Meteor strikes! 4 AoE damage dealt to nearby enemies.`, piece.team, gameState);
+      flash(`Death Meteor strikes! 4 AoE damage dealt to nearby enemies.`, piece.team, gs);
 
       // 2. Create the permanent crater and scorched ground at original position
-      gameState.deathMeteors = gameState.deathMeteors || [];
-      gameState.deathMeteors.push({ r: currentR, c: currentC, duration: 6 });
+      gs.deathMeteors = gs.deathMeteors || [];
+      gs.deathMeteors.push({ r: currentR, c: currentC, duration: 6 });
 
-      gameState.specialTerrains = gameState.specialTerrains || [];
-      gameState.specialTerrains.push({
+      gs.specialTerrains = gs.specialTerrains || [];
+      gs.specialTerrains.push({
         row: currentR,
         col: currentC,
         type: "crater",
@@ -236,9 +243,9 @@ export function applyAoeLethalPassives(piece, gameState) {
       });
 
       // Secondary explosive payload logic: spawn Unstable Ground with isBurningGround on center position
-      gameState.unstableGrounds = gameState.unstableGrounds || [];
-      if (!gameState.unstableGrounds.some(g => Math.hypot(g.row - currentR, g.col - currentC) < 0.4)) {
-        gameState.unstableGrounds.push({
+      gs.unstableGrounds = gs.unstableGrounds || [];
+      if (!gs.unstableGrounds.some(g => Math.hypot(g.row - currentR, g.col - currentC) < 0.4)) {
+        gs.unstableGrounds.push({
           row: currentR,
           col: currentC,
           duration: 3,
@@ -250,10 +257,10 @@ export function applyAoeLethalPassives(piece, gameState) {
       // 3. Find a safe adjacent point to move the Tyrant to
       const isCandidateValid = cand => {
         if (cand.r < 0 || cand.r >= C.ROWS || cand.c < 0 || cand.c >= C.COLS) return false;
-        if ((gameState.voidSquares || []).some(v => Math.hypot(v.row - cand.r, v.col - cand.c) < 0.6)) return false;
-        if ((gameState.glacialWalls || []).some(w => Math.hypot(w.row - cand.r, w.col - cand.c) < 0.6)) return false;
-        if ((gameState.specialTerrains || []).some(t => t.type === 'crater' && Math.hypot(t.row - cand.r, t.col - cand.c) < 0.6 && !(Math.hypot(t.row - currentR, t.col - currentC) < 0.2))) return false;
-        if ((gameState.pieces || []).some(p => p.id !== piece.id && Math.hypot(p.row - cand.r, p.col - cand.c) < 0.7)) return false;
+        if ((gs.voidSquares || []).some(v => Math.hypot(v.row - cand.r, v.col - cand.c) < 0.6)) return false;
+        if ((gs.glacialWalls || []).some(w => Math.hypot(w.row - cand.r, w.col - cand.c) < 0.6)) return false;
+        if ((gs.specialTerrains || []).some(t => t.type === 'crater' && Math.hypot(t.row - cand.r, t.col - cand.c) < 0.6 && !(Math.hypot(t.row - currentR, t.col - currentC) < 0.2))) return false;
+        if ((gs.pieces || []).some(p => p.id !== piece.id && Math.hypot(p.row - cand.r, p.col - cand.c) < 0.7)) return false;
         return true;
       };
 
@@ -282,7 +289,7 @@ export function applyAoeLethalPassives(piece, gameState) {
       const choice = validCandidates.length > 0 ? validCandidates[0] : null;
 
       // Emit DeathMeteor animation with explicit origin and destination
-      emit(gameState, {
+      emit(gs, {
         type: 'ANIMATION',
         name: 'DeathMeteor',
         pieceId: piece.id,
@@ -294,11 +301,11 @@ export function applyAoeLethalPassives(piece, gameState) {
 
       if (choice) {
         piece.deathMeteorOrigin = { row: currentR, col: currentC };
-        updatePiecePosition(piece, choice.r, choice.c);
+        updatePiecePosition(piece, choice.r, choice.c, gs);
       }
 
       // Resolve collateral deaths caused by the explosion
-      resolveDeaths(gameState, piece);
+      resolveDeaths(gs, piece);
 
       return true; // intercept: do NOT capture
     }
@@ -308,7 +315,7 @@ export function applyAoeLethalPassives(piece, gameState) {
 }
 
 // Unified handler for unit destruction (reverts tethers, triggers passives)
-export function handlePieceCapture(capturedPiece, attacker, gs) {
+export function handlePieceCapture(capturedPiece, attacker = null, gs = gameState) {
   if (!capturedPiece) return false;
 
   // 0. Intercept deaths via passives (e.g. Ash Tyrant's Death Meteor)
@@ -426,7 +433,7 @@ export function handlePieceCapture(capturedPiece, attacker, gs) {
 
   // 5. End game if leader
   if (capturedPiece.key.includes("Lord") || capturedPiece.key.includes("Tyrant")) {
-    endGame(attacker ? attacker.team : (capturedPiece.team === "snow" ? "ash" : "snow"));
+    endGame(attacker ? attacker.team : (capturedPiece.team === "snow" ? "ash" : "snow"), gs);
   }
 
   flash(`${C.PIECE_TYPES[capturedPiece.key]?.name || 'Unit'} was captured!`, attacker ? attacker.team : 'neutral', gs);
@@ -436,13 +443,13 @@ export function handlePieceCapture(capturedPiece, attacker, gs) {
 // ============================================================================
 // ABILITY ACTIVATION & EXECUTION
 // ============================================================================
-export function activateAbility(piece, unleashCostOrKey = 0) {
+export function activateAbility(piece, unleashCostOrKey = 0, gs = gameState) {
   if (!piece) return false;
   if ((piece.stuck || 0) > 0 || piece.isDazed) {
     flash(
       "This unit cannot use abilities while stuck or dazed.",
       piece.team,
-      gameState
+      gs
     );
     return false;
   }
@@ -469,38 +476,38 @@ export function activateAbility(piece, unleashCostOrKey = 0) {
   const ability = C.ABILITIES[abilityKeyToUse];
   if (!ability) return false;
 
-  emit(gameState, { type: "HIDE_ABILITY_PANEL" });
+  emit(gs, { type: "HIDE_ABILITY_PANEL" });
 
   if (abilityKeyToUse === "GlacialWall" || (piece.ability?.isVeteranFortress && abilityKeyToUse === "GlacialFortress")) {
-    setCurrentState(GameState.WALL_PLACEMENT_FIRST);
-    gameState.abilityContext = { piece, abilityKey: "GlacialWall" };
-    flash("Select a location for the first wall.", piece.team, gameState);
+    setCurrentState(GameState.WALL_PLACEMENT_FIRST, gs);
+    gs.abilityContext = { piece, abilityKey: "GlacialWall" };
+    flash("Select a location for the first wall.", piece.team, gs);
     return false;
   }
 
   if (abilityKeyToUse === "FateLink") {
-    ensureSets(gameState);
-    gameState.abilityContext = { piece, abilityKey: abilityKeyToUse, step: 1 };
-    setCurrentState(GameState.ABILITY_TARGETING);
-    flash("Select a friendly target for Fate Link.", piece.team, gameState);
+    ensureSets(gs);
+    gs.abilityContext = { piece, abilityKey: abilityKeyToUse, step: 1 };
+    setCurrentState(GameState.ABILITY_TARGETING, gs);
+    flash("Select a friendly target for Fate Link.", piece.team, gs);
     return false;
   }
 
   if (!ability.requiresTargeting)
-    return executeAbility(piece, null, abilityKeyToUse, gameState);
+    return executeAbility(piece, null, abilityKeyToUse, gs);
 
-  ensureSets(gameState);
-  gameState.abilityContext = { piece, abilityKey: abilityKeyToUse };
-  setCurrentState(GameState.ABILITY_TARGETING);
-  flash(`Select a target for ${ability.name}.`, piece.team, gameState);
+  ensureSets(gs);
+  gs.abilityContext = { piece, abilityKey: abilityKeyToUse };
+  setCurrentState(GameState.ABILITY_TARGETING, gs);
+  flash(`Select a target for ${ability.name}.`, piece.team, gs);
   return false;
 }
 
 export function executeAbility(
   piece,
-  target,
-  abilityKey,
-  gameStateLocal,
+  target = null,
+  abilityKey = null,
+  gameStateLocal = gameState,
   isAiTurn = false
 ) {
   const ability = C.ABILITIES[abilityKey];
@@ -520,7 +527,7 @@ export function executeAbility(
   ) {
     if (!isAiTurn) {
       flash("Invalid target.", piece.team, gameStateLocal);
-      deselectPiece();
+      deselectPiece(gameStateLocal);
     }
     return false;
   }
@@ -536,8 +543,8 @@ export function executeAbility(
     if (!targetPiece) return false;
     const pieceRow = piece.row,
       pieceCol = piece.col;
-    updatePiecePosition(piece, targetPiece.row, targetPiece.col);
-    updatePiecePosition(targetPiece, pieceRow, pieceCol);
+    updatePiecePosition(piece, targetPiece.row, targetPiece.col, gameStateLocal);
+    updatePiecePosition(targetPiece, pieceRow, pieceCol, gameStateLocal);
     piece.isDazed = true;
     piece.dazedFor = C.ABILITY_VALUES[abilityKey].duration;
     targetPiece.isDazed = true;
@@ -549,7 +556,7 @@ export function executeAbility(
       piece.team,
       gameStateLocal
     );
-    if (!isAiTurn) deselectPiece();
+    if (!isAiTurn) deselectPiece(gameStateLocal);
     updateBoardMap(gameStateLocal);
     checkTerritoryThresholds(gameStateLocal);
     return true;
@@ -584,7 +591,7 @@ export function executeAbility(
       }
       piece.secondaryAbilityCooldown = 0;
       flash(`${C.PIECE_TYPES[piece.key].name} recharges ${C.ABILITIES[mainAbilityKey]?.name || 'ability'}!`, piece.team, gameStateLocal);
-      if (!isAiTurn) deselectPiece();
+      if (!isAiTurn) deselectPiece(gameStateLocal);
       updateBoardMap(gameStateLocal);
       return true;
     }
@@ -593,19 +600,19 @@ export function executeAbility(
 
     // Execute standard or special effects
     if (abilityKey === "Siphon") {
-      const success = handleSiphon(piece);
+      const success = handleSiphon(piece, gameStateLocal);
       if (!success) {
-        if (!isAiTurn) deselectPiece();
+        if (!isAiTurn) deselectPiece(gameStateLocal);
         return false; // Invalid siphon context
       }
     } else if (abilityKey === "Pummel" && targetPiece) {
       const tgtOldR = targetPiece.row, tgtOldC = targetPiece.col;
-      ability.effect(piece, target, gameStateLocal, createPiece);
+      ability.effect(piece, target, gameStateLocal, (r, c, k, t) => createPiece(r, c, k, t, gameStateLocal));
       if (targetPiece.row !== tgtOldR || targetPiece.col !== tgtOldC) {
         emit(gameStateLocal, { type: "ANIMATION", name: "PummelKnockback", targetPieceId: targetPiece.id, attackerR: oldRow, attackerC: oldCol, oldRow: tgtOldR, oldCol: tgtOldC, newRow: targetPiece.row, newCol: targetPiece.col });
       }
     } else if (ability.effect) {
-      ability.effect(piece, target, gameStateLocal, createPiece);
+      ability.effect(piece, target, gameStateLocal, (r, c, k, t) => createPiece(r, c, k, t, gameStateLocal));
     }
 
     // Attach specific animations
@@ -687,7 +694,7 @@ export function executeAbility(
         } else if (gameStateLocal.factionPassives?.[piece.team]?.ascension?.PrimalPower) {
           isPower1 = true;
         }
-        const newWisp = createPiece(bestTile.r, bestTile.c, "snowIceWisp", piece.team);
+        const newWisp = createPiece(bestTile.r, bestTile.c, "snowIceWisp", piece.team, gameStateLocal);
         newWisp.power = isPower1 ? 1 : 0;
         gameStateLocal.pieces.push(newWisp);
         emit(gameStateLocal, { type: "ANIMATION", name: "GlacialFracture", targetR: target.r, targetC: target.c, wispId: newWisp.id });
@@ -743,23 +750,23 @@ export function executeAbility(
 
   // 5. FINALIZE TURN
   resolveDeaths(gameStateLocal, piece);
-  if (!isAiTurn) deselectPiece();
+  if (!isAiTurn) deselectPiece(gameStateLocal);
   updateBoardMap(gameStateLocal);
-  updateConduitLink();
+  updateConduitLink(gameStateLocal);
   checkTerritoryThresholds(gameStateLocal);
   return true;
 }
 
-export function handleAbilityClick(row, col) {
+export function handleAbilityClick(row, col, gs = gameState) {
   if (
-    isState(GameState.WALL_PLACEMENT_FIRST) ||
-    isState(GameState.WALL_PLACEMENT_SECOND)
+    isState(GameState.WALL_PLACEMENT_FIRST, gs) ||
+    isState(GameState.WALL_PLACEMENT_SECOND, gs)
   )
-    return handleGlacialWall(row, col);
+    return handleGlacialWall(row, col, gs);
 
-  if (isState(GameState.TETHER_TARGETING)) {
-    const { siphoner, mode, allyTarget } = gameState.abilityContext;
-    const targetPiece = C.getPieceAt(row, col, gameState.pieces);
+  if (isState(GameState.TETHER_TARGETING, gs)) {
+    const { siphoner, mode, allyTarget } = gs.abilityContext;
+    const targetPiece = C.getPieceAt(row, col, gs.pieces);
 
     if (mode === "resonance") {
       if (!allyTarget) {
@@ -768,94 +775,94 @@ export function handleAbilityClick(row, col) {
             flash(
               "Cannot select yourself for Resonance.",
               siphoner.team,
-              gameState
+              gs
             );
             return false;
           }
-          gameState.abilityContext.allyTarget = targetPiece;
+          gs.abilityContext.allyTarget = targetPiece;
           flash(
             "Select an ENEMY target for Resonance.",
             siphoner.team,
-            gameState
+            gs
           );
         } else {
-          flash("Invalid target. Select an ALLY.", siphoner.team, gameState);
+          flash("Invalid target. Select an ALLY.", siphoner.team, gs);
         }
         return false;
       } else {
         if (targetPiece && targetPiece.team !== siphoner.team) {
-          handleTether(siphoner, mode, allyTarget, targetPiece);
-          deselectPiece();
+          handleTether(siphoner, mode, allyTarget, targetPiece, gs);
+          deselectPiece(gs);
           return true;
         } else {
-          flash("Invalid target. Select an ENEMY.", siphoner.team, gameState);
+          flash("Invalid target. Select an ENEMY.", siphoner.team, gs);
           return false;
         }
       }
     } else if (mode === "benevolent" || mode === "parasitic") {
       if (targetPiece && targetPiece.team === siphoner.team) {
-        const ok = handleTether(siphoner, mode, targetPiece, null);
+        const ok = handleTether(siphoner, mode, targetPiece, null, gs);
         if (ok) {
-          deselectPiece();
+          deselectPiece(gs);
           return true;
         }
-        flash("Cannot siphon: target has no power.", siphoner.team, gameState);
+        flash("Cannot siphon: target has no power.", siphoner.team, gs);
         return false;
       }
     } else if (mode === "hostile") {
       if (targetPiece && targetPiece.team !== siphoner.team) {
-        const ok = handleTether(siphoner, mode, null, targetPiece);
+        const ok = handleTether(siphoner, mode, null, targetPiece, gs);
         if (ok) {
-          deselectPiece();
+          deselectPiece(gs);
           return true;
         }
-        flash("Cannot siphon: target has no power.", siphoner.team, gameState);
+        flash("Cannot siphon: target has no power.", siphoner.team, gs);
         return false;
       }
     }
-    flash("Invalid target.", siphoner.team, gameState);
+    flash("Invalid target.", siphoner.team, gs);
     return false;
   }
 
-  if (isState(GameState.ABILITY_TARGETING)) {
-    const { piece, abilityKey, step, target1 } = gameState.abilityContext;
+  if (isState(GameState.ABILITY_TARGETING, gs)) {
+    const { piece, abilityKey, step, target1 } = gs.abilityContext;
     if (abilityKey === "FateLink") {
-      const tp = C.getPieceAt(row, col, gameState.pieces);
+      const tp = C.getPieceAt(row, col, gs.pieces);
       if (step === 1) {
         if (tp && tp.team === piece.team && Math.hypot(tp.col - piece.col, tp.row - piece.row) <= C.ABILITIES.FateLink.range) {
-          gameState.abilityContext.step = 2;
-          gameState.abilityContext.target1 = { r: tp.row, c: tp.col, id: tp.id };
-          flash("Select an enemy target for Fate Link.", piece.team, gameState);
+          gs.abilityContext.step = 2;
+          gs.abilityContext.target1 = { r: tp.row, c: tp.col, id: tp.id };
+          flash("Select an enemy target for Fate Link.", piece.team, gs);
         } else {
-          flash("Invalid friendly target.", piece.team, gameState);
-          deselectPiece();
+          flash("Invalid friendly target.", piece.team, gs);
+          deselectPiece(gs);
         }
         return false;
       } else if (step === 2) {
         if (tp && tp.team !== piece.team && Math.hypot(tp.col - piece.col, tp.row - piece.row) <= C.ABILITIES.FateLink.range) {
-          return executeAbility(piece, { r: tp.row, c: tp.col, target1 }, abilityKey, gameState);
+          return executeAbility(piece, { r: tp.row, c: tp.col, target1 }, abilityKey, gs);
         } else {
-          flash("Invalid enemy target.", piece.team, gameState);
-          deselectPiece();
+          flash("Invalid enemy target.", piece.team, gs);
+          deselectPiece(gs);
           return false;
         }
       }
     }
-    return executeAbility(piece, { r: row, c: col }, abilityKey, gameState);
+    return executeAbility(piece, { r: row, c: col }, abilityKey, gs);
   }
   return false;
 }
 
-function handleGlacialWall(row, col) {
-  const piece = gameState.selectedPiece;
-  const targetPiece = C.getPieceAt(row, col, gameState.pieces);
+function handleGlacialWall(row, col, gs = gameState) {
+  const piece = gs.selectedPiece;
+  const targetPiece = C.getPieceAt(row, col, gs.pieces);
   const isVeteranFortress = piece.ability?.isVeteranFortress;
 
-  if (isState(GameState.WALL_PLACEMENT_FIRST)) {
-    const isVoid = (gameState.voidSquares || []).some(
+  if (isState(GameState.WALL_PLACEMENT_FIRST, gs)) {
+    const isVoid = (gs.voidSquares || []).some(
       (v) => v.row === row && v.col === col
     );
-    const hasWall = (gameState.glacialWalls || []).some(
+    const hasWall = (gs.glacialWalls || []).some(
       (w) => w.row === row && w.col === col
     );
     if (
@@ -866,18 +873,18 @@ function handleGlacialWall(row, col) {
       Math.abs(piece.col - col) <= 1 &&
       !(piece.row === row && piece.col === col)
     ) {
-      gameState.firstWallCoords = { row, col };
-      setCurrentState(GameState.WALL_PLACEMENT_SECOND);
-      flash("Select location for the second wall.", piece.team, gameState);
-    } else deselectPiece();
+      gs.firstWallCoords = { row, col };
+      setCurrentState(GameState.WALL_PLACEMENT_SECOND, gs);
+      flash("Select location for the second wall.", piece.team, gs);
+    } else deselectPiece(gs);
     return false;
   }
 
-  const { firstWallCoords } = gameState;
-  const isSecondVoid = (gameState.voidSquares || []).some(
+  const { firstWallCoords } = gs;
+  const isSecondVoid = (gs.voidSquares || []).some(
     (v) => v.row === row && v.col === col
   );
-  const isSecondWall = (gameState.glacialWalls || []).some(
+  const isSecondWall = (gs.glacialWalls || []).some(
     (w) => w.row === row && w.col === col
   );
 
@@ -888,24 +895,24 @@ function handleGlacialWall(row, col) {
     Math.abs(firstWallCoords.row - row) <= 1 &&
     Math.abs(firstWallCoords.col - col) <= 1
   ) {
-    gameState.glacialWalls.push({
+    gs.glacialWalls.push({
       row: firstWallCoords.row,
       col: firstWallCoords.col,
       duration: C.ABILITY_VALUES.GlacialWall.duration
     });
-    emit(gameState, {
+    emit(gs, {
       type: "ANIMATION",
       name: "GlacialWall",
       r: firstWallCoords.row,
       c: firstWallCoords.col
     });
 
-    gameState.glacialWalls.push({
+    gs.glacialWalls.push({
       row,
       col,
       duration: C.ABILITY_VALUES.GlacialWall.duration
     });
-    emit(gameState, { type: "ANIMATION", name: "GlacialWall", r: row, c: col });
+    emit(gs, { type: "ANIMATION", name: "GlacialWall", r: row, c: col });
 
     if (isVeteranFortress) {
       const walls = [
@@ -924,20 +931,20 @@ function handleGlacialWall(row, col) {
               r3 < C.ROWS &&
               c3 >= 0 &&
               c3 < C.COLS &&
-              !C.getPieceAt(r3, c3, gameState.pieces) &&
-              !gameState.glacialWalls.some(
+              !C.getPieceAt(r3, c3, gs.pieces) &&
+              !gs.glacialWalls.some(
                 (w) => w.row === r3 && w.col === c3
               ) &&
-              !(gameState.voidSquares || []).some(
+              !(gs.voidSquares || []).some(
                 (v) => v.row === r3 && v.col === c3
               )
             ) {
-              gameState.glacialWalls.push({
+              gs.glacialWalls.push({
                 row: r3,
                 col: c3,
                 duration: C.ABILITY_VALUES.GlacialWall.duration
               });
-              emit(gameState, {
+              emit(gs, {
                 type: "ANIMATION",
                 name: "GlacialWall",
                 r: r3,
@@ -954,13 +961,13 @@ function handleGlacialWall(row, col) {
         : C.ABILITIES.GlacialWall.cooldown;
     } else piece.ability.cooldown = C.ABILITIES.GlacialWall.cooldown;
   }
-  deselectPiece();
-  gameState.firstWallCoords = null;
-  updateBoardMap(gameState);
+  deselectPiece(gs);
+  gs.firstWallCoords = null;
+  updateBoardMap(gs);
   return true;
 }
 
-function isTargetValid(piece, target, ability, gameStateLocal) {
+function isTargetValid(piece, target, ability, gameStateLocal = gameState) {
   if (!target) return !ability?.requiresTargeting;
   const { r, c } = target;
   const targetPiece = C.getPieceAt(r, c, gameStateLocal.pieces);
@@ -1007,25 +1014,25 @@ function isTargetValid(piece, target, ability, gameStateLocal) {
 // ============================================================================
 // MOVEMENT & COMBAT
 // ============================================================================
-export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
-  if (!gameState.gameStarted) return false;
+export function movePiece(piece, targetRow, targetCol, isHighwayMove = false, gs = gameState) {
+  if (!gs.gameStarted) return false;
   if (
-    gameState.gameOver ||
+    gs.gameOver ||
     !piece ||
     piece.isDazed ||
     (piece.stuck || 0) > 0 ||
     piece.isTrapped ||
-    piece.team !== gameState.currentTurn
+    piece.team !== gs.currentTurn
   )
     return false;
 
-  ensureSets(gameState);
+  ensureSets(gs);
 
   const startRow = piece.row;
   const startCol = piece.col;
 
   // 1. Exact grid check for any other piece at destination
-  const occupyingPiece = (gameState.pieces || []).find(
+  const occupyingPiece = (gs.pieces || []).find(
     (p) => p.id !== piece.id && Math.hypot(p.col - targetCol, p.row - targetRow) < 0.7
   );
 
@@ -1052,15 +1059,15 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
   let addedBoost = false;
 
   const actionTaken = () => {
-    gameState.lastMoveIndicator = { row: piece.row, col: piece.col, life: 1.0 };
-    deselectPiece();
-    updateBoardMap(gameState);
-    updateConduitLink();
-    checkTerritoryThresholds(gameState);
+    gs.lastMoveIndicator = { row: piece.row, col: piece.col, life: 1.0 };
+    deselectPiece(gs);
+    updateBoardMap(gs);
+    updateConduitLink(gs);
+    checkTerritoryThresholds(gs);
   };
 
   if (isActualHighway) {
-    gameState.temporaryBoosts.push({
+    gs.temporaryBoosts.push({
       pieceId: piece.id,
       amount: C.ANCHOR_AURA_POWER,
       duration: C.CONDUIT_HIGHWAY_BUFF_DURATION,
@@ -1073,9 +1080,9 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
     ([r, c]) => Math.hypot(c - targetCol, r - targetRow) <= 0.5
   );
 
-  if (isMovingToShrine && gameState.shrineIsOverloaded) {
-    const trapped = gameState.pieces.find(
-      (p) => p.id === gameState.trappedPiece
+  if (isMovingToShrine && gs.shrineIsOverloaded) {
+    const trapped = gs.pieces.find(
+      (p) => p.id === gs.trappedPiece
     );
     if (
       defender &&
@@ -1083,17 +1090,17 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
       trapped.team !== piece.team &&
       defender.id === trapped.id
     ) {
-      applySacrificeBuff(piece.team, gameState);
-      gameState.pieces = gameState.pieces.filter((p) => p.id !== trapped.id);
-      resetShrine(gameState);
-      updatePiecePosition(piece, targetRow, targetCol);
-      checkSpecialTerrains(piece, targetRow, targetCol, gameState);
+      applySacrificeBuff(piece.team, gs);
+      gs.pieces = gs.pieces.filter((p) => p.id !== trapped.id);
+      resetShrine(gs);
+      updatePiecePosition(piece, targetRow, targetCol, gs);
+      checkSpecialTerrains(piece, targetRow, targetCol, gs);
       actionTaken();
       return true;
     } else if (!defender && !trapped) {
-      updatePiecePosition(piece, targetRow, targetCol);
+      updatePiecePosition(piece, targetRow, targetCol, gs);
       piece.isTrapped = true;
-      gameState.trappedPiece = piece.id;
+      gs.trappedPiece = piece.id;
       actionTaken();
       return true;
     }
@@ -1101,19 +1108,18 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
 
   // Inside movePiece, replace the capture block
   if (defender && defender.team !== piece.team) {
-    if (isCaptureSuccessful(piece, defender, gameState)) {
-      const actuallyCaptured = handlePieceCapture(defender, piece, gameState);
+    if (isCaptureSuccessful(piece, defender, gs)) {
+      const actuallyCaptured = handlePieceCapture(defender, piece, gs);
 
       if (!actuallyCaptured) {
         // Intercepted by lethal passives (e.g. Death Meteor)
         if (piece.readyForVeteranPromotion) {
           piece.readyForVeteranPromotion = false;
-          promoteToVeteran(piece);
+          promoteToVeteran(piece, gs);
         }
-        // flash(`${C.PIECE_TYPES[piece.key]?.name || 'Unit'} attacked but ${C.PIECE_TYPES[defender.key]?.name || 'Defender'} survived!`, piece.team, gameState);
       } else {
         const color = defender.team === "ash" ? "#ff4400" : "#00ccff";
-        emit(gameState, {
+        emit(gs, {
           type: "ANIMATION",
           name: "ShatterCapture",
           r: defender.row,
@@ -1121,56 +1127,55 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false) {
           color
         });
 
-        if (gameState.factionPassives[piece.team].ascension.HitAndRun)
+        if (gs.factionPassives[piece.team].ascension.HitAndRun)
           piece.isEntrenched = true;
 
         if (piece.readyForVeteranPromotion) {
           piece.readyForVeteranPromotion = false;
-          promoteToVeteran(piece);
+          promoteToVeteran(piece, gs);
         }
-        if (isMovingToShrine) handleShrineCapture(piece, defender);
+        if (isMovingToShrine) handleShrineCapture(piece, defender, gs);
 
-        updatePiecePosition(piece, targetRow, targetCol);
+        updatePiecePosition(piece, targetRow, targetCol, gs);
         if (
           isMovingToShrine &&
-          gameState.shrineIsOverloaded &&
-          !gameState.trappedPiece
+          gs.shrineIsOverloaded &&
+          !gs.trappedPiece
         ) {
           piece.isTrapped = true;
-          gameState.trappedPiece = piece.id;
+          gs.trappedPiece = piece.id;
         }
       }
     } else {
       if (piece.readyForVeteranPromotion) {
         piece.readyForVeteranPromotion = false;
-        promoteToVeteran(piece);
+        promoteToVeteran(piece, gs);
       }
-      // flash(`${C.PIECE_TYPES[piece.key]?.name || 'Unit'} attacked but ${C.PIECE_TYPES[defender.key]?.name || 'Defender'} survived!`, piece.team, gameState);
     }
   } else {
     // Empty ground move: ensure target position is not blocked by an impassable obstacle
-    const isBlocked = (gameState.voidSquares || []).some(v => Math.hypot(v.row - targetRow, v.col - targetCol) < 0.6) ||
-                      (gameState.glacialWalls || []).some(w => Math.hypot(w.row - targetRow, w.col - targetCol) < 0.6) ||
-                      (gameState.specialTerrains || []).some(t => t.type === 'crater' && Math.hypot(t.row - targetRow, t.col - targetCol) < 0.65);
+    const isBlocked = (gs.voidSquares || []).some(v => Math.hypot(v.row - targetRow, v.col - targetCol) < 0.6) ||
+                      (gs.glacialWalls || []).some(w => Math.hypot(w.row - targetRow, w.col - targetCol) < 0.6) ||
+                      (gs.specialTerrains || []).some(t => t.type === 'crater' && Math.hypot(t.row - targetRow, t.col - targetCol) < 0.65);
     if (isBlocked) return false;
 
-    if (!gameState.movePulses) gameState.movePulses = [];
-    gameState.movePulses.push({ startRow, startCol, targetRow, targetCol, team: piece.team, life: 1.0 });
-    updatePiecePosition(piece, targetRow, targetCol);
-    // flash(`${C.PIECE_TYPES[piece.key]?.name || 'Unit'} moved.`, piece.team, gameState);
+    if (!gs.movePulses) gs.movePulses = [];
+    gs.movePulses.push({ startRow, startCol, targetRow, targetCol, team: piece.team, life: 1.0 });
+    updatePiecePosition(piece, targetRow, targetCol, gs);
   }
 
-  checkSpecialTerrains(piece, piece.row, piece.col, gameState);
-  consumeCore(piece, piece.row, piece.col, gameState);
+  checkSpecialTerrains(piece, piece.row, piece.col, gs);
+  consumeCore(piece, piece.row, piece.col, gs);
   actionTaken();
   return true;
 }
 
-function paintTerritoryPath(piece, startRow, startCol, endRow, endCol, gameState) {
-  if (!gameState.territoryTrails) gameState.territoryTrails = [];
+function paintTerritoryPath(piece, startRow, startCol, endRow, endCol, gs = gameState) {
+  if (!gs.territoryTrails) gs.territoryTrails = [];
+  if (!gs.territoryCaptureTurn) gs.territoryCaptureTurn = {};
 
   const dist = Math.hypot(endCol - startCol, endRow - startRow);
-  const radius = piece ? getEffectiveControl(piece, gameState) : 1;
+  const radius = piece ? getEffectiveControl(piece, gs) : 1;
   const team = piece ? piece.team : 'snow';
   const steps = dist === 0 ? 0 : Math.max(1, Math.ceil(dist / 0.5));
   const newPoints = [];
@@ -1180,7 +1185,7 @@ function paintTerritoryPath(piece, startRow, startCol, endRow, endCol, gameState
     const r = startRow + (endRow - startRow) * t;
     const c = startCol + (endCol - startCol) * t;
 
-    const isRedundant = gameState.territoryTrails.some(oldT => {
+    const isRedundant = gs.territoryTrails.some(oldT => {
       if (oldT.team !== team || oldT.radius < radius) return false;
       const dx = oldT.col - c;
       const dy = oldT.row - r;
@@ -1209,13 +1214,13 @@ function paintTerritoryPath(piece, startRow, startCol, endRow, endCol, gameState
         if ((dx * dx + dy * dy) <= radius * radius) {
           const pos = `${gr},${gc}`;
           if (team === 'snow') {
-            gameState.snowTerritory.add(pos);
-            gameState.ashTerritory.delete(pos);
+            gs.snowTerritory.add(pos);
+            gs.ashTerritory.delete(pos);
           } else {
-            gameState.ashTerritory.add(pos);
-            gameState.snowTerritory.delete(pos);
+            gs.ashTerritory.add(pos);
+            gs.snowTerritory.delete(pos);
           }
-          gameState.territoryCaptureTurn[pos] = gameState.turnCount;
+          gs.territoryCaptureTurn[pos] = gs.turnCount;
         }
       }
     }
@@ -1225,7 +1230,7 @@ function paintTerritoryPath(piece, startRow, startCol, endRow, endCol, gameState
   if (newPoints.length > 0) {
     const radiusSqOther = radius * radius;
     const radiusSqSame = (radius * 0.5) * (radius * 0.5);
-    gameState.territoryTrails = gameState.territoryTrails.filter(oldT => {
+    gs.territoryTrails = gs.territoryTrails.filter(oldT => {
       const radiusSq = oldT.team !== team ? radiusSqOther : radiusSqSame;
       for (let i = 0; i < newPoints.length; i++) {
         const np = newPoints[i];
@@ -1240,46 +1245,46 @@ function paintTerritoryPath(piece, startRow, startCol, endRow, endCol, gameState
   }
 
   // Push new points to trails AFTER pruning so they don't self-prune
-  gameState.territoryTrails.push(...newPoints);
+  gs.territoryTrails.push(...newPoints);
 
   // Hard cap to prevent runaway array growth causing massive network and render lag
-  if (gameState.territoryTrails.length > 500) {
-    gameState.territoryTrails = gameState.territoryTrails.slice(-500);
+  if (gs.territoryTrails.length > 500) {
+    gs.territoryTrails = gs.territoryTrails.slice(-500);
   }
 }
 
-function updatePiecePosition(p, r, c) {
+function updatePiecePosition(p, r, c, gs = gameState) {
   const startR = p.row;
   const startC = p.col;
   p.row = r;
   p.col = c;
-  paintTerritoryPath(p, startR, startC, r, c, gameState);
-  updateVoronoiState(gameState);
+  paintTerritoryPath(p, startR, startC, r, c, gs);
+  updateVoronoiState(gs);
 }
 
 // ============================================================================
 // SYSTEM UTILITIES (Selection, Creation, Turn Management)
 // ============================================================================
-export function selectPiece(piece) {
-  if (!gameState.gameStarted) return false;
+export function selectPiece(piece, gs = gameState) {
+  if (!gs.gameStarted) return false;
   if (
-    piece.team !== gameState.currentTurn ||
-    isState(GameState.ASCENSION_CHOICE)
+    piece.team !== gs.currentTurn ||
+    isState(GameState.ASCENSION_CHOICE, gs)
   )
     return;
-  gameState.selectedPiece = piece;
-  setCurrentState(GameState.PIECE_SELECTED);
-  emit(gameState, { type: "SHOW_ABILITY_PANEL", pieceId: piece.id });
+  gs.selectedPiece = piece;
+  setCurrentState(GameState.PIECE_SELECTED, gs);
+  emit(gs, { type: "SHOW_ABILITY_PANEL", pieceId: piece.id });
 }
 
-export function deselectPiece() {
-  if (gameState.selectedPiece) emit(gameState, { type: "HIDE_ABILITY_PANEL" });
-  gameState.selectedPiece = null;
-  gameState.abilityContext = null;
-  setCurrentState(GameState.AWAITING_PIECE_SELECTION);
+export function deselectPiece(gs = gameState) {
+  if (gs.selectedPiece) emit(gs, { type: "HIDE_ABILITY_PANEL" });
+  gs.selectedPiece = null;
+  gs.abilityContext = null;
+  setCurrentState(GameState.AWAITING_PIECE_SELECTION, gs);
 }
 
-export function createPiece(r, c, key, team) {
+export function createPiece(r, c, key, team, gs = gameState) {
   const properties = C.PIECE_TYPES[key] || {};
   const stats = properties.stats || { hp: 5, def: 1, strength: 2, range: 1, agility: 2 };
   let ability;
@@ -1298,8 +1303,9 @@ export function createPiece(r, c, key, team) {
     }
   }
   const veteranAbility = properties.veteranAbility || {};
+  const pieceId = (gs && gs.pieceIdCounter !== undefined) ? gs.pieceIdCounter++ : (gameState.pieceIdCounter !== undefined ? gameState.pieceIdCounter++ : 0);
   const piece = {
-    id: gameState.pieceIdCounter++,
+    id: pieceId,
     team,
     name: properties.name || key,
     row: r,
@@ -1340,17 +1346,17 @@ export function createPiece(r, c, key, team) {
 }
 
 
-export function despawnPiece(piece) {
+export function despawnPiece(piece, gs = gameState) {
   if (!piece || piece.key !== "snowIceWisp") return;
-  handlePieceCapture(piece, null, gameState);
-  flash("The Ice Wisp dissipates.", "snow", gameState);
-  deselectPiece();
-  updateBoardMap(gameState);
-  updateConduitLink();
-  checkTerritoryThresholds(gameState);
+  handlePieceCapture(piece, null, gs);
+  flash("The Ice Wisp dissipates.", "snow", gs);
+  deselectPiece(gs);
+  updateBoardMap(gs);
+  updateConduitLink(gs);
+  checkTerritoryThresholds(gs);
 }
 
-export function promoteToVeteran(piece) {
+export function promoteToVeteran(piece, gs = gameState) {
   if (
     piece.isVeteran ||
     piece.key.includes("Tyrant") ||
@@ -1381,7 +1387,7 @@ export function promoteToVeteran(piece) {
   flash(
     `${C.PIECE_TYPES[piece.key].name} becomes a Veteran!`,
     piece.team,
-    gameState
+    gs
   );
   return true;
 }
@@ -1391,16 +1397,16 @@ export function promoteToVeteran(piece) {
 // ============================================================================
 // SIPHONER, TETHER & OVERLOAD LOGIC
 // ============================================================================
-export function handleSiphon(piece) {
+export function handleSiphon(piece, gs = gameState) {
   if (!piece || piece.charges >= piece.ability.maxCharges) return false;
   const rift = C.SHAPES.riftAreas.find((r) =>
     r.cells.some(([rr, cc]) => rr === piece.row && cc === piece.col)
   );
   const isOnFriendlyTerritory =
-    gameState.factionPassives[piece.team].ascension.ArcaneAttunement &&
+    gs.factionPassives[piece.team].ascension.ArcaneAttunement &&
     (piece.team === "snow"
-      ? gameState.snowTerritory
-      : gameState.ashTerritory
+      ? gs.snowTerritory
+      : gs.ashTerritory
     ).has(`${piece.row},${piece.col}`);
 
   if (
@@ -1409,7 +1415,7 @@ export function handleSiphon(piece) {
     isOnFriendlyTerritory
   ) {
     piece.charges++;
-    emit(gameState, {
+    emit(gs, {
       type: "ANIMATION",
       name: "SiphonParticles",
       pieceId: piece.id,
@@ -1418,9 +1424,9 @@ export function handleSiphon(piece) {
     flash(
       `${C.PIECE_TYPES[piece.key].name} siphons energy.`,
       piece.team,
-      gameState
+      gs
     );
-    deselectPiece();
+    deselectPiece(gs);
     return true;
   }
   return false;
@@ -1430,7 +1436,8 @@ export function handleTether(
   siphoner,
   mode,
   allyPiece = null,
-  enemyPiece = null
+  enemyPiece = null,
+  gs = gameState
 ) {
   if (!siphoner || siphoner.ability?.key !== "Siphon") return false;
   const onRift = C.SHAPES.riftAreas.some((r) =>
@@ -1449,11 +1456,11 @@ export function handleTether(
       const t = siphoner.tethers[i];
       const ally =
         t.allyId !== null
-          ? gameState.pieces.find((p) => p.id === t.allyId)
+          ? gs.pieces.find((p) => p.id === t.allyId)
           : null;
       const enemy =
         t.enemyId !== null
-          ? gameState.pieces.find((p) => p.id === t.enemyId)
+          ? gs.pieces.find((p) => p.id === t.enemyId)
           : null;
       if (t.mode === "benevolent") {
         siphoner.power += 1;
@@ -1488,9 +1495,9 @@ export function handleTether(
       `${C.PIECE_TYPES[siphoner.key].name} forms a Benevolent Link with ${C.PIECE_TYPES[allyPiece.key].name
       }.`,
       siphoner.team,
-      gameState
+      gs
     );
-    deselectPiece();
+    deselectPiece(gs);
     return true;
   } else if (mode === "hostile") {
     if (
@@ -1513,9 +1520,9 @@ export function handleTether(
       `${C.PIECE_TYPES[siphoner.key].name} drains ${C.PIECE_TYPES[enemyPiece.key].name
       }.`,
       siphoner.team,
-      gameState
+      gs
     );
-    deselectPiece();
+    deselectPiece(gs);
     return true;
   } else if (mode === "parasitic") {
     if (
@@ -1538,9 +1545,9 @@ export function handleTether(
       `${C.PIECE_TYPES[siphoner.key].name} parasitically siphons from ${C.PIECE_TYPES[allyPiece.key].name
       }.`,
       siphoner.team,
-      gameState
+      gs
     );
-    deselectPiece();
+    deselectPiece(gs);
     return true;
   } else if (mode === "resonance") {
     if (
@@ -1567,9 +1574,9 @@ export function handleTether(
       `${C.PIECE_TYPES[siphoner.key].name} weaves a Resonance Link between ${C.PIECE_TYPES[allyPiece.key].name
       } and ${C.PIECE_TYPES[enemyPiece.key].name}.`,
       siphoner.team,
-      gameState
+      gs
     );
-    deselectPiece();
+    deselectPiece(gs);
     return true;
   } else return false;
 
@@ -1577,11 +1584,11 @@ export function handleTether(
     siphoner.tethers.forEach((t) => {
       const ally =
         t.allyId !== null
-          ? gameState.pieces.find((p) => p.id === t.allyId)
+          ? gs.pieces.find((p) => p.id === t.allyId)
           : null;
       const enemy =
         t.enemyId !== null
-          ? gameState.pieces.find((p) => p.id === t.enemyId)
+          ? gs.pieces.find((p) => p.id === t.enemyId)
           : null;
       if (t.mode === "benevolent" && ally)
         ally.power = Math.max(0, ally.power - 1);
@@ -1592,22 +1599,22 @@ export function handleTether(
         if (enemy) enemy.power += 1;
       }
     });
-    gameState.pieces = gameState.pieces.filter((p) => p.id !== siphoner.id);
+    gs.pieces = gs.pieces.filter((p) => p.id !== siphoner.id);
     flash(
       `${C.PIECE_TYPES[siphoner.key].name
       } overloads and is destroyed by feedback!`,
       siphoner.team,
-      gameState
+      gs
     );
-    updateBoardMap(gameState);
-    updateConduitLink();
+    updateBoardMap(gs);
+    updateConduitLink(gs);
   }
 
-  updateBoardMap(gameState);
+  updateBoardMap(gs);
   return true;
 }
 
-export function ventOverload(siphoner) {
+export function ventOverload(siphoner, gs = gameState) {
   if (
     !siphoner ||
     siphoner.ability?.key !== "Siphon" ||
@@ -1624,38 +1631,38 @@ export function ventOverload(siphoner) {
   let vented = false;
 
   if (onRift) {
-    triggerAbyssalForge(gameState);
+    triggerAbyssalForge(gs);
     flash(
       `${C.PIECE_TYPES[siphoner.key].name
       } vents Overload into the Rift, triggering the Abyssal Forge!`,
       siphoner.team,
-      gameState
+      gs
     );
     vented = true;
   } else if (onShrine) {
-    gameState.shrineChargeLevel = (gameState.shrineChargeLevel || 0) + 1;
-    emit(gameState, {
+    gs.shrineChargeLevel = (gs.shrineChargeLevel || 0) + 1;
+    emit(gs, {
       type: "ANIMATION",
       name: "UpdateShrine",
-      level: gameState.shrineChargeLevel
+      level: gs.shrineChargeLevel
     });
     if (
-      gameState.shrineChargeLevel >= C.ABILITY_VALUES.Shrine.overloadCharges
+      gs.shrineChargeLevel >= C.ABILITY_VALUES.Shrine.overloadCharges
     ) {
-      gameState.shrineIsOverloaded = true;
-      flash(`The Shrine becomes Overloaded!`, "neutral", gameState);
+      gs.shrineIsOverloaded = true;
+      flash(`The Shrine becomes Overloaded!`, "neutral", gs);
     } else {
       flash(
-        `The Shrine gains an Overload charge. (${gameState.shrineChargeLevel}/${C.ABILITY_VALUES.Shrine.overloadCharges})`,
+        `The Shrine gains an Overload charge. (${gs.shrineChargeLevel}/${C.ABILITY_VALUES.Shrine.overloadCharges})`,
         siphoner.team,
-        gameState
+        gs
       );
     }
     vented = true;
   }
 
   if (!vented) return false;
-  emit(gameState, {
+  emit(gs, {
     type: "ANIMATION",
     name: "VentEffect",
     r: siphoner.row,
@@ -1663,11 +1670,30 @@ export function ventOverload(siphoner) {
     team: siphoner.team
   });
   siphoner.overloadPoints = 0;
-  updateBoardMap(gameState);
+  updateBoardMap(gs);
   return true;
 }
 
-export function checkTetherSnaps(gs) {
+function revertTetherPower(t, gs = gameState) {
+  const siphoner = gs.pieces ? gs.pieces.find(p => p.id === t.siphonerId) : null;
+  const ally = t.allyId !== null && gs.pieces ? gs.pieces.find((p) => p.id === t.allyId) : null;
+  const enemy = t.enemyId !== null && gs.pieces ? gs.pieces.find((p) => p.id === t.enemyId) : null;
+  if (t.mode === "benevolent") {
+    if (siphoner) siphoner.power += 1;
+    if (ally) ally.power = Math.max(0, ally.power - 1);
+  } else if (t.mode === "hostile") {
+    if (siphoner) siphoner.power = Math.max(0, siphoner.power - 1);
+    if (enemy) enemy.power += 1;
+  } else if (t.mode === "parasitic") {
+    if (siphoner) siphoner.power = Math.max(0, siphoner.power - 1);
+    if (ally) ally.power += 1;
+  } else if (t.mode === "resonance") {
+    if (ally) ally.power = Math.max(0, ally.power - 1);
+    if (enemy) enemy.power += 1;
+  }
+}
+
+export function checkTetherSnaps(gs = gameState) {
   gs.pieces.forEach((siphoner) => {
     if (
       siphoner.ability?.key !== "Siphon" ||
@@ -1723,33 +1749,33 @@ export function checkTetherSnaps(gs) {
 // ============================================================================
 // SHRINE, ASCENSION & SACRIFICE
 // ============================================================================
-function handleShrineCapture(piece, defender) {
+function handleShrineCapture(piece, defender, gs = gameState) {
   if (defender.key === "snowIceWisp") return;
   if (piece.shrineBoost === 0)
     piece.shrineBoost = C.ABILITY_VALUES.Shrine.powerBoost;
-  if (!gameState.shrineIsOverloaded) {
+  if (!gs.shrineIsOverloaded) {
     if (
-      ++gameState.shrineChargeLevel >= C.ABILITY_VALUES.Shrine.overloadCharges
+      ++gs.shrineChargeLevel >= C.ABILITY_VALUES.Shrine.overloadCharges
     ) {
-      gameState.shrineIsOverloaded = true;
-      emit(gameState, { type: "ANIMATION", name: "ShrineOverload" });
+      gs.shrineIsOverloaded = true;
+      emit(gs, { type: "ANIMATION", name: "ShrineOverload" });
     }
   }
 }
 
-export function checkAscensionReady() {
-  if (!gameState || !gameState.pendingAscension) return false;
+export function checkAscensionReady(gs = gameState) {
+  if (!gs || !gs.pendingAscension) return false;
 
   // Return true ONLY if an ascension is pending and hasn't been chosen yet
-  const isChosen = gameState.factionPassives[gameState.pendingAscension.team].ascension.isChosen;
+  const isChosen = gs.factionPassives[gs.pendingAscension.team].ascension.isChosen;
   return !isChosen;
 }
 
-export function executeSacrifice(piece) {
+export function executeSacrifice(piece, gs = gameState) {
   if (
     !piece ||
     !piece.isTrapped ||
-    gameState.factionPassives[piece.team].ascension.isChosen
+    gs.factionPassives[piece.team].ascension.isChosen
   )
     return false;
   const roles = {
@@ -1778,91 +1804,91 @@ export function executeSacrifice(piece) {
   flash(
     `Sacrificing ${C.PIECE_TYPES[piece.key].name} for Ascension!`,
     piece.team,
-    gameState
+    gs
   );
   piece.isTrapped = false;
-  deselectPiece();
-  gameState.shrineIsOverloaded = false;
-  gameState.pendingAscension = {
+  deselectPiece(gs);
+  gs.shrineIsOverloaded = false;
+  gs.pendingAscension = {
     team: piece.team,
     role,
     sacrificedPieceId: piece.id,
     sacrificedPieceKey: piece.key
   };
-  setCurrentState(GameState.ASCENSION_CHOICE);
-  emit(gameState, { type: "SHOW_ASCENSION_POPUP" });
+  setCurrentState(GameState.ASCENSION_CHOICE, gs);
+  emit(gs, { type: "SHOW_ASCENSION_POPUP" });
   return true;
 }
 
-export function executeAscensionChoice(choice) {
+export function executeAscensionChoice(choice, gs = gameState) {
   if (
-    !gameState.pendingAscension ||
-    gameState.factionPassives[gameState.pendingAscension.team].ascension
+    !gs.pendingAscension ||
+    gs.factionPassives[gs.pendingAscension.team].ascension
       .isChosen
   )
     return false;
-  const { team, sacrificedPieceId } = gameState.pendingAscension;
-  const result = _executeAscensionLogic(gameState, choice);
+  const { team, sacrificedPieceId } = gs.pendingAscension;
+  const result = _executeAscensionLogic(gs, choice);
   if (result) {
-    const p = gameState.pieces.find(x => x.id === sacrificedPieceId);
-    handlePieceCapture(p, null, gameState);
-    resetShrine(gameState);
+    const p = gs.pieces.find(x => x.id === sacrificedPieceId);
+    handlePieceCapture(p, null, gs);
+    resetShrine(gs);
     flash(
       `The ${team.toUpperCase()} faction gains Ascension!`,
       team,
-      gameState
+      gs
     );
-    updateBoardMap(gameState);
-    setCurrentState(GameState.AWAITING_PIECE_SELECTION);
-    emit(gameState, { type: "HIDE_ABILITY_PANEL" });
-    emit(gameState, { type: "HIDE_ASCENSION_POPUP" });
+    updateBoardMap(gs);
+    setCurrentState(GameState.AWAITING_PIECE_SELECTION, gs);
+    emit(gs, { type: "HIDE_ABILITY_PANEL" });
+    emit(gs, { type: "HIDE_ASCENSION_POPUP" });
     return true;
   }
   return false;
 }
 
-export function cancelAscensionChoice() {
-  if (!isState(GameState.ASCENSION_CHOICE) || !gameState.pendingAscension)
+export function cancelAscensionChoice(gs = gameState) {
+  if (!isState(GameState.ASCENSION_CHOICE, gs) || !gs.pendingAscension)
     return false;
-  const pending = gameState.pendingAscension;
-  const piece = gameState.pieces.find(
+  const pending = gs.pendingAscension;
+  const piece = gs.pieces.find(
     (p) => p.id === pending.sacrificedPieceId
   );
   if (piece) {
     piece.isTrapped = true;
-    gameState.trappedPiece = piece.id;
-    gameState.shrineIsOverloaded = true;
+    gs.trappedPiece = piece.id;
+    gs.shrineIsOverloaded = true;
     flash(
       `Ascension canceled. ${C.PIECE_TYPES[piece.key].name} remains trapped.`,
       pending.team,
-      gameState
+      gs
     );
   }
-  gameState.pendingAscension = null;
-  setCurrentState(GameState.AWAITING_PIECE_SELECTION);
-  emit(gameState, { type: "HIDE_ABILITY_PANEL" });
-  emit(gameState, { type: "HIDE_ASCENSION_POPUP" });
+  gs.pendingAscension = null;
+  setCurrentState(GameState.AWAITING_PIECE_SELECTION, gs);
+  emit(gs, { type: "HIDE_ABILITY_PANEL" });
+  emit(gs, { type: "HIDE_ASCENSION_POPUP" });
   return true;
 }
 
-export function executeRelease(piece) {
+export function executeRelease(piece, gs = gameState) {
   if (!piece || !piece.isTrapped) return false;
   flash(
     `The ${C.PIECE_TYPES[piece.key].name} is released!`,
     piece.team,
-    gameState
+    gs
   );
   piece.power = Math.max(0, piece.power - 1);
   piece.isDazed = true;
   piece.dazedFor = 3;
   piece.isTrapped = false;
-  resetShrine(gameState);
-  deselectPiece();
-  updateBoardMap(gameState);
+  resetShrine(gs);
+  deselectPiece(gs);
+  updateBoardMap(gs);
   return true;
 }
 
-function applySacrificeBuff(team, gs) {
+function applySacrificeBuff(team, gs = gameState) {
   const buffKey = team === "snow" ? "HoarfrostArmaments" : "InnerFurnace";
   const buff = C.ABILITY_VALUES[buffKey];
   gs.pieces.forEach((fp) => {
@@ -1882,7 +1908,7 @@ function applySacrificeBuff(team, gs) {
   );
 }
 
-function resetShrine(gs) {
+function resetShrine(gs = gameState) {
   gs.shrineChargeLevel = 0;
   gs.shrineIsOverloaded = false;
   gs.trappedPiece = null;
@@ -1892,25 +1918,25 @@ function resetShrine(gs) {
 // ============================================================================
 // CONDUIT & RIFT DYNAMICS
 // ============================================================================
-export function updateConduitLink() {
-  if (!gameState.dynamicRifts || gameState.dynamicRifts.length < 2) {
-    gameState.conduitLinkActive = false;
-    gameState.conduitTeam = null;
-    gameState.riftAnchors = { topLeft: null, bottomRight: null };
+export function updateConduitLink(gs = gameState) {
+  if (!gs.dynamicRifts || gs.dynamicRifts.length < 2) {
+    gs.conduitLinkActive = false;
+    gs.conduitTeam = null;
+    gs.riftAnchors = { topLeft: null, bottomRight: null };
     return;
   }
-  const [rift1, rift2] = gameState.dynamicRifts;
-  gameState.pieces.forEach((p) => {
+  const [rift1, rift2] = gs.dynamicRifts;
+  gs.pieces.forEach((p) => {
     p.isAnchor = false;
     p.hasDefensiveWard = false;
     p.anchorBoost = 0;
     p.canRiftPulse = false;
   });
-  gameState.conduitLinkActive = false;
-  const piecesOnTL = gameState.pieces.filter((p) =>
+  gs.conduitLinkActive = false;
+  const piecesOnTL = gs.pieces.filter((p) =>
     rift1.cells.some(([r, c]) => r === p.row && c === p.col)
   );
-  const piecesOnBR = gameState.pieces.filter((p) =>
+  const piecesOnBR = gs.pieces.filter((p) =>
     rift2.cells.some(([r, c]) => r === p.row && c === p.col)
   );
   const snowAnchor = piecesOnTL.find((p) => p.team === "snow") && piecesOnBR.find((p) => p.team === "snow");
@@ -1920,19 +1946,19 @@ export function updateConduitLink() {
   else if (ashAnchor && !snowAnchor) linkTeam = "ash";
 
   if (linkTeam) {
-    gameState.conduitLinkActive = true;
-    gameState.conduitTeam = linkTeam;
+    gs.conduitLinkActive = true;
+    gs.conduitTeam = linkTeam;
     const anchors = {
       TL: piecesOnTL.find((p) => p.team === linkTeam),
       BR: piecesOnBR.find((p) => p.team === linkTeam)
     };
-    gameState.riftAnchors = { topLeft: anchors.TL, bottomRight: anchors.BR };
-    gameState.conduitIsContested =
+    gs.riftAnchors = { topLeft: anchors.TL, bottomRight: anchors.BR };
+    gs.conduitIsContested =
       piecesOnTL.some((p) => p.team !== linkTeam) ||
       piecesOnBR.some((p) => p.team !== linkTeam);
     const boost =
-      gameState.conduitIsContested &&
-        !gameState.factionPassives[linkTeam].ascension.RiftReinforcement
+      gs.conduitIsContested &&
+        !gs.factionPassives[linkTeam].ascension.RiftReinforcement
         ? 1
         : 2;
 
@@ -1963,12 +1989,12 @@ export function updateConduitLink() {
   }
 }
 
-export function executeRiftPulse(piece) {
+export function executeRiftPulse(piece, gs = gameState) {
   // Bug 1.4 fix: Updated from deprecated ashRiftWarden/snowVoidChanter
   if (piece.key !== "ashAshReaper" && piece.key !== "snowSoulLinker")
     return false;
   if (!piece.canRiftPulse || piece.hasUsedRiftPulse) return false;
-  flash("The Anchor unleashes a Rift Pulse!", piece.team, gameState);
+  flash("The Anchor unleashes a Rift Pulse!", piece.team, gs);
   piece.canRiftPulse = false;
   piece.hasUsedRiftPulse = true;
 
@@ -1978,7 +2004,7 @@ export function executeRiftPulse(piece) {
       const adjacentPiece = C.getPieceAt(
         piece.row + dr,
         piece.col + dc,
-        gameState.pieces
+        gs.pieces
       );
       if (!adjacentPiece) continue;
       if (!adjacentPiece.isSteadfast) {
@@ -1993,44 +2019,44 @@ export function executeRiftPulse(piece) {
         newRow < C.ROWS &&
         newCol >= 0 &&
         newCol < C.COLS &&
-        !C.getPieceAt(newRow, newCol, gameState.pieces) &&
-        !gameState.glacialWalls.some(
+        !C.getPieceAt(newRow, newCol, gs.pieces) &&
+        !gs.glacialWalls.some(
           (w) => w.row === newRow && w.col === newCol
         )
       ) {
-        updatePiecePosition(adjacentPiece, newRow, newCol);
-        checkSpecialTerrains(adjacentPiece, newRow, newCol, gameState);
+        updatePiecePosition(adjacentPiece, newRow, newCol, gs);
+        checkSpecialTerrains(adjacentPiece, newRow, newCol, gs);
         const isShrine = C.SHAPES.shrineArea.some(
           ([sr, sc]) => sr === newRow && sc === newCol
         );
         if (
           isShrine &&
-          gameState.shrineIsOverloaded &&
-          !gameState.trappedPiece &&
+          gs.shrineIsOverloaded &&
+          !gs.trappedPiece &&
           !adjacentPiece.isTrapped
         ) {
           adjacentPiece.isTrapped = true;
-          gameState.trappedPiece = adjacentPiece.id;
+          gs.trappedPiece = adjacentPiece.id;
         }
       }
     }
-  deselectPiece();
-  updateBoardMap(gameState);
-  updateConduitLink();
-  checkTerritoryThresholds(gameState);
+  deselectPiece(gs);
+  updateBoardMap(gs);
+  updateConduitLink(gs);
+  checkTerritoryThresholds(gs);
   return true;
 }
 
-export function processAbyssalForgeTurn() {
-  if (!gameState.dynamicRifts || gameState.dynamicRifts.length === 0) return;
+export function processAbyssalForgeTurn(gs = gameState) {
+  if (!gs || !gs.dynamicRifts || gs.dynamicRifts.length === 0) return;
   let snowPresence = false;
   let ashPresence = false;
   const riftCells = [];
-  gameState.dynamicRifts.forEach((rift) => {
+  gs.dynamicRifts.forEach((rift) => {
     rift.cells.forEach((cell) => riftCells.push(cell));
   });
 
-  gameState.pieces.forEach((p) => {
+  gs.pieces.forEach((p) => {
     if (riftCells.some(([r, c]) => r === p.row && c === p.col)) {
       if (p.team === "snow") snowPresence = true;
       if (p.team === "ash") ashPresence = true;
@@ -2040,25 +2066,26 @@ export function processAbyssalForgeTurn() {
   let currentTurnOwner = null;
   if (snowPresence && !ashPresence) currentTurnOwner = "snow";
   else if (ashPresence && !snowPresence) currentTurnOwner = "ash";
-  const conduit = gameState.conduit;
+  const conduit = gs.conduit;
+  if (!conduit) return;
 
   if (!currentTurnOwner) {
     conduit.consecutiveTurnsContested++;
     if (conduit.consecutiveTurnsContested >= 4) {
-      if (conduit.hasBeenHighlyCharged) executeVoidSnap(gameState);
+      if (conduit.hasBeenHighlyCharged) executeVoidSnap(gs);
       else if (conduit.owner !== null) {
         const territory =
           conduit.owner === "snow"
-            ? gameState.snowTerritory
-            : gameState.ashTerritory;
+            ? gs.snowTerritory
+            : gs.ashTerritory;
         riftCells.forEach(([r, c]) => {
           territory.delete(`${r},${c}`);
-          delete gameState.territoryCaptureTurn[`${r},${c}`];
+          if (gs.territoryCaptureTurn) delete gs.territoryCaptureTurn[`${r},${c}`];
         });
         flash(
           "The Conduit destabilizes! Territory lost.",
           "neutral",
-          gameState
+          gs
         );
         conduit.owner = null;
         conduit.consecutiveTurnsHeld = 0;
@@ -2074,7 +2101,7 @@ export function processAbyssalForgeTurn() {
         conduit.consecutiveTurnsHeld > 0 &&
         conduit.consecutiveTurnsHeld % 4 === 0
       )
-        triggerAbyssalForge(gameState);
+        triggerAbyssalForge(gs);
     } else {
       conduit.owner = currentTurnOwner;
       conduit.consecutiveTurnsHeld = 1;
@@ -2083,46 +2110,49 @@ export function processAbyssalForgeTurn() {
     if (conduit.consecutiveTurnsHeld === 6) {
       const territory =
         conduit.owner === "snow"
-          ? gameState.snowTerritory
-          : gameState.ashTerritory;
+          ? gs.snowTerritory
+          : gs.ashTerritory;
       riftCells.forEach(([r, c]) => {
         territory.add(`${r},${c}`);
-        gameState.territoryCaptureTurn[`${r},${c}`] = gameState.turnCount;
+        if (gs.territoryCaptureTurn) gs.territoryCaptureTurn[`${r},${c}`] = gs.turnCount;
       });
       flash(
         `The ${conduit.owner.toUpperCase()} faction claims the Conduit!`,
         conduit.owner,
-        gameState
+        gs
       );
     }
   }
 }
 
-function executeVoidSnap(gs) {
+function executeVoidSnap(gs = gameState) {
   flash("THE VOID SNAPS! The Conduit collapses!", "neutral", gs);
   const riftCells = [];
   gs.dynamicRifts.forEach((rift) => {
     rift.cells.forEach(([r, c]) => {
       riftCells.push({ row: r, col: c });
       const posStr = `${r},${c}`;
-      gs.snowTerritory.delete(posStr);
-      gs.ashTerritory.delete(posStr);
+      if (gs.snowTerritory) gs.snowTerritory.delete(posStr);
+      if (gs.ashTerritory) gs.ashTerritory.delete(posStr);
       const pieceOnVoid = C.getPieceAt(r, c, gs.pieces);
       if (pieceOnVoid)
         gs.pieces = gs.pieces.filter((p) => p.id !== pieceOnVoid.id);
     });
   });
+  if (!gs.voidSquares) gs.voidSquares = [];
   gs.voidSquares.push(...riftCells);
   gs.dynamicRifts = [];
-  gs.conduit.owner = null;
-  gs.conduit.hasBeenHighlyCharged = false;
-  gs.conduit.consecutiveTurnsContested = 0;
+  if (gs.conduit) {
+    gs.conduit.owner = null;
+    gs.conduit.hasBeenHighlyCharged = false;
+    gs.conduit.consecutiveTurnsContested = 0;
+  }
   gs.conduitLinkActive = false;
   gs.riftAnchors = { topLeft: null, bottomRight: null };
   updateBoardMap(gs);
 }
 
-function triggerAbyssalForge(gs) {
+function triggerAbyssalForge(gs = gameState) {
   const currentRiftCells = new Set();
   gs.dynamicRifts.forEach((rift) =>
     rift.cells.forEach(([r, c]) => currentRiftCells.add(`${r},${c}`))
@@ -2149,9 +2179,9 @@ function triggerAbyssalForge(gs) {
         if (
           !currentRiftCells.has(nStr) &&
           !C.getPieceAt(nr, nc, gs.pieces) &&
-          !gs.glacialWalls.some((w) => w.row === nr && w.col === nc) &&
-          !gs.voidSquares.some((v) => v.row === nr && v.col === nc) &&
-          !gs.elementalCores.some((ec) => ec.row === nr && ec.col === nc)
+          !(gs.glacialWalls || []).some((w) => w.row === nr && w.col === nc) &&
+          !(gs.voidSquares || []).some((v) => v.row === nr && v.col === nc) &&
+          !(gs.elementalCores || []).some((ec) => ec.row === nr && ec.col === nc)
         ) {
           adjacentEmptyCells.add(nStr);
         }
@@ -2181,17 +2211,20 @@ function triggerAbyssalForge(gs) {
         break;
       }
     }
-    if (!attached) gs.dynamicRifts[0].cells.push([targetCell.r, targetCell.c]);
-    if (gs.conduit.consecutiveTurnsHeld >= 6) {
+    if (!attached && gs.dynamicRifts.length > 0) gs.dynamicRifts[0].cells.push([targetCell.r, targetCell.c]);
+    if (gs.conduit && gs.conduit.consecutiveTurnsHeld >= 6) {
       const territory =
         gs.conduit.owner === "snow" ? gs.snowTerritory : gs.ashTerritory;
-      territory.add(`${targetCell.r},${targetCell.c}`);
-      gs.territoryCaptureTurn[`${targetCell.r},${targetCell.c}`] = gs.turnCount;
+      if (territory) {
+        territory.add(`${targetCell.r},${targetCell.c}`);
+        if (gs.territoryCaptureTurn) gs.territoryCaptureTurn[`${targetCell.r},${targetCell.c}`] = gs.turnCount;
+      }
     }
-    flash(`The Abyssal Forge expands the Rift!`, gs.conduit.owner, gs);
+    flash(`The Abyssal Forge expands the Rift!`, gs.conduit ? gs.conduit.owner : null, gs);
   } else {
     const coreTypes = ["ruby", "topaz", "emerald", "sapphire"];
     const randomType = coreTypes[Math.floor(Math.random() * coreTypes.length)];
+    if (!gs.elementalCores) gs.elementalCores = [];
     gs.elementalCores.push({
       row: targetCell.r,
       col: targetCell.c,
@@ -2199,13 +2232,14 @@ function triggerAbyssalForge(gs) {
     });
     flash(
       `The Forge spawns a ${randomType.toUpperCase()} Core!`,
-      gs.conduit.owner,
+      gs.conduit ? gs.conduit.owner : null,
       gs
     );
   }
 }
 
-export function consumeCore(piece, r, c, gs) {
+export function consumeCore(piece, r, c, gs = gameState) {
+  if (!gs || !gs.elementalCores) return;
   const coreIndex = gs.elementalCores.findIndex(
     (ec) => ec.row === r && ec.col === c
   );
@@ -2221,6 +2255,7 @@ export function consumeCore(piece, r, c, gs) {
       piece.rubyCores++;
       msg = `${C.PIECE_TYPES[piece.key].name} gained +1 Permanent Power!`;
     } else {
+      if (!gs.temporaryBoosts) gs.temporaryBoosts = [];
       gs.temporaryBoosts.push({
         pieceId: piece.id,
         amount: 1,
@@ -2230,9 +2265,8 @@ export function consumeCore(piece, r, c, gs) {
       msg = `${C.PIECE_TYPES[piece.key].name} gained +1 Power for 2 turns!`;
     }
   } else if (core.type === "topaz") {
-    // FIX: Removed the local boolean and used the existing isLeader() function
     if (!piece.isVeteran && !isLeader(piece)) {
-      promoteToVeteran(piece);
+      promoteToVeteran(piece, gs);
       msg = `${C.PIECE_TYPES[piece.key].name} awakened as a Veteran!`;
     } else {
       const territory =
@@ -2257,11 +2291,11 @@ export function consumeCore(piece, r, c, gs) {
           nr < C.ROWS &&
           nc >= 0 &&
           nc < C.COLS &&
-          !gs.voidSquares.some((v) => v.row === nr && v.col === nc)
+          !(gs.voidSquares || []).some((v) => v.row === nr && v.col === nc)
         ) {
-          territory.add(`${nr},${nc}`);
-          oppTerritory.delete(`${nr},${nc}`);
-          gs.territoryCaptureTurn[`${nr},${nc}`] = gs.turnCount;
+          if (territory) territory.add(`${nr},${nc}`);
+          if (oppTerritory) oppTerritory.delete(`${nr},${nc}`);
+          if (gs.territoryCaptureTurn) gs.territoryCaptureTurn[`${nr},${nc}`] = gs.turnCount;
         }
       });
       msg = `${C.PIECE_TYPES[piece.key].name} triggers a Territorial Burst!`;
@@ -2271,6 +2305,7 @@ export function consumeCore(piece, r, c, gs) {
       piece.hasPermanentAegis = true;
       msg = `${C.PIECE_TYPES[piece.key].name} gains Permanent Aegis!`;
     } else {
+      if (!gs.temporaryBoosts) gs.temporaryBoosts = [];
       gs.temporaryBoosts.push({
         pieceId: piece.id,
         amount: 1,
@@ -2290,7 +2325,7 @@ export function consumeCore(piece, r, c, gs) {
         piece.secondaryAbilityCooldown = 0;
       msg = `${C.PIECE_TYPES[piece.key].name} is Overclocked!`;
     } else {
-      gs.pieces.forEach((p) => {
+      (gs.pieces || []).forEach((p) => {
         if (p.team === piece.team) {
           if (p.ability && p.ability.cooldown > 0) p.ability.cooldown--;
           if (p.secondaryAbilityCooldown > 0) p.secondaryAbilityCooldown--;
@@ -2305,11 +2340,12 @@ export function consumeCore(piece, r, c, gs) {
 // ============================================================================
 // TURN MANAGEMENT & GAME LOOP
 // ============================================================================
-function startOfTurnUpkeep(team) {
-  gameState.pieces.forEach((p) => {
+function startOfTurnUpkeep(team, gs = gameState) {
+  if (!gs || !gs.pieces) return;
+  gs.pieces.forEach((p) => {
     p.hasUsedRiftPulse = false;
     if (p.isSteadfast) {
-      const hardenedIce = gameState.debuffs.find(
+      const hardenedIce = (gs.debuffs || []).find(
         (d) => d.pieceId === p.id && d.name === "HardenedIce"
       );
       if (!hardenedIce || hardenedIce.duration <= 0) p.isSteadfast = false;
@@ -2320,11 +2356,12 @@ function startOfTurnUpkeep(team) {
   });
 }
 
-function endOfTurnUpkeep() {
-  gameState.pieces.forEach((p) => {
+function endOfTurnUpkeep(gs = gameState) {
+  if (!gs || !gs.pieces) return;
+  gs.pieces.forEach((p) => {
     // Clear transient visual flags every end-of-turn
     p.isPhasing = false;
-    if (p.team === gameState.currentTurn) {
+    if (p.team === gs.currentTurn) {
       if (p.stuck > 0) p.stuck--;
       if (p.overloadBoost?.duration > 0) p.overloadBoost.duration--;
       if (p.dazedFor > 0) p.dazedFor--;
@@ -2333,7 +2370,7 @@ function endOfTurnUpkeep() {
         p.helpFromAboveActiveTurns--;
         if (p.helpFromAboveActiveTurns <= 0) {
           p.hasHelpFromAboveActive = false;
-          emit(gameState, {
+          emit(gs, {
             type: 'ANIMATION',
             name: 'ShieldBreak',
             pieceId: p.id,
@@ -2347,7 +2384,7 @@ function endOfTurnUpkeep() {
         p.deathMeteorInvincibilityTurns--;
         if (p.deathMeteorInvincibilityTurns <= 0) {
           p.hasDeathMeteorInvincibility = false;
-          emit(gameState, {
+          emit(gs, {
             type: 'ANIMATION',
             name: 'ShieldBreak',
             pieceId: p.id,
@@ -2370,22 +2407,22 @@ function endOfTurnUpkeep() {
 
   // Synchronize boolean state to the numeric duration for all pieces. This avoids
   // cases where UI/logic disagree about whether a piece is dazed after a turn flip.
-  gameState.pieces.forEach((p) => {
+  gs.pieces.forEach((p) => {
     p.isDazed = (p.dazedFor && p.dazedFor > 0) || false;
   });
 
-  const aliveIds = new Set(gameState.pieces.map((p) => p.id));
+  const aliveIds = new Set(gs.pieces.map((p) => p.id));
 
   // Spawn magma shards when ObsidianPillarShield expires
-  if (gameState.shields) {
-    gameState.shields.forEach((s) => {
+  if (gs.shields) {
+    gs.shields.forEach((s) => {
       if (s.name === 'ObsidianPillarShield') {
         const pId = s.pieceId;
-        const p = gameState.pieces.find((piece) => piece.id === pId);
-        if (p && p.team === gameState.currentTurn) {
+        const p = gs.pieces.find((piece) => piece.id === pId);
+        if (p && p.team === gs.currentTurn) {
           if (s.duration - 1 <= 0) {
-            gameState.specialTerrains = gameState.specialTerrains || [];
-            gameState.specialTerrains.push({
+            gs.specialTerrains = gs.specialTerrains || [];
+            gs.specialTerrains.push({
               row: p.row,
               col: p.col,
               type: 'magmaShards',
@@ -2399,69 +2436,75 @@ function endOfTurnUpkeep() {
   }
 
   const filterByTurn = (arr) =>
-    arr.filter((item) => {
+    (arr || []).filter((item) => {
       const pId = item.pieceId !== undefined ? item.pieceId : item.targetId;
-      const p = gameState.pieces.find((piece) => piece.id === pId);
-      if (p && p.team === gameState.currentTurn) item.duration--;
+      const p = gs.pieces.find((piece) => piece.id === pId);
+      if (p && p.team === gs.currentTurn) item.duration--;
       return item.duration > 0 && aliveIds.has(pId);
     });
 
-  gameState.temporaryBoosts = filterByTurn(gameState.temporaryBoosts);
-  gameState.debuffs = filterByTurn(gameState.debuffs);
-  gameState.markedPieces = filterByTurn(gameState.markedPieces);
-  gameState.shields = filterByTurn(gameState.shields);
+  gs.temporaryBoosts = filterByTurn(gs.temporaryBoosts);
+  gs.debuffs = filterByTurn(gs.debuffs);
+  gs.markedPieces = filterByTurn(gs.markedPieces);
+  gs.shields = filterByTurn(gs.shields);
 
-  gameState.glacialWalls = gameState.glacialWalls.filter((w) => {
-    w.duration -= 1;
-    if (w.duration <= 0) {
-      emit(gameState, {
-        type: "ANIMATION",
-        name: "WallShatter",
-        r: w.row,
-        c: w.col
-      });
-      if (w.type === 'obsidianPillar') {
-        gameState.specialTerrains = gameState.specialTerrains || [];
-        gameState.specialTerrains.push({
-          row: w.row,
-          col: w.col,
-          type: 'magmaShards',
-          duration: 2,
-          age: 0
+  if (gs.glacialWalls) {
+    gs.glacialWalls = gs.glacialWalls.filter((w) => {
+      w.duration -= 1;
+      if (w.duration <= 0) {
+        emit(gs, {
+          type: "ANIMATION",
+          name: "WallShatter",
+          r: w.row,
+          c: w.col
         });
+        if (w.type === 'obsidianPillar') {
+          gs.specialTerrains = gs.specialTerrains || [];
+          gs.specialTerrains.push({
+            row: w.row,
+            col: w.col,
+            type: 'magmaShards',
+            duration: 2,
+            age: 0
+          });
+        }
+        return false;
       }
-      return false;
-    }
-    return true;
-  });
-  gameState.unstableGrounds = gameState.unstableGrounds.filter((g) => {
-    g.duration -= 1;
-    return g.duration > 0;
-  });
-  gameState.specialTerrains = gameState.specialTerrains.filter((t) => {
-    if (t.age !== undefined) t.age += 1;
-    if (t.type === 'crater') return true; // Impassable crater stays forever!
-    if (t.duration === 99) return true;
-    t.duration -= 1;
-    return t.duration > 0;
-  });
-  if (gameState.deathMeteors) {
-    gameState.deathMeteors = gameState.deathMeteors.filter((m) => {
+      return true;
+    });
+  }
+  if (gs.unstableGrounds) {
+    gs.unstableGrounds = gs.unstableGrounds.filter((g) => {
+      g.duration -= 1;
+      return g.duration > 0;
+    });
+  }
+  if (gs.specialTerrains) {
+    gs.specialTerrains = gs.specialTerrains.filter((t) => {
+      if (t.age !== undefined) t.age += 1;
+      if (t.type === 'crater') return true; // Impassable crater stays forever!
+      if (t.duration === 99) return true;
+      t.duration -= 1;
+      return t.duration > 0;
+    });
+  }
+  if (gs.deathMeteors) {
+    gs.deathMeteors = gs.deathMeteors.filter((m) => {
       m.duration = (m.duration === undefined) ? 6 : m.duration - 1;
       return m.duration > 0;
     });
   }
-  if (gameState.blizzardStorms) {
-    gameState.blizzardStorms = gameState.blizzardStorms.filter((s) => {
+  if (gs.blizzardStorms) {
+    gs.blizzardStorms = gs.blizzardStorms.filter((s) => {
       s.duration -= 1;
       // Apply healing only on the caster's turn
-      if (s.duration > 0 && gameState.currentTurn === s.team) {
-        gameState.pieces.forEach(p => {
+      if (s.duration > 0 && gs.currentTurn === s.team) {
+        gs.pieces.forEach(p => {
           if (p.team === s.team && p.currentHp > 0) {
             const dist = Math.hypot(p.row - s.r, p.col - s.c);
             if (dist <= s.radius + 0.5) {
               p.currentHp = Math.min(p.maxHp || C.PIECE_TYPES[p.key]?.stats?.hp || 5, p.currentHp + (C.ABILITY_VALUES.AColdFarewell?.heal || 1));
-              flash(`${C.PIECE_TYPES[p.key]?.name} healed by Blizzard Storm!`, p.team, gameState);
+              flash(`${C.PIECE_TYPES[p.key]?.name} healed by Blizzard Storm!`, p.team, gs);
             }
           }
         });
@@ -2470,13 +2513,13 @@ function endOfTurnUpkeep() {
     });
   }
 
-  if (gameState.spikeRains) {
-    gameState.spikeRains = gameState.spikeRains.filter((s) => {
-      if (gameState.currentTurn === s.team) {
+  if (gs.spikeRains) {
+    gs.spikeRains = gs.spikeRains.filter((s) => {
+      if (gs.currentTurn === s.team) {
         s.duration -= 1;
         if (s.duration > 0) {
-          const creator = gameState.pieces.find(c => c.id === s.creatorId) || { id: 'spike', team: s.team };
-          gameState.pieces.forEach(p => {
+          const creator = gs.pieces.find(c => c.id === s.creatorId) || { id: 'spike', team: s.team };
+          gs.pieces.forEach(p => {
             if (C.cellIntersectsCircle(p.row, p.col, s.r, s.c, s.radius)) {
               if (p.team !== s.team) {
                 if (p.key === 'snowFrostLord' && p.hasHelpFromAboveActive) {
@@ -2496,27 +2539,27 @@ function endOfTurnUpkeep() {
               }
             }
           });
-          resolveDeaths(gameState, creator);
+          resolveDeaths(gs, creator);
         }
       }
       return s.duration > 0;
     });
   }
 
-  if (gameState.reignOfFires) {
-    gameState.reignOfFires = gameState.reignOfFires.filter((r) => {
+  if (gs.reignOfFires) {
+    gs.reignOfFires = gs.reignOfFires.filter((r) => {
       r.duration -= 1;
       return r.duration > 0;
     });
   }
 
-  if (gameState.frostfallBlessings) {
-    gameState.frostfallBlessings = gameState.frostfallBlessings.filter((s) => {
-      if (gameState.currentTurn === s.team) {
+  if (gs.frostfallBlessings) {
+    gs.frostfallBlessings = gs.frostfallBlessings.filter((s) => {
+      if (gs.currentTurn === s.team) {
         s.duration -= 1;
         if (s.duration > 0) {
-          const creator = gameState.pieces.find(c => c.id === s.creatorId) || { id: 'frost', team: s.team };
-          gameState.pieces.forEach(p => {
+          const creator = gs.pieces.find(c => c.id === s.creatorId) || { id: 'frost', team: s.team };
+          gs.pieces.forEach(p => {
             if (C.cellIntersectsCircle(p.row, p.col, s.r, s.c, s.radius)) {
               if (p.team !== s.team) {
                 if (p.key === 'snowFrostLord' && p.hasHelpFromAboveActive) {
@@ -2539,27 +2582,27 @@ function endOfTurnUpkeep() {
               }
             }
           });
-          resolveDeaths(gameState, creator);
+          resolveDeaths(gs, creator);
         }
       }
       return s.duration > 0;
     });
   }
 
-  if (gameState.fateLinks) {
-    gameState.fateLinks = gameState.fateLinks.filter((fl) => {
+  if (gs.fateLinks) {
+    gs.fateLinks = gs.fateLinks.filter((fl) => {
       fl.duration -= 1;
       return fl.duration > 0;
     });
   }
 
-  if (gameState.TheReapersTolls) {
-    gameState.TheReapersTolls = gameState.TheReapersTolls.filter((mg) => {
+  if (gs.TheReapersTolls) {
+    gs.TheReapersTolls = gs.TheReapersTolls.filter((mg) => {
       mg.duration -= 1;
       if (mg.duration <= 0) {
         // AshesToAshes passive: revert stats, then 50% chance to shatter for 1 damage
-        const target = gameState.pieces.find(p => p.id === mg.targetId);
-        const harvester = gameState.pieces.find(p => p.id === mg.harvesterId);
+        const target = gs.pieces.find(p => p.id === mg.targetId);
+        const harvester = gs.pieces.find(p => p.id === mg.harvesterId);
         // Revert stat steal
         if (target) {
           target.def = (target.def || 0) + (mg.defStolen || 0);
@@ -2572,8 +2615,8 @@ function endOfTurnUpkeep() {
         // 50% AshesToAshes shatter
         if (target && Math.random() < 0.5) {
           target.currentHp = Math.max(0, target.currentHp - 1);
-          flash(`AshesToAshes! ${C.PIECE_TYPES[target.key]?.name || 'Unit'} shatters for 1 damage!`, 'ash', gameState);
-          resolveDeaths(gameState, harvester);
+          flash(`AshesToAshes! ${C.PIECE_TYPES[target.key]?.name || 'Unit'} shatters for 1 damage!`, 'ash', gs);
+          resolveDeaths(gs, harvester);
         }
         return false; // expire
       }
@@ -2582,58 +2625,59 @@ function endOfTurnUpkeep() {
   }
 
   // Process any ability-triggered deaths queued this turn (e.g. ReignOfFire)
-  if (gameState.pendingCaptures && gameState.pendingCaptures.length > 0) {
-    gameState.pendingCaptures.forEach(({ capturedId, attackerId }) => {
-      const captured = gameState.pieces.find(p => p.id === capturedId);
-      const attacker = gameState.pieces.find(p => p.id === attackerId);
+  if (gs.pendingCaptures && gs.pendingCaptures.length > 0) {
+    gs.pendingCaptures.forEach(({ capturedId, attackerId }) => {
+      const captured = gs.pieces.find(p => p.id === capturedId);
+      const attacker = gs.pieces.find(p => p.id === attackerId);
       if (captured) {
         captured.currentHp = 0;
-        resolveDeaths(gameState, attacker);
+        resolveDeaths(gs, attacker);
       }
     });
-    gameState.pendingCaptures = [];
+    gs.pendingCaptures = [];
   }
 }
 
-export function switchTurn() {
-  endOfTurnUpkeep();
-  processAbyssalForgeTurn();
+export function switchTurn(gs = gameState) {
+  endOfTurnUpkeep(gs);
+  processAbyssalForgeTurn(gs);
 
-  if (gameState.conduitLinkActive && !gameState.conduitIsContested) {
-    const progress = gameState.conduitOverchargeProgress[gameState.conduitTeam];
-    if (++progress.turnsUncontested === C.CONDUIT_OVERCHARGE_TIER2_TURNS) {
-      const { topLeft, bottomRight } = gameState.riftAnchors;
+  if (gs.conduitLinkActive && !gs.conduitIsContested) {
+    const progress = gs.conduitOverchargeProgress[gs.conduitTeam];
+    if (progress && ++progress.turnsUncontested === C.CONDUIT_OVERCHARGE_TIER2_TURNS) {
+      const { topLeft, bottomRight } = gs.riftAnchors || {};
       if (topLeft) topLeft.power++;
       if (bottomRight) bottomRight.power++;
       progress.turnsUncontested = 0;
     }
   }
 
-  if (gameState && gameState.gameOver) return;
+  if (gs && gs.gameOver) return;
 
-  const nextTurn = gameState.currentTurn === "snow" ? "ash" : "snow";
-  startOfTurnUpkeep(nextTurn);
-  gameState.currentTurn = nextTurn;
-  if (nextTurn === "snow") gameState.turnCount++;
-  checkTerritoryThresholds(gameState);
+  const nextTurn = gs.currentTurn === "snow" ? "ash" : "snow";
+  startOfTurnUpkeep(nextTurn, gs);
+  gs.currentTurn = nextTurn;
+  if (nextTurn === "snow") gs.turnCount++;
+  checkTerritoryThresholds(gs);
 
-  // CRITICAL FIX: Clear active selections so UI doesn't "ghost" during the opponent's turn
-  deselectPiece();
+  // Clear active selections so UI doesn't "ghost" during the opponent's turn
+  deselectPiece(gs);
 }
 
-export function endGame(winningTeam) {
-  gameState.gameOver = true;
-  gameState.winner = winningTeam;
-  setCurrentState(GameState.GAME_OVER);
-  emit(gameState, { type: "GAME_OVER", winningTeam });
+export function endGame(winningTeam, gs = gameState) {
+  if (!gs) return;
+  gs.gameOver = true;
+  gs.winner = winningTeam;
+  setCurrentState(GameState.GAME_OVER, gs);
+  emit(gs, { type: "GAME_OVER", winningTeam });
 }
 
-export function resetGame() {
-  initGame();
+export function resetGame(gs = gameState) {
+  initGame(gs);
   try {
-    resetShrine(gameState);
+    resetShrine(gs);
   } catch (e) { }
-  emit(gameState, { type: "RESET_GAME" });
+  emit(gs, { type: "RESET_GAME" });
 }
 
 export function initGameState(initialState) {
@@ -2658,108 +2702,116 @@ export function withGameState(gs, fn) {
   }
 }
 
-export function initGame() {
-  const isTestMode = gameState ? gameState.testMode : false;
+export function initGame(gs = gameState) {
+  if (!gs || typeof gs !== "object") {
+    if (gs === gameState) {
+      gameState = {};
+      gs = gameState;
+    } else {
+      gs = {};
+    }
+  }
+  const isTestMode = gs ? gs.testMode : false;
   // Ensure gameState object exists and required collections are initialized
-  if (!gameState || typeof gameState !== "object") gameState = {};
-  gameState.pieceIdCounter = 0;
-  gameState.currentState = GameState.AWAITING_PIECE_SELECTION;
-  gameState.testMode = isTestMode;
-  gameState.events = [];
-  gameState.pieces = [];
-  if (!gameState.snowTerritory) gameState.snowTerritory = new Set();
-  else gameState.snowTerritory.clear();
-  if (!gameState.ashTerritory) gameState.ashTerritory = new Set();
-  else gameState.ashTerritory.clear();
-  gameState.territoryTrails = [];
-  gameState.gameStarted = false;
-  gameState.shrineChargeLevel = 0;
-  gameState.shrineIsOverloaded = false;
-  gameState.trappedPiece = null;
-  gameState.messageHistory = [];
-  gameState.territoryCaptureTurn = {};
-  gameState.glacialWalls = [];
-  gameState.markedPieces = [];
-  gameState.unstableGrounds = [];
-  gameState.specialTerrains = [];
-  gameState.shields = [];
+  gs.pieceIdCounter = 0;
+  gs.currentState = GameState.AWAITING_PIECE_SELECTION;
+  gs.testMode = isTestMode;
+  gs.events = [];
+  gs.pieces = [];
+  if (!gs.snowTerritory) gs.snowTerritory = new Set();
+  else gs.snowTerritory.clear();
+  if (!gs.ashTerritory) gs.ashTerritory = new Set();
+  else gs.ashTerritory.clear();
+  gs.territoryTrails = [];
+  gs.gameStarted = false;
+  gs.shrineChargeLevel = 0;
+  gs.shrineIsOverloaded = false;
+  gs.trappedPiece = null;
+  gs.messageHistory = [];
+  gs.territoryCaptureTurn = {};
+  gs.glacialWalls = [];
+  gs.markedPieces = [];
+  gs.unstableGrounds = [];
+  gs.specialTerrains = [];
+  gs.shields = [];
   // Particle and transient visual arrays used by the client renderer
-  gameState.attackTexts = [];
-  gameState.markOfCinderSparks = [];
-  gameState.snowParticles = [];
-  gameState.ashParticles = [];
-  gameState.battleParticles = [];
-  gameState.projectiles = [];
-  gameState.shockwaves = [];
-  gameState.frostfallBlessings = [];
-  gameState.trapDeployments = [];
-  gameState.trapTriggers = [];
-  gameState.deathMeteors = []; // Bug 2.3: scorched-earth markers from Ash Tyrant's Death Meteor passive
-  gameState.selectedPiece = null;
-  gameState.currentTurn = "snow";
-  gameState.turnCount = 1;
-  gameState.gameOver = false;
-  gameState.temporaryBoosts = [];
-  gameState.debuffs = [];
-  gameState.abilityContext = null;
-  gameState.conduitLinkActive = false;
-  gameState.conduitIsContested = false;
-  gameState.voidScarSquares = [];
-  gameState.flashEffects = [];
-  gameState.conduitTeam = null;
-  gameState.riftAnchors = { topLeft: null, bottomRight: null };
-  gameState.factionPassives = {
+  gs.attackTexts = [];
+  gs.markOfCinderSparks = [];
+  gs.snowParticles = [];
+  gs.ashParticles = [];
+  gs.battleParticles = [];
+  gs.projectiles = [];
+  gs.shockwaves = [];
+  gs.frostfallBlessings = [];
+  gs.trapDeployments = [];
+  gs.trapTriggers = [];
+  gs.deathMeteors = []; // Scorched-earth markers from Ash Tyrant's Death Meteor passive
+  gs.selectedPiece = null;
+  gs.currentTurn = "snow";
+  gs.turnCount = 1;
+  gs.gameOver = false;
+  gs.winner = null;
+  gs.temporaryBoosts = [];
+  gs.debuffs = [];
+  gs.abilityContext = null;
+  gs.conduitLinkActive = false;
+  gs.conduitIsContested = false;
+  gs.voidScarSquares = [];
+  gs.flashEffects = [];
+  gs.conduitTeam = null;
+  gs.riftAnchors = { topLeft: null, bottomRight: null };
+  gs.factionPassives = {
     snow: { ascension: {}, territory: {} },
     ash: { ascension: {}, territory: {} }
   };
-  gameState.pendingAscension = null;
-  gameState.conduitOverchargeProgress = {
+  gs.pendingAscension = null;
+  gs.conduitOverchargeProgress = {
     snow: { turnsUncontested: 0 },
     ash: { turnsUncontested: 0 }
   };
 
-  gameState.conduit = {
+  gs.conduit = {
     owner: null,
     consecutiveTurnsHeld: 0,
     consecutiveTurnsContested: 0,
     hasBeenHighlyCharged: false
   };
-  gameState.dynamicRifts = JSON.parse(JSON.stringify(C.SHAPES.riftAreas));
-  gameState.voidSquares = [];
-  gameState.elementalCores = [];
-  gameState.groundEffectParticles = [];
-  gameState.conduitParticles = [];
-  gameState.siphonParticles = [];
-  gameState.shrineParticles = [];
+  gs.dynamicRifts = JSON.parse(JSON.stringify(C.SHAPES.riftAreas));
+  gs.voidSquares = [];
+  gs.elementalCores = [];
+  gs.groundEffectParticles = [];
+  gs.conduitParticles = [];
+  gs.siphonParticles = [];
+  gs.shrineParticles = [];
 
-
-  setCurrentState(GameState.AWAITING_PIECE_SELECTION);
+  setCurrentState(GameState.AWAITING_PIECE_SELECTION, gs);
 
   const snowSetup = C.SHAPES.bottomLayout;
   const ashSetup = C.SHAPES.topLayout;
 
   snowSetup.forEach(([r, c, pieceType]) =>
-    gameState.pieces.push(
-      createPiece(r, c, C.TEAM_PIECES.snow[pieceType], "snow")
+    gs.pieces.push(
+      createPiece(r, c, C.TEAM_PIECES.snow[pieceType], "snow", gs)
     )
   );
   ashSetup.forEach(([r, c, pieceType]) =>
-    gameState.pieces.push(
-      createPiece(r, c, C.TEAM_PIECES.ash[pieceType], "ash")
+    gs.pieces.push(
+      createPiece(r, c, C.TEAM_PIECES.ash[pieceType], "ash", gs)
     )
   );
   // Base territories are seeded entirely by the pieces' starting positions
 
   if (isTestMode) {
-    gameState.pieces = gameState.pieces.filter(p => p.key === 'snowFrostLord' || p.key === 'ashAshTyrant' || p.key === 'ashMagmaShaper');
+    gs.pieces = gs.pieces.filter(p => p.key === 'snowFrostLord' || p.key === 'ashAshTyrant' || p.key === 'ashMagmaShaper');
   }
 
-  gameState.pieces.forEach((p) => {
-    paintTerritoryPath(p, p.row, p.col, p.row, p.col, gameState);
+  gs.pieces.forEach((p) => {
+    paintTerritoryPath(p, p.row, p.col, p.row, p.col, gs);
   });
 
-  updateVoronoiState(gameState);
+  updateVoronoiState(gs);
 
-  emit(gameState, { type: "INIT_BOARD" });
-  updateBoardMap(gameState);
+  emit(gs, { type: "INIT_BOARD" });
+  updateBoardMap(gs);
+  return gs;
 }

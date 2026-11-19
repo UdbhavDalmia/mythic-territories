@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import LobbyHero from './lobby/LobbyHero.jsx';
 import LobbyFooter from './lobby/LobbyFooter.jsx';
+import ModeSelectModal from './lobby/ModeSelectModal.jsx';
+import MultiplayerModal from './lobby/MultiplayerModal.jsx';
+import FactionSelectionOverlay from './lobby/FactionSelectionOverlay.jsx';
 import { useLobbyMatchmaking } from '../hooks/useLobbyMatchmaking.js';
 import '@/styles/menu.css';
 import { triggerHaptic } from '../services/haptics.js';
-
-const ModeSelectModal = lazy(() => import('./lobby/ModeSelectModal.jsx'));
-const MultiplayerModal = lazy(() => import('./lobby/MultiplayerModal.jsx'));
-const FactionSelectionOverlay = lazy(() => import('./lobby/FactionSelectionOverlay.jsx'));
 
 const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const loadMultiplayer = () => import('../services/multiplayer.js');
@@ -78,11 +77,15 @@ export default function Lobby({ navigateTo, onWarm }) {
 
   // Exit — fade + drift up, then navigate
   const handleNavigate = (dest, params = {}) => {
-    if (prefersReducedMotion()) {
+    if (prefersReducedMotion() || !pageRef.current) {
       navigateTo(dest, params);
       return;
     }
     loadGsap().then(gsap => {
+      if (!pageRef.current) {
+        navigateTo(dest, params);
+        return;
+      }
       gsap.to(pageRef.current, {
         opacity: 0, y: -30, duration: 0.3, ease: 'power2.in',
         onComplete: () => navigateTo(dest, params)
@@ -169,6 +172,12 @@ export default function Lobby({ navigateTo, onWarm }) {
     const header = content?.querySelector('.text-center');
 
     loadGsap().then(gsap => {
+      const overlay = modesOverlayRef.current;
+      if (!overlay) {
+        setShowModes(false);
+        isClosingModesRef.current = false;
+        return;
+      }
       const tl = gsap.timeline({
         onComplete: () => {
           setShowModes(false);
@@ -176,25 +185,30 @@ export default function Lobby({ navigateTo, onWarm }) {
         }
       });
 
-      tl.to(cards, {
-        y: 35,
-        opacity: 0,
-        scale: 0.96,
-        duration: 0.28,
-        stagger: 0.05,
-        ease: 'power2.in'
-      })
-        .to([header, modesBackRef.current].filter(Boolean), {
+      if (cards.length > 0) {
+        tl.to(cards, {
+          y: 35,
+          opacity: 0,
+          scale: 0.96,
+          duration: 0.28,
+          stagger: 0.05,
+          ease: 'power2.in'
+        });
+      }
+      const headerAndBack = [header, modesBackRef.current].filter(Boolean);
+      if (headerAndBack.length > 0) {
+        tl.to(headerAndBack, {
           y: -12,
           opacity: 0,
           duration: 0.22,
           ease: 'power2.in'
-        }, 0)
-        .to(modesOverlayRef.current, {
-          opacity: 0,
-          duration: 0.28,
-          ease: 'power2.in'
-        }, '-=0.15');
+        }, 0);
+      }
+      tl.to(overlay, {
+        opacity: 0,
+        duration: 0.28,
+        ease: 'power2.in'
+      }, '-=0.15');
     }).catch(() => {
       setShowModes(false);
       isClosingModesRef.current = false;
@@ -232,7 +246,10 @@ export default function Lobby({ navigateTo, onWarm }) {
           setShowMultiplayer(false);
           setMpPanel(null);
           isTransitioningRef.current = false;
-          gsap.set([modesOverlayRef.current, ...modeCardsRef.current.filter(Boolean)], { opacity: 1, y: 0, scale: 1 });
+          const targets = [modesOverlayRef.current, ...modeCardsRef.current.filter(Boolean)].filter(Boolean);
+          if (targets.length > 0) {
+            gsap.set(targets, { opacity: 1, y: 0, scale: 1 });
+          }
           return;
         }
 
@@ -246,11 +263,11 @@ export default function Lobby({ navigateTo, onWarm }) {
         const mpHeader = mpContent?.querySelector('.text-center');
         const mpBack = mpBackRef.current;
 
-        gsap.set(modesOverlayRef.current, { opacity: 1 });
-        gsap.set(mpOverlayRef.current, { opacity: 1 });
+        if (modesOverlayRef.current) gsap.set(modesOverlayRef.current, { opacity: 1 });
+        if (mpOverlayRef.current) gsap.set(mpOverlayRef.current, { opacity: 1 });
 
         if (modesHeader) gsap.set(modesHeader, { opacity: 0, y: -16 });
-        gsap.set(modesCards, { opacity: 0, y: -24, scale: 0.96 });
+        if (modesCards.length > 0) gsap.set(modesCards, { opacity: 0, y: -24, scale: 0.96 });
         if (modesBack) gsap.set(modesBack, { opacity: 0, y: -12 });
 
         const tl = gsap.timeline({
@@ -258,22 +275,28 @@ export default function Lobby({ navigateTo, onWarm }) {
             setShowMultiplayer(false);
             setMpPanel(null);
             isTransitioningRef.current = false;
-            gsap.set([...modesCards, modesHeader, modesBack].filter(Boolean), { clearProps: 'transform' });
+            const clearTargets = [...modesCards, modesHeader, modesBack].filter(Boolean);
+            if (clearTargets.length > 0) {
+              gsap.set(clearTargets, { clearProps: 'transform' });
+            }
           }
         });
 
         // ── Exit animation of Multiplayer Hub ──
-        tl.to(mpCards, {
-          y: 24,
-          opacity: 0,
-          scale: 0.96,
-          duration: 0.26,
-          stagger: 0.04,
-          ease: 'power2.in'
-        }, 0);
+        if (mpCards.length > 0) {
+          tl.to(mpCards, {
+            y: 24,
+            opacity: 0,
+            scale: 0.96,
+            duration: 0.26,
+            stagger: 0.04,
+            ease: 'power2.in'
+          }, 0);
+        }
 
-        if (mpHeader || mpBack) {
-          tl.to([mpHeader, mpBack].filter(Boolean), {
+        const mpHeaderAndBack = [mpHeader, mpBack].filter(Boolean);
+        if (mpHeaderAndBack.length > 0) {
+          tl.to(mpHeaderAndBack, {
             y: 12,
             opacity: 0,
             duration: 0.22,
@@ -291,14 +314,16 @@ export default function Lobby({ navigateTo, onWarm }) {
           }, 0.08);
         }
 
-        tl.to(modesCards, {
-          opacity: 1,
-          y: 0,
-          scale: 1,
-          duration: 0.48,
-          stagger: 0.07,
-          ease: 'expo.out'
-        }, 0.1);
+        if (modesCards.length > 0) {
+          tl.to(modesCards, {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.48,
+            stagger: 0.07,
+            ease: 'expo.out'
+          }, 0.1);
+        }
 
         if (modesBack) {
           tl.to(modesBack, {
@@ -331,7 +356,10 @@ export default function Lobby({ navigateTo, onWarm }) {
           const cards = modeCardsRef.current.filter(Boolean);
           const header = modesOverlayRef.current?.querySelector('.modal-content')?.querySelector('.text-center');
           const backArrow = modesBackRef.current?.querySelector('.back-arrow-icon');
-          gsap.killTweensOf([modesOverlayRef.current, ...cards, backArrow, header, modesBackRef.current].filter(Boolean));
+          const killTargets = [modesOverlayRef.current, ...cards, backArrow, header, modesBackRef.current].filter(Boolean);
+          if (killTargets.length > 0) {
+            gsap.killTweensOf(killTargets);
+          }
         }).catch(() => { });
       };
     }
@@ -339,27 +367,33 @@ export default function Lobby({ navigateTo, onWarm }) {
     let active = true;
 
     loadGsap().then(gsap => {
-      if (!active) return;
+      if (!active || !modesOverlayRef.current) return;
+      const cards = modeCardsRef.current.filter(Boolean);
       if (prefersReducedMotion()) {
-        gsap.set([modesOverlayRef.current, ...modeCardsRef.current.filter(Boolean)], { opacity: 1, y: 0, scale: 1 });
+        const targets = [modesOverlayRef.current, ...cards].filter(Boolean);
+        if (targets.length > 0) {
+          gsap.set(targets, { opacity: 1, y: 0, scale: 1 });
+        }
         return;
       }
       // Stagger cards in from below
-      const cards = modeCardsRef.current.filter(Boolean);
       const content = modesOverlayRef.current?.querySelector('.modal-content');
       const header = content?.querySelector('.text-center');
 
-      gsap.set([modesOverlayRef.current, ...cards], { opacity: 0 });
+      const initialTargets = [modesOverlayRef.current, ...cards].filter(Boolean);
+      if (initialTargets.length > 0) gsap.set(initialTargets, { opacity: 0 });
       if (header) gsap.set(header, { opacity: 0, y: 20 });
       if (modesBackRef.current) gsap.set(modesBackRef.current, { opacity: 0, y: 15 });
 
       const tl = gsap.timeline();
 
-      tl.to(modesOverlayRef.current, {
-        opacity: 1,
-        duration: 0.35,
-        ease: 'power2.out'
-      });
+      if (modesOverlayRef.current) {
+        tl.to(modesOverlayRef.current, {
+          opacity: 1,
+          duration: 0.35,
+          ease: 'power2.out'
+        });
+      }
 
       if (header) {
         tl.to(header, {
@@ -370,11 +404,13 @@ export default function Lobby({ navigateTo, onWarm }) {
         }, '-=0.2');
       }
 
-      tl.fromTo(cards,
-        { y: 50, opacity: 0, scale: 0.95 },
-        { y: 0, opacity: 1, scale: 1, duration: 0.7, stagger: 0.12, ease: 'expo.out', clearProps: 'transform' },
-        header ? '-=0.35' : 0
-      );
+      if (cards.length > 0) {
+        tl.fromTo(cards,
+          { y: 50, opacity: 0, scale: 0.95 },
+          { y: 0, opacity: 1, scale: 1, duration: 0.7, stagger: 0.12, ease: 'expo.out', clearProps: 'transform' },
+          header ? '-=0.35' : 0
+        );
+      }
 
       if (modesBackRef.current) {
         tl.to(modesBackRef.current, {
@@ -406,7 +442,10 @@ export default function Lobby({ navigateTo, onWarm }) {
         const cards = modeCardsRef.current.filter(Boolean);
         const header = modesOverlayRef.current?.querySelector('.modal-content')?.querySelector('.text-center');
         const backArrow = modesBackRef.current?.querySelector('.back-arrow-icon');
-        gsap.killTweensOf([modesOverlayRef.current, ...cards, backArrow, header, modesBackRef.current].filter(Boolean));
+        const killTargets = [modesOverlayRef.current, ...cards, backArrow, header, modesBackRef.current].filter(Boolean);
+        if (killTargets.length > 0) {
+          gsap.killTweensOf(killTargets);
+        }
       }).catch(() => { });
     };
   }, [showModes]);
@@ -426,6 +465,14 @@ export default function Lobby({ navigateTo, onWarm }) {
     const header = content?.querySelector('.text-center');
 
     loadGsap().then(gsap => {
+      const overlay = mpOverlayRef.current;
+      if (!overlay) {
+        setShowMultiplayer(false);
+        setMpPanel(null);
+        isClosingMpRef.current = false;
+        onDone?.();
+        return;
+      }
       const tl = gsap.timeline({
         onComplete: () => {
           setShowMultiplayer(false);
@@ -434,9 +481,14 @@ export default function Lobby({ navigateTo, onWarm }) {
           onDone?.();
         }
       });
-      tl.to(cards, { y: 35, opacity: 0, scale: 0.96, duration: 0.28, stagger: 0.05, ease: 'power2.in' })
-        .to([header, mpBackRef.current].filter(Boolean), { y: -12, opacity: 0, duration: 0.22, ease: 'power2.in' }, 0)
-        .to(mpOverlayRef.current, { opacity: 0, duration: 0.28, ease: 'power2.in' }, '-=0.15');
+      if (cards.length > 0) {
+        tl.to(cards, { y: 35, opacity: 0, scale: 0.96, duration: 0.28, stagger: 0.05, ease: 'power2.in' });
+      }
+      const headerAndBack = [header, mpBackRef.current].filter(Boolean);
+      if (headerAndBack.length > 0) {
+        tl.to(headerAndBack, { y: -12, opacity: 0, duration: 0.22, ease: 'power2.in' }, 0);
+      }
+      tl.to(overlay, { opacity: 0, duration: 0.28, ease: 'power2.in' }, '-=0.15');
     }).catch(() => {
       setShowMultiplayer(false);
       setMpPanel(null);
@@ -475,7 +527,10 @@ export default function Lobby({ navigateTo, onWarm }) {
         if (prefersReducedMotion()) {
           setShowModes(false);
           isTransitioningRef.current = false;
-          gsap.set([mpOverlayRef.current, ...mpCardsRef.current.filter(Boolean)], { opacity: 1, y: 0, scale: 1 });
+          const targets = [mpOverlayRef.current, ...mpCardsRef.current.filter(Boolean)].filter(Boolean);
+          if (targets.length > 0) {
+            gsap.set(targets, { opacity: 1, y: 0, scale: 1 });
+          }
           return;
         }
 
@@ -489,33 +544,39 @@ export default function Lobby({ navigateTo, onWarm }) {
         const mpHeader = mpContent?.querySelector('.text-center');
         const mpBack = mpBackRef.current;
 
-        gsap.set(modesOverlayRef.current, { opacity: 1 });
-        gsap.set(mpOverlayRef.current, { opacity: 1 });
+        if (modesOverlayRef.current) gsap.set(modesOverlayRef.current, { opacity: 1 });
+        if (mpOverlayRef.current) gsap.set(mpOverlayRef.current, { opacity: 1 });
 
         if (mpHeader) gsap.set(mpHeader, { opacity: 0, y: 16 });
-        gsap.set(mpCards, { opacity: 0, y: 28, scale: 0.96 });
+        if (mpCards.length > 0) gsap.set(mpCards, { opacity: 0, y: 28, scale: 0.96 });
         if (mpBack) gsap.set(mpBack, { opacity: 0, y: 12 });
 
         const tl = gsap.timeline({
           onComplete: () => {
             setShowModes(false);
             isTransitioningRef.current = false;
-            gsap.set([...mpCards, mpHeader, mpBack].filter(Boolean), { clearProps: 'transform' });
+            const clearTargets = [...mpCards, mpHeader, mpBack].filter(Boolean);
+            if (clearTargets.length > 0) {
+              gsap.set(clearTargets, { clearProps: 'transform' });
+            }
           }
         });
 
         // ── Exit animation of Modes Screen (floating up) ──
-        tl.to(modesCards, {
-          y: -24,
-          opacity: 0,
-          scale: 0.96,
-          duration: 0.26,
-          stagger: 0.04,
-          ease: 'power2.in'
-        }, 0);
+        if (modesCards.length > 0) {
+          tl.to(modesCards, {
+            y: -24,
+            opacity: 0,
+            scale: 0.96,
+            duration: 0.26,
+            stagger: 0.04,
+            ease: 'power2.in'
+          }, 0);
+        }
 
-        if (modesHeader || modesBack) {
-          tl.to([modesHeader, modesBack].filter(Boolean), {
+        const modesHeaderAndBack = [modesHeader, modesBack].filter(Boolean);
+        if (modesHeaderAndBack.length > 0) {
+          tl.to(modesHeaderAndBack, {
             y: -12,
             opacity: 0,
             duration: 0.22,
@@ -533,13 +594,15 @@ export default function Lobby({ navigateTo, onWarm }) {
           }, 0.08);
         }
 
-        tl.to(mpCards, {
-          opacity: 1,
-          y: 0,
-          scale: 1,
-          duration: 0.48,
-          ease: 'expo.out'
-        }, 0.1);
+        if (mpCards.length > 0) {
+          tl.to(mpCards, {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.48,
+            ease: 'expo.out'
+          }, 0.1);
+        }
 
         if (mpBack) {
           tl.to(mpBack, {
@@ -577,34 +640,43 @@ export default function Lobby({ navigateTo, onWarm }) {
           const cards = mpCardsRef.current.filter(Boolean);
           const header = mpOverlayRef.current?.querySelector('.modal-content')?.querySelector('.text-center');
           const backArrow = mpBackRef.current?.querySelector('.back-arrow-icon');
-          gsap.killTweensOf([mpOverlayRef.current, ...cards, backArrow, header, mpBackRef.current].filter(Boolean));
+          const killTargets = [mpOverlayRef.current, ...cards, backArrow, header, mpBackRef.current].filter(Boolean);
+          if (killTargets.length > 0) {
+            gsap.killTweensOf(killTargets);
+          }
         }).catch(() => { });
       };
     }
 
     let active = true;
     loadGsap().then(gsap => {
-      if (!active) return;
+      if (!active || !mpOverlayRef.current) return;
+      const cards = mpCardsRef.current.filter(Boolean);
       if (prefersReducedMotion()) {
-        gsap.set([mpOverlayRef.current, ...mpCardsRef.current.filter(Boolean)], { opacity: 1, y: 0, scale: 1 });
+        const targets = [mpOverlayRef.current, ...cards].filter(Boolean);
+        if (targets.length > 0) {
+          gsap.set(targets, { opacity: 1, y: 0, scale: 1 });
+        }
         return;
       }
-      const cards = mpCardsRef.current.filter(Boolean);
       const content = mpOverlayRef.current?.querySelector('.modal-content');
       const header = content?.querySelector('.text-center');
 
-      gsap.set([mpOverlayRef.current, ...cards], { opacity: 0 });
+      const initialTargets = [mpOverlayRef.current, ...cards].filter(Boolean);
+      if (initialTargets.length > 0) gsap.set(initialTargets, { opacity: 0 });
       if (header) gsap.set(header, { opacity: 0, y: 20 });
       if (mpBackRef.current) gsap.set(mpBackRef.current, { opacity: 0, y: 15 });
 
       const tl = gsap.timeline();
-      tl.to(mpOverlayRef.current, { opacity: 1, duration: 0.35, ease: 'power2.out' });
+      if (mpOverlayRef.current) tl.to(mpOverlayRef.current, { opacity: 1, duration: 0.35, ease: 'power2.out' });
       if (header) tl.to(header, { opacity: 1, y: 0, duration: 0.5, ease: 'expo.out' }, '-=0.2');
-      tl.fromTo(cards,
-        { y: 50, opacity: 0, scale: 0.95 },
-        { y: 0, opacity: 1, scale: 1, duration: 0.7, ease: 'expo.out', clearProps: 'transform' },
-        header ? '-=0.35' : 0
-      );
+      if (cards.length > 0) {
+        tl.fromTo(cards,
+          { y: 50, opacity: 0, scale: 0.95 },
+          { y: 0, opacity: 1, scale: 1, duration: 0.7, ease: 'expo.out', clearProps: 'transform' },
+          header ? '-=0.35' : 0
+        );
+      }
       if (mpBackRef.current) tl.to(mpBackRef.current, { opacity: 1, y: 0, duration: 0.45, ease: 'expo.out' }, '-=0.4');
 
       const backArrow = mpBackRef.current?.querySelector('.back-arrow-icon');
@@ -629,7 +701,10 @@ export default function Lobby({ navigateTo, onWarm }) {
         const cards = mpCardsRef.current.filter(Boolean);
         const header = mpOverlayRef.current?.querySelector('.modal-content')?.querySelector('.text-center');
         const backArrow = mpBackRef.current?.querySelector('.back-arrow-icon');
-        gsap.killTweensOf([mpOverlayRef.current, ...cards, backArrow, header, mpBackRef.current].filter(Boolean));
+        const killTargets = [mpOverlayRef.current, ...cards, backArrow, header, mpBackRef.current].filter(Boolean);
+        if (killTargets.length > 0) {
+          gsap.killTweensOf(killTargets);
+        }
       }).catch(() => { });
     };
   }, [showMultiplayer]);
@@ -645,42 +720,54 @@ export default function Lobby({ navigateTo, onWarm }) {
 
     let active = true;
     loadGsap().then(gsap => {
-      if (!active) return;
+      if (!active || !factionOverlayRef.current) return;
+      const cards = [snowCardRef.current, ashCardRef.current].filter(Boolean);
       if (prefersReducedMotion()) {
-        gsap.set([factionOverlayRef.current, snowCardRef.current, ashCardRef.current], {
-          opacity: 1,
-          x: 0,
-          scale: 1,
-          clearProps: 'all'
-        });
+        const targets = [factionOverlayRef.current, ...cards].filter(Boolean);
+        if (targets.length > 0) {
+          gsap.set(targets, {
+            opacity: 1,
+            x: 0,
+            scale: 1,
+            clearProps: 'all'
+          });
+        }
         return;
       }
 
       const tl = gsap.timeline({
         onComplete: () => {
-          gsap.set([snowCardRef.current, ashCardRef.current].filter(Boolean), {
-            clearProps: 'transform,scale,x,y'
-          });
+          if (cards.length > 0) {
+            gsap.set(cards, {
+              clearProps: 'transform,scale,x,y'
+            });
+          }
         }
       });
 
-      tl.fromTo(factionOverlayRef.current,
-        { opacity: 0 },
-        { opacity: 1, duration: 0.35, ease: 'power2.out' },
-        0
-      );
+      if (factionOverlayRef.current) {
+        tl.fromTo(factionOverlayRef.current,
+          { opacity: 0 },
+          { opacity: 1, duration: 0.35, ease: 'power2.out' },
+          0
+        );
+      }
 
       // Both banners fly in from the sides (Snow from left, Ash from right)
-      tl.fromTo(snowCardRef.current,
-        { x: -50, opacity: 0, scale: 0.96 },
-        { x: 0, opacity: 1, scale: 1, duration: 0.6, ease: 'expo.out' },
-        0.05
-      );
-      tl.fromTo(ashCardRef.current,
-        { x: 50, opacity: 0, scale: 0.96 },
-        { x: 0, opacity: 1, scale: 1, duration: 0.6, ease: 'expo.out' },
-        0.05
-      );
+      if (snowCardRef.current) {
+        tl.fromTo(snowCardRef.current,
+          { x: -50, opacity: 0, scale: 0.96 },
+          { x: 0, opacity: 1, scale: 1, duration: 0.6, ease: 'expo.out' },
+          0.05
+        );
+      }
+      if (ashCardRef.current) {
+        tl.fromTo(ashCardRef.current,
+          { x: 50, opacity: 0, scale: 0.96 },
+          { x: 0, opacity: 1, scale: 1, duration: 0.6, ease: 'expo.out' },
+          0.05
+        );
+      }
 
       // Back arrow nudge
       const backArrow = factionBackRef.current?.querySelector('.back-arrow-icon');
@@ -695,15 +782,21 @@ export default function Lobby({ navigateTo, onWarm }) {
       active = false;
       loadGsap().then(gsap => {
         const backArrow = factionBackRef.current?.querySelector('.back-arrow-icon');
-        gsap.killTweensOf([
+        const killTargets = [
           factionOverlayRef.current,
           snowCardRef.current,
           ashCardRef.current,
           backArrow
-        ].filter(Boolean));
-        gsap.set([snowCardRef.current, ashCardRef.current].filter(Boolean), {
-          clearProps: 'transform,scale,x,y'
-        });
+        ].filter(Boolean);
+        if (killTargets.length > 0) {
+          gsap.killTweensOf(killTargets);
+        }
+        const cards = [snowCardRef.current, ashCardRef.current].filter(Boolean);
+        if (cards.length > 0) {
+          gsap.set(cards, {
+            clearProps: 'transform,scale,x,y'
+          });
+        }
       }).catch(() => { });
     };
   }, [showFactionSelection]);
@@ -746,77 +839,75 @@ export default function Lobby({ navigateTo, onWarm }) {
         onWarm={onWarm}
       />
 
-      {/* ── MODALS (LAZY LOADED ON DEMAND) ── */}
-      <Suspense fallback={null}>
-        {(showModes || showMultiplayer) && (
-          <ModeSelectModal
-            showModes={showModes}
-            showMultiplayer={showMultiplayer}
-            modesOverlayRef={modesOverlayRef}
-            modeCardsRef={modeCardsRef}
-            modesBackRef={modesBackRef}
-            isTransitioningRef={isTransitioningRef}
-            handleCloseModes={handleCloseModes}
-            handleModesToMultiplayer={handleModesToMultiplayer}
-            loadMultiplayer={loadMultiplayer}
-            handleCardMouseMove={handleCardMouseMove}
-            handleCardMouseLeave={handleCardMouseLeave}
-            navigateTo={navigateTo}
-          />
-        )}
+      {/* ── MODALS ── */}
+      {(showModes || showMultiplayer) && (
+        <ModeSelectModal
+          showModes={showModes}
+          showMultiplayer={showMultiplayer}
+          modesOverlayRef={modesOverlayRef}
+          modeCardsRef={modeCardsRef}
+          modesBackRef={modesBackRef}
+          isTransitioningRef={isTransitioningRef}
+          handleCloseModes={handleCloseModes}
+          handleModesToMultiplayer={handleModesToMultiplayer}
+          loadMultiplayer={loadMultiplayer}
+          handleCardMouseMove={handleCardMouseMove}
+          handleCardMouseLeave={handleCardMouseLeave}
+          navigateTo={navigateTo}
+        />
+      )}
 
-        {(showMultiplayer || showModes) && (
-          <MultiplayerModal
-            showMultiplayer={showMultiplayer}
-            showModes={showModes}
-            mpOverlayRef={mpOverlayRef}
-            isTransitioningRef={isTransitioningRef}
-            handleCloseMp={handleCloseMp}
-            handleMpToModes={handleMpToModes}
-            handleQuickMatch={handleQuickMatch}
-            isMatching={isMatching}
-            handleCardMouseMove={handleCardMouseMove}
-            handleCardMouseLeave={handleCardMouseLeave}
-            mpCardsRef={mpCardsRef}
-            mpBackRef={mpBackRef}
-            mpPanel={mpPanel}
-            setMpPanel={setMpPanel}
-            hostIsPublic={hostIsPublic}
-            setHostIsPublic={setHostIsPublic}
-            hostAutoCode={hostAutoCode}
-            handleRerollCode={handleRerollCode}
-            handleHostRealm={handleHostRealm}
-            isHosting={isHosting}
-            roomCode={roomCode}
-            handleRoomCodeChange={handleRoomCodeChange}
-            handlePasteCode={handlePasteCode}
-            handleJoinSpecificRoom={handleJoinSpecificRoom}
-            openRooms={openRooms}
-          />
-        )}
+      {(showMultiplayer || showModes) && (
+        <MultiplayerModal
+          showMultiplayer={showMultiplayer}
+          showModes={showModes}
+          mpOverlayRef={mpOverlayRef}
+          isTransitioningRef={isTransitioningRef}
+          handleCloseMp={handleCloseMp}
+          handleMpToModes={handleMpToModes}
+          handleQuickMatch={handleQuickMatch}
+          isMatching={isMatching}
+          handleCardMouseMove={handleCardMouseMove}
+          handleCardMouseLeave={handleCardMouseLeave}
+          mpCardsRef={mpCardsRef}
+          mpBackRef={mpBackRef}
+          mpPanel={mpPanel}
+          setMpPanel={setMpPanel}
+          hostIsPublic={hostIsPublic}
+          setHostIsPublic={setHostIsPublic}
+          hostAutoCode={hostAutoCode}
+          handleRerollCode={handleRerollCode}
+          handleHostRealm={handleHostRealm}
+          isHosting={isHosting}
+          roomCode={roomCode}
+          handleRoomCodeChange={handleRoomCodeChange}
+          handlePasteCode={handlePasteCode}
+          handleJoinSpecificRoom={handleJoinSpecificRoom}
+          openRooms={openRooms}
+        />
+      )}
 
-        {showFactionSelection && (
-          <FactionSelectionOverlay
-            showFactionSelection={showFactionSelection}
-            factionOverlayRef={factionOverlayRef}
-            currentRoomId={currentRoomId}
-            copiedLink={copiedLink}
-            handleCopyInviteLink={handleCopyInviteLink}
-            disbandCountdown={disbandCountdown}
-            playersList={playersList}
-            snowCardRef={snowCardRef}
-            ashCardRef={ashCardRef}
-            hoveredFaction={hoveredFaction}
-            setHoveredFaction={setHoveredFaction}
-            handleSelectFaction={handleSelectFaction}
-            factionBackRef={factionBackRef}
-            handleCancelFaction={handleCancelFaction}
-            currentMode={currentMode}
-            snowBtnState={snowBtnState}
-            ashBtnState={ashBtnState}
-          />
-        )}
-      </Suspense>
+      {showFactionSelection && (
+        <FactionSelectionOverlay
+          showFactionSelection={showFactionSelection}
+          factionOverlayRef={factionOverlayRef}
+          currentRoomId={currentRoomId}
+          copiedLink={copiedLink}
+          handleCopyInviteLink={handleCopyInviteLink}
+          disbandCountdown={disbandCountdown}
+          playersList={playersList}
+          snowCardRef={snowCardRef}
+          ashCardRef={ashCardRef}
+          hoveredFaction={hoveredFaction}
+          setHoveredFaction={setHoveredFaction}
+          handleSelectFaction={handleSelectFaction}
+          factionBackRef={factionBackRef}
+          handleCancelFaction={handleCancelFaction}
+          currentMode={currentMode}
+          snowBtnState={snowBtnState}
+          ashBtnState={ashBtnState}
+        />
+      )}
 
     </div>
   );

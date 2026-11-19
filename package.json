@@ -9,7 +9,8 @@
     "preview": "npm run --prefix client preview",
     "deploy": "firebase deploy",
     "deploy:hosting": "firebase deploy --only hosting",
-    "deploy:rules": "firebase deploy --only firestore:rules"
+    "deploy:rules": "firebase deploy --only firestore:rules",
+    "test": "node --import ./test/helpers/registerHooks.js --test 'test/**/*.test.js'"
   },
   "keywords": [
     "turn-based",

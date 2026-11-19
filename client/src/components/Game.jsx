@@ -1,21 +1,19 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import '@/styles/game.css';
-import {
-  ArrowLeft,
-  ChevronDown,
-  ChevronUp,
-  Clock3,
-  FlaskConical,
-  Play,
-  RotateCcw,
-  ScrollText,
-  Shield,
-  Skull,
-  Swords,
-  Trophy,
-  Users,
-  WifiOff,
-} from 'lucide-react';
+import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left.js';
+import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down.js';
+import ChevronUp from 'lucide-react/dist/esm/icons/chevron-up.js';
+import Clock3 from 'lucide-react/dist/esm/icons/clock-3.js';
+import FlaskConical from 'lucide-react/dist/esm/icons/flask-conical.js';
+import Play from 'lucide-react/dist/esm/icons/play.js';
+import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw.js';
+import ScrollText from 'lucide-react/dist/esm/icons/scroll-text.js';
+import Shield from 'lucide-react/dist/esm/icons/shield.js';
+import Skull from 'lucide-react/dist/esm/icons/skull.js';
+import Swords from 'lucide-react/dist/esm/icons/swords.js';
+import Trophy from 'lucide-react/dist/esm/icons/trophy.js';
+import Users from 'lucide-react/dist/esm/icons/users.js';
+import WifiOff from 'lucide-react/dist/esm/icons/wifi-off.js';
 import Board from './Board.jsx';
 import AscensionModal from './AscensionModal.jsx';
 import VictoryScreen from './VictoryScreen.jsx';
@@ -28,15 +26,17 @@ import * as C from '@shared/constants.js';
 import * as E from '@shared/utils.js';
 import * as Effects from '@/effects';
 import {
+  getOrCreatePlayerId,
+  saveActiveSession,
+  clearActiveSession
+} from '../services/roomCode.js';
+import {
   subscribeToRoom,
   dispatchGameAction,
   validatePeerAction,
   leaveRoom,
   disbandRoom,
-  updatePlayerHeartbeat,
-  getOrCreatePlayerId,
-  saveActiveSession,
-  clearActiveSession
+  updatePlayerHeartbeat
 } from '../services/multiplayer.js';
 import {
   calculateDynamicTerritoryAreas,
@@ -63,6 +63,7 @@ export default function Game({ navigateTo }) {
   const [showGameOverModal, setShowGameOverModal] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const gameStateRef = useRef(gameState);
+  const mousePosRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     setHoveredAbilityKey(null);
@@ -255,9 +256,10 @@ export default function Game({ navigateTo }) {
 
     if (isLocal) {
       // Local Play Setup
-      Logic.initGameState({});
-      Logic.initGame();
-      const gs = Logic.getGameState();
+      const initialGs = {};
+      Logic.initGameState(initialGs);
+      Logic.initGame(initialGs);
+      const gs = Logic.getGameState(initialGs);
 
       // Attach images so effects.js canvas drawing won't crash
       gs.images = preloadedImagesRef.current;
@@ -440,8 +442,8 @@ export default function Game({ navigateTo }) {
           // Timeout trigger
           if (isLocal) {
             Logic.initGameState(updated);
-            Logic.endGame(turn === 'snow' ? 'ash' : 'snow');
-            const newGs = Logic.getGameState();
+            Logic.endGame(turn === 'snow' ? 'ash' : 'snow', updated);
+            const newGs = Logic.getGameState(updated);
             newGs.images = preloadedImagesRef.current;
             newGs.boardImgs = {
               gameBackgroundSnow: preloadedImagesRef.current.gameBackgroundSnow,
@@ -571,7 +573,7 @@ export default function Game({ navigateTo }) {
       switch (actionType) {
         case 'SELECT_PIECE':
           const p = find(data.pieceId);
-          if (p) Logic.selectPiece(p); else Logic.deselectPiece();
+          if (p) Logic.selectPiece(p, nextState); else Logic.deselectPiece(nextState);
           break;
 
         case 'MOVE':
@@ -591,7 +593,7 @@ export default function Game({ navigateTo }) {
                 defender.isFading = true;
               }
             }
-            turnEnded = Logic.movePiece(mp, data.r, data.c, data.isHighway);
+            turnEnded = Logic.movePiece(mp, data.r, data.c, data.isHighway, nextState);
           }
           break;
 
@@ -602,13 +604,13 @@ export default function Game({ navigateTo }) {
               cp.isAnimating = true; // Trigger cast pulse lunge
               turnEnded = Logic.executeAbility(cp, data.target, data.abilityKey, nextState);
             } else {
-              turnEnded = Logic.activateAbility(cp, data.abilityKey || data.unleashCostOrKey || 0);
+              turnEnded = Logic.activateAbility(cp, data.abilityKey || data.unleashCostOrKey || 0, nextState);
             }
           }
           break;
 
         case 'HANDLE_CLICK':
-          turnEnded = Logic.handleAbilityClick(data.r, data.c);
+          turnEnded = Logic.handleAbilityClick(data.r, data.c, nextState);
           break;
 
         case 'SWITCH_TURN':
@@ -616,34 +618,34 @@ export default function Game({ navigateTo }) {
           break;
 
         case 'ASCENSION_CHOICE':
-          turnEnded = Logic.executeAscensionChoice(data.choice);
+          turnEnded = Logic.executeAscensionChoice(data.choice, nextState);
           break;
 
         case 'CANCEL_ASCENSION':
-          Logic.cancelAscensionChoice();
+          Logic.cancelAscensionChoice(nextState);
           break;
 
         case 'SACRIFICE':
-          turnEnded = Logic.executeSacrifice(find(data.pieceId));
+          turnEnded = Logic.executeSacrifice(find(data.pieceId), nextState);
           break;
 
         case 'RELEASE':
-          turnEnded = Logic.executeRelease(find(data.pieceId));
+          turnEnded = Logic.executeRelease(find(data.pieceId), nextState);
           break;
 
         case 'RIFT_PULSE':
           const rp = find(data.pieceId);
           if (rp) rp.isAnimating = true;
-          turnEnded = Logic.executeRiftPulse(rp);
+          turnEnded = Logic.executeRiftPulse(rp, nextState);
           break;
 
         case 'DESPAWN':
-          Logic.despawnPiece(find(data.pieceId));
+          Logic.despawnPiece(find(data.pieceId), nextState);
           turnEnded = true;
           break;
 
         case 'TIMEOUT':
-          Logic.endGame(data.team === 'snow' ? 'ash' : 'snow');
+          Logic.endGame(data.team === 'snow' ? 'ash' : 'snow', nextState);
           break;
 
         case 'TOGGLE_TEST_MODE':
@@ -663,7 +665,7 @@ export default function Game({ navigateTo }) {
             const hasWisp = nextState.pieces.some(x => x.key === 'snowIceWisp');
             const mage = nextState.pieces.find(x => x.key === 'snowGlacialMage');
             if (!hasWisp && mage) {
-              const testWisp = Logic.createPiece(Math.min(9, mage.row + 1), mage.col, 'snowIceWisp', 'snow');
+              const testWisp = Logic.createPiece(Math.min(9, mage.row + 1), mage.col, 'snowIceWisp', 'snow', nextState);
               if (testWisp) nextState.pieces.push(testWisp);
             }
           } else {
@@ -685,14 +687,14 @@ export default function Game({ navigateTo }) {
       E.updateBoardMap(nextState);
 
       if (turnEnded && !nextState.gameOver) {
-        const ascensionTriggered = Logic.checkAscensionReady();
+        const ascensionTriggered = Logic.checkAscensionReady(nextState);
         if (!ascensionTriggered) {
-          Logic.switchTurn();
+          Logic.switchTurn(nextState);
         }
       }
 
       // Sync and retrieve updated state from logic engine
-      const finalState = Logic.getGameState();
+      const finalState = Logic.getGameState(nextState);
 
       // Keep preloaded image assets intact
       finalState.images = preloadedImagesRef.current;
@@ -864,8 +866,8 @@ export default function Game({ navigateTo }) {
         gs.timers = { snow: 600, ash: 600 };
       } else {
         Logic.initGameState(gs);
-        Logic.initGame();
-        const nextGs = Logic.getGameState();
+        Logic.initGame(gs);
+        const nextGs = Logic.getGameState(gs);
         nextGs.images = preloadedImagesRef.current;
         nextGs.boardImgs = {
           gameBackgroundSnow: preloadedImagesRef.current.gameBackgroundSnow,
@@ -1349,13 +1351,17 @@ export default function Game({ navigateTo }) {
                   onPieceClick={handlePieceClick}
                   onMouseEnterPiece={(piece, e) => {
                     if (gameState?.gameOver) return;
-                    if (e) setHoveredMousePos({ x: e.clientX, y: e.clientY });
+                    if (e) {
+                      mousePosRef.current = { x: e.clientX, y: e.clientY };
+                      setHoveredMousePos({ x: e.clientX, y: e.clientY });
+                    }
                     setHoveredPiece(piece);
                   }}
                   onMouseMovePiece={(piece, e) => {
-                    if (e) setHoveredMousePos({ x: e.clientX, y: e.clientY });
+                    if (e) mousePosRef.current = { x: e.clientX, y: e.clientY };
                   }}
                   onMouseLeavePiece={() => {
+                    mousePosRef.current = null;
                     setHoveredPiece(null);
                     setHoveredMousePos(null);
                   }}

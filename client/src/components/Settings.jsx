@@ -1,15 +1,13 @@
 import React, { useState, useLayoutEffect, useRef } from 'react';
-import gsap from 'gsap';
-import {
-  ArrowLeft,
-  BookOpen,
-  Check,
-  ScrollText,
-  Settings as SettingsIcon,
-  Sparkles,
-  Zap,
-  Smartphone
-} from 'lucide-react';
+import { loadGsap } from '../services/gsap.js';
+import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left.js';
+import BookOpen from 'lucide-react/dist/esm/icons/book-open.js';
+import Check from 'lucide-react/dist/esm/icons/check.js';
+import ScrollText from 'lucide-react/dist/esm/icons/scroll-text.js';
+import SettingsIcon from 'lucide-react/dist/esm/icons/settings.js';
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
+import Zap from 'lucide-react/dist/esm/icons/zap.js';
+import Smartphone from 'lucide-react/dist/esm/icons/smartphone.js';
 import { getMotionPreference, applyMotionPreference } from '../services/motionPreference.js';
 import { getHapticsEnabled, setHapticsEnabled, triggerHaptic } from '../services/haptics.js';
 
@@ -21,11 +19,24 @@ export default function Settings({ navigateTo }) {
   const [hapticsEnabled, setHapticsEnabledState] = useState(getHapticsEnabled);
 
   useLayoutEffect(() => {
-    gsap.fromTo(
-      pageRef.current,
-      { opacity: 0, y: 40 },
-      { opacity: 1, y: 0, duration: 0.75, ease: 'expo.out' }
-    );
+    let active = true;
+    let entrance = null;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      if (pageRef.current) pageRef.current.style.opacity = '1';
+      return;
+    }
+    loadGsap().then(gsap => {
+      if (!active || !pageRef.current) return;
+      entrance = gsap.fromTo(
+        pageRef.current,
+        { opacity: 0, y: 40 },
+        { opacity: 1, y: 0, duration: 0.75, ease: 'expo.out' }
+      );
+    });
+    return () => {
+      active = false;
+      if (entrance) entrance.kill();
+    };
   }, []);
 
   const handleNavigate = (dest) => {
@@ -33,12 +44,18 @@ export default function Settings({ navigateTo }) {
       navigateTo(dest);
       return;
     }
-    gsap.to(pageRef.current, {
-      opacity: 0,
-      y: 50,
-      duration: 0.32,
-      ease: 'power2.in',
-      onComplete: () => navigateTo(dest),
+    loadGsap().then(gsap => {
+      if (pageRef.current) {
+        gsap.to(pageRef.current, {
+          opacity: 0,
+          y: 50,
+          duration: 0.32,
+          ease: 'power2.in',
+          onComplete: () => navigateTo(dest),
+        });
+      } else {
+        navigateTo(dest);
+      }
     });
   };
 

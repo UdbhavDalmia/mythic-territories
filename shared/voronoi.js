@@ -38,7 +38,7 @@ export function getPieceInfluenceRadius(piece) {
 /**
  * Creates an initial bounded circular polygon approximation for a unit's territorial influence.
  */
-export function createBoundedPolygon(cx, cy, radius, numSides = 24, bounds = MAP_BOUNDS) {
+export function createBoundedPolygon(cx, cy, radius, numSides = 16, bounds = MAP_BOUNDS) {
   const poly = [];
   for (let i = 0; i < numSides; i++) {
     const angle = (i * 2 * Math.PI) / numSides;
@@ -168,6 +168,8 @@ export function computePowerDiagram(pieces = [], bounds = MAP_BOUNDS) {
     const y = p.row + 0.5;
     const weight = getPieceTerritoryWeight(p);
     const radius = getPieceInfluenceRadius(p);
+    const isLeader = p.isLeader || (p.key && (p.key.includes('Lord') || p.key.includes('Tyrant')));
+    const numSides = isLeader ? 24 : 16;
     return {
       piece: p,
       id: p.id,
@@ -177,7 +179,7 @@ export function computePowerDiagram(pieces = [], bounds = MAP_BOUNDS) {
       weight,
       radius,
       // Bounded territory: starts with an influence envelope around unit according to power
-      polygon: createBoundedPolygon(x, y, radius, 24, bounds),
+      polygon: createBoundedPolygon(x, y, radius, numSides, bounds),
     };
   });
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { RotateCcw, ArrowLeft } from "lucide-react";
+import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw.js';
+import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left.js';
 import FactionBanner from "./FactionBanner.jsx";
 import '@/styles/victory.css';
 

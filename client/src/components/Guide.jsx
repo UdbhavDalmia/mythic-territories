@@ -1,26 +1,24 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import gsap from 'gsap';
+import { loadGsap } from '../services/gsap.js';
 import '@/styles/rules.css';
-import {
-  ArrowLeft,
-  BookOpen,
-  Clock3,
-  Flame,
-  Flag,
-  Footprints,
-  Landmark,
-  Map,
-  Search,
-  Settings as SettingsIcon,
-  Shield,
-  Snowflake,
-  Sparkles,
-  Swords,
-  Target,
-  Users,
-  X,
-  Zap,
-} from 'lucide-react';
+import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left.js';
+import BookOpen from 'lucide-react/dist/esm/icons/book-open.js';
+import Clock3 from 'lucide-react/dist/esm/icons/clock-3.js';
+import Flame from 'lucide-react/dist/esm/icons/flame.js';
+import Flag from 'lucide-react/dist/esm/icons/flag.js';
+import Footprints from 'lucide-react/dist/esm/icons/footprints.js';
+import Landmark from 'lucide-react/dist/esm/icons/landmark.js';
+import Map from 'lucide-react/dist/esm/icons/map.js';
+import Search from 'lucide-react/dist/esm/icons/search.js';
+import SettingsIcon from 'lucide-react/dist/esm/icons/settings.js';
+import Shield from 'lucide-react/dist/esm/icons/shield.js';
+import Snowflake from 'lucide-react/dist/esm/icons/snowflake.js';
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
+import Swords from 'lucide-react/dist/esm/icons/swords.js';
+import Target from 'lucide-react/dist/esm/icons/target.js';
+import Users from 'lucide-react/dist/esm/icons/users.js';
+import X from 'lucide-react/dist/esm/icons/x.js';
+import Zap from 'lucide-react/dist/esm/icons/zap.js';
 
 import {
   UNIT_PROFILES,
@@ -57,15 +55,23 @@ export default function Guide({ navigateTo }) {
 
   // Entrance — slide up + fade in
   useEffect(() => {
+    let active = true;
+    let entrance = null;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      gsap.set(pageRef.current, { opacity: 1, y: 0 });
+      if (pageRef.current) pageRef.current.style.opacity = '1';
       return;
     }
-    const entrance = gsap.fromTo(pageRef.current,
-      { opacity: 0, y: 40 },
-      { opacity: 1, y: 0, duration: 0.75, ease: 'expo.out' }
-    );
-    return () => entrance.kill();
+    loadGsap().then(gsap => {
+      if (!active || !pageRef.current) return;
+      entrance = gsap.fromTo(pageRef.current,
+        { opacity: 0, y: 40 },
+        { opacity: 1, y: 0, duration: 0.75, ease: 'expo.out' }
+      );
+    });
+    return () => {
+      active = false;
+      if (entrance) entrance.kill();
+    };
   }, []);
 
   useLayoutEffect(() => {
@@ -117,9 +123,15 @@ export default function Guide({ navigateTo }) {
       navigateTo(dest);
       return;
     }
-    gsap.to(pageRef.current, {
-      opacity: 0, y: 50, duration: 0.32, ease: 'power2.in',
-      onComplete: () => navigateTo(dest)
+    loadGsap().then(gsap => {
+      if (pageRef.current) {
+        gsap.to(pageRef.current, {
+          opacity: 0, y: 50, duration: 0.32, ease: 'power2.in',
+          onComplete: () => navigateTo(dest)
+        });
+      } else {
+        navigateTo(dest);
+      }
     });
   };
 

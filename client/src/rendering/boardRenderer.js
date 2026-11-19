@@ -22,7 +22,25 @@ export function isPointInTeamTerritory(px, py, cells, CS) {
 
 
 
-export function renderTerritoryLayer(bgCtx, currentGs, isAshLocal, CS, terrCacheRef, terrKeyRef, gradCache) {
+export const craterCache = new Map();
+
+export function renderTerritoryLayer(bgCtx, currentGs, isAshLocal, arg4, arg5, arg6, arg7) {
+      let CS, terrCacheRef, terrKeyRef, gradCache;
+      if (typeof arg4 === 'number') {
+        CS = arg4;
+        terrCacheRef = arg5;
+        terrKeyRef = arg6;
+        gradCache = arg7;
+      } else {
+        terrKeyRef = arg4;
+        terrCacheRef = arg5;
+        CS = typeof arg7 === 'number' ? arg7 : (typeof arg6 === 'number' ? arg6 : 70);
+        gradCache = null;
+      }
+      if (!terrKeyRef) terrKeyRef = { current: null };
+      if (!terrCacheRef) terrCacheRef = { current: null };
+      if (!CS) CS = 70;
+
       // --- Background canvas: Territory Trails (renders UNDER pieces at z-5) ---
       if (bgCtx) {
         bgCtx.save();
@@ -31,60 +49,62 @@ export function renderTerritoryLayer(bgCtx, currentGs, isAshLocal, CS, terrCache
           bgCtx.rotate(Math.PI);
         }
 
-        const pieces = currentGs.pieces || [];
-        const piecesKey = pieces
+        const pieces = currentGs?.pieces || [];
+        const piecesKey = currentGs?._piecesKey || (currentGs ? (currentGs._piecesKey = pieces
           .map(p => `${p.id}:${Number(p.col).toFixed(2)},${Number(p.row).toFixed(2)},${p.currentHp},${p.power}`)
-          .join('|');
-        const newKey = `${piecesKey}_${currentGs.gameStarted ? 1 : 0}_${currentGs.turnCount || 1}`;
+          .join('|')) : '');
+        const newKey = `${piecesKey}_${currentGs?.gameStarted ? 1 : 0}_${currentGs?.turnCount || 1}`;
 
         if (newKey !== terrKeyRef.current || !terrCacheRef.current) {
           terrKeyRef.current = newKey;
-          if (!terrCacheRef.current) {
+          if (!terrCacheRef.current && typeof document !== 'undefined') {
             terrCacheRef.current = document.createElement('canvas');
             terrCacheRef.current.width = C.CANVAS_SIZE;
             terrCacheRef.current.height = C.CANVAS_SIZE;
           }
-          const tCtx = terrCacheRef.current.getContext('2d');
-          tCtx.clearRect(0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
+          if (terrCacheRef.current) {
+            const tCtx = terrCacheRef.current.getContext('2d');
+            tCtx.clearRect(0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
 
-          const voronoi = currentGs.voronoiData || computePowerDiagram(pieces);
+            const voronoi = currentGs?.voronoiData || computePowerDiagram(pieces);
+            if (currentGs) currentGs.voronoiData = voronoi;
 
-          // 1. Draw each unit's bounded territorial influence with seamless organic elemental blending
-          (voronoi.cells || []).forEach(cell => {
-            if (!cell.polygon || cell.polygon.length < 3) return;
+            // 1. Draw each unit's bounded territorial influence with seamless organic elemental blending
+            (voronoi.cells || []).forEach(cell => {
+              if (!cell.polygon || cell.polygon.length < 3) return;
 
-            tCtx.beginPath();
-            tCtx.moveTo(cell.polygon[0].x * CS, cell.polygon[0].y * CS);
-            for (let k = 1; k < cell.polygon.length; k++) {
-              tCtx.lineTo(cell.polygon[k].x * CS, cell.polygon[k].y * CS);
-            }
-            tCtx.closePath();
+              tCtx.beginPath();
+              tCtx.moveTo(cell.polygon[0].x * CS, cell.polygon[0].y * CS);
+              for (let k = 1; k < cell.polygon.length; k++) {
+                tCtx.lineTo(cell.polygon[k].x * CS, cell.polygon[k].y * CS);
+              }
+              tCtx.closePath();
 
-            const cx = cell.center.x * CS;
-            const cy = cell.center.y * CS;
-            const radiusPx = (cell.radius || 2.0) * CS;
-            const grad = tCtx.createRadialGradient(cx, cy, CS * 0.1, cx, cy, radiusPx);
+              const cx = cell.center.x * CS;
+              const cy = cell.center.y * CS;
+              const radiusPx = (cell.radius || 2.0) * CS;
+              const grad = tCtx.createRadialGradient(cx, cy, CS * 0.1, cx, cy, radiusPx);
 
-            if (cell.team === 'snow') {
-              // Deep Glacial Permafrost (Darkened, Rich Cold Ice)
-              grad.addColorStop(0, 'rgba(8, 47, 73, 0.72)');
-              grad.addColorStop(0.3, 'rgba(3, 105, 161, 0.42)');
-              grad.addColorStop(0.65, 'rgba(14, 165, 233, 0.18)');
-              grad.addColorStop(0.85, 'rgba(56, 189, 248, 0.06)');
-              grad.addColorStop(1, 'rgba(2, 132, 199, 0.0)');
-            } else {
-              // Deep Volcanic Scorched Magma (Darkened, Basalt Obsidian)
-              grad.addColorStop(0, 'rgba(50, 10, 8, 0.76)');
-              grad.addColorStop(0.3, 'rgba(153, 27, 27, 0.44)');
-              grad.addColorStop(0.65, 'rgba(220, 38, 38, 0.18)');
-              grad.addColorStop(0.85, 'rgba(239, 68, 68, 0.06)');
-              grad.addColorStop(1, 'rgba(185, 28, 28, 0.0)');
-            }
+              if (cell.team === 'snow') {
+                // Deep Glacial Permafrost (Darkened, Rich Cold Ice)
+                grad.addColorStop(0, 'rgba(8, 47, 73, 0.72)');
+                grad.addColorStop(0.3, 'rgba(3, 105, 161, 0.42)');
+                grad.addColorStop(0.65, 'rgba(14, 165, 233, 0.18)');
+                grad.addColorStop(0.85, 'rgba(56, 189, 248, 0.06)');
+                grad.addColorStop(1, 'rgba(2, 132, 199, 0.0)');
+              } else {
+                // Deep Volcanic Scorched Magma (Darkened, Basalt Obsidian)
+                grad.addColorStop(0, 'rgba(50, 10, 8, 0.76)');
+                grad.addColorStop(0.3, 'rgba(153, 27, 27, 0.44)');
+                grad.addColorStop(0.65, 'rgba(220, 38, 38, 0.18)');
+                grad.addColorStop(0.85, 'rgba(239, 68, 68, 0.06)');
+                grad.addColorStop(1, 'rgba(185, 28, 28, 0.0)');
+              }
 
-            tCtx.fillStyle = grad;
-            tCtx.fill();
-            // No strokes on individual friendly cells: allied territory merges seamlessly into one unified domain
-          });
+              tCtx.fillStyle = grad;
+              tCtx.fill();
+            });
+          }
         }
 
         if (terrCacheRef.current) {
@@ -133,59 +153,75 @@ export function renderTerritoryLayer(bgCtx, currentGs, isAshLocal, CS, terrCache
             const y = t.row * CS;
 
             if (t.type === 'crater') {
-              bgCtx.save();
               const seed = (Math.round(t.row) * 73 + Math.round(t.col) * 179);
-              // Deterministic PRNG helper so blocks remain rock-solid and stable each frame
-              const rnd = (i) => {
-                const s = Math.sin(seed * 9.1 + i * 13.37) * 43758.5453;
-                return s - Math.floor(s);
-              };
+              const craterKey = `${t.row},${t.col}_${CS}`;
+              let offscreenCrater = craterCache.get(craterKey);
 
-              // 1. Base Scorched Earth (Irregular dark charcoal rectangular & square blast slabs)
-              const numDebris = 14;
-              for (let d = 0; d < numDebris; d++) {
-                const dw = CS * (0.28 + rnd(d * 2) * 0.38);
-                const dh = CS * (0.28 + rnd(d * 2 + 1) * 0.38);
-                const ox = (rnd(d * 3) - 0.5) * CS * 0.88;
-                const oy = (rnd(d * 3 + 1) - 0.5) * CS * 0.88;
-                const shade = Math.floor(10 + rnd(d) * 15);
-                bgCtx.fillStyle = `rgba(${shade}, ${Math.floor(shade * 0.38)}, ${Math.floor(shade * 0.18)}, 0.88)`;
-                bgCtx.fillRect(cx + ox - dw / 2, cy + oy - dh / 2, dw, dh);
+              // 1-3. Pre-render static crater components (debris, basalt blocks, pit layers) to offscreen canvas
+              if (!offscreenCrater && typeof document !== 'undefined') {
+                offscreenCrater = document.createElement('canvas');
+                offscreenCrater.width = CS * 2;
+                offscreenCrater.height = CS * 2;
+                const cCtx = offscreenCrater.getContext('2d');
+                const ocx = CS;
+                const ocy = CS;
+
+                const rnd = (i) => {
+                  const s = Math.sin(seed * 9.1 + i * 13.37) * 43758.5453;
+                  return s - Math.floor(s);
+                };
+
+                // Base Scorched Earth (Irregular dark charcoal rectangular & square blast slabs)
+                const numDebris = 14;
+                for (let d = 0; d < numDebris; d++) {
+                  const dw = CS * (0.28 + rnd(d * 2) * 0.38);
+                  const dh = CS * (0.28 + rnd(d * 2 + 1) * 0.38);
+                  const ox = (rnd(d * 3) - 0.5) * CS * 0.88;
+                  const oy = (rnd(d * 3 + 1) - 0.5) * CS * 0.88;
+                  const shade = Math.floor(10 + rnd(d) * 15);
+                  cCtx.fillStyle = `rgba(${shade}, ${Math.floor(shade * 0.38)}, ${Math.floor(shade * 0.18)}, 0.88)`;
+                  cCtx.fillRect(ocx + ox - dw / 2, ocy + oy - dh / 2, dw, dh);
+                }
+
+                // Fractured Basalt Rim Blocks (Solid Random Rectangles and Squares)
+                const numBlocks = 14;
+                for (let b = 0; b < numBlocks; b++) {
+                  const angle = (b / numBlocks) * Math.PI * 2 + (rnd(b) - 0.5) * 0.28;
+                  const dist = CS * (0.20 + rnd(b * 4) * 0.20);
+                  const bx = ocx + Math.cos(angle) * dist;
+                  const by = ocy + Math.sin(angle) * dist;
+                  const bw = CS * (0.26 + rnd(b * 5) * 0.22);
+                  const bh = CS * (0.24 + rnd(b * 5 + 1) * 0.22);
+
+                  const tone = Math.floor(4 + rnd(b * 3) * 8);
+                  cCtx.fillStyle = `rgb(${tone}, ${Math.floor(tone * 0.5)}, ${Math.floor(tone * 0.3)})`;
+                  cCtx.fillRect(bx - bw / 2, by - bh / 2, bw, bh);
+
+                  cCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                  cCtx.fillRect(bx - bw / 2, by + bh / 2 - 2, bw, 2);
+                  cCtx.fillRect(bx + bw / 2 - 2, by - bh / 2, 2, bh);
+                }
+
+                // Sunken Central Pit (Deep Abyss Rectangles)
+                const pitW = CS * 0.52;
+                const pitH = CS * 0.48;
+                cCtx.fillStyle = '#050201';
+                cCtx.fillRect(ocx - pitW / 2, ocy - pitH / 2, pitW, pitH);
+
+                const innerPitW = CS * 0.36;
+                const innerPitH = CS * 0.32;
+                cCtx.fillStyle = '#010000';
+                cCtx.fillRect(ocx - innerPitW / 2, ocy - innerPitH / 2, innerPitW, innerPitH);
+
+                craterCache.set(craterKey, offscreenCrater);
               }
 
-              // 2. Fractured Basalt Rim Blocks (Solid Random Rectangles and Squares, NO orange borders)
-              const numBlocks = 14;
-              for (let b = 0; b < numBlocks; b++) {
-                const angle = (b / numBlocks) * Math.PI * 2 + (rnd(b) - 0.5) * 0.28;
-                const dist = CS * (0.20 + rnd(b * 4) * 0.20);
-                const bx = cx + Math.cos(angle) * dist;
-                const by = cy + Math.sin(angle) * dist;
-                const bw = CS * (0.26 + rnd(b * 5) * 0.22);
-                const bh = CS * (0.24 + rnd(b * 5 + 1) * 0.22);
-
-                // Deep obsidian rock slab - completely seamless solid dark blocks
-                const tone = Math.floor(4 + rnd(b * 3) * 8);
-                bgCtx.fillStyle = `rgb(${tone}, ${Math.floor(tone * 0.5)}, ${Math.floor(tone * 0.3)})`;
-                bgCtx.fillRect(bx - bw / 2, by - bh / 2, bw, bh);
-
-                // Subtle dark bevel shadow (bottom/right only, NO colored border)
-                bgCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                bgCtx.fillRect(bx - bw / 2, by + bh / 2 - 2, bw, 2);
-                bgCtx.fillRect(bx + bw / 2 - 2, by - bh / 2, 2, bh);
+              bgCtx.save();
+              if (offscreenCrater) {
+                bgCtx.drawImage(offscreenCrater, cx - CS, cy - CS);
               }
 
-              // 3. Sunken Central Pit (Deep Abyss Rectangles)
-              const pitW = CS * 0.52;
-              const pitH = CS * 0.48;
-              bgCtx.fillStyle = '#050201';
-              bgCtx.fillRect(cx - pitW / 2, cy - pitH / 2, pitW, pitH);
-
-              const innerPitW = CS * 0.36;
-              const innerPitH = CS * 0.32;
-              bgCtx.fillStyle = '#010000';
-              bgCtx.fillRect(cx - innerPitW / 2, cy - innerPitH / 2, innerPitW, innerPitH);
-
-              // 4. Molten Magma Core (Deep glowing core without any line borders)
+              // 4. Molten Magma Core (Deep glowing core rendered live on main canvas)
               const pulse = 0.85 + 0.15 * Math.sin(performance.now() * 0.003 + seed);
               const magmaW = CS * 0.22;
               const magmaH = CS * 0.20;
@@ -203,8 +239,12 @@ export function renderTerritoryLayer(bgCtx, currentGs, isAshLocal, CS, terrCache
               // Molten gold center sliver
               bgCtx.fillStyle = `rgba(255, 240, 180, ${pulse})`;
               bgCtx.fillRect(cx - magmaW * 0.12, cy - magmaH * 0.12, magmaW * 0.24, magmaH * 0.24);
+              bgCtx.shadowBlur = 0;
+              bgCtx.shadowColor = 'transparent';
               bgCtx.restore();
 
+              bgCtx.shadowBlur = 0;
+              bgCtx.shadowColor = 'transparent';
               bgCtx.restore();
             } else if (t.type === 'magmaShards') {
               bgCtx.save();
@@ -629,7 +669,8 @@ export function renderInteractiveReticles(ctx, currentGs, isAshLocal, CS, mouseP
         }
       }
 
-
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = 'transparent';
 }
 
 export function renderEnvironmentalEffects(ctx, currentGs, isAshLocal, CS, dt, ambientSnowRef, ambientEmbersRef) {
@@ -1055,5 +1096,9 @@ export function renderEnvironmentalEffects(ctx, currentGs, isAshLocal, CS, dt, a
             ambientEmbersRef.current.splice(i, 1);
           }
         }
+        ctx.restore();
       }
+
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = 'transparent';
 }

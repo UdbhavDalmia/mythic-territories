@@ -1,19 +1,17 @@
 import React from 'react';
 import FactionBanner from '../FactionBanner.jsx';
-import {
-  Copy,
-  Check,
-  Clock,
-  Eye,
-  EyeClosed,
-  CheckCircle,
-  ChevronDown,
-  ChevronUp,
-  ArrowLeft,
-  Shield,
-  ChevronRight,
-  Lock
-} from 'lucide-react';
+import Copy from 'lucide-react/dist/esm/icons/copy.js';
+import Check from 'lucide-react/dist/esm/icons/check.js';
+import Clock from 'lucide-react/dist/esm/icons/clock.js';
+import Eye from 'lucide-react/dist/esm/icons/eye.js';
+import EyeClosed from 'lucide-react/dist/esm/icons/eye-closed.js';
+import CheckCircle from 'lucide-react/dist/esm/icons/check-circle.js';
+import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down.js';
+import ChevronUp from 'lucide-react/dist/esm/icons/chevron-up.js';
+import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left.js';
+import Shield from 'lucide-react/dist/esm/icons/shield.js';
+import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
+import Lock from 'lucide-react/dist/esm/icons/lock.js';
 
 export default function FactionSelectionOverlay({
   showFactionSelection,

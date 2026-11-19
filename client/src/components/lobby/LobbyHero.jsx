@@ -1,5 +1,6 @@
 import React from 'react';
-import { Swords, ChevronRight } from 'lucide-react';
+import Swords from 'lucide-react/dist/esm/icons/swords.js';
+import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
 import { triggerHaptic } from '../../services/haptics.js';
 import RecoverableSessionBanner from './RecoverableSessionBanner.jsx';
 
@@ -15,7 +16,6 @@ export default function LobbyHero({
 }) {
   const prewarmLobbyFlow = () => {
     onWarm?.('GAME');
-    import('./ModeSelectModal.jsx');
     import('gsap');
   };
 

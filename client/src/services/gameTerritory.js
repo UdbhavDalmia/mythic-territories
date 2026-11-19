@@ -28,6 +28,7 @@ export const INITIAL_ASH_KEYS = [
 
 let lastTerritoryCache = {
   piecesKey: '',
+  voronoiData: null,
   scores: { snow: 50.0, ash: 50.0 }
 };
 
@@ -35,19 +36,28 @@ export function calculateDynamicTerritoryAreas(gs) {
   if (!gs || !gs.pieces || gs.pieces.length === 0) return { snow: 50.0, ash: 50.0, neutral: 0.0 };
   
   // Fast cache check: piece id, coordinates, hp, power
-  const piecesKey = gs.pieces
+  const piecesKey = gs._piecesKey || gs.pieces
     .map(p => `${p.id}:${Number(p.col).toFixed(2)},${Number(p.row).toFixed(2)},${p.currentHp},${p.power}`)
     .join('|');
+  gs._piecesKey = piecesKey;
 
-  if (lastTerritoryCache.piecesKey === piecesKey && lastTerritoryCache.scores) {
+  // Ensure gs.voronoiData is populated
+  if (!gs.voronoiData) {
+    gs.voronoiData = computePowerDiagram(gs.pieces);
+  }
+
+  // Fast return if cached pieces and cached voronoiData match
+  if (lastTerritoryCache.piecesKey === piecesKey && lastTerritoryCache.scores && lastTerritoryCache.voronoiData === gs.voronoiData) {
     return lastTerritoryCache.scores;
   }
 
-  const voronoi = computePowerDiagram(gs.pieces);
-  gs.voronoiData = voronoi;
-
-  const frost = parseFloat((voronoi.frostShare ?? 0).toFixed(1));
-  const ash = parseFloat((voronoi.ashShare ?? 0).toFixed(1));
+  const voronoi = gs.voronoiData;
+  const rawFrost = Number(voronoi?.frostShare);
+  const rawAsh = Number(voronoi?.ashShare);
+  const frostVal = Number.isFinite(rawFrost) ? rawFrost : 0;
+  const ashVal = Number.isFinite(rawAsh) ? rawAsh : 0;
+  const frost = parseFloat(frostVal.toFixed(1));
+  const ash = parseFloat(ashVal.toFixed(1));
   const neutral = parseFloat(Math.max(0, 100 - (frost + ash)).toFixed(1));
 
   const result = {
@@ -58,6 +68,7 @@ export function calculateDynamicTerritoryAreas(gs) {
 
   lastTerritoryCache = {
     piecesKey,
+    voronoiData: voronoi,
     scores: result
   };
 

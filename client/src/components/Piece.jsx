@@ -1,7 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
-import gsap from 'gsap';
+import { loadGsap } from '../services/gsap.js';
 import { IMAGES, PIECE_TYPES } from '@shared/constants.js';
 import { getEffectivePower } from '@shared/utils.js';
+
+let cachedGsap = null;
+const getGsap = () => {
+  if (cachedGsap) return Promise.resolve(cachedGsap);
+  return loadGsap().then(g => {
+    cachedGsap = g;
+    return g;
+  });
+};
 
 function Piece({ 
   piece, 
@@ -46,10 +55,14 @@ function Piece({
   // 1. Initial pop-in summon animation on inner element
   useEffect(() => {
     if (innerRef.current) {
-      gsap.fromTo(innerRef.current, 
-        { scale: 0, opacity: 0 }, 
-        { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(1.5)" }
-      );
+      getGsap().then(gsap => {
+        if (innerRef.current) {
+          gsap.fromTo(innerRef.current, 
+            { scale: 0, opacity: 0 }, 
+            { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(1.5)" }
+          );
+        }
+      });
     }
   }, []);
 
@@ -79,38 +92,49 @@ function Piece({
         originLeft = (9 - origC) * 10;
         originTop = (9 - origR) * 10;
       }
-      // Hold at original position while meteor plummets from space
-      gsap.set(pieceRef.current, {
-        left: `${originLeft}%`,
-        top: `${originTop}%`
-      });
-      // Delay moving Tyrant until the meteor impacts (~0.75s)
-      gsap.to(pieceRef.current, {
-        left: `${targetLeft}%`,
-        top: `${targetTop}%`,
-        delay: 0.75,
-        duration: 0.35,
-        ease: "power2.out",
-        onComplete: () => {
-          delete piece.deathMeteorOrigin;
-        }
+      getGsap().then(gsap => {
+        if (!pieceRef.current) return;
+        // Hold at original position while meteor plummets from space
+        gsap.set(pieceRef.current, {
+          left: `${originLeft}%`,
+          top: `${originTop}%`
+        });
+        // Delay moving Tyrant until the meteor impacts (~0.75s)
+        gsap.to(pieceRef.current, {
+          left: `${targetLeft}%`,
+          top: `${targetTop}%`,
+          delay: 0.75,
+          duration: 0.35,
+          ease: "power2.out",
+          onComplete: () => {
+            delete piece.deathMeteorOrigin;
+          }
+        });
       });
       prevCoords.current = { row: piece.row, col: piece.col };
     } else if (moved) {
-      // Animate movement from previous position
-      gsap.to(pieceRef.current, {
-        left: `${targetLeft}%`,
-        top: `${targetTop}%`,
-        duration: 0.35,
-        ease: "power2.out"
+      getGsap().then(gsap => {
+        if (!pieceRef.current) return;
+        // Animate movement from previous position
+        gsap.to(pieceRef.current, {
+          left: `${targetLeft}%`,
+          top: `${targetTop}%`,
+          duration: 0.35,
+          ease: "power2.out"
+        });
       });
       prevCoords.current = { row: piece.row, col: piece.col };
     } else {
       // Position instantly
-      gsap.set(pieceRef.current, {
-        left: `${targetLeft}%`,
-        top: `${targetTop}%`
-      });
+      if (cachedGsap && pieceRef.current) {
+        cachedGsap.set(pieceRef.current, {
+          left: `${targetLeft}%`,
+          top: `${targetTop}%`
+        });
+      } else if (pieceRef.current) {
+        pieceRef.current.style.left = `${targetLeft}%`;
+        pieceRef.current.style.top = `${targetTop}%`;
+      }
     }
   }, [piece.row, piece.col, gameState?.playerTeam]);
 
@@ -125,11 +149,14 @@ function Piece({
 
       // Hit jolt animation on innerRef without displacing cell position
       if (innerRef.current) {
-        gsap.timeline()
-          .to(innerRef.current, { x: -3, duration: 0.04, ease: "power1.inOut" })
-          .to(innerRef.current, { x: 3, duration: 0.04, ease: "power1.inOut" })
-          .to(innerRef.current, { x: -1, duration: 0.04, ease: "power1.inOut" })
-          .to(innerRef.current, { x: 0, duration: 0.04, ease: "power1.out" });
+        getGsap().then(gsap => {
+          if (!innerRef.current) return;
+          gsap.timeline()
+            .to(innerRef.current, { x: -3, duration: 0.04, ease: "power1.inOut" })
+            .to(innerRef.current, { x: 3, duration: 0.04, ease: "power1.inOut" })
+            .to(innerRef.current, { x: -1, duration: 0.04, ease: "power1.inOut" })
+            .to(innerRef.current, { x: 0, duration: 0.04, ease: "power1.out" });
+        });
       }
       
       // Clear damage text after animation
@@ -144,18 +171,21 @@ function Piece({
   useEffect(() => {
     if (piece.isPhasing || piece.isAnimating) {
       if (innerRef.current) {
-        const timeline = gsap.timeline();
-        timeline.to(innerRef.current, {
-          scale: 1.15,
-          duration: 0.12,
-          ease: "power1.in"
-        }).to(innerRef.current, {
-          scale: 1.0,
-          duration: 0.2,
-          ease: "power2.out",
-          onComplete: () => {
-            if (onLungeComplete) onLungeComplete(piece.id);
-          }
+        getGsap().then(gsap => {
+          if (!innerRef.current) return;
+          const timeline = gsap.timeline();
+          timeline.to(innerRef.current, {
+            scale: 1.15,
+            duration: 0.12,
+            ease: "power1.in"
+          }).to(innerRef.current, {
+            scale: 1.0,
+            duration: 0.2,
+            ease: "power2.out",
+            onComplete: () => {
+              if (onLungeComplete) onLungeComplete(piece.id);
+            }
+          });
         });
       }
     }
@@ -164,10 +194,13 @@ function Piece({
   // Floating damage text animation
   const handleDamageTextMount = (el) => {
     if (!el) return;
-    gsap.fromTo(el,
-      { y: 8, opacity: 1, scale: 0.75 },
-      { y: -48, opacity: 0, scale: 1.25, duration: 0.9, ease: "power2.out" }
-    );
+    getGsap().then(gsap => {
+      if (!el) return;
+      gsap.fromTo(el,
+        { y: 8, opacity: 1, scale: 0.75 },
+        { y: -48, opacity: 0, scale: 1.25, duration: 0.9, ease: "power2.out" }
+      );
+    });
   };
 
   const getImgSource = () => {

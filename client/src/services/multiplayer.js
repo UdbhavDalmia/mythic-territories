@@ -1,17 +1,24 @@
-import {
-  doc,
-  getDoc,
-  setDoc,
-  onSnapshot,
-  runTransaction,
-  collection,
-  query,
-  where,
-  getDocs,
-  limit,
-  Timestamp
-} from 'firebase/firestore';
-import { db, getAuthUser } from './firebase.js';
+let firestoreDepsPromise = null;
+let cachedTimestamp = null;
+
+export async function getFirestoreDeps() {
+  if (!firestoreDepsPromise) {
+    firestoreDepsPromise = (async () => {
+      const [firestore, { getDb, getAuthUser }] = await Promise.all([
+        import('firebase/firestore'),
+        import('./firebase.js')
+      ]);
+      const db = await getDb();
+      cachedTimestamp = firestore.Timestamp;
+      return {
+        db,
+        getAuthUser,
+        ...firestore
+      };
+    })();
+  }
+  return firestoreDepsPromise;
+}
 import * as Logic from '@shared/logic.js';
 import * as C from '@shared/constants.js';
 import * as E from '@shared/utils.js';
@@ -45,10 +52,17 @@ export {
 // Automated TTL (Time-To-Live) generator for native Cloud Firestore retention policies
 export const getRoomTtl = (status = 'WAITING') => {
   const now = Date.now();
-  if (status === 'DISBANDED') return Timestamp.fromMillis(now + 60 * 60 * 1000); // 1 hour for disbanded rooms
-  if (status === 'FINISHED') return Timestamp.fromMillis(now + 2 * 60 * 60 * 1000); // 2 hours for finished games
-  if (status === 'PLAYING') return Timestamp.fromMillis(now + 6 * 60 * 60 * 1000); // 6 hours for active games
-  return Timestamp.fromMillis(now + 24 * 60 * 60 * 1000); // 24 hours for waiting rooms
+  const ts = cachedTimestamp;
+  if (ts) {
+    if (status === 'DISBANDED') return ts.fromMillis(now + 60 * 60 * 1000); // 1 hour for disbanded rooms
+    if (status === 'FINISHED') return ts.fromMillis(now + 2 * 60 * 60 * 1000); // 2 hours for finished games
+    if (status === 'PLAYING') return ts.fromMillis(now + 6 * 60 * 60 * 1000); // 6 hours for active games
+    return ts.fromMillis(now + 24 * 60 * 60 * 1000); // 24 hours for waiting rooms
+  }
+  if (status === 'DISBANDED') return new Date(now + 60 * 60 * 1000);
+  if (status === 'FINISHED') return new Date(now + 2 * 60 * 60 * 1000);
+  if (status === 'PLAYING') return new Date(now + 6 * 60 * 60 * 1000);
+  return new Date(now + 24 * 60 * 60 * 1000);
 };
 
 // Serialize GameState to JSON string for Firestore (bypassing Firestore nested-array restrictions)
@@ -62,11 +76,99 @@ export const serializeGameState = (gs) => {
   return JSON.stringify(raw);
 };
 
+// Serialize only mutable gameplay delta to JSON string for Firestore turn sync
+export const serializeDelta = (gs) => {
+  if (!gs) return null;
+  const delta = {
+    pieces: gs.pieces || [],
+    turnCount: gs.turnCount,
+    currentTurn: gs.currentTurn,
+    currentState: gs.currentState,
+    events: gs.events || [],
+    selectedPiece: gs.selectedPiece || null,
+    snowTerritory: Array.from(gs.snowTerritory || []),
+    ashTerritory: Array.from(gs.ashTerritory || []),
+    territoryTrails: gs.territoryTrails || [],
+    territoryCaptureTurn: gs.territoryCaptureTurn || {},
+    riftAnchors: gs.riftAnchors || { topLeft: null, bottomRight: null },
+    dynamicRifts: gs.dynamicRifts || null,
+    voidSquares: gs.voidSquares || [],
+    elementalCores: gs.elementalCores || [],
+    fateLinks: gs.fateLinks || [],
+    TheReapersTolls: gs.TheReapersTolls || [],
+    reignOfFires: gs.reignOfFires || [],
+    timers: gs.timers || { snow: 600, ash: 600 },
+    gameOver: !!gs.gameOver,
+    winner: gs.winner || null,
+    shrineChargeLevel: gs.shrineChargeLevel || 0,
+    shrineIsOverloaded: !!gs.shrineIsOverloaded,
+    glacialWalls: gs.glacialWalls || [],
+    markedPieces: gs.markedPieces || [],
+    unstableGrounds: (gs.unstableGrounds || []).filter(Boolean).map(g => ({
+      ...g,
+      creator: (typeof g.creator === 'object' && g.creator !== null) ? g.creator.id : g.creator
+    })),
+    specialTerrains: gs.specialTerrains || [],
+    shields: gs.shields || [],
+    temporaryBoosts: gs.temporaryBoosts || [],
+    debuffs: gs.debuffs || [],
+    abilityContext: gs.abilityContext || null,
+    conduit: gs.conduit || null,
+    conduitLinkActive: !!gs.conduitLinkActive,
+    conduitIsContested: !!gs.conduitIsContested,
+    conduitTeam: gs.conduitTeam || null,
+    conduitOverchargeProgress: gs.conduitOverchargeProgress || null,
+    factionPassives: gs.factionPassives || null,
+    pendingAscension: gs.pendingAscension || null,
+    voidScarSquares: gs.voidScarSquares || [],
+    deathMeteors: gs.deathMeteors || [],
+    trappedPiece: gs.trappedPiece || null,
+    gameStarted: gs.gameStarted !== undefined ? gs.gameStarted : true,
+    battleStartTime: gs.battleStartTime || null
+  };
+  return JSON.stringify(delta);
+};
+
 // Rehydrate GameState when loaded from Firestore (re-linking Sets and ability functions)
 export function rehydrateGameState(state) {
   if (!state) return state;
+
+  state.pieces = state.pieces || [];
+  state.events = state.events || [];
+  state.territoryTrails = state.territoryTrails || [];
+  state.territoryCaptureTurn = state.territoryCaptureTurn || {};
+  state.riftAnchors = state.riftAnchors || { topLeft: null, bottomRight: null };
+  state.dynamicRifts = state.dynamicRifts || (C.SHAPES && C.SHAPES.riftAreas ? JSON.parse(JSON.stringify(C.SHAPES.riftAreas)) : null);
+  state.voidSquares = state.voidSquares || [];
+  state.elementalCores = state.elementalCores || [];
+  state.fateLinks = state.fateLinks || [];
+  state.TheReapersTolls = state.TheReapersTolls || [];
+  state.reignOfFires = state.reignOfFires || [];
+  state.glacialWalls = state.glacialWalls || [];
+  state.markedPieces = state.markedPieces || [];
+  state.unstableGrounds = state.unstableGrounds || [];
+  state.specialTerrains = state.specialTerrains || [];
+  state.shields = state.shields || [];
+  state.temporaryBoosts = state.temporaryBoosts || [];
+  state.debuffs = state.debuffs || [];
+  state.voidScarSquares = state.voidScarSquares || [];
+  state.deathMeteors = state.deathMeteors || [];
+
   if (Array.isArray(state.snowTerritory)) state.snowTerritory = new Set(state.snowTerritory);
+  else if (!state.snowTerritory) state.snowTerritory = new Set();
+
   if (Array.isArray(state.ashTerritory)) state.ashTerritory = new Set(state.ashTerritory);
+  else if (!state.ashTerritory) state.ashTerritory = new Set();
+
+  const pieceMap = new Map((state.pieces || []).filter(Boolean).map(p => [p.id, p]));
+  if (Array.isArray(state.unstableGrounds)) {
+    state.unstableGrounds.forEach(g => {
+      const creatorId = (typeof g.creator === 'object' && g.creator !== null) ? g.creator.id : g.creator;
+      if (creatorId != null && pieceMap.has(creatorId)) {
+        g.creator = pieceMap.get(creatorId);
+      }
+    });
+  }
 
   if (Array.isArray(state.pieces)) {
     for (const piece of state.pieces) {
@@ -106,6 +208,7 @@ export function parseAndRehydrateGameState(rawOrStr) {
 
 // ── Room Creation ─────────────────────────────────────────────────────────────
 export async function createRoom(playerId, options = {}) {
+  const { doc, runTransaction, db, getAuthUser } = await getFirestoreDeps();
   const isPublic = options.isPublic !== false;
   const customCode = options.customCode ? options.customCode.trim().toUpperCase() : null;
   const preferredFaction = (options.preferredFaction === 'snow' || options.preferredFaction === 'ash')
@@ -138,9 +241,9 @@ export async function createRoom(playerId, options = {}) {
 
         const initialGS = {};
         Logic.initGameState(initialGS);
-        Logic.initGame();
+        Logic.initGame(initialGS);
         initialGS.timers = { snow: 600, ash: 600 };
-        const freshSerialized = serializeGameState(Logic.getGameState());
+        const freshSerialized = serializeDelta(initialGS);
 
         const newRoom = {
           id: chosenRoomId,
@@ -177,6 +280,7 @@ export async function createRoom(playerId, options = {}) {
 // ── Quick Match (Matchmaking) ────────────────────────────────────────────────
 export async function quickMatch(playerId) {
   try {
+    const { query, collection, where, limit, getDocs, db } = await getFirestoreDeps();
     const q = query(
       collection(db, 'rooms'),
       where('status', '==', 'WAITING'),
@@ -250,61 +354,83 @@ export async function createCustomRoom(code, isPublic, playerId) {
 
 // ── Realtime Open Realms Browser ──────────────────────────────────────────────
 export function subscribeToOpenRooms(callback, onError) {
-  const q = query(
-    collection(db, 'rooms'),
-    where('status', '==', 'WAITING'),
-    limit(30)
-  );
+  let unsub = null;
+  let cancelled = false;
 
-  return onSnapshot(q, (snapshot) => {
-    const now = Date.now();
-    const rooms = [];
+  getFirestoreDeps().then(({ collection, query, where, limit, onSnapshot, db }) => {
+    if (cancelled) return;
+    const q = query(
+      collection(db, 'rooms'),
+      where('status', '==', 'WAITING'),
+      limit(30)
+    );
 
-    snapshot.forEach((d) => {
-      const r = d.data();
-      if (r.status !== 'WAITING') return;
-      if (r.isPublic === false) return;
+    unsub = onSnapshot(q, (snapshot) => {
+      const now = Date.now();
+      const rooms = [];
 
-      if (!Array.isArray(r.players) || r.players.length === 0) {
-        disbandRoom(d.id, 'EMPTY');
-        return;
-      }
-      if (r.players.length !== 1) return;
+      snapshot.forEach((d) => {
+        const r = d.data();
+        if (r.status !== 'WAITING') return;
+        if (r.isPublic === false) return;
 
-      const host = r.players[0];
-      const lastSeen = host?.lastSeen || r.updatedAt || r.createdAt || 0;
+        if (!Array.isArray(r.players) || r.players.length === 0) {
+          disbandRoom(d.id, 'EMPTY');
+          return;
+        }
+        if (r.players.length !== 1) return;
 
-      // If host has been inactive for more than INACTIVITY_TIMEOUT_MS, disband
-      if (now - lastSeen > INACTIVITY_TIMEOUT_MS) {
-        disbandRoom(d.id, 'INACTIVITY');
-        return;
-      }
+        const host = r.players[0];
+        const lastSeen = host?.lastSeen || r.updatedAt || r.createdAt || 0;
 
-      // If room has been waiting for more than LOBBY_WAIT_TIMEOUT_MS, disband
-      if (r.createdAt && (now - r.createdAt > LOBBY_WAIT_TIMEOUT_MS)) {
-        disbandRoom(d.id, 'WAIT_TIMEOUT');
-        return;
-      }
+        // If host has been inactive for more than INACTIVITY_TIMEOUT_MS, disband
+        if (now - lastSeen > INACTIVITY_TIMEOUT_MS) {
+          disbandRoom(d.id, 'INACTIVITY');
+          return;
+        }
 
-      rooms.push({
-        id: d.id,
-        createdAt: r.createdAt || r.updatedAt || now,
-        hostFaction: host?.team || null,
-        playerCount: r.players.length,
-        isPublic: true
+        // If room has been waiting for more than LOBBY_WAIT_TIMEOUT_MS, disband
+        if (r.createdAt && (now - r.createdAt > LOBBY_WAIT_TIMEOUT_MS)) {
+          disbandRoom(d.id, 'WAIT_TIMEOUT');
+          return;
+        }
+
+        rooms.push({
+          id: d.id,
+          createdAt: r.createdAt || r.updatedAt || now,
+          hostFaction: host?.team || null,
+          playerCount: r.players.length,
+          isPublic: true
+        });
       });
+
+      rooms.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      callback?.(rooms);
+    }, (err) => {
+      console.error('subscribeToOpenRooms error:', err);
+      onError?.(err);
     });
 
-    rooms.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    callback?.(rooms);
-  }, (err) => {
-    console.error('subscribeToOpenRooms error:', err);
-    onError?.(err);
+    if (cancelled && unsub) {
+      unsub();
+      unsub = null;
+    }
+  }).catch((err) => {
+    if (!cancelled) onError?.(err);
   });
+
+  return () => {
+    cancelled = true;
+    if (unsub) {
+      unsub();
+      unsub = null;
+    }
+  };
 }
 
 // ── Room Join / Create ────────────────────────────────────────────────────────
 export async function joinOrCreateRoom(roomId, playerId) {
+  const { doc, runTransaction, db, getAuthUser } = await getFirestoreDeps();
   const normalizedId = roomId.trim().toUpperCase();
   const roomRef = doc(db, 'rooms', normalizedId);
   const authUser = await getAuthUser();
@@ -317,9 +443,9 @@ export async function joinOrCreateRoom(roomId, playerId) {
       // Room doesn't exist yet: initialize fresh state
       const initialGS = {};
       Logic.initGameState(initialGS);
-      Logic.initGame();
+      Logic.initGame(initialGS);
       initialGS.timers = { snow: 600, ash: 600 };
-      const freshSerialized = serializeGameState(Logic.getGameState());
+      const freshSerialized = serializeDelta(initialGS);
 
       const newRoom = {
         id: normalizedId,
@@ -356,9 +482,9 @@ export async function joinOrCreateRoom(roomId, playerId) {
     if (activePlayers.length === 0 && room.status !== 'PLAYING') {
       const initialGS = {};
       Logic.initGameState(initialGS);
-      Logic.initGame();
+      Logic.initGame(initialGS);
       initialGS.timers = { snow: 600, ash: 600 };
-      const freshSerialized = serializeGameState(Logic.getGameState());
+      const freshSerialized = serializeDelta(initialGS);
 
       const resetRoom = {
         id: normalizedId,
@@ -439,6 +565,7 @@ export async function selectFaction(roomId, playerId, faction) {
     throw new Error('Invalid faction selection.');
   }
 
+  const { doc, runTransaction, db } = await getFirestoreDeps();
   const normalizedId = roomId.trim().toUpperCase();
   const roomRef = doc(db, 'rooms', normalizedId);
 
@@ -466,18 +593,16 @@ export async function selectFaction(roomId, playerId, faction) {
     if (players.length === 2 && hasSnow && hasAsh) {
       const now = Date.now();
       const battleStartTime = now + 5000;
-      Logic.withGameState(gs, () => {
-        if (!gs.gameStarted) {
-          Logic.initGame();
-          gs.gameStarted = true;
-          gs.timers = { snow: 600, ash: 600 };
-          gs.battleStartTime = battleStartTime;
-        }
-      });
+      if (!gs.gameStarted) {
+        Logic.initGame(gs);
+        gs.gameStarted = true;
+        gs.timers = { snow: 600, ash: 600 };
+        gs.battleStartTime = battleStartTime;
+      }
       status = 'PLAYING';
     }
 
-    const serializedGS = serializeGameState(gs);
+    const serializedGS = serializeDelta(gs);
 
     transaction.update(roomRef, {
       players,
@@ -495,25 +620,47 @@ export async function selectFaction(roomId, playerId, faction) {
 
 // ── Realtime Room Subscription ────────────────────────────────────────────────
 export function subscribeToRoom(roomId, onUpdate, onError) {
-  const normalizedId = roomId.trim().toUpperCase();
-  const roomRef = doc(db, 'rooms', normalizedId);
-  return onSnapshot(roomRef, (snapshot) => {
-    if (!snapshot.exists()) {
-      onError?.(new Error('Room does not exist.'));
-      return;
+  let unsub = null;
+  let cancelled = false;
+
+  getFirestoreDeps().then(({ doc, db, onSnapshot }) => {
+    if (cancelled) return;
+    const normalizedId = roomId.trim().toUpperCase();
+    const roomRef = doc(db, 'rooms', normalizedId);
+    unsub = onSnapshot(roomRef, (snapshot) => {
+      if (!snapshot.exists()) {
+        onError?.(new Error('Room does not exist.'));
+        return;
+      }
+      const data = snapshot.data();
+      if (data?.gameState) {
+        data.gameState = parseAndRehydrateGameState(data.gameState);
+      }
+      onUpdate?.(data);
+    }, (err) => {
+      onError?.(err);
+    });
+
+    if (cancelled && unsub) {
+      unsub();
+      unsub = null;
     }
-    const data = snapshot.data();
-    if (data?.gameState) {
-      data.gameState = parseAndRehydrateGameState(data.gameState);
-    }
-    onUpdate?.(data);
-  }, (err) => {
-    onError?.(err);
+  }).catch((err) => {
+    if (!cancelled) onError?.(err);
   });
+
+  return () => {
+    cancelled = true;
+    if (unsub) {
+      unsub();
+      unsub = null;
+    }
+  };
 }
 
 // ── Game Action Execution ─────────────────────────────────────────────────────
 export async function dispatchGameAction(roomId, playerId, actionType, data = {}) {
+  const { doc, runTransaction, db } = await getFirestoreDeps();
   const normalizedId = roomId.trim().toUpperCase();
   const roomRef = doc(db, 'rooms', normalizedId);
 
@@ -544,22 +691,20 @@ export async function dispatchGameAction(roomId, playerId, actionType, data = {}
       if (room.players?.length < 2) throw new Error('Waiting for an opponent to join...');
       if (player?.team === 'snow') {
         const battleStartTime = Date.now() + 5000;
-        Logic.withGameState(gs, () => {
-          if (!gs.gameStarted) {
-            Logic.initGame();
-            gs.gameStarted = true;
-            gs.timers = { snow: 600, ash: 600 };
-            gs.battleStartTime = battleStartTime;
-          }
-        });
+        if (!gs.gameStarted) {
+          Logic.initGame(gs);
+          gs.gameStarted = true;
+          gs.timers = { snow: 600, ash: 600 };
+          gs.battleStartTime = battleStartTime;
+        }
       }
-      transaction.update(roomRef, { gameState: serializeGameState(gs), status: 'PLAYING', updatedAt: Date.now() });
+      transaction.update(roomRef, { gameState: serializeDelta(gs), status: 'PLAYING', updatedAt: Date.now() });
       return;
     }
 
     if (actionType === 'SYNC_TIMERS') {
       if (data.timers) gs.timers = data.timers;
-      transaction.update(roomRef, { gameState: serializeGameState(gs), updatedAt: Date.now() });
+      transaction.update(roomRef, { gameState: serializeDelta(gs), updatedAt: Date.now() });
       return;
     }
 
@@ -577,12 +722,10 @@ export async function dispatchGameAction(roomId, playerId, actionType, data = {}
       if (!victimTeam || (gs.timers && gs.timers[victimTeam] > 0)) {
         throw new Error('Anti-Cheat: Cannot declare timeout; player timer has not expired.');
       }
-      Logic.withGameState(gs, () => {
-        Logic.endGame(victimTeam === 'snow' ? 'ash' : 'snow');
-      });
+      Logic.endGame(victimTeam === 'snow' ? 'ash' : 'snow', gs);
       const nextMoveIndex = (room.moveIndex || 0) + 1;
       transaction.update(roomRef, {
-        gameState: serializeGameState(gs),
+        gameState: serializeDelta(gs),
         status: 'FINISHED',
         moveIndex: nextMoveIndex,
         playerIds: room.playerIds || room.players.map(p => p.id),
@@ -620,35 +763,35 @@ export async function dispatchGameAction(roomId, playerId, actionType, data = {}
 
       switch (actionType) {
         case 'SELECT_PIECE':
-          if (p && p.team === player.team) Logic.selectPiece(p);
-          else Logic.deselectPiece();
+          if (p && p.team === player.team) Logic.selectPiece(p, gs);
+          else Logic.deselectPiece(gs);
           break;
         case 'MOVE':
-          if (p && p.team === player.team) turnEnded = Logic.movePiece(p, data.r, data.c, data.isHighway);
+          if (p && p.team === player.team) turnEnded = Logic.movePiece(p, data.r, data.c, data.isHighway, gs);
           break;
         case 'ABILITY':
           if (p && p.team === player.team) {
             if (p.abilityCooldown > 0) throw new Error('Anti-Cheat: Ability is currently on cooldown');
             if (data.target) turnEnded = Logic.executeAbility(p, data.target, data.abilityKey, gs);
-            else turnEnded = Logic.activateAbility(p, data.abilityKey || 0);
+            else turnEnded = Logic.activateAbility(p, data.abilityKey || 0, gs);
           }
           break;
         case 'HANDLE_CLICK':
-          turnEnded = Logic.handleAbilityClick(data.r, data.c);
+          turnEnded = Logic.handleAbilityClick(data.r, data.c, gs);
           break;
         case 'SWITCH_TURN': turnEnded = true; break;
-        case 'ASCENSION_CHOICE': turnEnded = Logic.executeAscensionChoice(data.choice); break;
-        case 'CANCEL_ASCENSION': Logic.cancelAscensionChoice(); break;
-        case 'SACRIFICE': if (p && p.team === player.team) turnEnded = Logic.executeSacrifice(p); break;
-        case 'RELEASE': if (p && p.team === player.team) turnEnded = Logic.executeRelease(p); break;
-        case 'RIFT_PULSE': if (p && p.team === player.team) turnEnded = Logic.executeRiftPulse(p); break;
-        case 'DESPAWN': if (p && p.team === player.team) { Logic.despawnPiece(p); turnEnded = true; } break;
+        case 'ASCENSION_CHOICE': turnEnded = Logic.executeAscensionChoice(data.choice, gs); break;
+        case 'CANCEL_ASCENSION': Logic.cancelAscensionChoice(gs); break;
+        case 'SACRIFICE': if (p && p.team === player.team) turnEnded = Logic.executeSacrifice(p, gs); break;
+        case 'RELEASE': if (p && p.team === player.team) turnEnded = Logic.executeRelease(p, gs); break;
+        case 'RIFT_PULSE': if (p && p.team === player.team) turnEnded = Logic.executeRiftPulse(p, gs); break;
+        case 'DESPAWN': if (p && p.team === player.team) { Logic.despawnPiece(p, gs); turnEnded = true; } break;
         default:
           break;
       }
 
       if (turnEnded) {
-        if (!Logic.checkAscensionReady()) Logic.switchTurn();
+        if (!Logic.checkAscensionReady(gs)) Logic.switchTurn(gs);
       }
     });
 
@@ -669,7 +812,7 @@ export async function dispatchGameAction(roomId, playerId, actionType, data = {}
     };
 
     transaction.update(roomRef, {
-      gameState: serializeGameState(gs),
+      gameState: serializeDelta(gs),
       status: finalStatus,
       moveIndex: nextMoveIndex,
       lastAction,
@@ -683,6 +826,7 @@ export async function dispatchGameAction(roomId, playerId, actionType, data = {}
 // ── Leave Room ────────────────────────────────────────────────────────────────
 export async function leaveRoom(roomId, playerId) {
   if (!roomId) return;
+  const { doc, runTransaction, db } = await getFirestoreDeps();
   const normalizedId = roomId.trim().toUpperCase();
   const roomRef = doc(db, 'rooms', normalizedId);
   try {
@@ -731,6 +875,7 @@ export async function leaveRoom(roomId, playerId) {
 // ── Disband Room ──────────────────────────────────────────────────────────────
 export async function disbandRoom(roomId, reason = 'INACTIVITY') {
   if (!roomId) return;
+  const { doc, runTransaction, db } = await getFirestoreDeps();
   const normalizedId = roomId.trim().toUpperCase();
   const roomRef = doc(db, 'rooms', normalizedId);
   try {
@@ -756,6 +901,7 @@ export async function disbandRoom(roomId, reason = 'INACTIVITY') {
 // ── Heartbeat Ping ────────────────────────────────────────────────────────────
 export async function updatePlayerHeartbeat(roomId, playerId) {
   if (!roomId || !playerId) return;
+  const { doc, runTransaction, db } = await getFirestoreDeps();
   const normalizedId = roomId.trim().toUpperCase();
   const roomRef = doc(db, 'rooms', normalizedId);
   try {
@@ -791,6 +937,7 @@ export async function updatePlayerHeartbeat(roomId, playerId) {
 // ── Room Recovery Inspector ──────────────────────────────────────────────────
 export async function checkRoomStatus(roomId, playerId) {
   if (!roomId) return { exists: false, active: false };
+  const { doc, getDoc, db } = await getFirestoreDeps();
   const normalizedId = roomId.trim().toUpperCase();
   const roomRef = doc(db, 'rooms', normalizedId);
   try {

@@ -6,52 +6,55 @@ let workerPieceIdCounter = 1000;
 
 // --- Evaluation Functions ---
 
-// Performs a deep clone of the game state for safe simulation.
-function deepClone(obj) {
-    const replacer = (key, value) => {
-        if (value instanceof Set) return Array.from(value);
-        if (key === 'creator' && typeof value === 'object' && value !== null) return value.id;
-        return value;
-    };
-    const reviver = (key, value) => {
-        if (key === 'snowTerritory' || key === 'ashTerritory') return new Set(value);
-        return value;
-    };
+// Performs a high-performance deep clone of the game state for safe simulation using structuredClone.
+export function deepClone(obj) {
+    if (!obj) return obj;
 
-    const jsonString = JSON.stringify(obj, replacer);
-    const newState = JSON.parse(jsonString, reviver);
+    let newState;
+    if (typeof structuredClone === 'function') {
+        try {
+            newState = structuredClone(obj);
+        } catch (e) {
+            newState = JSON.parse(JSON.stringify(obj, (k, v) => (v instanceof Set ? Array.from(v) : v)));
+        }
+    } else {
+        newState = JSON.parse(JSON.stringify(obj, (k, v) => (v instanceof Set ? Array.from(v) : v)));
+    }
+
+    // Ensure territory sets are valid Set instances
+    if (newState.snowTerritory) newState.snowTerritory = new Set(newState.snowTerritory);
+    if (newState.ashTerritory) newState.ashTerritory = new Set(newState.ashTerritory);
 
     // Re-link pieces by ID post-cloning
-    if (newState.pieces && Array.isArray(newState.pieces)) {
-        const pieceMap = new Map(newState.pieces.map(p => [p.id, p]));
+    const pieceMap = new Map((newState.pieces || []).filter(Boolean).map(p => [p.id, p]));
 
-        if (Array.isArray(newState.temporaryBoosts)) {
-            newState.temporaryBoosts.forEach(b => {
-                if (b.pieceId && pieceMap.has(b.pieceId)) b.piece = pieceMap.get(b.pieceId);
-            });
-        }
-        if (Array.isArray(newState.debuffs)) {
-            newState.debuffs.forEach(d => {
-                if (d.pieceId && pieceMap.has(d.pieceId)) d.piece = pieceMap.get(d.pieceId);
-            });
-        }
-        if (Array.isArray(newState.markedPieces)) {
-            newState.markedPieces.forEach(m => {
-                if (m.targetId && pieceMap.has(m.targetId)) m.target = pieceMap.get(m.targetId);
-            });
-        }
-        if (Array.isArray(newState.shields)) {
-            newState.shields.forEach(s => {
-                if (s.pieceId && pieceMap.has(s.pieceId)) s.piece = pieceMap.get(s.pieceId);
-            });
-        }
-        if (Array.isArray(newState.unstableGrounds)) {
-            newState.unstableGrounds.forEach(g => {
-                if (g.creator && typeof g.creator === 'number' && pieceMap.has(g.creator)) {
-                    g.creator = pieceMap.get(g.creator);
-                }
-            });
-        }
+    if (Array.isArray(newState.temporaryBoosts)) {
+        newState.temporaryBoosts.forEach(b => {
+            if (b.pieceId != null && pieceMap.has(b.pieceId)) b.piece = pieceMap.get(b.pieceId);
+        });
+    }
+    if (Array.isArray(newState.debuffs)) {
+        newState.debuffs.forEach(d => {
+            if (d.pieceId != null && pieceMap.has(d.pieceId)) d.piece = pieceMap.get(d.pieceId);
+        });
+    }
+    if (Array.isArray(newState.markedPieces)) {
+        newState.markedPieces.forEach(m => {
+            if (m.targetId != null && pieceMap.has(m.targetId)) m.target = pieceMap.get(m.targetId);
+        });
+    }
+    if (Array.isArray(newState.shields)) {
+        newState.shields.forEach(s => {
+            if (s.pieceId != null && pieceMap.has(s.pieceId)) s.piece = pieceMap.get(s.pieceId);
+        });
+    }
+    if (Array.isArray(newState.unstableGrounds)) {
+        newState.unstableGrounds.forEach(g => {
+            const creatorId = (typeof g.creator === 'object' && g.creator !== null) ? g.creator.id : g.creator;
+            if (creatorId != null && pieceMap.has(creatorId)) {
+                g.creator = pieceMap.get(creatorId);
+            }
+        });
     }
 
     return newState;
@@ -778,67 +781,70 @@ function workerCreatePiece(r, c, key, team) {
 
 // --- Worker Message Handler (Entry Point) ---
 
-self.onmessage = (event) => {
-    const { gameState, aiConfig: receivedConfig } = event.data;
-    const timeLimit = 3000;
+if (typeof self !== 'undefined') {
+    self.onmessage = (event) => {
+        const { gameState, aiConfig: receivedConfig } = event.data;
+        const timeLimit = 3000;
 
-    const DEFAULT_AI_CONFIG = {
-        W_LEADER_SAFETY: 5.0,
-        W_PIECE_SAFETY: 1.5,
-        W_LEADER_THREAT: 1.0,
-        W_NET_VALUE: 2.0,
-        W_NET_POWER: 150,
-        W_SIPHON: 200,
-        W_CONDUIT: 1.0,
-        W_SHRINE: 1.0,
-        W_ABILITY: 1.0,
-        W_TERR_MOB: 1.0,
-        W_POSITIONAL: 1.0,
-        W_HAZARDS: 1.0,
-        W_DAZED_PENALTY: -1000,
-        W_STUCK_PENALTY: -800
+        const DEFAULT_AI_CONFIG = {
+            W_LEADER_SAFETY: 5.0,
+            W_PIECE_SAFETY: 1.5,
+            W_LEADER_THREAT: 1.0,
+            W_NET_VALUE: 2.0,
+            W_NET_POWER: 150,
+            W_SIPHON: 200,
+            W_CONDUIT: 1.0,
+            W_SHRINE: 1.0,
+            W_ABILITY: 1.0,
+            W_TERR_MOB: 1.0,
+            W_POSITIONAL: 1.0,
+            W_HAZARDS: 1.0,
+            W_DAZED_PENALTY: -1000,
+            W_STUCK_PENALTY: -800
+        };
+        const aiConfig = { ...DEFAULT_AI_CONFIG, ...receivedConfig };
+
+        gameState.snowTerritory = new Set(gameState.snowTerritory);
+        gameState.ashTerritory = new Set(gameState.ashTerritory);
+
+        if (gameState.pieces && Array.isArray(gameState.pieces)) {
+            const pieceMap = new Map(gameState.pieces.map(p => [p.id, p]));
+
+            if (Array.isArray(gameState.temporaryBoosts)) {
+                gameState.temporaryBoosts.forEach(b => {
+                    if (b.pieceId && pieceMap.has(b.pieceId)) b.piece = pieceMap.get(b.pieceId);
+                });
+            }
+            if (Array.isArray(gameState.debuffs)) {
+                gameState.debuffs.forEach(d => {
+                    if (d.pieceId && pieceMap.has(d.pieceId)) d.piece = pieceMap.get(d.pieceId);
+                });
+            }
+            if (Array.isArray(gameState.markedPieces)) {
+                gameState.markedPieces.forEach(m => {
+                    if (m.targetId && pieceMap.has(m.targetId)) m.target = pieceMap.get(m.targetId);
+                });
+            }
+            if (Array.isArray(gameState.shields)) {
+                gameState.shields.forEach(s => {
+                    if (s.pieceId && pieceMap.has(s.pieceId)) s.piece = pieceMap.get(s.pieceId);
+                });
+            }
+            if (Array.isArray(gameState.unstableGrounds)) {
+                gameState.unstableGrounds.forEach(g => {
+                    const creatorId = (typeof g.creator === 'object' && g.creator !== null) ? g.creator.id : g.creator;
+                    if (creatorId && pieceMap.has(creatorId)) {
+                        g.creator = pieceMap.get(creatorId);
+                    }
+                });
+            }
+        }
+
+        const startTime = performance.now();
+        const bestAction = iterativeDeepeningSearch(gameState, timeLimit, aiConfig);
+        const endTime = performance.now();
+
+        console.log(`Worker: AI decision took ${(endTime - startTime).toFixed(2)} ms.`);
+        self.postMessage({ bestAction });
     };
-    const aiConfig = { ...DEFAULT_AI_CONFIG, ...receivedConfig };
-
-    gameState.snowTerritory = new Set(gameState.snowTerritory);
-    gameState.ashTerritory = new Set(gameState.ashTerritory);
-
-    if (gameState.pieces && Array.isArray(gameState.pieces)) {
-        const pieceMap = new Map(gameState.pieces.map(p => [p.id, p]));
-
-        if (Array.isArray(gameState.temporaryBoosts)) {
-            gameState.temporaryBoosts.forEach(b => {
-                if (b.pieceId && pieceMap.has(b.pieceId)) b.piece = pieceMap.get(b.pieceId);
-            });
-        }
-        if (Array.isArray(gameState.debuffs)) {
-            gameState.debuffs.forEach(d => {
-                if (d.pieceId && pieceMap.has(d.pieceId)) d.piece = pieceMap.get(d.pieceId);
-            });
-        }
-        if (Array.isArray(gameState.markedPieces)) {
-            gameState.markedPieces.forEach(m => {
-                if (m.targetId && pieceMap.has(m.targetId)) m.target = pieceMap.get(m.targetId);
-            });
-        }
-        if (Array.isArray(gameState.shields)) {
-            gameState.shields.forEach(s => {
-                if (s.pieceId && pieceMap.has(s.pieceId)) s.piece = pieceMap.get(s.pieceId);
-            });
-        }
-        if (Array.isArray(gameState.unstableGrounds)) {
-            gameState.unstableGrounds.forEach(g => {
-                if (g.creator && typeof g.creator === 'number' && pieceMap.has(g.creator)) {
-                    g.creator = pieceMap.get(g.creator);
-                }
-            });
-        }
-    }
-
-    const startTime = performance.now();
-    const bestAction = iterativeDeepeningSearch(gameState, timeLimit, aiConfig);
-    const endTime = performance.now();
-
-    console.log(`Worker: AI decision took ${(endTime - startTime).toFixed(2)} ms.`);
-    self.postMessage({ bestAction });
-};
+}

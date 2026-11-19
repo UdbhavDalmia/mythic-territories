@@ -1,15 +1,13 @@
 import React from 'react';
-import {
-  Plus,
-  SlidersHorizontal,
-  Wrench,
-  Minus,
-  Sparkles,
-  CircleAlert,
-  CalendarDays,
-  ChevronDown,
-  BookOpen
-} from 'lucide-react';
+import Plus from 'lucide-react/dist/esm/icons/plus.js';
+import SlidersHorizontal from 'lucide-react/dist/esm/icons/sliders-horizontal.js';
+import Wrench from 'lucide-react/dist/esm/icons/wrench.js';
+import Minus from 'lucide-react/dist/esm/icons/minus.js';
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
+import CircleAlert from 'lucide-react/dist/esm/icons/circle-alert.js';
+import CalendarDays from 'lucide-react/dist/esm/icons/calendar-days.js';
+import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down.js';
+import BookOpen from 'lucide-react/dist/esm/icons/book-open.js';
 
 export const PATCHES = [
   {

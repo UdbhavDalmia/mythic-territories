@@ -1,20 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import gsap from 'gsap';
+import { loadGsap } from '../services/gsap.js';
 import '@/styles/notes.css';
-import {
-  ArrowLeft,
-  BookOpen,
-  CalendarDays,
-  ChevronDown,
-  CircleAlert,
-  Minus,
-  Plus,
-  ScrollText,
-  Settings as SettingsIcon,
-  SlidersHorizontal,
-  Sparkles,
-  Wrench,
-} from 'lucide-react';
+import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left.js';
+import BookOpen from 'lucide-react/dist/esm/icons/book-open.js';
+import CalendarDays from 'lucide-react/dist/esm/icons/calendar-days.js';
+import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down.js';
+import CircleAlert from 'lucide-react/dist/esm/icons/circle-alert.js';
+import Minus from 'lucide-react/dist/esm/icons/minus.js';
+import Plus from 'lucide-react/dist/esm/icons/plus.js';
+import ScrollText from 'lucide-react/dist/esm/icons/scroll-text.js';
+import SettingsIcon from 'lucide-react/dist/esm/icons/settings.js';
+import SlidersHorizontal from 'lucide-react/dist/esm/icons/sliders-horizontal.js';
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
+import Wrench from 'lucide-react/dist/esm/icons/wrench.js';
 
 import {
   PATCHES,
@@ -37,14 +35,23 @@ export default function Notes({ navigateTo }) {
   const releasedPatches = PATCHES.slice(1);
 
   useEffect(() => {
+    let active = true;
+    let entrance = null;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      gsap.set(pageRef.current, { opacity: 1, y: 0 });
+      if (pageRef.current) pageRef.current.style.opacity = '1';
       return;
     }
-    gsap.fromTo(pageRef.current,
-      { opacity: 0, y: 40 },
-      { opacity: 1, y: 0, duration: 0.75, ease: 'expo.out' }
-    );
+    loadGsap().then(gsap => {
+      if (!active || !pageRef.current) return;
+      entrance = gsap.fromTo(pageRef.current,
+        { opacity: 0, y: 40 },
+        { opacity: 1, y: 0, duration: 0.75, ease: 'expo.out' }
+      );
+    });
+    return () => {
+      active = false;
+      if (entrance) entrance.kill();
+    };
   }, []);
 
   useEffect(() => {
@@ -63,9 +70,15 @@ export default function Notes({ navigateTo }) {
       navigateTo(dest);
       return;
     }
-    gsap.to(pageRef.current, {
-      opacity: 0, y: 50, duration: 0.32, ease: 'power2.in',
-      onComplete: () => navigateTo(dest)
+    loadGsap().then(gsap => {
+      if (pageRef.current) {
+        gsap.to(pageRef.current, {
+          opacity: 0, y: 50, duration: 0.32, ease: 'power2.in',
+          onComplete: () => navigateTo(dest)
+        });
+      } else {
+        navigateTo(dest);
+      }
     });
   };
 

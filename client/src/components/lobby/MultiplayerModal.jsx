@@ -1,22 +1,20 @@
 import React from 'react';
-import {
-  Zap,
-  Swords,
-  KeyRound,
-  Loader2,
-  RefreshCw,
-  Copy,
-  Check,
-  Lock,
-  Globe,
-  Globe2,
-  AlertCircle,
-  ArrowLeft,
-  PlusCircle,
-  RotateCcw,
-  Radio,
-  X
-} from 'lucide-react';
+import Zap from 'lucide-react/dist/esm/icons/zap.js';
+import Swords from 'lucide-react/dist/esm/icons/swords.js';
+import KeyRound from 'lucide-react/dist/esm/icons/key-round.js';
+import Loader2 from 'lucide-react/dist/esm/icons/loader-2.js';
+import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw.js';
+import Copy from 'lucide-react/dist/esm/icons/copy.js';
+import Check from 'lucide-react/dist/esm/icons/check.js';
+import Lock from 'lucide-react/dist/esm/icons/lock.js';
+import Globe from 'lucide-react/dist/esm/icons/globe.js';
+import Globe2 from 'lucide-react/dist/esm/icons/globe-2.js';
+import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle.js';
+import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left.js';
+import PlusCircle from 'lucide-react/dist/esm/icons/plus-circle.js';
+import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw.js';
+import Radio from 'lucide-react/dist/esm/icons/radio.js';
+import X from 'lucide-react/dist/esm/icons/x.js';
 import { isValidRoomCode } from '../../services/roomCode.js';
 
 const formatTimeAgo = (ts) => {

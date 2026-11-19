@@ -1,5 +1,5 @@
 import React from 'react';
-import { Swords } from 'lucide-react';
+import Swords from 'lucide-react/dist/esm/icons/swords.js';
 
 export default function RecoverableSessionBanner({
   recoverableSession,

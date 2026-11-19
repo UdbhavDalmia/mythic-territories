@@ -1,5 +1,7 @@
 import React from 'react';
-import { ScrollText, BookOpen, Settings } from 'lucide-react';
+import ScrollText from 'lucide-react/dist/esm/icons/scroll-text.js';
+import BookOpen from 'lucide-react/dist/esm/icons/book-open.js';
+import Settings from 'lucide-react/dist/esm/icons/settings.js';
 
 export default function LobbyFooter({
   footerLinksRef,

@@ -1,5 +1,8 @@
 import React from 'react';
-import { ScrollText, Users, ChevronDown, ChevronUp } from 'lucide-react';
+import ScrollText from 'lucide-react/dist/esm/icons/scroll-text.js';
+import Users from 'lucide-react/dist/esm/icons/users.js';
+import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down.js';
+import ChevronUp from 'lucide-react/dist/esm/icons/chevron-up.js';
 import * as C from '@shared/constants.js';
 
 export default function GameActionDrawer({

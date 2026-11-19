@@ -1,16 +1,14 @@
-import {
-  BookOpen,
-  Clock3,
-  Footprints,
-  Landmark,
-  Map,
-  Shield,
-  Sparkles,
-  Swords,
-  Target,
-  Users,
-  X
-} from 'lucide-react';
+import BookOpen from 'lucide-react/dist/esm/icons/book-open.js';
+import Clock3 from 'lucide-react/dist/esm/icons/clock-3.js';
+import Footprints from 'lucide-react/dist/esm/icons/footprints.js';
+import Landmark from 'lucide-react/dist/esm/icons/landmark.js';
+import Map from 'lucide-react/dist/esm/icons/map.js';
+import Shield from 'lucide-react/dist/esm/icons/shield.js';
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles.js';
+import Swords from 'lucide-react/dist/esm/icons/swords.js';
+import Target from 'lucide-react/dist/esm/icons/target.js';
+import Users from 'lucide-react/dist/esm/icons/users.js';
+import X from 'lucide-react/dist/esm/icons/x.js';
 
 // ─── Accurate unit profiles matching constants.js ───────────────────────────
 export const UNIT_PROFILES = {
