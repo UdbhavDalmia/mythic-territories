@@ -7,10 +7,12 @@ client/node_modules/
 dist/
 client/dist/
 dist-ssr/
-build/
+/build/
+client/build/
 out/
 .vite/
 **/.vite/
+!test/build/
 
 # Environment variables & secrets
 .env

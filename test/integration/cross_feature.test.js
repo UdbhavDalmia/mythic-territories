@@ -2,12 +2,12 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { createBaseGameState, createActiveCombatGameState, createEndgameGameState } from '../helpers/fixtureState.js';
+import { createBaseGameState, createActiveCombatGameState } from '../helpers/fixtureState.js';
 import { createMockCanvas, createMockContext2D } from '../helpers/mockCanvas.js';
 
 const rootDir = process.cwd();
 
-describe('Tier 3: Cross-Feature Interaction Test Suite', () => {
+describe('Integration: Cross-Feature Interactions', () => {
 
   test('T3-01 (F2+F6): AI Worker structuredClone with multiplayer serializeDelta roundtrip', async () => {
     const { serializeDelta, parseAndRehydrateGameState } = await import(path.resolve(rootDir, 'client/src/services/multiplayer.js'));
@@ -17,7 +17,6 @@ describe('Tier 3: Cross-Feature Interaction Test Suite', () => {
     const deltaJson = serializeDelta(original);
     const rehydrated = parseAndRehydrateGameState(deltaJson);
 
-    // Strip uncloneable function references attached during rehydration
     for (const p of rehydrated.pieces) {
       if (p.ability) {
         for (const [k, v] of Object.entries(p.ability)) {
@@ -32,7 +31,6 @@ describe('Tier 3: Cross-Feature Interaction Test Suite', () => {
     assert.ok(workerCloned.ashTerritory instanceof Set, 'ashTerritory must be a Set across network and worker boundaries');
     assert.strictEqual(workerCloned.pieces.length, original.pieces.length);
     assert.strictEqual(workerCloned.turnCount, original.turnCount);
-    // Mutation independence
     workerCloned.pieces[0].currentHp = 1;
     assert.notStrictEqual(original.pieces[0].currentHp, 1);
   });
@@ -42,7 +40,6 @@ describe('Tier 3: Cross-Feature Interaction Test Suite', () => {
     const gs = createBaseGameState();
     const scores1 = calculateDynamicTerritoryAreas(gs);
     const key1 = gs._piecesKey;
-    const voronoi1 = gs.voronoiData;
 
     const scores2 = calculateDynamicTerritoryAreas(gs);
     assert.deepStrictEqual(scores1, scores2);
@@ -96,7 +93,6 @@ describe('Tier 3: Cross-Feature Interaction Test Suite', () => {
     const craterMap = new Map();
     craterMap.set('5,5', createMockCanvas(70, 70));
 
-    // Simulate 60 mousemove updates
     for (let i = 0; i < 60; i++) {
       mousePosRef.current = { x: 350 + (i % 5), y: 350 + (i % 5) };
       const hoveredRow = Math.floor(mousePosRef.current.y / 70);
@@ -127,7 +123,6 @@ describe('Tier 3: Cross-Feature Interaction Test Suite', () => {
     updateVoronoiState(gs);
     setCurrentState('PIECE_SELECTED', gs);
     assert.strictEqual(isState('PIECE_SELECTED', gs), true);
-    // Verify no Firebase calls made
     assert.ok(gs.events.length > 0);
   });
 
