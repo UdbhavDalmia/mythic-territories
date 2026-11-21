@@ -24,6 +24,8 @@ function Piece({
   onMouseMove
 }) {
   const pieceRef = useRef(null);
+  const onClickRef = useRef(onClick);
+  onClickRef.current = onClick;
   const innerRef = useRef(null);
   const getPieceInitialHp = (p) => typeof p.currentHp === 'number' ? p.currentHp : (p.maxHp || PIECE_TYPES[p.key]?.stats?.hp || 5);
   const prevCoords = useRef({ row: piece.row, col: piece.col });
@@ -229,7 +231,8 @@ function Piece({
       className="absolute w-[10%] h-[10%] z-20 flex items-center justify-center cursor-pointer select-none"
       onClick={(e) => {
         e.stopPropagation();
-        onClick(piece);
+        if (onClickRef.current) onClickRef.current(piece);
+        else if (onClick) onClick(piece);
       }}
       onMouseEnter={(e) => onMouseEnter && onMouseEnter(piece, e)}
       onMouseMove={(e) => onMouseMove && onMouseMove(piece, e)}
@@ -429,6 +432,9 @@ function Piece({
 export default React.memo(Piece, (prev, next) => {
   if (prev.isSelected !== next.isSelected) return false;
   if (prev.isAsh !== next.isAsh) return false;
+  if (prev.gameState?.currentTurn !== next.gameState?.currentTurn) return false;
+  if (prev.gameState?.currentState !== next.gameState?.currentState) return false;
+  if (prev.gameState?.selectedPiece?.id !== next.gameState?.selectedPiece?.id) return false;
   if (prev.piece !== next.piece) {
     const p1 = prev.piece;
     const p2 = next.piece;

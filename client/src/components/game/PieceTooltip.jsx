@@ -2,10 +2,12 @@ import React, { useEffect, useRef } from 'react';
 import * as C from '@shared/constants.js';
 import * as E from '@shared/utils.js';
 
-function formatHp(v) {
-  if (typeof v !== 'number' || isNaN(v)) return v;
-  const rounded = Math.round(v * 10) / 10;
-  return Number.isInteger(rounded) ? Math.round(rounded) : rounded;
+export function formatHp(v) {
+  if (v == null || v === '') return '?';
+  const num = typeof v === 'number' ? v : parseFloat(v);
+  if (isNaN(num)) return v;
+  const rounded = Math.round(num * 10) / 10;
+  return Number.isInteger(rounded) ? Math.round(rounded) : parseFloat(rounded.toFixed(1));
 }
 
 export function generatePieceInfoHtml(piece, gameState) {
@@ -14,11 +16,13 @@ export function generatePieceInfoHtml(piece, gameState) {
   const effectivePower = E.getEffectivePower(piece, gameState, null, null);
   let info = `<b>${typeInfo.name || 'Unit'}</b> (${piece.team?.charAt(0).toUpperCase() + piece.team?.slice(1)})<br>`;
 
-  const rawHp = typeof piece.currentHp === 'number' ? piece.currentHp : (piece.maxHp || effectivePower);
+  const rawHp = piece.currentHp != null ? piece.currentHp : (piece.maxHp || effectivePower);
   const hp = formatHp(rawHp);
-  const rawMaxHp = piece.maxHp || rawHp;
+  const rawMaxHp = piece.maxHp != null ? piece.maxHp : rawHp;
   const maxHp = formatHp(rawMaxHp);
-  const hpPct = rawMaxHp > 0 ? Math.round((rawHp / rawMaxHp) * 100) : 100;
+  const numHp = typeof rawHp === 'number' ? rawHp : parseFloat(rawHp) || 0;
+  const numMaxHp = typeof rawMaxHp === 'number' ? rawMaxHp : parseFloat(rawMaxHp) || numHp || 1;
+  const hpPct = numMaxHp > 0 ? Math.max(0, Math.min(100, Math.round((numHp / numMaxHp) * 100))) : 100;
   const hpColor = hpPct > 60 ? '#44dd88' : hpPct > 30 ? '#ffcc44' : '#ff4444';
 
   info += `<div style="margin:3px 0 4px;">`;
@@ -27,8 +31,9 @@ export function generatePieceInfoHtml(piece, gameState) {
   info += `</div>`;
 
   if (!piece.isVeteran && maxHp > 0) {
-    const dmgDealt = piece.damageDealt || 0;
-    const vetPct = Math.min(100, Math.round((dmgDealt / maxHp) * 100));
+    const dmgDealt = formatHp(piece.damageDealt || 0);
+    const numDmgDealt = typeof piece.damageDealt === 'number' ? piece.damageDealt : parseFloat(piece.damageDealt) || 0;
+    const vetPct = Math.min(100, Math.round((numDmgDealt / numMaxHp) * 100));
     info += `<div style="margin:3px 0 4px;">`;
     info += `<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;color:#aaccff"><span>Veteran Progress</span><span>${dmgDealt}/${maxHp}</span></div>`;
     info += `<div style="height:4px;background:rgba(255,255,255,0.12);border-radius:2px;"><div style="width:${vetPct}%;height:100%;background:#00aaff;border-radius:2px;transition:width 0.3s;box-shadow:0 0 4px #00aaff;"></div></div>`;
@@ -43,16 +48,16 @@ export function generatePieceInfoHtml(piece, gameState) {
     const effDef = E.getEffectiveDefense ? E.getEffectiveDefense(piece, gameState) : (piece.def ?? s?.def ?? 0);
     const effAgi = E.getEffectiveAgility ? E.getEffectiveAgility(piece, gameState) : (piece.agility ?? s?.agility ?? 2);
     const effCtrl = E.getEffectiveControl ? E.getEffectiveControl(piece, gameState) : (piece.control ?? s?.control ?? 0.1);
-    const rng = Number((piece.range ?? s?.rng ?? 1).toFixed(1));
+    const rng = piece.range ?? s?.rng ?? 1;
     info += `<div style="font-size:11px;color:#aac;margin-bottom:4px;display:flex;gap:6px;flex-wrap:wrap;">`;
-    info += `<span title="Strength">⚔${Math.round(effStr)}</span>`;
-    info += `<span title="Defense">🛡${Math.round(effDef)}</span>`;
-    info += `<span title="Range">🎯${rng}</span>`;
-    info += `<span title="Agility">💨${Number(effAgi.toFixed(1))}</span>`;
-    info += `<span title="Control">🌐${Number(effCtrl.toFixed(1))}</span>`;
+    info += `<span title="Strength">⚔${formatHp(effStr)}</span>`;
+    info += `<span title="Defense">🛡${formatHp(effDef)}</span>`;
+    info += `<span title="Range">🎯${formatHp(rng)}</span>`;
+    info += `<span title="Agility">💨${formatHp(effAgi)}</span>`;
+    info += `<span title="Control">🌐${formatHp(effCtrl)}</span>`;
     info += `</div>`;
   } else {
-    info += `Power: ${effectivePower} (Base: ${typeInfo.power || 0})<br>`;
+    info += `Power: ${formatHp(effectivePower)} (Base: ${typeInfo.power || 0})<br>`;
   }
 
   const boosts = [];
@@ -137,14 +142,14 @@ export function generatePieceInfoHtml(piece, gameState) {
   if (sel && sel.team !== piece.team) {
     try {
       const preview = E.previewDamage(sel, piece, gameState);
-      const rawHpNow = typeof piece.currentHp === 'number' ? piece.currentHp : (piece.maxHp || '?');
+      const rawHpNow = piece.currentHp != null ? piece.currentHp : (piece.maxHp || '?');
       const hpNow = formatHp(rawHpNow);
-      const rawHpMax = piece.maxHp || rawHpNow;
+      const rawHpMax = piece.maxHp != null ? piece.maxHp : rawHpNow;
       const hpMax = formatHp(rawHpMax);
       let predHtml = `<div id="tacticalPredictor">`;
       predHtml += `<div>⚔ ${C.PIECE_TYPES[sel.key]?.name || sel.key} → ${C.PIECE_TYPES[piece.key]?.name || piece.key}</div>`;
       predHtml += `<div>HP: ${hpNow}/${hpMax} &nbsp;|&nbsp; `;
-      predHtml += `DMG: <span class="pred-dmg">-${preview.dmg}</span></div>`;
+      predHtml += `DMG: <span class="pred-dmg">-${formatHp(preview.dmg)}</span></div>`;
       if (piece.hasDeathMeteorInvincibility) {
         predHtml += `<div style="color:#facc15;font-weight:bold;margin-top:2px;">🛡 METEOR SHIELD — LETHAL NEGATED</div>`;
       } else if (piece.hasHelpFromAboveActive) {
@@ -152,7 +157,8 @@ export function generatePieceInfoHtml(piece, gameState) {
       } else if (preview.isFatal) {
         predHtml += `<div class="pred-fatal" style="color:#EF4444;font-weight:bold;margin-top:2px;">☠ LETHAL STRIKE</div>`;
       } else {
-        const hpAfter = formatHp(Math.max(0, hpNow - preview.dmg));
+        const numHpNow = typeof rawHpNow === 'number' ? rawHpNow : parseFloat(rawHpNow) || 0;
+        const hpAfter = formatHp(Math.max(0, numHpNow - preview.dmg));
         predHtml += `<div>Remaining HP: <span class="pred-chip" style="color:#44ffaa;">${hpAfter}</span></div>`;
       }
       predHtml += `</div>`;

@@ -24,6 +24,14 @@ export function spawnFrostfallBlessingEffect(r, c, gameState) {
 }
 
 export function drawFrostfallBlessingAnimations(ctx, gameState) {
+  if (!gameState.gameStarted) {
+    gameState.frostfallShards = [];
+    gameState.dyingFrostfallBlessings = [];
+    gameState.knownFrostfallBlessings = [];
+    gameState.frostfallBlessings = [];
+    gameState.frostVignette = null;
+    return;
+  }
   if (!gameState.frostfallShards) gameState.frostfallShards = [];
   if (!gameState.dyingFrostfallBlessings) gameState.dyingFrostfallBlessings = [];
   if (!gameState.knownFrostfallBlessings) gameState.knownFrostfallBlessings = [];

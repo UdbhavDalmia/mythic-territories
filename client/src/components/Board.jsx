@@ -423,13 +423,15 @@ function Board({
   return (
     <div 
       id="gameBoard"
-      className="relative select-none"
+      className="relative select-none overflow-hidden"
       onClick={handleBoardContainerClick}
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
       style={{
         backgroundImage: isAsh ? "url('/images/bg-game2.webp')" : "url('/images/bg-game.webp')",
-        backgroundSize: '100% 100%'
+        backgroundSize: '100% 100%',
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'center center'
       }}
     >
       {/* 1. Grid Cells Layer */}

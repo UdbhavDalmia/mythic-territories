@@ -748,16 +748,23 @@ export function renderEnvironmentalEffects(ctx, currentGs, isAshLocal, CS, dt, a
       }
 
       // Track known remnants to detect expiration and trigger smooth thawing exit transition
-      if (!currentGs.knownGlacialRemnants) currentGs.knownGlacialRemnants = [];
-      if (!currentGs.dyingGlacialRemnants) currentGs.dyingGlacialRemnants = [];
+      if (!currentGs.gameStarted) {
+        currentGs.knownGlacialRemnants = [];
+        currentGs.dyingGlacialRemnants = [];
+        currentGs.glacialRemnants = [];
+        currentGs.blizzardStorms = [];
+      } else {
+        if (!currentGs.knownGlacialRemnants) currentGs.knownGlacialRemnants = [];
+        if (!currentGs.dyingGlacialRemnants) currentGs.dyingGlacialRemnants = [];
 
-      const activeRemnantKeys = (currentGs.glacialRemnants || []).map(r => `${r.r},${r.c}`);
-      currentGs.knownGlacialRemnants.forEach(known => {
-        if (!activeRemnantKeys.includes(`${known.r},${known.c}`)) {
-          currentGs.dyingGlacialRemnants.push({ ...known, thawLife: 1.0 });
-        }
-      });
-      currentGs.knownGlacialRemnants = (currentGs.glacialRemnants || []).map(r => ({ ...r }));
+        const activeRemnantKeys = (currentGs.glacialRemnants || []).map(r => `${r.r},${r.c}`);
+        currentGs.knownGlacialRemnants.forEach(known => {
+          if (!activeRemnantKeys.includes(`${known.r},${known.c}`)) {
+            currentGs.dyingGlacialRemnants.push({ ...known, thawLife: 1.0 });
+          }
+        });
+        currentGs.knownGlacialRemnants = (currentGs.glacialRemnants || []).map(r => ({ ...r }));
+      }
 
       // Draw persistent Glacial Fracture Remnants (frost fissures, glassy ice glaze, protruding crystal shards)
       if (currentGs.glacialRemnants && currentGs.glacialRemnants.length > 0) {

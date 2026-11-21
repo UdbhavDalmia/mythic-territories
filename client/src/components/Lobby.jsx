@@ -7,16 +7,20 @@ import FactionSelectionOverlay from './lobby/FactionSelectionOverlay.jsx';
 import { useLobbyMatchmaking } from '../hooks/useLobbyMatchmaking.js';
 import '@/styles/menu.css';
 import { triggerHaptic } from '../services/haptics.js';
+import { loadGsap } from '../services/gsap.js';
 
 const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const loadMultiplayer = () => import('../services/multiplayer.js');
 
-let gsapPromise = null;
-const loadGsap = () => {
-  if (!gsapPromise) {
-    gsapPromise = import('gsap').then(m => m.default || m);
-  }
-  return gsapPromise;
+const getDomElements = list => (list || []).filter(el => Boolean(el && el.nodeType === 1));
+const safeKillTweens = (gsap, targets) => {
+  if (!gsap || !targets) return;
+  const list = Array.isArray(targets) ? targets : [targets];
+  list.forEach(t => {
+    if (t && t.nodeType === 1) {
+      try { gsap.killTweensOf(t); } catch (_) {}
+    }
+  });
 };
 
 export default function Lobby({ navigateTo, onWarm }) {
@@ -82,14 +86,14 @@ export default function Lobby({ navigateTo, onWarm }) {
       return;
     }
     loadGsap().then(gsap => {
-      if (!pageRef.current) {
+      if (pageRef.current?.nodeType === 1) {
+        gsap.to(pageRef.current, {
+          opacity: 0, y: -30, duration: 0.3, ease: 'power2.in',
+          onComplete: () => navigateTo(dest, params)
+        });
+      } else {
         navigateTo(dest, params);
-        return;
       }
-      gsap.to(pageRef.current, {
-        opacity: 0, y: -30, duration: 0.3, ease: 'power2.in',
-        onComplete: () => navigateTo(dest, params)
-      });
     }).catch(() => navigateTo(dest, params));
   };
 
@@ -167,13 +171,13 @@ export default function Lobby({ navigateTo, onWarm }) {
       return;
     }
     isClosingModesRef.current = true;
-    const cards = modeCardsRef.current.filter(Boolean);
-    const content = modesOverlayRef.current?.querySelector('.modal-content');
-    const header = content?.querySelector('.text-center');
+    const cards = getDomElements(modeCardsRef.current);
+    const content = modesOverlayRef.current?.querySelector?.('.modal-content');
+    const header = content?.querySelector?.('.text-center');
 
     loadGsap().then(gsap => {
       const overlay = modesOverlayRef.current;
-      if (!overlay) {
+      if (!overlay || overlay.nodeType !== 1) {
         setShowModes(false);
         isClosingModesRef.current = false;
         return;
@@ -195,7 +199,7 @@ export default function Lobby({ navigateTo, onWarm }) {
           ease: 'power2.in'
         });
       }
-      const headerAndBack = [header, modesBackRef.current].filter(Boolean);
+      const headerAndBack = getDomElements([header, modesBackRef.current]);
       if (headerAndBack.length > 0) {
         tl.to(headerAndBack, {
           y: -12,
@@ -246,27 +250,27 @@ export default function Lobby({ navigateTo, onWarm }) {
           setShowMultiplayer(false);
           setMpPanel(null);
           isTransitioningRef.current = false;
-          const targets = [modesOverlayRef.current, ...modeCardsRef.current.filter(Boolean)].filter(Boolean);
+          const targets = getDomElements([modesOverlayRef.current, ...(modeCardsRef.current || [])]);
           if (targets.length > 0) {
             gsap.set(targets, { opacity: 1, y: 0, scale: 1 });
           }
           return;
         }
 
-        const modesCards = modeCardsRef.current.filter(Boolean);
-        const modesContent = modesOverlayRef.current?.querySelector('.modal-content');
-        const modesHeader = modesContent?.querySelector('.text-center');
-        const modesBack = modesBackRef.current;
+        const modesCards = getDomElements(modeCardsRef.current);
+        const modesContent = modesOverlayRef.current?.querySelector?.('.modal-content');
+        const modesHeader = modesContent?.querySelector?.('.text-center');
+        const modesBack = modesBackRef.current?.nodeType === 1 ? modesBackRef.current : null;
 
-        const mpCards = mpCardsRef.current.filter(Boolean);
-        const mpContent = mpOverlayRef.current?.querySelector('.modal-content');
-        const mpHeader = mpContent?.querySelector('.text-center');
-        const mpBack = mpBackRef.current;
+        const mpCards = getDomElements(mpCardsRef.current);
+        const mpContent = mpOverlayRef.current?.querySelector?.('.modal-content');
+        const mpHeader = mpContent?.querySelector?.('.text-center');
+        const mpBack = mpBackRef.current?.nodeType === 1 ? mpBackRef.current : null;
 
-        if (modesOverlayRef.current) gsap.set(modesOverlayRef.current, { opacity: 1 });
-        if (mpOverlayRef.current) gsap.set(mpOverlayRef.current, { opacity: 1 });
+        if (modesOverlayRef.current?.nodeType === 1) gsap.set(modesOverlayRef.current, { opacity: 1 });
+        if (mpOverlayRef.current?.nodeType === 1) gsap.set(mpOverlayRef.current, { opacity: 1 });
 
-        if (modesHeader) gsap.set(modesHeader, { opacity: 0, y: -16 });
+        if (modesHeader?.nodeType === 1) gsap.set(modesHeader, { opacity: 0, y: -16 });
         if (modesCards.length > 0) gsap.set(modesCards, { opacity: 0, y: -24, scale: 0.96 });
         if (modesBack) gsap.set(modesBack, { opacity: 0, y: -12 });
 
@@ -275,7 +279,7 @@ export default function Lobby({ navigateTo, onWarm }) {
             setShowMultiplayer(false);
             setMpPanel(null);
             isTransitioningRef.current = false;
-            const clearTargets = [...modesCards, modesHeader, modesBack].filter(Boolean);
+            const clearTargets = getDomElements([...modesCards, modesHeader, modesBack]);
             if (clearTargets.length > 0) {
               gsap.set(clearTargets, { clearProps: 'transform' });
             }
@@ -294,7 +298,7 @@ export default function Lobby({ navigateTo, onWarm }) {
           }, 0);
         }
 
-        const mpHeaderAndBack = [mpHeader, mpBack].filter(Boolean);
+        const mpHeaderAndBack = getDomElements([mpHeader, mpBack]);
         if (mpHeaderAndBack.length > 0) {
           tl.to(mpHeaderAndBack, {
             y: 12,
@@ -305,7 +309,7 @@ export default function Lobby({ navigateTo, onWarm }) {
         }
 
         // ── Entry animation of Modes Screen (IN SYNC with Exit) ──
-        if (modesHeader) {
+        if (modesHeader?.nodeType === 1) {
           tl.to(modesHeader, {
             opacity: 1,
             y: 0,
@@ -334,8 +338,8 @@ export default function Lobby({ navigateTo, onWarm }) {
           }, 0.18);
         }
 
-        const backArrow = modesBack?.querySelector('.back-arrow-icon');
-        if (backArrow) {
+        const backArrow = modesBack?.querySelector?.('.back-arrow-icon');
+        if (backArrow?.nodeType === 1) {
           gsap.to(backArrow, { x: -3, repeat: -1, yoyo: true, duration: 0.65, ease: 'sine.inOut' });
         }
       }).catch(() => {
@@ -353,13 +357,10 @@ export default function Lobby({ navigateTo, onWarm }) {
         active = false;
         window.removeEventListener('keydown', handleKeyDown);
         loadGsap().then(gsap => {
-          const cards = modeCardsRef.current.filter(Boolean);
-          const header = modesOverlayRef.current?.querySelector('.modal-content')?.querySelector('.text-center');
-          const backArrow = modesBackRef.current?.querySelector('.back-arrow-icon');
-          const killTargets = [modesOverlayRef.current, ...cards, backArrow, header, modesBackRef.current].filter(Boolean);
-          if (killTargets.length > 0) {
-            gsap.killTweensOf(killTargets);
-          }
+          const cards = getDomElements(modeCardsRef.current);
+          const header = modesOverlayRef.current?.querySelector?.('.modal-content')?.querySelector?.('.text-center');
+          const backArrow = modesBackRef.current?.querySelector?.('.back-arrow-icon');
+          safeKillTweens(gsap, [modesOverlayRef.current, ...cards, backArrow, header, modesBackRef.current]);
         }).catch(() => { });
       };
     }
@@ -368,26 +369,26 @@ export default function Lobby({ navigateTo, onWarm }) {
 
     loadGsap().then(gsap => {
       if (!active || !modesOverlayRef.current) return;
-      const cards = modeCardsRef.current.filter(Boolean);
+      const cards = getDomElements(modeCardsRef.current);
       if (prefersReducedMotion()) {
-        const targets = [modesOverlayRef.current, ...cards].filter(Boolean);
+        const targets = getDomElements([modesOverlayRef.current, ...cards]);
         if (targets.length > 0) {
           gsap.set(targets, { opacity: 1, y: 0, scale: 1 });
         }
         return;
       }
       // Stagger cards in from below
-      const content = modesOverlayRef.current?.querySelector('.modal-content');
-      const header = content?.querySelector('.text-center');
+      const content = modesOverlayRef.current?.querySelector?.('.modal-content');
+      const header = content?.querySelector?.('.text-center');
 
-      const initialTargets = [modesOverlayRef.current, ...cards].filter(Boolean);
+      const initialTargets = getDomElements([modesOverlayRef.current, ...cards]);
       if (initialTargets.length > 0) gsap.set(initialTargets, { opacity: 0 });
-      if (header) gsap.set(header, { opacity: 0, y: 20 });
-      if (modesBackRef.current) gsap.set(modesBackRef.current, { opacity: 0, y: 15 });
+      if (header?.nodeType === 1) gsap.set(header, { opacity: 0, y: 20 });
+      if (modesBackRef.current?.nodeType === 1) gsap.set(modesBackRef.current, { opacity: 0, y: 15 });
 
       const tl = gsap.timeline();
 
-      if (modesOverlayRef.current) {
+      if (modesOverlayRef.current?.nodeType === 1) {
         tl.to(modesOverlayRef.current, {
           opacity: 1,
           duration: 0.35,
@@ -395,7 +396,7 @@ export default function Lobby({ navigateTo, onWarm }) {
         });
       }
 
-      if (header) {
+      if (header?.nodeType === 1) {
         tl.to(header, {
           opacity: 1,
           y: 0,
@@ -408,11 +409,11 @@ export default function Lobby({ navigateTo, onWarm }) {
         tl.fromTo(cards,
           { y: 50, opacity: 0, scale: 0.95 },
           { y: 0, opacity: 1, scale: 1, duration: 0.7, stagger: 0.12, ease: 'expo.out', clearProps: 'transform' },
-          header ? '-=0.35' : 0
+          (header?.nodeType === 1) ? '-=0.35' : 0
         );
       }
 
-      if (modesBackRef.current) {
+      if (modesBackRef.current?.nodeType === 1) {
         tl.to(modesBackRef.current, {
           opacity: 1,
           y: 0,
@@ -422,8 +423,8 @@ export default function Lobby({ navigateTo, onWarm }) {
       }
 
       // Back arrow nudge loop
-      const backArrow = modesBackRef.current?.querySelector('.back-arrow-icon');
-      if (backArrow) {
+      const backArrow = modesBackRef.current?.querySelector?.('.back-arrow-icon');
+      if (backArrow?.nodeType === 1) {
         gsap.to(backArrow, {
           x: -3, repeat: -1, yoyo: true, duration: 0.65, ease: 'sine.inOut'
         });
@@ -439,13 +440,10 @@ export default function Lobby({ navigateTo, onWarm }) {
       active = false;
       window.removeEventListener('keydown', handleKeyDown);
       loadGsap().then(gsap => {
-        const cards = modeCardsRef.current.filter(Boolean);
-        const header = modesOverlayRef.current?.querySelector('.modal-content')?.querySelector('.text-center');
-        const backArrow = modesBackRef.current?.querySelector('.back-arrow-icon');
-        const killTargets = [modesOverlayRef.current, ...cards, backArrow, header, modesBackRef.current].filter(Boolean);
-        if (killTargets.length > 0) {
-          gsap.killTweensOf(killTargets);
-        }
+        const cards = getDomElements(modeCardsRef.current);
+        const header = modesOverlayRef.current?.querySelector?.('.modal-content')?.querySelector?.('.text-center');
+        const backArrow = modesBackRef.current?.querySelector?.('.back-arrow-icon');
+        safeKillTweens(gsap, [modesOverlayRef.current, ...cards, backArrow, header, modesBackRef.current]);
       }).catch(() => { });
     };
   }, [showModes]);
@@ -460,13 +458,13 @@ export default function Lobby({ navigateTo, onWarm }) {
       return;
     }
     isClosingMpRef.current = true;
-    const cards = mpCardsRef.current.filter(Boolean);
-    const content = mpOverlayRef.current?.querySelector('.modal-content');
-    const header = content?.querySelector('.text-center');
+    const cards = getDomElements(mpCardsRef.current);
+    const content = mpOverlayRef.current?.querySelector?.('.modal-content');
+    const header = content?.querySelector?.('.text-center');
 
     loadGsap().then(gsap => {
       const overlay = mpOverlayRef.current;
-      if (!overlay) {
+      if (!overlay || overlay.nodeType !== 1) {
         setShowMultiplayer(false);
         setMpPanel(null);
         isClosingMpRef.current = false;
@@ -484,7 +482,7 @@ export default function Lobby({ navigateTo, onWarm }) {
       if (cards.length > 0) {
         tl.to(cards, { y: 35, opacity: 0, scale: 0.96, duration: 0.28, stagger: 0.05, ease: 'power2.in' });
       }
-      const headerAndBack = [header, mpBackRef.current].filter(Boolean);
+      const headerAndBack = getDomElements([header, mpBackRef.current]);
       if (headerAndBack.length > 0) {
         tl.to(headerAndBack, { y: -12, opacity: 0, duration: 0.22, ease: 'power2.in' }, 0);
       }
@@ -527,27 +525,27 @@ export default function Lobby({ navigateTo, onWarm }) {
         if (prefersReducedMotion()) {
           setShowModes(false);
           isTransitioningRef.current = false;
-          const targets = [mpOverlayRef.current, ...mpCardsRef.current.filter(Boolean)].filter(Boolean);
+          const targets = getDomElements([mpOverlayRef.current, ...(mpCardsRef.current || [])]);
           if (targets.length > 0) {
             gsap.set(targets, { opacity: 1, y: 0, scale: 1 });
           }
           return;
         }
 
-        const modesCards = modeCardsRef.current.filter(Boolean);
-        const modesContent = modesOverlayRef.current?.querySelector('.modal-content');
-        const modesHeader = modesContent?.querySelector('.text-center');
-        const modesBack = modesBackRef.current;
+        const modesCards = getDomElements(modeCardsRef.current);
+        const modesContent = modesOverlayRef.current?.querySelector?.('.modal-content');
+        const modesHeader = modesContent?.querySelector?.('.text-center');
+        const modesBack = modesBackRef.current?.nodeType === 1 ? modesBackRef.current : null;
 
-        const mpCards = mpCardsRef.current.filter(Boolean);
-        const mpContent = mpOverlayRef.current?.querySelector('.modal-content');
-        const mpHeader = mpContent?.querySelector('.text-center');
-        const mpBack = mpBackRef.current;
+        const mpCards = getDomElements(mpCardsRef.current);
+        const mpContent = mpOverlayRef.current?.querySelector?.('.modal-content');
+        const mpHeader = mpContent?.querySelector?.('.text-center');
+        const mpBack = mpBackRef.current?.nodeType === 1 ? mpBackRef.current : null;
 
-        if (modesOverlayRef.current) gsap.set(modesOverlayRef.current, { opacity: 1 });
-        if (mpOverlayRef.current) gsap.set(mpOverlayRef.current, { opacity: 1 });
+        if (modesOverlayRef.current?.nodeType === 1) gsap.set(modesOverlayRef.current, { opacity: 1 });
+        if (mpOverlayRef.current?.nodeType === 1) gsap.set(mpOverlayRef.current, { opacity: 1 });
 
-        if (mpHeader) gsap.set(mpHeader, { opacity: 0, y: 16 });
+        if (mpHeader?.nodeType === 1) gsap.set(mpHeader, { opacity: 0, y: 16 });
         if (mpCards.length > 0) gsap.set(mpCards, { opacity: 0, y: 28, scale: 0.96 });
         if (mpBack) gsap.set(mpBack, { opacity: 0, y: 12 });
 
@@ -555,7 +553,7 @@ export default function Lobby({ navigateTo, onWarm }) {
           onComplete: () => {
             setShowModes(false);
             isTransitioningRef.current = false;
-            const clearTargets = [...mpCards, mpHeader, mpBack].filter(Boolean);
+            const clearTargets = getDomElements([...mpCards, mpHeader, mpBack]);
             if (clearTargets.length > 0) {
               gsap.set(clearTargets, { clearProps: 'transform' });
             }
@@ -574,7 +572,7 @@ export default function Lobby({ navigateTo, onWarm }) {
           }, 0);
         }
 
-        const modesHeaderAndBack = [modesHeader, modesBack].filter(Boolean);
+        const modesHeaderAndBack = getDomElements([modesHeader, modesBack]);
         if (modesHeaderAndBack.length > 0) {
           tl.to(modesHeaderAndBack, {
             y: -12,
@@ -585,7 +583,7 @@ export default function Lobby({ navigateTo, onWarm }) {
         }
 
         // ── Entry animation of Multiplayer Lobby (IN SYNC with Exit) ──
-        if (mpHeader) {
+        if (mpHeader?.nodeType === 1) {
           tl.to(mpHeader, {
             opacity: 1,
             y: 0,
@@ -613,8 +611,8 @@ export default function Lobby({ navigateTo, onWarm }) {
           }, 0.18);
         }
 
-        const backArrow = mpBack?.querySelector('.back-arrow-icon');
-        if (backArrow) {
+        const backArrow = mpBack?.querySelector?.('.back-arrow-icon');
+        if (backArrow?.nodeType === 1) {
           gsap.to(backArrow, { x: -3, repeat: -1, yoyo: true, duration: 0.65, ease: 'sine.inOut' });
         }
       }).catch(() => {
@@ -637,13 +635,10 @@ export default function Lobby({ navigateTo, onWarm }) {
         active = false;
         window.removeEventListener('keydown', handleKeyDown);
         loadGsap().then(gsap => {
-          const cards = mpCardsRef.current.filter(Boolean);
-          const header = mpOverlayRef.current?.querySelector('.modal-content')?.querySelector('.text-center');
-          const backArrow = mpBackRef.current?.querySelector('.back-arrow-icon');
-          const killTargets = [mpOverlayRef.current, ...cards, backArrow, header, mpBackRef.current].filter(Boolean);
-          if (killTargets.length > 0) {
-            gsap.killTweensOf(killTargets);
-          }
+          const cards = getDomElements(mpCardsRef.current);
+          const header = mpOverlayRef.current?.querySelector?.('.modal-content')?.querySelector?.('.text-center');
+          const backArrow = mpBackRef.current?.querySelector?.('.back-arrow-icon');
+          safeKillTweens(gsap, [mpOverlayRef.current, ...cards, backArrow, header, mpBackRef.current]);
         }).catch(() => { });
       };
     }
@@ -651,36 +646,36 @@ export default function Lobby({ navigateTo, onWarm }) {
     let active = true;
     loadGsap().then(gsap => {
       if (!active || !mpOverlayRef.current) return;
-      const cards = mpCardsRef.current.filter(Boolean);
+      const cards = getDomElements(mpCardsRef.current);
       if (prefersReducedMotion()) {
-        const targets = [mpOverlayRef.current, ...cards].filter(Boolean);
+        const targets = getDomElements([mpOverlayRef.current, ...cards]);
         if (targets.length > 0) {
           gsap.set(targets, { opacity: 1, y: 0, scale: 1 });
         }
         return;
       }
-      const content = mpOverlayRef.current?.querySelector('.modal-content');
-      const header = content?.querySelector('.text-center');
+      const content = mpOverlayRef.current?.querySelector?.('.modal-content');
+      const header = content?.querySelector?.('.text-center');
 
-      const initialTargets = [mpOverlayRef.current, ...cards].filter(Boolean);
+      const initialTargets = getDomElements([mpOverlayRef.current, ...cards]);
       if (initialTargets.length > 0) gsap.set(initialTargets, { opacity: 0 });
-      if (header) gsap.set(header, { opacity: 0, y: 20 });
-      if (mpBackRef.current) gsap.set(mpBackRef.current, { opacity: 0, y: 15 });
+      if (header?.nodeType === 1) gsap.set(header, { opacity: 0, y: 20 });
+      if (mpBackRef.current?.nodeType === 1) gsap.set(mpBackRef.current, { opacity: 0, y: 15 });
 
       const tl = gsap.timeline();
-      if (mpOverlayRef.current) tl.to(mpOverlayRef.current, { opacity: 1, duration: 0.35, ease: 'power2.out' });
-      if (header) tl.to(header, { opacity: 1, y: 0, duration: 0.5, ease: 'expo.out' }, '-=0.2');
+      if (mpOverlayRef.current?.nodeType === 1) tl.to(mpOverlayRef.current, { opacity: 1, duration: 0.35, ease: 'power2.out' });
+      if (header?.nodeType === 1) tl.to(header, { opacity: 1, y: 0, duration: 0.5, ease: 'expo.out' }, '-=0.2');
       if (cards.length > 0) {
         tl.fromTo(cards,
           { y: 50, opacity: 0, scale: 0.95 },
           { y: 0, opacity: 1, scale: 1, duration: 0.7, ease: 'expo.out', clearProps: 'transform' },
-          header ? '-=0.35' : 0
+          (header?.nodeType === 1) ? '-=0.35' : 0
         );
       }
-      if (mpBackRef.current) tl.to(mpBackRef.current, { opacity: 1, y: 0, duration: 0.45, ease: 'expo.out' }, '-=0.4');
+      if (mpBackRef.current?.nodeType === 1) tl.to(mpBackRef.current, { opacity: 1, y: 0, duration: 0.45, ease: 'expo.out' }, '-=0.4');
 
-      const backArrow = mpBackRef.current?.querySelector('.back-arrow-icon');
-      if (backArrow) gsap.to(backArrow, { x: -3, repeat: -1, yoyo: true, duration: 0.65, ease: 'sine.inOut' });
+      const backArrow = mpBackRef.current?.querySelector?.('.back-arrow-icon');
+      if (backArrow?.nodeType === 1) gsap.to(backArrow, { x: -3, repeat: -1, yoyo: true, duration: 0.65, ease: 'sine.inOut' });
     });
 
     const handleKeyDown = (e) => {
@@ -698,13 +693,10 @@ export default function Lobby({ navigateTo, onWarm }) {
       active = false;
       window.removeEventListener('keydown', handleKeyDown);
       loadGsap().then(gsap => {
-        const cards = mpCardsRef.current.filter(Boolean);
-        const header = mpOverlayRef.current?.querySelector('.modal-content')?.querySelector('.text-center');
-        const backArrow = mpBackRef.current?.querySelector('.back-arrow-icon');
-        const killTargets = [mpOverlayRef.current, ...cards, backArrow, header, mpBackRef.current].filter(Boolean);
-        if (killTargets.length > 0) {
-          gsap.killTweensOf(killTargets);
-        }
+        const cards = getDomElements(mpCardsRef.current);
+        const header = mpOverlayRef.current?.querySelector?.('.modal-content')?.querySelector?.('.text-center');
+        const backArrow = mpBackRef.current?.querySelector?.('.back-arrow-icon');
+        safeKillTweens(gsap, [mpOverlayRef.current, ...cards, backArrow, header, mpBackRef.current]);
       }).catch(() => { });
     };
   }, [showMultiplayer]);
@@ -721,9 +713,9 @@ export default function Lobby({ navigateTo, onWarm }) {
     let active = true;
     loadGsap().then(gsap => {
       if (!active || !factionOverlayRef.current) return;
-      const cards = [snowCardRef.current, ashCardRef.current].filter(Boolean);
+      const cards = getDomElements([snowCardRef.current, ashCardRef.current]);
       if (prefersReducedMotion()) {
-        const targets = [factionOverlayRef.current, ...cards].filter(Boolean);
+        const targets = getDomElements([factionOverlayRef.current, ...cards]);
         if (targets.length > 0) {
           gsap.set(targets, {
             opacity: 1,
@@ -745,7 +737,7 @@ export default function Lobby({ navigateTo, onWarm }) {
         }
       });
 
-      if (factionOverlayRef.current) {
+      if (factionOverlayRef.current?.nodeType === 1) {
         tl.fromTo(factionOverlayRef.current,
           { opacity: 0 },
           { opacity: 1, duration: 0.35, ease: 'power2.out' },
@@ -754,14 +746,14 @@ export default function Lobby({ navigateTo, onWarm }) {
       }
 
       // Both banners fly in from the sides (Snow from left, Ash from right)
-      if (snowCardRef.current) {
+      if (snowCardRef.current?.nodeType === 1) {
         tl.fromTo(snowCardRef.current,
           { x: -50, opacity: 0, scale: 0.96 },
           { x: 0, opacity: 1, scale: 1, duration: 0.6, ease: 'expo.out' },
           0.05
         );
       }
-      if (ashCardRef.current) {
+      if (ashCardRef.current?.nodeType === 1) {
         tl.fromTo(ashCardRef.current,
           { x: 50, opacity: 0, scale: 0.96 },
           { x: 0, opacity: 1, scale: 1, duration: 0.6, ease: 'expo.out' },
@@ -770,8 +762,8 @@ export default function Lobby({ navigateTo, onWarm }) {
       }
 
       // Back arrow nudge
-      const backArrow = factionBackRef.current?.querySelector('.back-arrow-icon');
-      if (backArrow) {
+      const backArrow = factionBackRef.current?.querySelector?.('.back-arrow-icon');
+      if (backArrow?.nodeType === 1) {
         gsap.to(backArrow, {
           x: -3, repeat: -1, yoyo: true, duration: 0.65, ease: 'sine.inOut'
         });
@@ -781,17 +773,15 @@ export default function Lobby({ navigateTo, onWarm }) {
     return () => {
       active = false;
       loadGsap().then(gsap => {
-        const backArrow = factionBackRef.current?.querySelector('.back-arrow-icon');
-        const killTargets = [
+        const backArrow = factionBackRef.current?.querySelector?.('.back-arrow-icon');
+        const killTargets = getDomElements([
           factionOverlayRef.current,
           snowCardRef.current,
           ashCardRef.current,
           backArrow
-        ].filter(Boolean);
-        if (killTargets.length > 0) {
-          gsap.killTweensOf(killTargets);
-        }
-        const cards = [snowCardRef.current, ashCardRef.current].filter(Boolean);
+        ]);
+        safeKillTweens(gsap, killTargets);
+        const cards = getDomElements([snowCardRef.current, ashCardRef.current]);
         if (cards.length > 0) {
           gsap.set(cards, {
             clearProps: 'transform,scale,x,y'
@@ -805,17 +795,26 @@ export default function Lobby({ navigateTo, onWarm }) {
     <div ref={pageRef} className="relative min-h-screen flex flex-col justify-between overflow-hidden bg-void-black text-on-surface select-none font-body-md">
 
       {/* Background */}
-      <div className="fixed inset-0 z-0">
+      <div
+        className="fixed inset-0 z-0"
+        style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0, width: '100%', height: '100%', zIndex: 0, overflow: 'hidden', pointerEvents: 'none' }}
+      >
         <img
           src="/images/menu-bg.webp"
           alt="Mythic Territories"
           className="w-full h-full object-cover object-center animate-slow-zoom pointer-events-none select-none"
-          style={{ transformOrigin: 'center' }}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', transformOrigin: 'center', display: 'block', pointerEvents: 'none' }}
           fetchPriority="high"
           decoding="async"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-void-black via-transparent to-void-black/60" />
-        <div className="absolute inset-0 bg-void-black/20" />
+        <div
+          className="absolute inset-0 bg-gradient-to-t from-void-black via-transparent to-void-black/60"
+          style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, background: 'linear-gradient(to top, #0B1019, transparent 50%, rgba(11, 16, 25, 0.6))', pointerEvents: 'none' }}
+        />
+        <div
+          className="absolute inset-0 bg-void-black/20"
+          style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(11, 16, 25, 0.2)', pointerEvents: 'none' }}
+        />
         <div className="absolute inset-y-0 left-0 w-1/2 bg-[radial-gradient(circle_at_0%_55%,rgba(137,206,255,0.2),transparent_64%)]" />
         <div className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_100%_55%,rgba(239,68,68,0.18),transparent_64%)]" />
         <div className="home-grid absolute inset-0 opacity-20" />

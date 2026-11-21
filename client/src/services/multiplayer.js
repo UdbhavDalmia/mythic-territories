@@ -747,7 +747,11 @@ export async function dispatchGameAction(roomId, playerId, actionType, data = {}
       const p = gs.pieces?.find(x => x.id === data?.pieceId);
       if (!p || p.team !== player.team) throw new Error('Anti-Cheat: Cannot move enemy or non-existent unit');
       const validMoves = E.getValidMoves ? E.getValidMoves(p, gs) : [];
-      const isLegal = validMoves.some(m => Math.hypot(m.r - data.r, m.c - data.c) < 0.35);
+      const isLegal = validMoves.some(m => {
+        const mr = m.row !== undefined ? m.row : m.r;
+        const mc = m.col !== undefined ? m.col : m.c;
+        return Math.hypot(mr - data.r, mc - data.c) < 0.75;
+      });
       if (!isLegal) {
         throw new Error('Anti-Cheat: Target tile is outside legal movement paths.');
       }
@@ -995,7 +999,11 @@ export function validatePeerAction(prevGameState, lastAction, reportedGameState)
       return { valid: false, reason: 'Target coordinates out of arena bounds' };
     }
     const validMoves = E.getValidMoves ? E.getValidMoves(prevPiece, prevGameState) : [];
-    const isLegalTarget = validMoves.some(m => Math.hypot(m.r - r, m.c - c) < 0.35);
+    const isLegalTarget = validMoves.some(m => {
+      const mr = m.row !== undefined ? m.row : m.r;
+      const mc = m.col !== undefined ? m.col : m.c;
+      return Math.hypot(mr - r, mc - c) < 0.75;
+    });
     if (!isLegalTarget) {
       return { valid: false, reason: `Illegal move: (${r}, ${c}) is outside unit's valid movement paths` };
     }

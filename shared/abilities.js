@@ -339,7 +339,7 @@ export const ABILITIES = {
         tp.power = Math.max(0, tp.power - dmg);
         if (typeof tp.currentHp === "number") {
           if (!(tp.key === 'snowFrostLord' && tp.hasHelpFromAboveActive)) {
-            tp.currentHp = Math.max(0, tp.currentHp - dmg);
+            tp.currentHp = Math.max(0, Math.round((tp.currentHp - dmg) * 10) / 10);
           }
         }
       }
@@ -385,7 +385,7 @@ export const ABILITIES = {
         tp.power = Math.max(0, tp.power - dmg);
         if (typeof tp.currentHp === "number") {
           if (!(tp.key === 'snowFrostLord' && tp.hasHelpFromAboveActive)) {
-            tp.currentHp = Math.max(0, tp.currentHp - dmg);
+            tp.currentHp = Math.max(0, Math.round((tp.currentHp - dmg) * 10) / 10);
           }
         }
 
@@ -458,7 +458,7 @@ export const ABILITIES = {
         tp.power = Math.max(0, tp.power - dmg);
         if (typeof tp.currentHp === "number") {
           if (!(tp.key === 'snowFrostLord' && tp.hasHelpFromAboveActive)) {
-            tp.currentHp = Math.max(0, tp.currentHp - dmg);
+            tp.currentHp = Math.max(0, Math.round((tp.currentHp - dmg) * 10) / 10);
           }
         }
       }
@@ -790,7 +790,7 @@ export const ABILITIES = {
         tp.power = Math.max(0, tp.power - dmg);
         if (typeof tp.currentHp === "number") {
           if (!(tp.key === 'snowFrostLord' && tp.hasHelpFromAboveActive)) {
-            tp.currentHp = Math.max(0, tp.currentHp - dmg);
+            tp.currentHp = Math.max(0, Math.round((tp.currentHp - dmg) * 10) / 10);
           }
         }
       }
@@ -820,7 +820,7 @@ export const ABILITIES = {
             tp.power = Math.max(0, tp.power - dmg);
             if (typeof tp.currentHp === "number") {
               if (!(tp.key === 'snowFrostLord' && tp.hasHelpFromAboveActive)) {
-                tp.currentHp = Math.max(0, tp.currentHp - dmg);
+                tp.currentHp = Math.max(0, Math.round((tp.currentHp - dmg) * 10) / 10);
               }
             }
           }
@@ -934,11 +934,11 @@ export const ABILITIES = {
             return; // Immune to damage
           }
           if (target.team !== p.team) {
-            target.currentHp = Math.max(0, (target.currentHp || target.stats?.hp || 5) - dmg);
+            target.currentHp = Math.max(0, Math.round(((target.currentHp || target.stats?.hp || 5) - dmg) * 10) / 10);
             if (target.currentHp <= 0) toRemove.push({ piece: target });
           } else {
             // Deals 1 damage to allies caught in the radius
-            target.currentHp = Math.max(0, (target.currentHp || target.stats?.hp || 5) - allyDmg);
+            target.currentHp = Math.max(0, Math.round(((target.currentHp || target.stats?.hp || 5) - allyDmg) * 10) / 10);
             if (target.currentHp <= 0) toRemove.push({ piece: target });
 
             // Grants +2 Strength for 3 turns

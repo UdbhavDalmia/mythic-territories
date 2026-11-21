@@ -423,9 +423,19 @@ export default function Game({ navigateTo }) {
 
   // Local clock ticking interval
   const startCountdown = () => {
-    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
+
+    let lastTick = Date.now();
 
     timerIntervalRef.current = setInterval(() => {
+      const now = Date.now();
+      const deltaSec = Math.floor((now - lastTick) / 1000);
+      if (deltaSec < 1) return;
+      lastTick += deltaSec * 1000;
+
       setGameState(prev => {
         if (!prev || prev.gameOver || !prev.gameStarted) return prev;
 
@@ -437,7 +447,7 @@ export default function Game({ navigateTo }) {
         if (!updated.timers) updated.timers = { snow: 600, ash: 600 };
 
         if (updated.timers[turn] > 0) {
-          updated.timers[turn] -= 1;
+          updated.timers[turn] = Math.max(0, updated.timers[turn] - deltaSec);
         } else {
           // Timeout trigger
           if (isLocal) {
@@ -456,15 +466,24 @@ export default function Game({ navigateTo }) {
         }
         return updated;
       });
-    }, 1000);
+    }, 500);
   };
 
   useEffect(() => {
     if (gameState?.gameStarted && !gameState?.gameOver) {
       startCountdown();
     } else {
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
     }
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+    };
   }, [gameState?.gameStarted, gameState?.gameOver]);
 
   useEffect(() => {
@@ -745,6 +764,13 @@ export default function Game({ navigateTo }) {
 
         case 'RESET_GAME':
           setEventLog([]);
+          gs.frostfallBlessings = [];
+          gs.knownFrostfallBlessings = [];
+          gs.dyingFrostfallBlessings = [];
+          gs.frostfallShards = [];
+          gs.frostVignette = null;
+          gs.deathMeteors = [];
+          gs.deathMeteorAnimations = [];
           gs.glacialRemnants = [];
           gs.knownGlacialRemnants = [];
           gs.dyingGlacialRemnants = [];
@@ -753,6 +779,7 @@ export default function Game({ navigateTo }) {
           gs.aColdFarewellAnimations = [];
           gs.farewellVignette = null;
           Effects.initParticles(gs);
+          resetTerritoryCache();
           break;
       }
     });
@@ -903,20 +930,21 @@ export default function Game({ navigateTo }) {
   // Board clicking routers
   const handleBoardClick = (r, c) => {
     if (battleCountdown !== null && battleCountdown > 0) return;
-    const isMyTurn = isLocal || gameState?.currentTurn === myTeam;
-    if (!isMyTurn || gameState?.gameOver) return;
+    const currentGs = gameStateRef.current || gameState;
+    const isMyTurn = isLocal || currentGs?.currentTurn === myTeam;
+    if (!isMyTurn || currentGs?.gameOver) return;
 
-    if (gameState?.currentState === 'ABILITY_TARGETING' || gameState?.currentState === 'WALL_PLACEMENT_FIRST' || gameState?.currentState === 'TETHER_TARGETING' || gameState?.currentState === 'WALL_PLACEMENT_SECOND') {
+    if (currentGs?.currentState === 'ABILITY_TARGETING' || currentGs?.currentState === 'WALL_PLACEMENT_FIRST' || currentGs?.currentState === 'TETHER_TARGETING' || currentGs?.currentState === 'WALL_PLACEMENT_SECOND') {
       triggerHaptic('ability');
       sendAction('HANDLE_CLICK', { r, c });
-    } else if (gameState?.selectedPiece) {
+    } else if (currentGs?.selectedPiece) {
       // Check if clicking on or near an allied piece (within body radius 0.65 from unit center)
-      const alliedPiece = gameState.pieces.find(
-        p => p.team === gameState.selectedPiece.team && Math.hypot((p.row + 0.5) - r, (p.col + 0.5) - c) <= 0.65
+      const alliedPiece = currentGs.pieces.find(
+        p => p.team === currentGs.selectedPiece.team && Math.hypot((p.row + 0.5) - r, (p.col + 0.5) - c) <= 0.65
       );
 
       if (alliedPiece) {
-        if (alliedPiece.id === gameState.selectedPiece.id) {
+        if (alliedPiece.id === currentGs.selectedPiece.id) {
           triggerHaptic('light');
           sendAction('SELECT_PIECE', { pieceId: null });
         } else {
@@ -924,38 +952,61 @@ export default function Game({ navigateTo }) {
           sendAction('SELECT_PIECE', { pieceId: alliedPiece.id });
         }
       } else {
-        // Continuous Euclidean distance check from selected piece center
-        const selCenterR = gameState.selectedPiece.row + 0.5;
-        const selCenterC = gameState.selectedPiece.col + 0.5;
+        // Check if destination is within continuous agility radius or matches a legal BFS path tile
+        const selCenterR = currentGs.selectedPiece.row + 0.5;
+        const selCenterC = currentGs.selectedPiece.col + 0.5;
         const dist = Math.hypot(r - selCenterR, c - selCenterC);
-        const maxRadius = E.getPieceMoveRadius ? E.getPieceMoveRadius(gameState.selectedPiece, gameState) : (gameState.selectedPiece.agility || 2);
+        const maxRadius = E.getPieceMoveRadius ? E.getPieceMoveRadius(currentGs.selectedPiece, currentGs) : (currentGs.selectedPiece.agility || 2);
 
-        if (dist <= maxRadius + 0.15) {
+        const validMoves = E.getValidMoves ? E.getValidMoves(currentGs.selectedPiece, currentGs) : [];
+        const matchingLegalCell = validMoves.find(m => {
+          const mr = m.row !== undefined ? m.row : m.r;
+          const mc = m.col !== undefined ? m.col : m.c;
+          return Math.abs(r - (mr + 0.5)) <= 0.55 && Math.abs(c - (mc + 0.5)) <= 0.55;
+        });
+
+        if (dist <= maxRadius + 0.15 || matchingLegalCell) {
           // Check if clicking near an enemy piece to trigger capture/combat
-          const defender = gameState.pieces.find(
-            p => p.team !== gameState.selectedPiece.team && Math.hypot((p.row + 0.5) - r, (p.col + 0.5) - c) <= 0.65
+          const defender = currentGs.pieces.find(
+            p => p.team !== currentGs.selectedPiece.team && Math.hypot((p.row + 0.5) - r, (p.col + 0.5) - c) <= 0.65
           );
 
           if (defender) {
             triggerHaptic('capture');
-            sendAction('MOVE', { pieceId: gameState.selectedPiece.id, r: defender.row, c: defender.col, isHighway: false });
+            sendAction('MOVE', { pieceId: currentGs.selectedPiece.id, r: defender.row, c: defender.col, isHighway: false });
+          } else if (matchingLegalCell) {
+            // Legal grid-based move (e.g. stepping around allies or along BFS paths)
+            const placeRow = matchingLegalCell.row !== undefined ? matchingLegalCell.row : matchingLegalCell.r;
+            const placeCol = matchingLegalCell.col !== undefined ? matchingLegalCell.col : matchingLegalCell.c;
+            triggerHaptic('move');
+            sendAction('MOVE', { pieceId: currentGs.selectedPiece.id, r: placeRow, c: placeCol, isHighway: matchingLegalCell.isHighway || false });
           } else {
             // Freeform continuous ground movement: places piece center EXACTLY where clicked
             const placeCol = Math.max(0, Math.min(9, c - 0.5));
             const placeRow = Math.max(0, Math.min(9, r - 0.5));
 
-            const tooCloseToAlly = gameState.pieces.some(
-              p => p.team === gameState.selectedPiece.team && p.id !== gameState.selectedPiece.id && Math.hypot((p.row + 0.5) - r, (p.col + 0.5) - c) < 0.65
+            const tooCloseToAlly = currentGs.pieces.some(
+              p => p.team === currentGs.selectedPiece.team && p.id !== currentGs.selectedPiece.id && Math.hypot((p.row + 0.5) - r, (p.col + 0.5) - c) < 0.65
             );
             if (!tooCloseToAlly) {
               triggerHaptic('move');
-              sendAction('MOVE', { pieceId: gameState.selectedPiece.id, r: Number(placeRow.toFixed(2)), c: Number(placeCol.toFixed(2)), isHighway: false });
+              sendAction('MOVE', { pieceId: currentGs.selectedPiece.id, r: Number(placeRow.toFixed(2)), c: Number(placeCol.toFixed(2)), isHighway: false });
             }
           }
         } else {
           triggerHaptic('light');
           sendAction('SELECT_PIECE', { pieceId: null });
         }
+      }
+    } else {
+      // No piece currently selected: allow selecting an allied piece by clicking on or near it
+      const activeTeam = isLocal ? currentGs.currentTurn : myTeam;
+      const clickedAlly = currentGs.pieces.find(
+        p => (currentGs.testMode || p.team === activeTeam) && Math.hypot((p.row + 0.5) - r, (p.col + 0.5) - c) <= 0.65
+      );
+      if (clickedAlly) {
+        triggerHaptic('select');
+        sendAction('SELECT_PIECE', { pieceId: clickedAlly.id });
       }
     }
   };
@@ -966,31 +1017,33 @@ export default function Game({ navigateTo }) {
 
   const handlePieceClick = (piece) => {
     if (battleCountdown !== null && battleCountdown > 0) return;
-    const isMyTurn = isLocal || gameState?.currentTurn === myTeam;
-    if (!isMyTurn || gameState?.gameOver) return;
+    const currentGs = gameStateRef.current || gameState;
+    const isMyTurn = isLocal || currentGs?.currentTurn === myTeam;
+    if (!isMyTurn || currentGs?.gameOver) return;
 
-    const allowedSelectTeam = isLocal ? gameState.currentTurn : myTeam;
-    const isTetherTargeting = gameState?.currentState === 'TETHER_TARGETING' || gameState?.currentState === 'ABILITY_TARGETING';
+    const allowedSelectTeam = isLocal ? currentGs.currentTurn : myTeam;
+    const isAllowedPiece = currentGs?.testMode || piece.team === allowedSelectTeam;
+    const isTetherTargeting = currentGs?.currentState === 'TETHER_TARGETING' || currentGs?.currentState === 'ABILITY_TARGETING';
 
     if (isTetherTargeting) {
       triggerHaptic('ability');
       sendAction('HANDLE_CLICK', { r: piece.row, c: piece.col });
-    } else if (piece.team === allowedSelectTeam) {
-      if (gameState?.selectedPiece?.id === piece.id) {
+    } else if (isAllowedPiece) {
+      if (currentGs?.selectedPiece?.id === piece.id) {
         triggerHaptic('light');
         sendAction('SELECT_PIECE', { pieceId: null });
       } else {
         triggerHaptic('select');
         sendAction('SELECT_PIECE', { pieceId: piece.id });
       }
-    } else if (gameState?.selectedPiece) {
+    } else if (currentGs?.selectedPiece) {
       // Initiate attack/lunge checks
-      const dist = Math.hypot(piece.row - gameState.selectedPiece.row, piece.col - gameState.selectedPiece.col);
-      const maxRadius = E.getPieceMoveRadius ? E.getPieceMoveRadius(gameState.selectedPiece, gameState) : (gameState.selectedPiece.agility || 2);
+      const dist = Math.hypot(piece.row - currentGs.selectedPiece.row, piece.col - currentGs.selectedPiece.col);
+      const maxRadius = E.getPieceMoveRadius ? E.getPieceMoveRadius(currentGs.selectedPiece, currentGs) : (currentGs.selectedPiece.agility || 2);
 
       if (dist <= maxRadius) {
         triggerHaptic('capture');
-        sendAction('MOVE', { pieceId: gameState.selectedPiece.id, r: piece.row, c: piece.col, isHighway: false });
+        sendAction('MOVE', { pieceId: currentGs.selectedPiece.id, r: piece.row, c: piece.col, isHighway: false });
       }
     }
   };
@@ -1020,7 +1073,7 @@ export default function Game({ navigateTo }) {
     : `TURN ${gameState?.turnCount || 1}: ${gameState?.currentTurn === 'ash' ? 'ASH' : 'FROST'}`;
 
   return (
-    <div className="game-screen text-on-surface select-none font-body-md overflow-x-hidden w-full flex flex-col items-center justify-center relative md:h-screen md:max-h-screen md:overflow-hidden max-md:min-h-screen max-md:overflow-y-auto max-md:justify-start">
+    <div className="game-screen text-on-surface select-none font-body-md overflow-x-hidden w-full flex flex-col items-center justify-start relative min-h-screen">
 
       {/* Atmospheric Battlefield Page Background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden select-none z-0">
@@ -1132,38 +1185,39 @@ export default function Game({ navigateTo }) {
           }}
         >
           <div id="mobileHeader" className="mobile-only-header">
-            <button id="menuButton-mobile" className="top-menu-btn icon-btn" aria-label="Return to main menu" onClick={handleExitToLobby}>
-              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              <span>Menu</span>
-            </button>
-            {isLocal && (
-              <div id="testModeContainer-mobile" className="test-mode-control mobile-test-mode">
-                <FlaskConical className="h-3.5 w-3.5" aria-hidden="true" />
-                <input
-                  type="checkbox"
-                  id="testModeToggle-mobile"
-                  checked={!!gameState?.testMode}
-                  onChange={(e) => sendAction('TOGGLE_TEST_MODE', { enabled: e.target.checked })}
-                  style={{ cursor: 'pointer', width: '14px', height: '14px', margin: 0 }}
-                />
-                <label htmlFor="testModeToggle-mobile">Test</label>
-              </div>
-            )}
-            <div className="mini-timer-block">
-              <span id="miniTimerSnow" className={`timer-tag snow ${gameState?.currentTurn === 'snow' ? 'active' : ''}`}>{formatTime(gameState?.timers?.snow)}</span>
-              <span className="vs-text">VS</span>
-              <span id="miniTimerAsh" className={`timer-tag ash ${gameState?.currentTurn === 'ash' ? 'active' : ''}`}>{formatTime(gameState?.timers?.ash)}</span>
-            </div>
-            {isLocal && (
-              <button id="startResetBtn-mobile" className="menu-btn start-btn-mobile" onClick={handleStartReset}>
-                {gameState?.gameStarted ? <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> : <Play className="h-3.5 w-3.5" aria-hidden="true" />}
-                <span>{gameState?.gameStarted ? 'Reset' : 'Start'}</span>
+            <div className="mobile-header-left">
+              <button id="menuButton-mobile" className="top-menu-btn icon-btn" aria-label="Return to main menu" onClick={handleExitToLobby}>
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                <span>Menu</span>
               </button>
-            )}
+            </div>
+
+            <div className="mobile-header-center">
+              <div className="mobile-timer-stack" title="Remaining match timers">
+                <div className={`mobile-timer-card snow-card ${gameState?.currentTurn === 'snow' ? 'active' : ''}`}>
+                  <span className="mobile-timer-name">Frost</span>
+                  <span id="miniTimerSnow" className="mobile-timer-val">{formatTime(gameState?.timers?.snow)}</span>
+                </div>
+                <span className="mobile-timer-vs">VS</span>
+                <div className={`mobile-timer-card ash-card ${gameState?.currentTurn === 'ash' ? 'active' : ''}`}>
+                  <span className="mobile-timer-name">Ash</span>
+                  <span id="miniTimerAsh" className="mobile-timer-val">{formatTime(gameState?.timers?.ash)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mobile-header-right header-action-group">
+              {isLocal && (
+                <button id="startResetBtn-mobile" className="menu-btn start-btn-mobile" onClick={handleStartReset}>
+                  {gameState?.gameStarted ? <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> : <Play className="h-3.5 w-3.5" aria-hidden="true" />}
+                  <span>{gameState?.gameStarted ? 'Reset' : 'Start'}</span>
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="main-layout">
-            <div id="left-column" className="ui-column primal-snow hidden xl:flex">
+            <div id="left-column" className="ui-column primal-snow">
               <div className="battle-controls-heading">
                 <div className="battle-controls-title">
                   <Swords className="h-4 w-4 text-ice-light" aria-hidden="true" />
@@ -1410,6 +1464,8 @@ export default function Game({ navigateTo }) {
                 isMyTurn={isMyTurn}
                 sendAction={sendAction}
                 setHoveredAbilityKey={setHoveredAbilityKey}
+                fallenSnow={fallenSnow}
+                fallenAsh={fallenAsh}
               />
             </div>
           </div>

@@ -102,7 +102,7 @@ export function checkSpecialTerrains(p, r, c, gs = gameState) {
       p.power = Math.max(0, p.power - dmg);
       if (typeof p.currentHp === "number") {
         if (!(p.key === 'snowFrostLord' && p.hasHelpFromAboveActive) && !(p.key === 'ashAshTyrant' && p.hasDeathMeteorInvincibility)) {
-          p.currentHp = Math.max(0, p.currentHp - dmg);
+          p.currentHp = Math.max(0, Math.round((p.currentHp - dmg) * 10) / 10);
         }
       }
       flash(`${C.PIECE_TYPES[p.key].name} stepped on Magma Shards and took 1 damage!`, "neutral", gs);
@@ -222,7 +222,7 @@ export function applyAoeLethalPassives(piece, gs = gameState) {
             const maxHp = p.maxHp || C.PIECE_TYPES[p.key]?.stats?.hp || 5;
             const curHp = typeof p.currentHp === 'number' ? p.currentHp : maxHp;
             const dmg = p.team !== piece.team ? 4 : 2;
-            p.currentHp = Math.max(0, curHp - dmg);
+            p.currentHp = Math.max(0, Math.round((curHp - dmg) * 10) / 10);
             aoeHits++;
           }
         });
@@ -392,7 +392,7 @@ export function handlePieceCapture(capturedPiece, attacker = null, gs = gameStat
       if (p.id !== capturedPiece.id && p.currentHp > 0) {
         if (Math.hypot(p.row - capturedPiece.row, p.col - capturedPiece.col) <= rad) {
           if (p.team !== capturedPiece.team) {
-            p.currentHp = Math.max(0, p.currentHp - (C.ABILITY_VALUES.AColdFarewell?.damage || 2));
+            p.currentHp = Math.max(0, Math.round((p.currentHp - (C.ABILITY_VALUES.AColdFarewell?.damage || 2)) * 10) / 10);
             gs.debuffs.push({ pieceId: p.id, duration: C.ABILITY_VALUES.AColdFarewell?.duration || 4, amount: C.ABILITY_VALUES.AColdFarewell?.agilityDebuff || 0.4, name: "ColdFarewellAgi" });
             gs.debuffs.push({ pieceId: p.id, duration: 2, amount: 0, name: "ColdFarewellControlLock" }); // 2 turns = "their next move"
           } else {
@@ -626,7 +626,7 @@ export function executeAbility(
         if (p.team !== piece.team && p.currentHp > 0) {
           if (Math.hypot(p.row - target.r, p.col - target.c) <= rad + 0.45) {
             enemiesCaught.push(p);
-            p.currentHp = Math.max(0, p.currentHp - C.ABILITY_VALUES.GlacialFracture.damage);
+            p.currentHp = Math.max(0, Math.round((p.currentHp - C.ABILITY_VALUES.GlacialFracture.damage) * 10) / 10);
           }
         }
       });
@@ -1268,10 +1268,13 @@ function updatePiecePosition(p, r, c, gs = gameState) {
 export function selectPiece(piece, gs = gameState) {
   if (!gs.gameStarted) return false;
   if (
-    piece.team !== gs.currentTurn ||
+    (!gs.testMode && piece.team !== gs.currentTurn) ||
     isState(GameState.ASCENSION_CHOICE, gs)
   )
     return;
+  if (gs.testMode && piece.team !== gs.currentTurn) {
+    gs.currentTurn = piece.team;
+  }
   gs.selectedPiece = piece;
   setCurrentState(GameState.PIECE_SELECTED, gs);
   emit(gs, { type: "SHOW_ABILITY_PANEL", pieceId: piece.id });
@@ -2503,7 +2506,7 @@ function endOfTurnUpkeep(gs = gameState) {
           if (p.team === s.team && p.currentHp > 0) {
             const dist = Math.hypot(p.row - s.r, p.col - s.c);
             if (dist <= s.radius + 0.5) {
-              p.currentHp = Math.min(p.maxHp || C.PIECE_TYPES[p.key]?.stats?.hp || 5, p.currentHp + (C.ABILITY_VALUES.AColdFarewell?.heal || 1));
+              p.currentHp = Math.min(p.maxHp || C.PIECE_TYPES[p.key]?.stats?.hp || 5, Math.round((p.currentHp + (C.ABILITY_VALUES.AColdFarewell?.heal || 1)) * 10) / 10);
               flash(`${C.PIECE_TYPES[p.key]?.name} healed by Blizzard Storm!`, p.team, gs);
             }
           }
@@ -2529,13 +2532,13 @@ function endOfTurnUpkeep(gs = gameState) {
                   return; // Immune
                 }
                 const prevHp = p.currentHp;
-                p.currentHp = Math.max(0, p.currentHp - s.damage);
+                p.currentHp = Math.max(0, Math.round((p.currentHp - s.damage) * 10) / 10);
                 if (creator.id !== 'spike') {
                   creator.damageDealt = (creator.damageDealt || 0) + (prevHp - p.currentHp);
                   if (!creator.isVeteran && creator.damageDealt >= (creator.maxHp || 5)) creator.readyForVeteranPromotion = true;
                 }
               } else {
-                p.currentHp = Math.min(p.maxHp || 5, p.currentHp + s.heal);
+                p.currentHp = Math.min(p.maxHp || 5, Math.round((p.currentHp + s.heal) * 10) / 10);
               }
             }
           });
@@ -2569,7 +2572,7 @@ function endOfTurnUpkeep(gs = gameState) {
                   return; // Immune
                 }
                 const prevHp = p.currentHp;
-                p.currentHp = Math.max(0, p.currentHp - s.damage);
+                p.currentHp = Math.max(0, Math.round((p.currentHp - s.damage) * 10) / 10);
                 if (creator.id !== 'frost') {
                   creator.damageDealt = (creator.damageDealt || 0) + (prevHp - p.currentHp);
                   if (!creator.isVeteran && creator.damageDealt >= (creator.maxHp || 5)) creator.readyForVeteranPromotion = true;
@@ -2577,7 +2580,7 @@ function endOfTurnUpkeep(gs = gameState) {
               } else {
                 // Tyrants cannot heal from Frostfall Blessing
                 if (p.key !== 'ashAshTyrant' && p.key !== 'snowFrostLord') {
-                  p.currentHp = Math.min(p.maxHp || 5, p.currentHp + s.heal);
+                  p.currentHp = Math.min(p.maxHp || 5, Math.round((p.currentHp + s.heal) * 10) / 10);
                 }
               }
             }
@@ -2660,8 +2663,10 @@ export function switchTurn(gs = gameState) {
   if (nextTurn === "snow") gs.turnCount++;
   checkTerritoryThresholds(gs);
 
-  // Clear active selections so UI doesn't "ghost" during the opponent's turn
+  // Clear active selections and reset state so UI doesn't ghost during the next turn
   deselectPiece(gs);
+  gs.firstWallCoords = null;
+  setCurrentState(GameState.AWAITING_PIECE_SELECTION, gs);
 }
 
 export function endGame(winningTeam, gs = gameState) {
@@ -2743,6 +2748,18 @@ export function initGame(gs = gameState) {
   gs.projectiles = [];
   gs.shockwaves = [];
   gs.frostfallBlessings = [];
+  gs.knownFrostfallBlessings = [];
+  gs.dyingFrostfallBlessings = [];
+  gs.frostfallShards = [];
+  gs.frostVignette = null;
+  gs.farewellVignette = null;
+  gs.glacialRemnants = [];
+  gs.knownGlacialRemnants = [];
+  gs.dyingGlacialRemnants = [];
+  gs.blizzardStorms = [];
+  gs.glacialFractureAnimations = [];
+  gs.aColdFarewellAnimations = [];
+  gs.deathMeteorAnimations = [];
   gs.trapDeployments = [];
   gs.trapTriggers = [];
   gs.deathMeteors = []; // Scorched-earth markers from Ash Tyrant's Death Meteor passive
