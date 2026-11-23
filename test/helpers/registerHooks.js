@@ -23,13 +23,18 @@ if (!globalThis.window.matchMedia) {
 }
 
 if (typeof globalThis.document === 'undefined') {
+  const dummyClassList = {
+    contains: () => false,
+    add: () => {},
+    remove: () => {},
+    toggle: () => false
+  };
   globalThis.document = {
+    documentElement: {
+      classList: dummyClassList
+    },
     body: {
-      classList: {
-        contains: () => false,
-        add: () => {},
-        remove: () => {}
-      }
+      classList: dummyClassList
     },
     createElement(tag) {
       if (tag === 'canvas') {

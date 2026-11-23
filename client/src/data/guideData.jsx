@@ -302,36 +302,36 @@ export const ASCENSION_ROLES = [
 export const QUICK_STEPS = [
   {
     number: '01',
-    title: 'Defeat the leader',
-    description: 'Vanquish the opposing Frost Lord or Ash Tyrant to win the battle.',
+    title: 'Defeat the Leader',
+    description: 'Kill the enemy Leader (Frost Lord or Ash Tyrant) to win the game.',
     icon: Target,
     accent: 'text-ember-gold border-ember-gold/25 bg-ember-gold/10'
   },
   {
     number: '02',
-    title: 'Take one turn',
-    description: 'Frost and Ash alternate turns. Choose one unit to move, attack, or use an available ability.',
+    title: 'Take Turns',
+    description: 'Players take turns. Each turn, pick one unit to move, attack, or use a skill.',
     icon: Users,
     accent: 'text-ice-light border-ice-light/25 bg-ice-light/10'
   },
   {
     number: '03',
-    title: 'Move by Agility',
-    description: 'A unit’s Agility determines its movement range. Occupying an empty square claims that territory.',
+    title: 'Move and Claim',
+    description: 'Move up to your unit’s Agility. Walking onto an empty tile claims it for your team.',
     icon: Footprints,
     accent: 'text-ice-light border-ice-light/25 bg-ice-light/10'
   },
   {
     number: '04',
-    title: 'Fight with Power',
-    description: 'Move onto an enemy to attack. Higher Effective Power wins; territory control breaks most ties.',
+    title: 'Attack and Damage',
+    description: 'Walk into an enemy to attack. Damage is Strength minus Defense (minimum 1). When HP hits 0, the unit dies.',
     icon: Swords,
     accent: 'text-magma-core border-magma-core/25 bg-magma-core/10'
   },
   {
     number: '05',
-    title: 'Control the landmarks',
-    description: 'Rifts create Conduit bonuses, while Shrine captures build toward permanent Ascension upgrades.',
+    title: 'Capture Landmarks',
+    description: 'Control Rifts for bonus Power and capture the center Shrine for permanent team upgrades.',
     icon: Landmark,
     accent: 'text-ember-gold border-ember-gold/25 bg-ember-gold/10'
   }
@@ -346,44 +346,44 @@ export const RULEBOOK_TABS = [
 
 export const COMMON_RULES = [
   {
-    title: 'Turn sequence',
-    description: 'Frost and Ash alternate turns. On your turn, choose one unit to move, attack, or use an available ability.',
+    title: 'Turn Sequence',
+    description: 'Take turns one after another. On your turn, pick one unit to move, attack, or use an ability.',
     icon: Users,
     accent: 'text-ice-light border-ice-light/25 bg-ice-light/10'
   },
   {
     title: 'Movement',
-    description: 'Agility determines movement range. Hamstrung units cannot move diagonally; Stuck units cannot move.',
+    description: 'Agility is your move distance. Hamstrung units cannot move diagonally. Stuck units cannot move at all.',
     icon: Footprints,
     accent: 'text-ice-light border-ice-light/25 bg-ice-light/10'
   },
   {
     title: 'Territory',
-    description: 'Moving onto an empty square claims it for your faction. Territory control breaks standard combat ties.',
+    description: 'Stepping on empty tiles claims them for your team, coloring the board and giving you map control.',
     icon: Map,
     accent: 'text-ember-gold border-ember-gold/25 bg-ember-gold/10'
   },
   {
     title: 'Combat',
-    description: 'Move onto an enemy square to attack. The unit with the higher Effective Power vanquishes its opponent.',
+    description: 'Step into an enemy tile to attack. Damage equals attacker Strength minus defender Defense. At 0 HP, the unit is removed.',
     icon: Swords,
     accent: 'text-magma-core border-magma-core/25 bg-magma-core/10'
   }
 ];
 
 export const TERRAIN_RULES = [
-  { name: 'Unstable Ground', color: 'text-red-400', description: 'Enemies entering take 1 damage. Lasts 3 turns and can be detonated by Volatile Cinder.' },
-  { name: 'Icy Ground', color: 'text-blue-300', description: 'The first enemy to enter is Dazed for 1 turn.' },
-  { name: 'Void Scar', color: 'text-purple-400', description: 'Radiates from each Rift and alters combat resolution inside its area.' },
-  { name: 'Glacial Wall', color: 'text-slate-300', description: 'An impassable barrier lasting 3 turns that blocks movement and line of sight.' },
-  { name: 'Obsidian Pillar', color: 'text-orange-400', description: 'Provides cover, disrupts nearby enemies, and can form a temporary allied shield.' }
+  { name: 'Unstable Ground', color: 'text-red-400', description: 'Enemies take 1 damage when stepping here. Lasts 3 turns.' },
+  { name: 'Icy Ground', color: 'text-blue-300', description: 'Freezes the first enemy who steps here; they lose their next turn.' },
+  { name: 'Void Scar', color: 'text-purple-400', description: 'Dark energy around Rifts that boosts combat skills.' },
+  { name: 'Glacial Wall', color: 'text-slate-300', description: 'Ice wall that blocks movement and vision for 3 turns.' },
+  { name: 'Obsidian Pillar', color: 'text-orange-400', description: 'Solid rock that blocks attacks and gives nearby allies shields.' }
 ];
 
 export const STATUS_RULES = [
-  { name: 'Dazed', color: 'text-yellow-400', description: 'Cannot act this turn.' },
-  { name: 'Stuck', color: 'text-red-400', description: 'Cannot move for the stated duration.' },
-  { name: 'Hamstrung', color: 'text-orange-400', description: 'Cannot move diagonally for 1 round.' },
-  { name: 'Steadfast', color: 'text-blue-300', description: 'Immune to Daze, Stuck, and forced movement.' }
+  { name: 'Dazed', color: 'text-yellow-400', description: 'Cannot move, attack, or use skills this turn.' },
+  { name: 'Stuck', color: 'text-red-400', description: 'Trapped in place. Cannot move until this wears off.' },
+  { name: 'Hamstrung', color: 'text-orange-400', description: 'Injured legs. Cannot move diagonally for 1 round.' },
+  { name: 'Steadfast', color: 'text-blue-300', description: 'Immune to being frozen, trapped, or pushed around.' }
 ];
 
 export const toRulebookId = (value) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -408,9 +408,9 @@ export const RULEBOOK_SEARCH_INDEX = [
   {
     tab: 'RULES',
     section: 'Common Rules',
-    title: 'Effective Power',
-    description: 'Strength plus boosts minus debuffs determines combat. Territory control breaks a standard tie.',
-    keywords: 'effective power strength boosts debuffs combat tie territory',
+    title: 'Dynamic Combat & Power',
+    description: 'Strength minus Defense calculates damage dealt to target HP. Boosts, terrain, passives, and debuffs dynamically shift combat values.',
+    keywords: 'dynamic power strength defense hp damage combat debuffs boosts',
     target: 'rule-effective-power'
   },
   {

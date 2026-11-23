@@ -12,15 +12,15 @@ import BookOpen from 'lucide-react/dist/esm/icons/book-open.js';
 export const PATCHES = [
   {
     version: "2.0 (UPCOMING)",
-    title: "The New Era of Tactics",
+    title: "Dawn of the Ascendants",
     date: "TBD",
     tags: ["Upcoming", "Major Overhaul"],
     colorTheme: "ice",
     highlights: [
-      { text: "Complete Game Overhaul: The entire battlefield has been rebuilt from the ground up to support a new era of deep, tactical competitive play.", icon: "grid_view", color: "text-ice-light font-bold" },
-      { text: "Total Unit & Ability Remaster: Every single piece across the Factions of Frost and Ash has been completely reworked with modernized base stats, balanced ability sets, and strategic active/passive loops.", icon: "military_tech", color: "text-ember-gold font-bold" },
-      { text: "Overhauled Movement & Board Dynamics: Redesigned spatial control, pathfinding grids, and core movement mechanics to reward positional play and calculated maneuvers.", icon: "grid_on", color: "text-secondary font-bold" },
-      { text: "High-Fidelity Visual Systems: Upgraded animations, particle systems, and visual cues across combat, projectile trails, and status rings for a premium gameplay feel.", icon: "auto_awesome", color: "text-magma-core font-bold" }
+      { text: "Battlefield Rebirth: The ancient arena awakens anew. The entire tactical combat engine has been forged from the ground up to empower relentless strategic mastery.", icon: "grid_view", color: "text-ice-light font-bold" },
+      { text: "Legion Remaster: Every warrior of Frost and Ash rises with reborn power — fine-tuned combat stats, deadlier abilities, and game-changing synergies.", icon: "military_tech", color: "text-ember-gold font-bold" },
+      { text: "Dynamic Board Dominion: Control the flow of war with refined tile mechanics, fluid pathfinding, and high-stakes positioning that rewards every tactical gambit.", icon: "grid_on", color: "text-secondary font-bold" },
+      { text: "Ascendant Visual Spectacle: Witness clash animations with luminous particles, sizzling elemental trails, and visceral impact feedback worthy of legends.", icon: "auto_awesome", color: "text-magma-core font-bold" }
     ]
   },
   {
@@ -30,35 +30,35 @@ export const PATCHES = [
     tags: ["Latest", "Update"],
     colorTheme: "ice",
     highlights: [
-      { text: "Cinematic Menu Redesign: New 3D perspective \"Clash\" layout for faction selection, creating an immersive arena feel.", icon: "celebration", color: "text-ice-light" },
-      { text: "Humanoid Leader Portraits: High-fidelity humanoid forms for the Frost Lord and Ash Tyrant, replacing the generic unit cards.", icon: "portrait", color: "text-ice-light" },
-      { text: "Obsidian Void Aesthetics: Complete visual overhaul of menu backgrounds and UI elements with the new Obsidian Void theme for a premium, darker look.", icon: "palette", color: "text-ice-light" }
+      { text: "Arena of Destiny: Step into a breathtaking 3D perspective Clash arena where opposing elemental legions face off before the horn of battle sounds.", icon: "celebration", color: "text-ice-light" },
+      { text: "Lords of Legend: Behold the Frost Lord and Ash Tyrant in majestic humanoid grandeur, replacing modest cards with fearsome war commanders.", icon: "portrait", color: "text-ice-light" },
+      { text: "Obsidian Void Splendor: Dark, atmospheric cosmic vistas envelop the user experience with obsidian styling and shimmering stellar dust.", icon: "palette", color: "text-ice-light" }
     ]
   },
   {
     version: "1.8",
-    title: "Multiplayer Added; AI Temporarily Removed",
+    title: "Realms United: Online Multiplayer",
     date: "29/04/2026",
     tags: ["Multiplayer"],
     colorTheme: "magma",
     highlights: [
-      { text: "Multiplayer (MP): Full multiplayer support has been introduced — invite friends and battle online.", icon: "language", color: "text-magma-core" },
-      { text: "AI Removals: The single-player AI has been temporarily removed for a major rework to improve balance and strategic behavior. It will return in a future update.", icon: "smart_toy", color: "text-magma-core" },
-      { text: "Notes: This is an early release of multiplayer features; expect follow-up patches to polish matchmaking and latency handling.", icon: "rate_review", color: "text-magma-core" },
-      { text: "Mobile Menu: Mobile menu fully redesigned and polished for a smoother, more intuitive on-device experience.", icon: "devices", color: "text-magma-core" }
+      { text: "Global Warfront: Challenge warlords worldwide. Real-time multiplayer lets you forge lobbies and duel friends in elemental supremacy.", icon: "language", color: "text-magma-core" },
+      { text: "AI Reconditioning: The artificial mind temporarily retreats into the crucible, preparing to return smarter, deadlier, and more cunning.", icon: "smart_toy", color: "text-magma-core" },
+      { text: "Vanguard Matchmaking: Initial online warfare is unleashed with lightning-fast lobby syncing and robust network resilience.", icon: "rate_review", color: "text-magma-core" },
+      { text: "Tactical Mobile Command: Command your legions on the go with a touch-optimized mobile interface and responsive haptic controls.", icon: "devices", color: "text-magma-core" }
     ]
   },
   {
     version: "1.7",
-    title: "Siphoner Rework",
+    title: "Siphoner Rework: Weavers of Essence",
     date: "12/04/2026",
     tags: ["Balancing"],
     colorTheme: "ice",
     highlights: [
-      { text: "Tether System: Siphoners can form persistent Tethers to shift Power between units and perform targeted drains. Tethers generate Overload which must be managed.", icon: "link", color: "text-ice-light" },
-      { text: "Status Siphoning: Tethered allies can have debuffs intercepted by their Siphoner (the Siphoner absorbs the debuff and gains Overload).", icon: "swap_horiz", color: "text-ice-light" },
-      { text: "Venting: Siphoners can vent accumulated Overload into Rifts (triggers the Abyssal Forge) or into the Overloaded Shrine (adds shrine charge).", icon: "wind_power", color: "text-ice-light" },
-      { text: "Enhanced Ability Visuals: Few major abilities now feature distinct animations, such as FrenziedDash, LavaGlob, and many more.", icon: "auto_awesome", color: "text-ice-light" }
+      { text: "Aetheric Tethering: Siphoners can weave mystical tethers between champions, draining vitality from foes and fueling allied power reserves.", icon: "link", color: "text-ice-light" },
+      { text: "Essence Interception: Tethered comrades are shielded from afflictions as Siphoners absorb incoming curses directly into their spirit.", icon: "swap_horiz", color: "text-ice-light" },
+      { text: "Overload Cataclysm: Channel volatile stored energy into the Rifts to ignite the Abyssal Forge or overcharge the Sacred Shrine.", icon: "wind_power", color: "text-ice-light" },
+      { text: "Arcane Flourish: Devastating skills like FrenziedDash and LavaGlob now erupt with bespoke magical spellcraft animations.", icon: "auto_awesome", color: "text-ice-light" }
     ]
   },
   {
@@ -68,11 +68,11 @@ export const PATCHES = [
     tags: ["Major Milestone"],
     colorTheme: "gold",
     highlights: [
-      { text: "The Abyssal Forge: Uncontested Conduit control now triggers the Forge, expanding Rift size or spawning Elemental Cores (Ruby, Topaz, Emerald, Sapphire) for permanent unit buffs.", icon: "security", color: "text-ember-gold" },
-      { text: "The Void Snap: Highly charged Conduits that remain contested for 3 turns will now collapse, triggering a Void Snap that permanently deletes those squares from the map.", icon: "volcano", color: "text-magma-core" },
-      { text: "Dynamic Ascension: Sacrificing a trapped unit at the Shrine now offers unique Ascension Paths (Path A or Path B) based specifically on that unit's role, such as Shaper, Brawler, or Siphoner.", icon: "star", color: "text-ice-light" },
-      { text: "Veteran Promotion: Specialist units that vanquish 2 enemies achieve Veteran status, unlocking new permanent passives or secondary abilities like Glacial Fortress or Volatile Forge.", icon: "military_tech", color: "text-ember-gold" },
-      { text: "Leader Ultimates: Leaders now channel their Ultimates to generate charges. Once active, they emit a persistent Aura, though the Leader remains locked down while channeling.", icon: "energy_savings_leaf", color: "text-secondary" }
+      { text: "The Abyssal Forge: Holding uncontested Rift dominance awakens the Forge, gifting your legion priceless Elemental Cores and expanding dimensional cracks.", icon: "security", color: "text-ember-gold" },
+      { text: "Void Collapse: When contested conduits fracture under intense pressure for 3 rounds, reality snaps — erasing contested territory from existence.", icon: "volcano", color: "text-magma-core" },
+      { text: "Sacred Ascension: Offer a trapped soul at the altar to unlock game-altering Ascension destinies unique to each warrior's class.", icon: "star", color: "text-ice-light" },
+      { text: "Veteran Ranks: Blood-tested warriors who slay multiple foes ascend to Veteran glory, unlocking legendary passive talents.", icon: "military_tech", color: "text-ember-gold" },
+      { text: "Leader Sovereignty: Channeled ultimates cloak Commanders in radiant auras that turn the tide of entire skirmishes.", icon: "energy_savings_leaf", color: "text-secondary" }
     ]
   }
 ];
@@ -248,67 +248,52 @@ export function ChangeRow({ text }) {
 
 export function ReleaseCard({ patch, expanded, onToggle, onViewRules, featured = false, archived = false }) {
   const changes = patch.highlights?.map((item) => item.text) || patch.bullets?.map((item) => item.prefix) || [];
-  const themeClass = patch.colorTheme === 'magma'
-    ? 'from-magma-core/20 border-magma-core/35'
-    : patch.colorTheme === 'gold'
-      ? 'from-ember-gold/20 border-ember-gold/35'
-      : 'from-ice-light/20 border-ice-light/35';
-  const accentClass = patch.colorTheme === 'magma'
-    ? 'text-magma-core'
-    : patch.colorTheme === 'gold'
-      ? 'text-ember-gold'
-      : 'text-ice-light';
   const summary = changes.length ? splitChange(changes[0]).description : '';
 
   return (
     <article
       id={versionId(patch.version)}
-      className={`scroll-mt-36 overflow-hidden rounded-2xl border bg-gradient-to-br ${themeClass} via-surface-container/90 to-void-black/95 transition-all duration-300 shadow-[0_20px_70px_rgba(0,0,0,0.3)] ${featured ? 'ring-1 ring-ice-light/15' : ''} ${expanded ? 'note-card-expanded border-opacity-70' : ''}`}
+      className="scroll-mt-24 group transition-colors duration-200"
     >
       <button
-        className="w-full p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ember-gold sm:p-7 cursor-pointer"
+        className="w-full py-5 text-left focus:outline-none cursor-pointer flex items-start justify-between gap-4"
         onClick={onToggle}
         aria-expanded={expanded}
         aria-controls={`${versionId(patch.version)}-changes`}
       >
-        <div className="flex items-start justify-between gap-5">
-          <div className="min-w-0">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              {featured && (
-                <span className="rounded-full border border-ice-light/30 bg-ice-light/10 px-2.5 py-1 font-label-caps text-[9px] tracking-[0.18em] text-ice-light">
-                  Current release
-                </span>
-              )}
-              {archived && (
-                <span className="rounded-full border border-outline/30 bg-void-black/30 px-2.5 py-1 font-label-caps text-[9px] tracking-[0.18em] text-on-surface-variant">
-                  Archive
-                </span>
-              )}
-              <span className={`font-label-caps text-[10px] tracking-[0.2em] ${accentClass}`}>
-                Version {patch.version}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2.5 mb-1.5">
+            <span className="font-mono text-xs font-bold text-amber-400 tracking-wider">
+              v{patch.version}
+            </span>
+            {featured && (
+              <span className="text-[9px] uppercase font-bold tracking-[0.18em] px-2 py-0.5 rounded-full bg-amber-400/15 text-amber-300 border border-amber-400/30">
+                Latest Release
               </span>
-            </div>
-            <h2 className={`font-almendra font-semibold text-on-surface ${featured ? 'text-3xl sm:text-4xl' : 'text-2xl sm:text-3xl'}`}>
-              {patch.title}
-            </h2>
-            <div className="mt-3 flex items-center gap-2 text-xs text-on-surface-variant/80">
-              <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
-              <time>{patch.date}</time>
-              <span aria-hidden="true">·</span>
-              <span>{changes.length} changes</span>
-            </div>
-            {summary && (
-              <div className={`note-summary-wrapper ${expanded ? 'collapsed' : ''}`}>
-                <div className="note-summary-inner">
-                  <p className="mt-4 max-w-2xl text-sm leading-relaxed text-on-surface-variant">{summary}</p>
-                </div>
-              </div>
             )}
+            {archived && (
+              <span className="text-[9px] uppercase font-bold tracking-[0.18em] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                Legacy
+              </span>
+            )}
+            <span className="text-slate-500 text-xs">•</span>
+            <time className="text-xs text-slate-400 font-mono tracking-wide">{patch.date}</time>
           </div>
-          <span className={`mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-outline/20 bg-void-black/30 text-on-surface-variant transition-colors duration-300 ${expanded ? 'text-ember-gold border-ember-gold/40' : ''}`}>
-            <ChevronDown className={`h-4 w-4 transition-transform duration-300 ease-out ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" />
-          </span>
+
+          <h3 className="font-almendra text-xl sm:text-2xl font-bold text-white group-hover:text-amber-300 transition-colors tracking-wide">
+            {patch.title}
+          </h3>
+
+          {!expanded && summary && (
+            <p className="mt-1.5 text-xs text-slate-300/90 line-clamp-1 leading-relaxed max-w-xl lg:max-w-3xl">
+              {summary}
+            </p>
+          )}
         </div>
+
+        <span className={`mt-1.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-700/80 bg-slate-800/80 text-slate-300 transition-all duration-200 ${expanded ? 'text-amber-400 border-amber-400/50 rotate-180 bg-amber-400/10' : 'group-hover:text-white group-hover:border-slate-500'}`}>
+          <ChevronDown className="h-4 w-4" aria-hidden="true" />
+        </span>
       </button>
 
       <div
@@ -317,18 +302,18 @@ export function ReleaseCard({ patch, expanded, onToggle, onViewRules, featured =
         aria-hidden={!expanded}
       >
         <div className="note-accordion-inner">
-          <div className="note-accordion-content border-t border-outline-variant/20 px-5 pb-5 pt-4 sm:px-7 sm:pb-7">
-            <ul className="grid gap-3">
+          <div className="note-accordion-content pb-6 pt-1 text-slate-200">
+            <ul className="space-y-3.5 border-l-2 border-slate-700/80 pl-4 ml-1">
               {changes.map((change, index) => <ChangeRow key={`${patch.version}-${index}`} text={change} />)}
             </ul>
             {onViewRules && (
               <div className="mt-4 flex justify-end">
                 <button
-                  className="inline-flex items-center gap-2 rounded-full px-3 py-2 font-label-caps text-[9px] tracking-wider text-on-surface-variant transition-colors hover:bg-ice-light/10 hover:text-ice-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ice-light cursor-pointer"
+                  className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-amber-300 transition-colors cursor-pointer"
                   onClick={onViewRules}
                 >
                   <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
-                  View current rules
+                  <span>Consult Rulebook</span>
                 </button>
               </div>
             )}

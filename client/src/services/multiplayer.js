@@ -879,10 +879,20 @@ export async function leaveRoom(roomId, playerId) {
 // ── Disband Room ──────────────────────────────────────────────────────────────
 export async function disbandRoom(roomId, reason = 'INACTIVITY') {
   if (!roomId) return;
-  const { doc, runTransaction, db } = await getFirestoreDeps();
+  const { doc, runTransaction, deleteDoc, db } = await getFirestoreDeps();
   const normalizedId = roomId.trim().toUpperCase();
   const roomRef = doc(db, 'rooms', normalizedId);
   try {
+    // Attempt complete deletion from Firestore first so inactive rooms don't accumulate
+    if (typeof deleteDoc === 'function') {
+      try {
+        await deleteDoc(roomRef);
+        return;
+      } catch (delErr) {
+        // Fall back to transactional status update if delete permissions fail
+      }
+    }
+
     await runTransaction(db, async (transaction) => {
       const snap = await transaction.get(roomRef);
       if (!snap.exists()) return;

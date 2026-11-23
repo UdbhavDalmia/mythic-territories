@@ -159,7 +159,7 @@ export default function GameActionDrawer({
                 onClick={() => setActiveTab('abilities')}
               >
                 <Zap className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>Abilities {selectedPiece ? `(${selectedPieceName})` : ''}</span>
+                <span>Abilities</span>
               </button>
               <button
                 type="button"
@@ -257,7 +257,7 @@ export default function GameActionDrawer({
                 <div className="drawer-chronicle-list">
                   {eventLog.length === 0 ? (
                     <div className="drawer-empty-state">
-                      <span className="empty-title">History Quiet</span>
+                      <span className="empty-title">History Empty</span>
                       <span className="empty-desc">Battle actions and damage events will appear here once turns begin.</span>
                     </div>
                   ) : (

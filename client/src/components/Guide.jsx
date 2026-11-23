@@ -9,6 +9,7 @@ import Flag from 'lucide-react/dist/esm/icons/flag.js';
 import Footprints from 'lucide-react/dist/esm/icons/footprints.js';
 import Landmark from 'lucide-react/dist/esm/icons/landmark.js';
 import Map from 'lucide-react/dist/esm/icons/map.js';
+import ScrollText from 'lucide-react/dist/esm/icons/scroll-text.js';
 import Search from 'lucide-react/dist/esm/icons/search.js';
 import SettingsIcon from 'lucide-react/dist/esm/icons/settings.js';
 import Shield from 'lucide-react/dist/esm/icons/shield.js';
@@ -64,8 +65,8 @@ export default function Guide({ navigateTo }) {
     loadGsap().then(gsap => {
       if (!active || !pageRef.current) return;
       entrance = gsap.fromTo(pageRef.current,
-        { opacity: 0, y: 40 },
-        { opacity: 1, y: 0, duration: 0.75, ease: 'expo.out' }
+        { opacity: 0, y: 15 },
+        { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out', clearProps: 'transform' }
       );
     });
     return () => {
@@ -126,7 +127,7 @@ export default function Guide({ navigateTo }) {
     loadGsap().then(gsap => {
       if (pageRef.current) {
         gsap.to(pageRef.current, {
-          opacity: 0, y: 50, duration: 0.32, ease: 'power2.in',
+          opacity: 0, y: -15, duration: 0.25, ease: 'power2.in',
           onComplete: () => navigateTo(dest)
         });
       } else {
@@ -143,710 +144,676 @@ export default function Guide({ navigateTo }) {
   };
 
   return (
-    <div ref={pageRef} className="relative min-h-screen flex flex-col bg-void-black text-on-surface select-text font-body-md overflow-y-auto" style={{ opacity: 0 }}>
-      {/* Background */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <div className="sticky top-0 w-full h-screen">
-          <div
-            className="absolute inset-0 opacity-40 bg-cover bg-center bg-no-repeat"
-            style={{ backgroundImage: "url('/images/menu-bg.webp')" }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-void-black/40 via-transparent to-void-black/90" />
-        </div>
+    <>
+      {/* Viewport-fixed background rendered outside the page container to prevent any height shifting */}
+      <div
+        className="fixed inset-0 z-0 pointer-events-none overflow-hidden"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: 0
+        }}
+      >
+        <img
+          src="/images/menu-bg.webp"
+          alt=""
+          className="w-full h-full object-cover object-center pointer-events-none select-none opacity-25"
+          style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }}
+          fetchPriority="high"
+          decoding="async"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/80 via-slate-900/60 to-slate-900/90" />
+        <div className="absolute inset-y-0 left-0 w-1/2 bg-[radial-gradient(circle_at_0%_50%,rgba(137,206,255,0.12),transparent_60%)]" />
+        <div className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_100%_50%,rgba(239,68,68,0.10),transparent_60%)]" />
       </div>
 
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 bg-void-black/70 backdrop-blur-md border-b border-outline/20 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
-        <div className="flex justify-between items-center w-full px-4 md:px-12 py-4 max-w-7xl mx-auto">
-          <button
-            className="font-almendra text-lg sm:text-2xl tracking-wider text-ember-gold cursor-pointer"
-            onClick={() => handleNavigate('LOBBY')}
-          >
-            Mythic Territories
-          </button>
-          <button
-            className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full border border-ember-gold/25 px-4 py-2 font-label-caps text-[10px] sm:text-xs tracking-wider text-ember-gold transition-colors duration-300 hover:text-void-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-gold"
-            onClick={() => handleNavigate('LOBBY')}
-          >
-            <span className="absolute inset-0 origin-left scale-x-0 bg-ember-gold transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-x-100 group-focus-visible:scale-x-100" />
-            <ArrowLeft className="relative z-10 h-3.5 w-3.5 transition-transform duration-300 group-hover:-translate-x-0.5" aria-hidden="true" />
-            <span className="relative z-10">Back to menu</span>
-          </button>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <main className="relative z-10 flex-grow pt-32 pb-20 px-4 md:px-12 max-w-6xl mx-auto w-full">
-        <header className="text-center mb-10 space-y-4">
-          <div className="mx-auto flex w-fit items-center gap-2 rounded-full border border-outline/20 bg-void-black/40 px-3 py-1.5 font-label-caps text-[9px] tracking-[0.24em] text-on-surface-variant">
-            <BookOpen className="h-3.5 w-3.5 text-ember-gold" aria-hidden="true" />
-            Ruleset 1.9
-          </div>
-          <h1 className="font-almendra text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-gradient-dual uppercase">
-            Rulebook
-          </h1>
-          <p className="text-base sm:text-lg text-on-surface-variant max-w-2xl mx-auto leading-relaxed">
-            Learn the battle in minutes, explore shared mechanics, then study the warriors unique to Frost and Ash.
-          </p>
-        </header>
-
-        {/* Tab Selection */}
-        <div ref={tabNavRef} className="relative mb-8 grid grid-cols-2 gap-2 rounded-2xl border border-outline/15 bg-void-black/45 p-2 backdrop-blur-xl md:grid-cols-4">
-          {tabIndicator && (
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute rounded-xl bg-ember-gold shadow-[0_8px_25px_rgba(232,193,94,0.18)] transition-[transform,width,height] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none"
-              style={{
-                width: tabIndicator.width,
-                height: tabIndicator.height,
-                transform: `translate3d(${tabIndicator.x}px, ${tabIndicator.y}px, 0)`
-              }}
-            />
-          )}
-          {RULEBOOK_TABS.map((tab) => {
-            const Icon = tab.icon;
-            const selected = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                ref={(element) => { tabRefs.current[tab.id] = element; }}
-                className={`relative z-10 flex min-h-12 items-center justify-center gap-2 rounded-xl px-3 py-3 text-center font-label-caps text-[10px] sm:text-xs font-bold tracking-wider transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-gold ${
-                  selected
-                    ? 'text-void-black'
-                    : 'text-on-surface-variant hover:bg-surface-container hover:text-white'
-                }`}
-                onClick={() => setActiveTab(tab.id)}
-                aria-pressed={selected}
-              >
-                <Icon className="h-4 w-4" aria-hidden="true" />
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-
-        <section className="relative z-30 mb-8" aria-label="Search the rulebook">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" aria-hidden="true" />
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search rules, statuses, units, or abilities…"
-              className="h-12 w-full rounded-xl border border-outline/20 bg-void-black/65 py-3 pl-11 pr-24 text-sm text-on-surface outline-none backdrop-blur-xl transition-colors placeholder:text-on-surface-variant/50 focus:border-ember-gold/60 focus:ring-2 focus:ring-ember-gold/15"
-              aria-label="Search rules, statuses, units, or abilities"
-            />
-            {searchQuery && (
-              <button
-                className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1.5 rounded-lg px-2 py-1.5 font-label-caps text-[9px] tracking-wider text-on-surface-variant transition-colors hover:bg-surface-container hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-gold"
-                onClick={() => setSearchQuery('')}
-                aria-label="Clear rulebook search"
-              >
-                <X className="h-3.5 w-3.5" aria-hidden="true" />
-                Clear
-              </button>
-            )}
+      <div ref={pageRef} className="relative z-10 min-h-screen flex flex-col text-slate-100 select-text font-sans overflow-y-auto" style={{ opacity: 0 }}>
+        {/* Navigation */}
+        <header className="sticky top-0 w-full z-50 bg-slate-900/80 backdrop-blur-md border-b border-slate-700/60 shadow-[0_4px_20px_rgba(0,0,0,0.3)]">
+          <div className="flex justify-between items-center w-full px-4 md:px-12 py-3.5 max-w-6xl mx-auto">
+            <button
+              onClick={() => handleNavigate('LOBBY')}
+              className="group flex items-center gap-2 text-sm text-slate-300 hover:text-white transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-1" />
+              <span>Back</span>
+            </button>
+            <span className="text-xs uppercase tracking-widest text-slate-400 font-semibold">Rulebook</span>
           </div>
 
-          {searchQuery.trim() && (
-            <div className="mt-2 overflow-hidden rounded-xl border border-outline/20 bg-void-black/95 shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl">
-              <div className="flex items-center justify-between border-b border-outline/15 px-4 py-3">
-                <p className="font-label-caps text-[9px] tracking-[0.18em] text-on-surface-variant">
-                  {searchResults.length ? `${searchResults.length} matching entries` : 'No matching entries'}
-                </p>
-                <p className="hidden text-[10px] text-on-surface-variant/55 sm:block">Search remains active when changing sections</p>
-              </div>
-              {searchResults.length > 0 ? (
-                <div className="max-h-80 overflow-y-auto p-2">
-                  {searchResults.map((result, index) => (
-                    <button
-                      key={`${result.tab}-${result.title}-${index}`}
-                      className="group flex w-full items-start justify-between gap-4 rounded-lg px-3 py-3 text-left transition-colors hover:bg-surface-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-gold"
-                      onClick={() => handleSearchResult(result)}
-                    >
-                      <div className="min-w-0">
-                        <div className="mb-1 flex flex-wrap items-center gap-2">
-                          <span className="font-label-caps text-[8px] tracking-widest text-ember-gold">{result.section}</span>
-                          {result.faction && (
-                            <span className={`font-label-caps text-[8px] tracking-widest ${result.faction === 'snow' ? 'text-ice-light' : 'text-magma-core'}`}>
-                              {result.faction}
-                            </span>
-                          )}
-                        </div>
-                        <h3 className="text-sm font-semibold text-on-surface">{result.title}</h3>
-                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-on-surface-variant">{result.description}</p>
-                      </div>
-                      <ArrowLeft className="mt-1 h-4 w-4 shrink-0 rotate-180 text-on-surface-variant transition-transform group-hover:translate-x-1 group-hover:text-ember-gold" aria-hidden="true" />
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="px-4 py-8 text-center">
-                  <p className="text-sm text-on-surface-variant">Try a unit name, “Conduit,” “Dazed,” or an ability.</p>
+          {/* Search Bar shifted directly beneath the top bar */}
+          <div className="w-full border-t border-slate-800 bg-slate-900/60 backdrop-blur-md px-4 md:px-12 py-2.5">
+            <div className="max-w-4xl mx-auto relative">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search rules, statuses, units, or abilities…"
+                className="h-10 w-full rounded-lg border border-slate-700/80 bg-slate-800/80 py-2 pl-10 pr-20 text-xs sm:text-sm text-slate-100 outline-none transition-colors placeholder:text-slate-400 focus:border-amber-400/70 focus:ring-1 focus:ring-amber-400/40"
+                aria-label="Search rules, statuses, units, or abilities"
+              />
+              {searchQuery && (
+                <button
+                  className="absolute right-2.5 top-1/2 flex -translate-y-1/2 items-center gap-1 rounded px-2 py-0.5 text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear rulebook search"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Clear</span>
+                </button>
+              )}
+
+              {searchQuery.trim() && (
+                <div className="absolute left-0 right-0 top-full mt-2 overflow-hidden rounded-xl border border-slate-700 bg-slate-900/95 shadow-2xl backdrop-blur-xl z-50">
+                  <div className="flex items-center justify-between border-b border-slate-700/80 px-4 py-2.5">
+                    <p className="text-xs text-slate-400">
+                      {searchResults.length ? `${searchResults.length} matching entries` : 'No matching entries'}
+                    </p>
+                    <p className="hidden text-xs text-slate-500 sm:block">Click an entry to jump directly</p>
+                  </div>
+                  {searchResults.length > 0 ? (
+                    <div className="max-h-80 overflow-y-auto p-2">
+                      {searchResults.map((result, index) => (
+                        <button
+                          key={`${result.tab}-${result.title}-${index}`}
+                          className="flex w-full items-start justify-between gap-3 rounded-lg p-2.5 text-left transition-colors hover:bg-slate-800 cursor-pointer"
+                          onClick={() => handleSearchResult(result)}
+                        >
+                          <div>
+                            <span className="font-medium text-xs sm:text-sm text-white">{result.title}</span>
+                            <p className="line-clamp-1 text-xs text-slate-400 mt-0.5">{result.description}</p>
+                          </div>
+                          <span className="shrink-0 text-[10px] uppercase font-semibold tracking-wider text-amber-400 px-2 py-0.5 rounded bg-amber-400/10 border border-amber-400/20">
+                            {result.tab}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-4 text-center text-xs text-slate-400">
+                      No rule or unit found matching "{searchQuery}"
+                    </div>
+                  )}
                 </div>
               )}
             </div>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="relative z-10 flex-grow pt-8 pb-20 px-4 md:px-8 max-w-5xl mx-auto w-full">
+          {/* Horizontal Slider Tab Navigation (No Line Wrapping) */}
+          <div className="mb-8 w-full border-b border-slate-700/60 pb-3">
+            <nav
+              ref={tabNavRef}
+              aria-label="Rulebook sections"
+              className="flex items-center gap-2 overflow-x-auto scrollbar-hide py-1 px-1 sm:justify-center scroll-smooth"
+            >
+              {RULEBOOK_TABS.map((tab) => {
+                const Icon = tab.icon;
+                const selected = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    ref={(element) => { tabRefs.current[tab.id] = element; }}
+                    className={`relative shrink-0 whitespace-nowrap flex items-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-medium transition-all duration-150 cursor-pointer rounded-lg ${selected
+                      ? 'text-amber-400 font-semibold bg-amber-400/10 border border-amber-400/30 shadow-sm'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/60 border border-transparent'
+                      }`}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      tabRefs.current[tab.id]?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                    }}
+                    aria-pressed={selected}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* ═══════════════════════════ QUICK READ TAB ═══════════════════════════ */}
+          {activeTab === 'QUICK' && (
+            <div className="space-y-12 animate-[fadeIn_0.3s_ease-out]">
+              {/* Header Overview */}
+              <div className="border-b border-slate-800 pb-8">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  <span className="text-[10px] uppercase font-bold tracking-[0.25em] text-amber-400">Three-Minute Briefing</span>
+                </div>
+                <h1 className="font-almendra text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-wide">
+                  The Battle at a Glance
+                </h1>
+                <p className="mt-2 text-sm text-slate-300 leading-relaxed max-w-3xl">
+                  Mythic Territories is a turn-based contest of positioning and power. Claim ground, unleash faction abilities,
+                  control ancient landmarks, and orchestrate the lethal opening that vanquishes the enemy leader.
+                </p>
+              </div>
+
+              {/* Five Quick Steps - Clean List (Open, Unboxed) */}
+              <section aria-labelledby="quick-steps-heading">
+                <div className="mb-6 flex items-end justify-between">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400">Tactical Fundamentals</span>
+                    <h2 id="quick-steps-heading" className="font-almendra text-2xl sm:text-3xl font-bold text-white tracking-wide mt-0.5">
+                      Five Rules to Start Playing
+                    </h2>
+                  </div>
+                  <button
+                    className="text-xs font-semibold text-amber-400 hover:text-amber-300 transition-colors cursor-pointer hidden sm:block"
+                    onClick={() => setActiveTab('RULES')}
+                  >
+                    Read common rules →
+                  </button>
+                </div>
+
+                <div className="divide-y divide-slate-800/80">
+                  {QUICK_STEPS.map((step) => {
+                    const Icon = step.icon;
+                    return (
+                      <article id={`quick-${toRulebookId(step.title)}`} key={step.number} className="py-4.5 flex items-start gap-4 scroll-mt-36">
+                        <span className="font-mono text-base font-bold text-amber-400/90 pt-0.5 shrink-0 w-7">
+                          {step.number}
+                        </span>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <Icon className="h-4 w-4 text-slate-300" aria-hidden="true" />
+                            <h3 className="font-almendra text-lg font-bold text-white tracking-wide">{step.title}</h3>
+                          </div>
+                          <p className="mt-1 text-xs text-slate-300 leading-relaxed max-w-2xl">{step.description}</p>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* Factions Introduction */}
+              <section className="pt-6 border-t border-slate-800">
+                <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400">Warring Domains</span>
+                <h2 className="font-almendra text-2xl sm:text-3xl font-bold text-white tracking-wide mt-0.5 mb-6">
+                  Choose Your Allegiance
+                </h2>
+
+                <div className="grid gap-6 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-800">
+                  <div className="pr-0 sm:pr-6 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Snowflake className="h-4 w-4 text-cyan-400" aria-hidden="true" />
+                      <h3 className="font-almendra text-xl font-bold text-cyan-300 tracking-wide">The Frost Host</h3>
+                    </div>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      Control space with glacial terrain, defensive wards, healing, and persistent tactical disruption.
+                    </p>
+                    <button className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 transition-colors cursor-pointer inline-flex items-center gap-1 pt-1" onClick={() => { setActiveFaction('snow'); setActiveTab('UNITS'); }}>
+                      <span>Explore Frost units</span>
+                      <span>→</span>
+                    </button>
+                  </div>
+
+                  <div className="pt-6 sm:pt-0 sm:pl-6 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Flame className="h-4 w-4 text-rose-400" aria-hidden="true" />
+                      <h3 className="font-almendra text-xl font-bold text-rose-400 tracking-wide">The Ash Legion</h3>
+                    </div>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      Break formations with volatile ground hazards, direct damage, forced displacement, and aggressive attacks.
+                    </p>
+                    <button className="text-xs font-semibold text-rose-400 hover:text-rose-300 transition-colors cursor-pointer inline-flex items-center gap-1 pt-1" onClick={() => { setActiveFaction('ash'); setActiveTab('UNITS'); }}>
+                      <span>Explore Ash units</span>
+                      <span>→</span>
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              {/* Essential Terms Glossary */}
+              <section className="pt-6 border-t border-slate-800">
+                <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400">Core Concepts</span>
+                <h2 className="font-almendra text-2xl sm:text-3xl font-bold text-white tracking-wide mt-0.5 mb-4">
+                  Glossary
+                </h2>
+                <div className="divide-y divide-slate-800/80">
+                  {[
+                    { term: 'Agility', definition: 'How far a unit can move.', icon: Footprints },
+                    { term: 'Dynamic Power', definition: 'Dynamic Strength & Defense modified by boosts, status, and terrain.', icon: Zap },
+                    { term: 'Territory', definition: 'Claimed squares showing your faction’s control and presence across the map.', icon: Map },
+                    { term: 'Dazed', definition: 'The unit cannot act this turn.', icon: Shield }
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <div key={item.term} className="py-3 flex items-start gap-3">
+                        <Icon className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" aria-hidden="true" />
+                        <div>
+                          <span className="font-almendra text-sm font-bold text-white tracking-wide">{item.term}</span>
+                          <span className="text-xs text-slate-500 mx-2">—</span>
+                          <span className="text-xs text-slate-300">{item.definition}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            </div>
           )}
-        </section>
 
-        {/* ═══════════════════════════ QUICK READ TAB ═══════════════════════════ */}
-        {activeTab === 'QUICK' && (
-          <div className="space-y-7 animate-[fadeIn_0.3s_ease-out]">
-            <section className="overflow-hidden rounded-2xl border border-ember-gold/20 bg-gradient-to-br from-ember-gold/10 via-surface-container/80 to-void-black/95 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.3)] sm:p-9">
-              <div className="grid items-center gap-8 lg:grid-cols-[1fr_auto]">
-                <div>
-                  <div className="mb-3 flex items-center gap-2 font-label-caps text-[10px] tracking-[0.22em] text-ember-gold">
-                    <Clock3 className="h-4 w-4" aria-hidden="true" />
-                    Three-minute briefing
-                  </div>
-                  <h2 className="font-almendra text-3xl font-bold text-on-surface sm:text-4xl">The battle at a glance</h2>
-                  <p className="mt-3 max-w-2xl text-sm leading-relaxed text-on-surface-variant sm:text-base">
-                    Mythic Territories is a turn-based contest of positioning and power. Claim ground, use faction abilities,
-                    control ancient landmarks, and create the opening that brings down the enemy leader.
-                  </p>
+          {/* ═══════════════════════════ COMMON RULES TAB ═══════════════════════════ */}
+          {activeTab === 'RULES' && (
+            <div className="space-y-12 animate-[fadeIn_0.3s_ease-out]">
+              {/* Victory Condition */}
+              <div className="border-b border-slate-800 pb-8">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  <span className="text-[10px] uppercase font-bold tracking-[0.25em] text-amber-400">Goal of the Game</span>
                 </div>
-                <div className="flex shrink-0 items-center justify-center gap-3">
-                  <div className="h-20 w-20 overflow-hidden rounded-xl border border-ice-light/40 bg-ice-light/5 sm:h-24 sm:w-24">
-                    <img src="/units/frost-lord.webp" alt="Frost Lord" className="h-full w-full object-cover" />
-                  </div>
-                  <Swords className="h-6 w-6 text-ember-gold" aria-hidden="true" />
-                  <div className="h-20 w-20 overflow-hidden rounded-xl border border-magma-core/40 bg-magma-core/5 sm:h-24 sm:w-24">
-                    <img src="/units/ash-tyrant.webp" alt="Ash Tyrant" className="h-full w-full object-cover" />
-                  </div>
-                </div>
+                <h1 className="font-almendra text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-wide">
+                  Defeat the Enemy Leader
+                </h1>
+                <p className="mt-2 text-sm text-slate-300 leading-relaxed max-w-3xl">
+                  Kill the opposing Frost Lord or Ash Tyrant. Once the enemy leader's HP reaches 0, you win immediately.
+                </p>
               </div>
-            </section>
 
-            <section aria-labelledby="quick-steps-heading">
-              <div className="mb-4 flex items-end justify-between gap-4">
-                <div>
-                  <p className="font-label-caps text-[9px] tracking-[0.22em] text-ice-light">How a match works</p>
-                  <h2 id="quick-steps-heading" className="mt-1 font-almendra text-2xl font-bold text-on-surface sm:text-3xl">Five rules to start playing</h2>
-                </div>
-                <button
-                  className="hidden font-label-caps text-[10px] tracking-wider text-ember-gold hover:text-white sm:block"
-                  onClick={() => setActiveTab('RULES')}
-                >
-                  Read common rules →
-                </button>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                {QUICK_STEPS.map((step) => {
-                  const Icon = step.icon;
-                  return (
-                    <article id={`quick-${toRulebookId(step.title)}`} key={step.number} className="scroll-mt-36 rounded-2xl border border-outline/15 bg-surface-container/65 p-5 backdrop-blur-md">
-                      <div className="mb-5 flex items-center justify-between">
-                        <span className={`flex h-9 w-9 items-center justify-center rounded-xl border ${step.accent}`}>
+              {/* Shared Foundation Rules */}
+              <section aria-labelledby="foundation-heading">
+                <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400">Basic Rules</span>
+                <h2 id="foundation-heading" className="font-almendra text-2xl sm:text-3xl font-bold text-white tracking-wide mt-0.5 mb-6">
+                  How Turns Work
+                </h2>
+
+                <div className="divide-y divide-slate-800/80">
+                  {COMMON_RULES.map((rule) => {
+                    const Icon = rule.icon;
+                    return (
+                      <article id={`rule-${toRulebookId(rule.title)}`} key={rule.title} className="py-4.5 flex items-start gap-4 scroll-mt-36">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-800 text-amber-400 border border-slate-700/60 mt-0.5">
                           <Icon className="h-4 w-4" aria-hidden="true" />
                         </span>
-                        <span className="font-mono text-[10px] text-on-surface-variant/50">{step.number}</span>
+                        <div>
+                          <h3 className="font-almendra text-lg font-bold text-white tracking-wide">{rule.title}</h3>
+                          <p className="mt-1 text-xs leading-relaxed text-slate-300 max-w-2xl">{rule.description}</p>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* Dynamic Combat & Territory Section */}
+              <section className="pt-6 border-t border-slate-800">
+                <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400">Attacking & Board</span>
+                <h2 className="font-almendra text-2xl sm:text-3xl font-bold text-white tracking-wide mt-0.5 mb-6">
+                  Fighting and Tiles
+                </h2>
+
+                <div className="grid gap-8 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-800">
+                  {/* Combat */}
+                  <div id="rule-effective-power" className="pr-0 md:pr-6 scroll-mt-36 space-y-4">
+                    <div className="flex items-center gap-2.5">
+                      <Swords className="h-5 w-5 text-rose-400" aria-hidden="true" />
+                      <h3 className="font-almendra text-xl font-bold text-white tracking-wide">Attacking Enemies</h3>
+                    </div>
+
+                    <div className="space-y-3 text-xs text-slate-300">
+                      <div className="flex items-start gap-2.5">
+                        <span className="text-amber-400 font-bold">1.</span>
+                        <span className="leading-relaxed">Walk onto an enemy unit to hit them.</span>
                       </div>
-                      <h3 className="font-label-caps text-xs font-bold tracking-wider text-on-surface">{step.title}</h3>
-                      <p className="mt-2 text-xs leading-relaxed text-on-surface-variant">{step.description}</p>
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
-
-            <section className="grid gap-5 lg:grid-cols-2">
-              <div className="rounded-2xl border border-ice-light/20 bg-gradient-to-br from-ice-light/10 to-surface-container/70 p-6">
-                <div className="mb-4 flex items-center gap-3">
-                  <Snowflake className="h-5 w-5 text-ice-light" aria-hidden="true" />
-                  <h2 className="font-almendra text-2xl font-bold text-ice-light">Frost</h2>
-                </div>
-                <p className="text-sm leading-relaxed text-on-surface-variant">
-                  Control space with glacial terrain, defensive effects, healing, and precise disruption.
-                </p>
-                <button className="mt-5 font-label-caps text-[10px] tracking-wider text-ice-light hover:text-white" onClick={() => { setActiveFaction('snow'); setActiveTab('UNITS'); }}>
-                  Explore Frost units →
-                </button>
-              </div>
-              <div className="rounded-2xl border border-magma-core/20 bg-gradient-to-br from-magma-core/10 to-surface-container/70 p-6">
-                <div className="mb-4 flex items-center gap-3">
-                  <Flame className="h-5 w-5 text-magma-core" aria-hidden="true" />
-                  <h2 className="font-almendra text-2xl font-bold text-magma-core">Ash</h2>
-                </div>
-                <p className="text-sm leading-relaxed text-on-surface-variant">
-                  Break formations with direct damage, volatile terrain, forced movement, and aggressive pressure.
-                </p>
-                <button className="mt-5 font-label-caps text-[10px] tracking-wider text-magma-core hover:text-white" onClick={() => { setActiveFaction('ash'); setActiveTab('UNITS'); }}>
-                  Explore Ash units →
-                </button>
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-outline/15 bg-void-black/40 p-5 sm:p-6">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                {[
-                  { term: 'Agility', definition: 'How far a unit can move.', icon: Footprints },
-                  { term: 'Effective Power', definition: 'Strength plus boosts minus debuffs.', icon: Zap },
-                  { term: 'Territory', definition: 'Claimed squares used to break combat ties.', icon: Map },
-                  { term: 'Dazed', definition: 'The unit cannot act this turn.', icon: Shield }
-                ].map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <div key={item.term} className="flex gap-3">
-                      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-ember-gold" aria-hidden="true" />
-                      <div>
-                        <h3 className="font-label-caps text-[10px] tracking-wider text-on-surface">{item.term}</h3>
-                        <p className="mt-1 text-xs leading-relaxed text-on-surface-variant">{item.definition}</p>
+                      <div className="flex items-start gap-2.5">
+                        <span className="text-amber-400 font-bold">2.</span>
+                        <span className="leading-relaxed">Damage = your <strong className="text-amber-300 font-medium">Strength</strong> minus their <strong className="text-cyan-300 font-medium">Defense</strong> (always deals at least 1 damage).</span>
+                      </div>
+                      <div className="flex items-start gap-2.5">
+                        <span className="text-amber-400 font-bold">3.</span>
+                        <span className="leading-relaxed">Their HP goes down. When HP reaches 0, the unit dies and leaves the board.</span>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </section>
-          </div>
-        )}
+                  </div>
 
-        {/* ═══════════════════════════ COMMON RULES TAB ═══════════════════════════ */}
-        {activeTab === 'RULES' && (
-          <div className="space-y-7 animate-[fadeIn_0.3s_ease-out]">
-            <section className="overflow-hidden rounded-2xl border border-ember-gold/20 bg-gradient-to-br from-ember-gold/10 via-surface-container/80 to-void-black/95 p-6 sm:p-9">
-              <div className="grid items-center gap-8 lg:grid-cols-[1fr_auto]">
-                <div>
-                  <div className="mb-3 flex items-center gap-2 font-label-caps text-[10px] tracking-[0.22em] text-ember-gold">
-                    <Flag className="h-4 w-4" aria-hidden="true" />
-                    Shared victory condition
-                  </div>
-                  <h2 className="font-almendra text-3xl font-bold text-on-surface sm:text-4xl">Vanquish the enemy leader</h2>
-                  <p className="mt-3 max-w-2xl text-sm leading-relaxed text-on-surface-variant sm:text-base">
-                    Frost and Ash follow the same battlefield rules. Defeat the opposing Frost Lord or Ash Tyrant to end
-                    the match and claim dominion over the realm.
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center justify-center gap-3">
-                  <div className="h-20 w-20 overflow-hidden rounded-xl border border-ice-light/40 sm:h-24 sm:w-24">
-                    <img alt="Frost Lord" className="h-full w-full object-cover" src="/units/frost-lord.webp" />
-                  </div>
-                  <Swords className="h-6 w-6 text-ember-gold" aria-hidden="true" />
-                  <div className="h-20 w-20 overflow-hidden rounded-xl border border-magma-core/40 sm:h-24 sm:w-24">
-                    <img alt="Ash Tyrant" className="h-full w-full object-cover" src="/units/ash-tyrant.webp" />
+                  {/* Territory */}
+                  <div className="pt-6 md:pt-0 md:pl-6 space-y-4">
+                    <div className="flex items-center gap-2.5">
+                      <Map className="h-5 w-5 text-amber-400" aria-hidden="true" />
+                      <h3 className="font-almendra text-xl font-bold text-white tracking-wide">Claiming Tiles</h3>
+                    </div>
+                    <p className="text-xs leading-relaxed text-slate-300">
+                      Moving onto an empty square paints it in your team’s color and claims it for your faction.
+                    </p>
+                    <p className="text-xs text-slate-400 leading-relaxed border-l-2 border-amber-400/50 pl-3">
+                      More tiles on the board trigger unit abilities and give your team map control.
+                    </p>
                   </div>
                 </div>
-              </div>
-            </section>
+              </section>
 
-            <section aria-labelledby="foundation-heading">
-              <div className="mb-4">
-                <p className="font-label-caps text-[9px] tracking-[0.22em] text-ice-light">Battlefield foundation</p>
-                <h2 id="foundation-heading" className="mt-1 font-almendra text-2xl font-bold text-on-surface sm:text-3xl">The rules every faction shares</h2>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                {COMMON_RULES.map((rule) => {
-                  const Icon = rule.icon;
-                  return (
-                    <article id={`rule-${toRulebookId(rule.title)}`} key={rule.title} className="scroll-mt-36 rounded-2xl border border-outline/15 bg-surface-container/65 p-5 backdrop-blur-md">
-                      <span className={`mb-5 flex h-10 w-10 items-center justify-center rounded-xl border ${rule.accent}`}>
-                        <Icon className="h-4 w-4" aria-hidden="true" />
-                      </span>
-                      <h3 className="font-label-caps text-xs font-bold tracking-wider text-on-surface">{rule.title}</h3>
-                      <p className="mt-2 text-xs leading-relaxed text-on-surface-variant">{rule.description}</p>
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
+              {/* Landmarks */}
+              <section aria-labelledby="landmarks-heading" className="pt-6 border-t border-slate-800">
+                <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400">Special Buildings</span>
+                <h2 id="landmarks-heading" className="font-almendra text-2xl sm:text-3xl font-bold text-white tracking-wide mt-0.5 mb-6">
+                  Shrine and Rifts
+                </h2>
 
-            <section className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
-              <div id="rule-effective-power" className="scroll-mt-36 rounded-2xl border border-magma-core/20 bg-gradient-to-br from-magma-core/10 to-surface-container/70 p-6 sm:p-8">
-                <div className="mb-5 flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-magma-core/25 bg-magma-core/10 text-magma-core">
-                    <Swords className="h-5 w-5" aria-hidden="true" />
-                  </span>
-                  <div>
-                    <p className="font-label-caps text-[9px] tracking-[0.2em] text-magma-core">Combat resolution</p>
-                    <h2 className="font-almendra text-2xl font-bold text-on-surface">Compare Effective Power</h2>
+                <div className="grid gap-8 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-800">
+                  {/* Shrine */}
+                  <article id="rule-sacred-shrine" className="pr-0 md:pr-6 scroll-mt-36 space-y-4">
+                    <div className="flex items-center gap-2.5">
+                      <Landmark className="h-5 w-5 text-amber-400" aria-hidden="true" />
+                      <h3 className="font-almendra text-xl font-bold text-amber-300 tracking-wide">The Center Shrine</h3>
+                    </div>
+                    <p className="text-xs leading-relaxed text-slate-300">
+                      A 2×2 zone in the center. Killing an enemy here gives your unit permanent <span className="font-semibold text-amber-300">+1 Power</span> and adds 1 charge.
+                    </p>
+                    <div className="space-y-2 text-xs">
+                      <div className="border-l-2 border-amber-400/50 pl-3 py-0.5">
+                        <span className="font-semibold text-amber-300">At 2 charges:</span>
+                        <span className="text-slate-300 ml-1.5">The Shrine overloads and traps the unit inside.</span>
+                      </div>
+                      <div className="border-l-2 border-rose-400/50 pl-3 py-0.5">
+                        <span className="font-semibold text-rose-300">Release:</span>
+                        <span className="text-slate-300 ml-1.5">Free the trapped unit: lose 1 Power and skip 3 turns.</span>
+                      </div>
+                    </div>
+                    <button className="text-xs font-semibold text-amber-400 hover:text-amber-300 transition-colors cursor-pointer inline-flex items-center gap-1 pt-1" onClick={() => setActiveTab('ASCENSION')}>
+                      <span>See Ascension rewards</span>
+                      <span>→</span>
+                    </button>
+                  </article>
+
+                  {/* Power Rifts */}
+                  <article id="rule-power-rifts-and-conduit" className="pt-6 md:pt-0 md:pl-6 scroll-mt-36 space-y-4">
+                    <div className="flex items-center gap-2.5">
+                      <Zap className="h-5 w-5 text-purple-400" aria-hidden="true" />
+                      <h3 className="font-almendra text-xl font-bold text-purple-300 tracking-wide">Corner Rifts</h3>
+                    </div>
+                    <p className="text-xs leading-relaxed text-slate-300">
+                      Two 3×3 Rifts in opposite corners. Put at least one friendly unit on each Rift to connect them.
+                    </p>
+                    <div className="space-y-2 text-xs">
+                      <div className="border-l-2 border-emerald-400/50 pl-3 py-0.5">
+                        <span className="font-semibold text-emerald-300">Uncontested:</span>
+                        <span className="text-slate-300 ml-1.5">Both units on the Rifts gain +2 Power and a shield.</span>
+                      </div>
+                      <div className="border-l-2 border-amber-400/50 pl-3 py-0.5">
+                        <span className="font-semibold text-amber-300">Contested:</span>
+                        <span className="text-slate-300 ml-1.5">If an enemy steps onto a Rift, your bonus drops to +1.</span>
+                      </div>
+                    </div>
+                  </article>
+                </div>
+              </section>
+
+              {/* Special Terrain & Status Reference */}
+              <section className="pt-6 border-t border-slate-800">
+                <div className="grid gap-8 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-800">
+                  {/* Terrain */}
+                  <div className="pr-0 md:pr-6 space-y-4">
+                    <div className="flex items-center gap-2.5">
+                      <Map className="h-5 w-5 text-cyan-400" aria-hidden="true" />
+                      <h3 className="font-almendra text-xl font-bold text-white tracking-wide">Special Terrain</h3>
+                    </div>
+                    <div className="divide-y divide-slate-800/80">
+                      {TERRAIN_RULES.map((terrain) => (
+                        <div id={`terrain-${toRulebookId(terrain.name)}`} key={terrain.name} className="py-2.5 scroll-mt-36">
+                          <h4 className={`font-almendra text-sm font-bold tracking-wide ${terrain.color}`}>{terrain.name}</h4>
+                          <p className="mt-0.5 text-xs text-slate-300 leading-relaxed">{terrain.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Status */}
+                  <div className="pt-6 md:pt-0 md:pl-6 space-y-4">
+                    <div className="flex items-center gap-2.5">
+                      <Shield className="h-5 w-5 text-amber-400" aria-hidden="true" />
+                      <h3 className="font-almendra text-xl font-bold text-white tracking-wide">Status Reference</h3>
+                    </div>
+                    <div className="divide-y divide-slate-800/80">
+                      {STATUS_RULES.map((status) => (
+                        <div id={`status-${toRulebookId(status.name)}`} key={status.name} className="py-2.5 scroll-mt-36">
+                          <h4 className={`font-almendra text-sm font-bold tracking-wide ${status.color}`}>{status.name}</h4>
+                          <p className="mt-0.5 text-xs text-slate-300 leading-relaxed">{status.description}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-                <div className="rounded-xl border border-outline/15 bg-void-black/45 p-5 text-center">
-                  <p className="font-label-caps text-[9px] tracking-[0.18em] text-on-surface-variant">Effective Power</p>
-                  <p className="mt-2 font-mono text-sm font-bold text-on-surface sm:text-lg">
-                    Strength <span className="text-ice-light">+</span> boosts <span className="text-magma-core">−</span> debuffs
-                  </p>
-                </div>
-                <ol className="mt-5 space-y-3 text-sm leading-relaxed text-on-surface-variant">
-                  <li className="flex gap-3"><span className="font-mono text-ember-gold">01</span><span>Move onto an enemy unit’s square to begin combat.</span></li>
-                  <li className="flex gap-3"><span className="font-mono text-ember-gold">02</span><span>Calculate both units’ Effective Power at that moment.</span></li>
-                  <li className="flex gap-3"><span className="font-mono text-ember-gold">03</span><span>Higher Power wins. Territory control breaks a standard tie.</span></li>
-                </ol>
-              </div>
+              </section>
+            </div>
+          )}
 
-              <div className="rounded-2xl border border-ember-gold/20 bg-gradient-to-br from-ember-gold/10 to-surface-container/70 p-6 sm:p-8">
-                <div className="mb-5 flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-ember-gold/25 bg-ember-gold/10 text-ember-gold">
-                    <Map className="h-5 w-5" aria-hidden="true" />
-                  </span>
-                  <div>
-                    <p className="font-label-caps text-[9px] tracking-[0.2em] text-ember-gold">Map control</p>
-                    <h2 className="font-almendra text-2xl font-bold text-on-surface">Territory matters</h2>
-                  </div>
+          {/* ═══════════════════════════ ASCENSION TAB ═══════════════════════════ */}
+          {activeTab === 'ASCENSION' && (
+            <div className="space-y-12 animate-[fadeIn_0.3s_ease-out]">
+              <div className="border-b border-slate-800 pb-8">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="h-4 w-4 text-amber-400" aria-hidden="true" />
+                  <span className="text-xs uppercase tracking-widest text-amber-400 font-semibold">Special Mechanics</span>
                 </div>
-                <p className="text-sm leading-relaxed text-on-surface-variant">
-                  Entering an empty square converts it to your faction. Territory is both positioning and leverage: the
-                  faction controlling more squares wins standard tied combat unless another effect overrides the result.
+                <h1 className="text-2xl sm:text-3xl font-medium text-white tracking-tight">Ascension Paths</h1>
+                <p className="mt-2 text-sm text-slate-300 leading-relaxed max-w-3xl">
+                  When a faction's unit is <span className="text-rose-400 font-semibold">Trapped</span> on the Overloaded
+                  Shrine, their controller may <span className="text-amber-400 font-semibold">Sacrifice</span> it to unlock
+                  a permanent Ascension. Choose between <span className="text-amber-400 font-semibold">Option A</span> (targeted unit upgrade) or{' '}
+                  <span className="text-emerald-400 font-semibold">Option B</span> (faction-wide passive buff).
                 </p>
-                <div className="mt-5 grid grid-cols-2 gap-3">
-                  <div className="rounded-xl border border-ice-light/20 bg-ice-light/5 p-3 text-center">
-                    <Snowflake className="mx-auto h-4 w-4 text-ice-light" aria-hidden="true" />
-                    <p className="mt-2 font-label-caps text-[9px] tracking-wider text-ice-light">Frost territory</p>
-                  </div>
-                  <div className="rounded-xl border border-magma-core/20 bg-magma-core/5 p-3 text-center">
-                    <Flame className="mx-auto h-4 w-4 text-magma-core" aria-hidden="true" />
-                    <p className="mt-2 font-label-caps text-[9px] tracking-wider text-magma-core">Ash territory</p>
-                  </div>
-                </div>
-              </div>
-            </section>
 
-            <section aria-labelledby="landmarks-heading">
-              <div className="mb-4">
-                <p className="font-label-caps text-[9px] tracking-[0.22em] text-ember-gold">Strategic landmarks</p>
-                <h2 id="landmarks-heading" className="mt-1 font-almendra text-2xl font-bold text-on-surface sm:text-3xl">Shrine, Rifts, and Conduits</h2>
-              </div>
-              <div className="grid gap-5 lg:grid-cols-2">
-                <article id="rule-sacred-shrine" className="scroll-mt-36 rounded-2xl border border-ember-gold/20 bg-surface-container/65 p-6 sm:p-7">
-                  <div className="mb-4 flex items-center gap-3">
-                    <Landmark className="h-5 w-5 text-ember-gold" aria-hidden="true" />
-                    <h3 className="font-almendra text-2xl font-bold text-ember-gold">The Sacred Shrine</h3>
-                  </div>
-                  <p className="text-sm leading-relaxed text-on-surface-variant">
-                    The Shrine occupies a 2×2 zone at the centre. Capturing an enemy there grants permanent
-                    <span className="font-bold text-ember-gold"> +1 Power</span> and adds 1 Shrine charge.
-                  </p>
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-4">
-                      <p className="font-label-caps text-[9px] tracking-wider text-amber-400">At 2 charges</p>
-                      <p className="mt-2 text-xs leading-relaxed text-on-surface-variant">The Shrine Overloads and any occupying unit becomes Trapped.</p>
-                    </div>
-                    <div className="rounded-xl border border-red-400/20 bg-red-400/5 p-4">
-                      <p className="font-label-caps text-[9px] tracking-wider text-red-400">Release</p>
-                      <p className="mt-2 text-xs leading-relaxed text-on-surface-variant">Escape with −1 Power and Dazed for 3 turns, without Ascension.</p>
-                    </div>
-                  </div>
-                  <button className="mt-5 font-label-caps text-[10px] tracking-wider text-ember-gold hover:text-white" onClick={() => setActiveTab('ASCENSION')}>
-                    Explore Ascension paths →
-                  </button>
-                </article>
-
-                <article id="rule-power-rifts-and-conduit" className="scroll-mt-36 rounded-2xl border border-purple-400/20 bg-surface-container/65 p-6 sm:p-7">
-                  <div className="mb-4 flex items-center gap-3">
-                    <Zap className="h-5 w-5 text-purple-400" aria-hidden="true" />
-                    <h3 className="font-almendra text-2xl font-bold text-purple-300">Power Rifts and Conduit</h3>
-                  </div>
-                  <p className="text-sm leading-relaxed text-on-surface-variant">
-                    Two 3×3 Power Rifts occupy opposite corners. A faction with at least one unit on each Rift activates
-                    its Conduit Link.
-                  </p>
-                  <div className="mt-5 space-y-3">
-                    <div className="flex gap-3 rounded-xl border border-green-400/20 bg-green-400/5 p-4">
-                      <Shield className="mt-0.5 h-4 w-4 shrink-0 text-green-400" aria-hidden="true" />
-                      <p className="text-xs leading-relaxed text-on-surface-variant"><span className="font-bold text-green-400">Uncontested:</span> both Anchor units gain +2 Power and a defensive ward.</p>
-                    </div>
-                    <div className="flex gap-3 rounded-xl border border-amber-400/20 bg-amber-400/5 p-4">
-                      <Swords className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" aria-hidden="true" />
-                      <p className="text-xs leading-relaxed text-on-surface-variant"><span className="font-bold text-amber-400">Contested:</span> an enemy occupies a Rift and the Anchor bonus falls to +1.</p>
-                    </div>
-                  </div>
-                </article>
-              </div>
-            </section>
-
-            <section className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-              <div className="rounded-2xl border border-outline/15 bg-surface-container/65 p-6 sm:p-7">
-                <div className="mb-5 flex items-center gap-3">
-                  <Map className="h-5 w-5 text-ice-light" aria-hidden="true" />
-                  <h2 className="font-almendra text-2xl font-bold text-on-surface">Special terrain</h2>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {TERRAIN_RULES.map((terrain) => (
-                    <div id={`terrain-${toRulebookId(terrain.name)}`} key={terrain.name} className="scroll-mt-36 rounded-xl border border-outline/10 bg-void-black/35 p-4">
-                      <h3 className={`font-label-caps text-[10px] font-bold tracking-wider ${terrain.color}`}>{terrain.name}</h3>
-                      <p className="mt-2 text-xs leading-relaxed text-on-surface-variant">{terrain.description}</p>
-                    </div>
-                  ))}
+                {/* Clean Segmented Filter */}
+                <div className="mt-6 inline-flex rounded-lg bg-slate-800/80 p-1 border border-slate-700/60">
+                  <button
+                    className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${ascFaction === 'both' ? 'bg-amber-400 text-slate-950 font-semibold shadow-sm' : 'text-slate-300 hover:text-white'
+                      }`}
+                    onClick={() => setAscFaction('both')}
+                  >All Roles</button>
+                  <button
+                    className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${ascFaction === 'snow' ? 'bg-cyan-400 text-slate-950 font-semibold shadow-sm' : 'text-slate-300 hover:text-white'
+                      }`}
+                    onClick={() => setAscFaction('snow')}
+                  >Frost</button>
+                  <button
+                    className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${ascFaction === 'ash' ? 'bg-rose-500 text-white font-semibold shadow-sm' : 'text-slate-300 hover:text-white'
+                      }`}
+                    onClick={() => setAscFaction('ash')}
+                  >Ash</button>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-outline/15 bg-surface-container/65 p-6 sm:p-7">
-                <div className="mb-5 flex items-center gap-3">
-                  <Shield className="h-5 w-5 text-ember-gold" aria-hidden="true" />
-                  <h2 className="font-almendra text-2xl font-bold text-on-surface">Status reference</h2>
-                </div>
-                <div className="space-y-3">
-                  {STATUS_RULES.map((status) => (
-                    <div id={`status-${toRulebookId(status.name)}`} key={status.name} className="scroll-mt-36 flex items-start justify-between gap-4 rounded-xl border border-outline/10 bg-void-black/35 p-4">
-                      <h3 className={`font-label-caps text-[10px] font-bold tracking-wider ${status.color}`}>{status.name}</h3>
-                      <p className="max-w-52 text-right text-xs leading-relaxed text-on-surface-variant">{status.description}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-          </div>
-        )}
-
-        {/* ═══════════════════════════ ASCENSION TAB ═══════════════════════════ */}
-        {activeTab === 'ASCENSION' && (
-          <div className="space-y-8 animate-[fadeIn_0.3s_ease-out]">
-            <section className="bg-surface-container/60 backdrop-blur-md rounded-xl p-6 sm:p-8 border border-outline/10 shadow-lg space-y-6">
-              <h2 className="font-almendra text-2xl sm:text-3xl font-bold text-ember-gold flex items-center gap-2">
-                <Sparkles className="h-6 w-6" aria-hidden="true" />
-                Ascension Paths
-              </h2>
-              <div className="h-[2px] bg-gradient-to-r from-ember-gold to-transparent" />
-              <p className="text-sm text-on-surface-variant leading-relaxed max-w-3xl">
-                When a faction's unit is <span className="text-magma-core font-bold">Trapped</span> on the Overloaded
-                Shrine, their controller may <span className="text-amber-400 font-bold">Sacrifice</span> it to unlock
-                a permanent Ascension. Each sacrificed unit unlocks a specific path determined by its combat role.
-                Choose between <span className="text-amber-400 font-bold">Option A</span> (a targeted unit upgrade) or{' '}
-                <span className="text-green-400 font-bold">Option B</span> (a faction-wide passive buff).
-              </p>
-
-              {/* Faction filter */}
-              <div className="flex gap-3">
-                <button
-                  className={`px-5 py-1.5 rounded font-label-caps text-xs border font-semibold transition-all duration-200 ${
-                    ascFaction === 'both'
-                      ? 'bg-ember-gold/10 border-ember-gold text-ember-gold'
-                      : 'border-outline/30 text-on-surface-variant hover:text-white'
-                  }`}
-                  onClick={() => setAscFaction('both')}
-                >All</button>
-                <button
-                  className={`px-5 py-1.5 rounded font-label-caps text-xs border font-semibold transition-all duration-200 ${
-                    ascFaction === 'snow'
-                      ? 'bg-ice-light/10 border-ice-light text-ice-light'
-                      : 'border-outline/30 text-on-surface-variant hover:text-white'
-                  }`}
-                  onClick={() => setAscFaction('snow')}
-                >Frost</button>
-                <button
-                  className={`px-5 py-1.5 rounded font-label-caps text-xs border font-semibold transition-all duration-200 ${
-                    ascFaction === 'ash'
-                      ? 'bg-magma-core/10 border-magma-core text-magma-core'
-                      : 'border-outline/30 text-on-surface-variant hover:text-white'
-                  }`}
-                  onClick={() => setAscFaction('ash')}
-                >Ash</button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+              {/* Roles List - Clean Line-Separated Entries */}
+              <div className="divide-y divide-slate-800/80">
                 {ASCENSION_ROLES.map((r) => (
-                  <div id={`ascension-${toRulebookId(r.role)}`} key={r.role} className="scroll-mt-36 bg-void-black/50 border border-outline/10 rounded-xl overflow-hidden">
-                    {/* Role header */}
-                    <div className="px-5 py-3 border-b border-outline/10 flex items-baseline justify-between">
-                      <span className="font-almendra text-base text-ember-gold font-bold">{r.role}</span>
-                      <div className="flex gap-3 text-[10px]">
+                  <article id={`ascension-${toRulebookId(r.role)}`} key={r.role} className="py-6 scroll-mt-36">
+                    <div className="flex items-center justify-between gap-4 mb-3">
+                      <h2 className="text-lg font-semibold text-white tracking-wide">{r.role}</h2>
+                      <div className="flex gap-3 text-xs">
                         {(ascFaction === 'snow' || ascFaction === 'both') && (
-                          <span className="text-ice-light">❄ {r.snow}</span>
+                          <span className="text-cyan-300">❄ {r.snow}</span>
                         )}
                         {(ascFaction === 'ash' || ascFaction === 'both') && (
-                          <span className="text-magma-core">🔥 {r.ash}</span>
+                          <span className="text-rose-400">🔥 {r.ash}</span>
                         )}
                       </div>
                     </div>
-                    {/* Option A */}
-                    <div className="px-5 py-3 border-b border-outline/5 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-label-caps px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-400/30">Option A</span>
-                        <span className="font-label-caps text-xs text-on-surface font-bold">{r.A.name}</span>
+
+                    <div className="grid gap-4 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-800/80">
+                      <div className="pr-0 sm:pr-4 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-400/15 text-amber-300 uppercase tracking-wide">Option A</span>
+                          <span className="text-xs font-semibold text-white">{r.A.name}</span>
+                        </div>
+                        <p className="text-xs text-slate-300 leading-relaxed pt-1">
+                          {ascFaction === 'snow' ? r.A.snowDesc || r.A.desc
+                            : ascFaction === 'ash' ? r.A.ashDesc || r.A.desc
+                              : r.A.desc}
+                        </p>
                       </div>
-                      <p className="text-[11px] text-on-surface-variant leading-relaxed">
-                        {ascFaction === 'snow' ? r.A.snowDesc || r.A.desc
-                          : ascFaction === 'ash' ? r.A.ashDesc || r.A.desc
-                          : r.A.desc}
-                      </p>
-                    </div>
-                    {/* Option B */}
-                    <div className="px-5 py-3 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-label-caps px-1.5 py-0.5 rounded bg-green-500/15 text-green-400 border border-green-400/30">Option B</span>
-                        <span className="font-label-caps text-xs text-on-surface font-bold">{r.B.name}</span>
+
+                      <div className="pt-4 sm:pt-0 sm:pl-4 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-400/15 text-emerald-300 uppercase tracking-wide">Option B</span>
+                          <span className="text-xs font-semibold text-white">{r.B.name}</span>
+                        </div>
+                        <p className="text-xs text-slate-300 leading-relaxed pt-1">{r.B.desc}</p>
                       </div>
-                      <p className="text-[11px] text-on-surface-variant leading-relaxed">{r.B.desc}</p>
                     </div>
-                  </div>
+                  </article>
                 ))}
               </div>
-            </section>
-          </div>
-        )}
+            </div>
+          )}
 
-        {/* ═══════════════════════════ UNITS TAB ═══════════════════════════ */}
-        {activeTab === 'UNITS' && (
-          <div className="space-y-8 animate-[fadeIn_0.3s_ease-out]">
-            <section className={`overflow-hidden rounded-2xl border p-6 sm:p-8 ${
-              activeFaction === 'snow'
-                ? 'border-ice-light/25 bg-gradient-to-r from-ice-light/12 via-surface-container/80 to-void-black/95'
-                : 'border-magma-core/25 bg-gradient-to-r from-magma-core/12 via-surface-container/80 to-void-black/95'
-            }`}>
-              <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
+          {/* ═══════════════════════════ UNITS TAB ═══════════════════════════ */}
+          {activeTab === 'UNITS' && (
+            <div className="space-y-12 animate-[fadeIn_0.3s_ease-out]">
+              <div className="border-b border-slate-800 pb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <div>
-                  <div className={`mb-2 flex items-center gap-2 font-label-caps text-[9px] tracking-[0.22em] ${
-                    activeFaction === 'snow' ? 'text-ice-light' : 'text-magma-core'
-                  }`}>
-                    {activeFaction === 'snow'
-                      ? <Snowflake className="h-4 w-4" aria-hidden="true" />
-                      : <Flame className="h-4 w-4" aria-hidden="true" />}
-                    Faction unit catalog
+                  <div className={`flex items-center gap-2 mb-2 ${activeFaction === 'snow' ? 'text-cyan-400' : 'text-rose-400'}`}>
+                    {activeFaction === 'snow' ? <Snowflake className="h-4 w-4" aria-hidden="true" /> : <Flame className="h-4 w-4" aria-hidden="true" />}
+                    <span className="text-xs uppercase tracking-widest font-semibold">Unit Catalog</span>
                   </div>
-                  <h2 className={`font-almendra text-3xl font-bold sm:text-4xl ${
-                    activeFaction === 'snow' ? 'text-ice-light' : 'text-magma-core'
-                  }`}>
+                  <h1 className="text-2xl sm:text-3xl font-medium text-white tracking-tight">
                     {activeFaction === 'snow' ? 'The Frost Host' : 'The Ash Legion'}
-                  </h2>
-                  <p className="mt-3 max-w-2xl text-sm leading-relaxed text-on-surface-variant">
+                  </h1>
+                  <p className="mt-2 text-sm text-slate-300 leading-relaxed max-w-2xl">
                     {activeFaction === 'snow'
                       ? 'A disciplined force built around control, protection, healing, and glacial terrain.'
                       : 'An aggressive force built around direct damage, disruption, hazards, and relentless pressure.'}
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="font-mono text-3xl font-bold text-on-surface">{UNIT_PROFILES[activeFaction].length}</span>
-                  <span className="font-label-caps text-[9px] leading-relaxed tracking-wider text-on-surface-variant">documented<br />units</span>
+
+                {/* Faction Segmented Selector */}
+                <div className="inline-flex rounded-lg bg-slate-800/80 p-1 border border-slate-700/60 self-start md:self-auto shrink-0">
+                  <button
+                    className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                      activeFaction === 'snow'
+                        ? 'bg-cyan-400 text-slate-950 font-semibold shadow-sm'
+                        : 'text-slate-300 hover:text-white'
+                    }`}
+                    onClick={() => setActiveFaction('snow')}
+                  >
+                    <Snowflake className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Frost Host</span>
+                  </button>
+                  <button
+                    className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                      activeFaction === 'ash'
+                        ? 'bg-rose-500 text-white font-semibold shadow-sm'
+                        : 'text-slate-300 hover:text-white'
+                    }`}
+                    onClick={() => setActiveFaction('ash')}
+                  >
+                    <Flame className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Ash Legion</span>
+                  </button>
                 </div>
               </div>
-            </section>
 
-            {/* Faction Selector */}
-            <div className="grid grid-cols-2 gap-3 rounded-2xl border border-outline/15 bg-void-black/45 p-2 sm:mx-auto sm:max-w-xl">
-              <button
-                className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-label-caps text-xs font-semibold tracking-wider transition-all duration-300 ${activeFaction === 'snow'
-                    ? 'bg-ice-light text-void-black shadow-[0_8px_25px_rgba(165,243,252,0.18)]'
-                    : 'text-on-surface-variant hover:bg-ice-light/10 hover:text-ice-light'
-                  }`}
-                onClick={() => setActiveFaction('snow')}
-              >
-                <Snowflake className="h-4 w-4" aria-hidden="true" />
-                Frost Faction
-              </button>
-              <button
-                className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-label-caps text-xs font-semibold tracking-wider transition-all duration-300 ${activeFaction === 'ash'
-                    ? 'bg-magma-core text-white shadow-[0_8px_25px_rgba(239,68,68,0.18)]'
-                    : 'text-on-surface-variant hover:bg-magma-core/10 hover:text-magma-core'
-                  }`}
-                onClick={() => setActiveFaction('ash')}
-              >
-                <Flame className="h-4 w-4" aria-hidden="true" />
-                Ash Faction
-              </button>
-            </div>
-
-            {/* Units Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {UNIT_PROFILES[activeFaction].map((unit, idx) => (
-                <div
-                  id={`unit-${activeFaction}-${toRulebookId(unit.name)}`}
-                  key={`${activeFaction}-${unit.name}`}
-                  className="scroll-mt-36 bg-surface-container/60 backdrop-blur-md rounded-xl border border-outline/10 overflow-hidden flex flex-col hover:border-outline/30 transition-all duration-300 shadow-lg"
-                >
-                  {/* Portrait */}
-                  <div className="relative h-56 bg-void-black/80 flex items-center justify-center overflow-hidden border-b border-outline/10">
-                    <img
-                      src={unit.portrait}
-                      alt={unit.name}
-                      loading="lazy"
-                      decoding="async"
-                      className="w-40 h-40 object-contain hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-void-black via-transparent to-transparent pointer-events-none" />
-                    <div className="absolute top-4 left-4">
-                      <span className={`text-[10px] font-label-caps px-2 py-0.5 rounded border uppercase backdrop-blur-md ${activeFaction === 'snow'
-                          ? 'bg-ice-light/10 text-ice-light border-ice-light/20'
-                          : 'bg-magma-core/10 text-magma-core border-magma-core/20'
-                        }`}>
-                        {unit.role}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Body */}
-                  <div className="p-6 flex-grow flex flex-col justify-between space-y-5">
+              {/* Units Grid - Clean Line-Separated Entries with Portrait and Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {UNIT_PROFILES[activeFaction].map((unit) => (
+                  <article
+                    id={`unit-${activeFaction}-${toRulebookId(unit.name)}`}
+                    key={`${activeFaction}-${unit.name}`}
+                    className="scroll-mt-36 flex flex-col justify-between border-b border-slate-800/80 pb-6"
+                  >
                     <div>
-                      <h3 className={`font-almendra text-2xl font-bold ${activeFaction === 'snow' ? 'text-ice-light' : 'text-magma-core'
-                        }`}>
-                        {unit.name}
-                      </h3>
-                      <p className="font-libre text-xs italic text-on-surface-variant mt-1.5 leading-relaxed">
-                        {unit.title}
-                      </p>
-                    </div>
-
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-5 gap-1.5 text-center">
-                      {Object.entries(unit.stats).map(([stat, val]) => (
-                        <div key={stat} className="bg-void-black/50 border border-outline/15 rounded py-1.5 px-0.5">
-                          <div className="text-[9px] font-label-caps text-on-surface-variant font-medium">{stat}</div>
-                          <div className="text-sm font-bold text-white font-mono mt-0.5">{val}</div>
+                      {/* Portrait Header */}
+                      <div className="relative h-44 bg-slate-900/60 rounded-xl overflow-hidden border border-slate-800/80 flex items-center justify-center mb-4">
+                        <img
+                          src={unit.portrait}
+                          alt={unit.name}
+                          loading="lazy"
+                          decoding="async"
+                          className="w-32 h-32 object-contain hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="absolute top-2.5 left-2.5">
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border uppercase tracking-wide ${
+                            activeFaction === 'snow'
+                              ? 'bg-cyan-950/70 text-cyan-300 border-cyan-500/30'
+                              : 'bg-rose-950/70 text-rose-300 border-rose-500/30'
+                          }`}>
+                            {unit.role}
+                          </span>
                         </div>
-                      ))}
-                    </div>
+                      </div>
 
-                    {/* Abilities */}
-                    <div className="space-y-3">
-                      {unit.abilities.map((ability, abIdx) => (
-                        <div key={abIdx} className="bg-void-black/30 border border-outline/5 rounded-lg p-3.5 space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className={`text-[9px] font-label-caps px-1.5 py-0.5 rounded border uppercase ${ability.type === 'Active'
-                                ? 'bg-ember-gold/15 text-ember-gold border-ember-gold/30'
-                                : ability.type === 'Veteran'
-                                  ? 'bg-blue-500/15 text-blue-300 border-blue-400/30'
-                                  : 'bg-green-500/15 text-green-400 border-green-400/30'
-                              }`}>
-                              {ability.type}
-                            </span>
-                            <h4 className="font-label-caps text-xs font-bold text-on-surface">{ability.name}</h4>
+                      {/* Name & Title */}
+                      <h2 className="text-lg font-semibold text-white tracking-wide">{unit.name}</h2>
+                      <p className="text-xs text-slate-400 italic mt-0.5 mb-3">{unit.title}</p>
+
+                      {/* Stats Inline Bar */}
+                      <div className="grid grid-cols-5 gap-1 text-center py-2 border-y border-slate-800/80 mb-4">
+                        {Object.entries(unit.stats).map(([stat, val]) => (
+                          <div key={stat}>
+                            <div className="text-[9px] text-slate-400 uppercase font-medium">{stat}</div>
+                            <div className="text-xs font-bold text-white font-mono mt-0.5">{val}</div>
                           </div>
-                          <p className="text-[11px] sm:text-xs text-on-surface-variant leading-relaxed">
-                            {ability.desc}
-                          </p>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
+
+                      {/* Abilities */}
+                      <div className="space-y-2">
+                        {unit.abilities.map((ability, abIdx) => (
+                          <div key={abIdx} className="space-y-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-[9px] px-1 py-0.2 rounded font-semibold uppercase ${
+                                ability.type === 'Active'
+                                  ? 'text-amber-300'
+                                  : ability.type === 'Veteran'
+                                    ? 'text-blue-300'
+                                    : 'text-emerald-300'
+                              }`}>
+                                [{ability.type}]
+                              </span>
+                              <span className="text-xs font-semibold text-slate-200">{ability.name}</span>
+                            </div>
+                            <p className="text-[11px] text-slate-300 leading-relaxed pl-1">{ability.desc}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
+        </main>
+
+        {/* Minimal Footer matching Settings & Notes */}
+        <footer className="w-full border-t border-slate-800 py-6 text-xs text-slate-400 mt-auto">
+          <div className="max-w-5xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <span>Mythic Territories</span>
+            <div className="flex gap-6">
+              <button
+                onClick={() => handleNavigate('GUIDE')}
+                className="text-amber-400 transition-colors cursor-pointer flex items-center gap-1.5 font-medium"
+              >
+                <BookOpen className="h-3.5 w-3.5" />
+                <span>Rules</span>
+              </button>
+              <button
+                onClick={() => handleNavigate('NOTES')}
+                className="hover:text-slate-200 transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <ScrollText className="h-3.5 w-3.5" />
+                <span>Updates</span>
+              </button>
+              <button
+                onClick={() => handleNavigate('SETTINGS')}
+                className="hover:text-slate-200 transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <SettingsIcon className="h-3.5 w-3.5" />
+                <span>Settings</span>
+              </button>
             </div>
           </div>
-        )}
-      </main>
-
-      {/* Footer */}
-      <footer className="bg-void-black border-t border-outline/10 w-full py-8 mt-auto relative z-10 select-none font-label-caps">
-        <div className="flex flex-col md:flex-row justify-between items-center px-6 md:px-12 max-w-7xl mx-auto w-full gap-4 text-center md:text-left">
-          <div
-            className="font-almendra text-sm tracking-wider text-on-surface-variant cursor-pointer"
-            onClick={() => handleNavigate('LOBBY')}
-          >
-            Mythic Territories
-          </div>
-          <div className="text-xs text-on-surface-variant">
-            © 2025 Mythic Territories. All rights reserved.
-          </div>
-          <div className="flex gap-6">
-            <button
-              className="text-xs text-ember-gold font-bold transition-colors duration-200 cursor-pointer bg-transparent border-none"
-              onClick={() => handleNavigate('GUIDE')}
-            >
-              Rulebook
-            </button>
-            <button
-              className="text-xs text-on-surface-variant hover:text-ember-gold transition-colors duration-200 cursor-pointer bg-transparent border-none"
-              onClick={() => handleNavigate('NOTES')}
-            >
-              Patch Notes
-            </button>
-            <button
-              className="text-xs text-on-surface-variant hover:text-ember-gold transition-colors duration-200 cursor-pointer bg-transparent border-none"
-              onClick={() => handleNavigate('SETTINGS')}
-            >
-              Settings
-            </button>
-          </div>
-        </div>
-      </footer>
-    </div>
+        </footer>
+      </div>
+    </>
   );
 }

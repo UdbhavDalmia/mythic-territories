@@ -43,6 +43,7 @@ import {
   getFallenUnits,
   resetTerritoryCache
 } from '../services/gameTerritory.js';
+import { loadGsap } from '../services/gsap.js';
 
 export default function Game({ navigateTo }) {
   const [gameState, setGameState] = useState(null);
@@ -63,11 +64,32 @@ export default function Game({ navigateTo }) {
   const [showGameOverModal, setShowGameOverModal] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const gameStateRef = useRef(gameState);
+  const pageRef = useRef(null);
   const mousePosRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     setHoveredAbilityKey(null);
   }, [gameState?.selectedPiece?.id, gameState?.currentState]);
+
+  // Entry animation (opposite of exit: smoothly fade and slide in from -25px down to 0)
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !pageRef.current) return;
+
+    let ctx;
+    loadGsap().then(gsap => {
+      if (pageRef.current?.nodeType === 1) {
+        ctx = gsap.context(() => {
+          gsap.fromTo(
+            pageRef.current,
+            { opacity: 0, y: -25 },
+            { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out', clearProps: 'transform,opacity' }
+          );
+        }, pageRef);
+      }
+    }).catch(console.warn);
+
+    return () => ctx?.revert();
+  }, []);
 
   // Smooth Game Over entrance transition and hover dismissal
   useEffect(() => {
@@ -362,7 +384,6 @@ export default function Game({ navigateTo }) {
           showFlash(`Joined realm ${roomId} as Team ${effectiveTeam.toUpperCase()}`, 'neutral');
           if (gs.gameStarted && !gs.gameOver) {
             saveActiveSession({ roomId, team: effectiveTeam, mode: 'online' });
-            startCountdown();
           }
         } else {
           if (gs.gameStarted && !gs.gameOver) {
@@ -432,22 +453,26 @@ export default function Game({ navigateTo }) {
 
     timerIntervalRef.current = setInterval(() => {
       const now = Date.now();
-      const deltaSec = Math.floor((now - lastTick) / 1000);
-      if (deltaSec < 1) return;
+      const elapsed = (now - lastTick) / 1000;
+      if (elapsed < 1) return;
+      const deltaSec = Math.floor(elapsed);
       lastTick += deltaSec * 1000;
 
       setGameState(prev => {
         if (!prev || prev.gameOver || !prev.gameStarted) return prev;
 
         // Hold turn timers during pre-battle countdown
-        if (prev.battleStartTime && Date.now() < prev.battleStartTime) return prev;
+        if (prev.battleStartTime && Date.now() < prev.battleStartTime) {
+          lastTick = Date.now();
+          return prev;
+        }
 
         const turn = prev.currentTurn || 'snow';
         const updated = { ...prev };
         if (!updated.timers) updated.timers = { snow: 600, ash: 600 };
 
         if (updated.timers[turn] > 0) {
-          updated.timers[turn] = Math.max(0, updated.timers[turn] - deltaSec);
+          updated.timers[turn] = Math.max(0, updated.timers[turn] - 1);
         } else {
           // Timeout trigger
           if (isLocal) {
@@ -466,7 +491,7 @@ export default function Game({ navigateTo }) {
         }
         return updated;
       });
-    }, 500);
+    }, 1000);
   };
 
   useEffect(() => {
@@ -508,7 +533,25 @@ export default function Game({ navigateTo }) {
     if (roomId) {
       leaveRoom(roomId, getOrCreatePlayerId());
     }
-    navigateTo('LOBBY');
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !pageRef.current) {
+      navigateTo('LOBBY');
+      return;
+    }
+
+    loadGsap().then(gsap => {
+      if (pageRef.current?.nodeType === 1) {
+        gsap.to(pageRef.current, {
+          opacity: 0,
+          y: -25,
+          duration: 0.3,
+          ease: 'power2.in',
+          onComplete: () => navigateTo('LOBBY')
+        });
+      } else {
+        navigateTo('LOBBY');
+      }
+    }).catch(() => navigateTo('LOBBY'));
   };
 
   // Disconnect countdown timer
@@ -1073,7 +1116,7 @@ export default function Game({ navigateTo }) {
     : `TURN ${gameState?.turnCount || 1}: ${gameState?.currentTurn === 'ash' ? 'ASH' : 'FROST'}`;
 
   return (
-    <div className="game-screen text-on-surface select-none font-body-md overflow-x-hidden w-full flex flex-col items-center justify-start relative min-h-screen">
+    <div ref={pageRef} className="game-screen text-on-surface select-none font-body-md overflow-x-hidden w-full flex flex-col items-center justify-start relative min-h-screen">
 
       {/* Atmospheric Battlefield Page Background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden select-none z-0">
@@ -1356,122 +1399,122 @@ export default function Game({ navigateTo }) {
 
                   {/* Ash Casualties */}
                   <div className="fallen-column ash-column">
-                      <div className="fallen-column-label">Ash ({10 - fallenAsh.length}/10)</div>
-                      <div className="fallen-list">
-                        {fallenAsh.length === 0 ? (
-                          <div className="fallen-empty-card">
-                            <span className="empty-sub">Vanguard Intact</span>
-                            <span className="empty-count">10 Active</span>
-                          </div>
-                        ) : (
-                          fallenAsh.map(key => {
-                            const info = C.PIECE_TYPES[key] || {};
-                            const imgPath = C.IMAGES[key] ? `/${C.IMAGES[key]}` : null;
-                            return (
-                              <div key={key} className="fallen-unit-card ash" title={info.name || key}>
-                                {imgPath && <img src={imgPath} alt={info.name || key} className="fallen-unit-avatar" />}
-                                <span className="fallen-unit-name">{info.name || key}</span>
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {isLocal && (
-                  <div id="testModeContainer" className="test-mode-control mt-auto">
-                    <FlaskConical className="h-4 w-4" aria-hidden="true" />
-                    <input
-                      type="checkbox"
-                      id="testModeToggle"
-                      checked={!!gameState?.testMode}
-                      onChange={(e) => sendAction('TOGGLE_TEST_MODE', { enabled: e.target.checked })}
-                      style={{ cursor: 'pointer', width: '16px', height: '16px', margin: 0 }}
-                    />
-                    <label htmlFor="testModeToggle">Test mode</label>
-                  </div>
-                )}
-              </div>
-
-              <div className="game-container">
-                <Board
-                  gameState={gameState}
-                  myTeam={myTeam}
-                  hoveredAbilityKey={hoveredAbilityKey}
-                  onCellClick={handleCellClick}
-                  onBoardClick={handleBoardClick}
-                  onPieceClick={handlePieceClick}
-                  onMouseEnterPiece={(piece, e) => {
-                    if (gameState?.gameOver) return;
-                    if (e) {
-                      mousePosRef.current = { x: e.clientX, y: e.clientY };
-                      setHoveredMousePos({ x: e.clientX, y: e.clientY });
-                    }
-                    setHoveredPiece(piece);
-                  }}
-                  onMouseMovePiece={(piece, e) => {
-                    if (e) mousePosRef.current = { x: e.clientX, y: e.clientY };
-                  }}
-                  onMouseLeavePiece={() => {
-                    mousePosRef.current = null;
-                    setHoveredPiece(null);
-                    setHoveredMousePos(null);
-                  }}
-                />
-                <div className="labels-bar">
-                  <div id="snowLabel" className="label snow">
-                    <span>Frost Control</span>
-                    <strong>{terrScores.snow.toFixed(1)}%</strong>
-                  </div>
-
-                  <div id="turnLabel" className={`label turn ${gameState?.currentTurn || 'snow'}`}>
-                    <div className="turn-content">
-                      <div className="turn-main">
-                        <Clock3 className="turn-clock-icon" aria-hidden="true" />
-                        <span>{turnLabel}</span>
-                      </div>
-                      {terrScores.neutral !== undefined && terrScores.neutral > 0 && (
-                        <span className="uncontested-label">
-                          Uncontested: {terrScores.neutral.toFixed(1)}%
-                        </span>
+                    <div className="fallen-column-label">Ash ({10 - fallenAsh.length}/10)</div>
+                    <div className="fallen-list">
+                      {fallenAsh.length === 0 ? (
+                        <div className="fallen-empty-card">
+                          <span className="empty-sub">Vanguard Intact</span>
+                          <span className="empty-count">10 Active</span>
+                        </div>
+                      ) : (
+                        fallenAsh.map(key => {
+                          const info = C.PIECE_TYPES[key] || {};
+                          const imgPath = C.IMAGES[key] ? `/${C.IMAGES[key]}` : null;
+                          return (
+                            <div key={key} className="fallen-unit-card ash" title={info.name || key}>
+                              {imgPath && <img src={imgPath} alt={info.name || key} className="fallen-unit-avatar" />}
+                              <span className="fallen-unit-name">{info.name || key}</span>
+                            </div>
+                          );
+                        })
                       )}
                     </div>
                   </div>
-
-                  <div id="ashLabel" className="label ash">
-                    <span>Ash Control</span>
-                    <strong>{terrScores.ash.toFixed(1)}%</strong>
-                  </div>
                 </div>
               </div>
 
-              <GameActionDrawer
-                eventLog={eventLog}
-                isLocal={isLocal}
-                playerCount={playerCount}
-                isOpponentDisconnected={isOpponentDisconnected}
-                disconnectTimeout={disconnectTimeout}
-                drawerExpanded={drawerExpanded}
-                setDrawerExpanded={setDrawerExpanded}
-                selectedPiece={selectedPiece}
-                selectedPieceName={selectedPieceName}
-                hasPrimaryAbility={hasPrimaryAbility}
-                hasSiphon={hasSiphon}
-                hasRiftPulse={hasRiftPulse}
-                canDespawn={canDespawn}
-                isMyTurn={isMyTurn}
-                sendAction={sendAction}
-                setHoveredAbilityKey={setHoveredAbilityKey}
-                fallenSnow={fallenSnow}
-                fallenAsh={fallenAsh}
-              />
+              {isLocal && (
+                <div id="testModeContainer" className="test-mode-control mt-auto">
+                  <FlaskConical className="h-4 w-4" aria-hidden="true" />
+                  <input
+                    type="checkbox"
+                    id="testModeToggle"
+                    checked={!!gameState?.testMode}
+                    onChange={(e) => sendAction('TOGGLE_TEST_MODE', { enabled: e.target.checked })}
+                    style={{ cursor: 'pointer', width: '16px', height: '16px', margin: 0 }}
+                  />
+                  <label htmlFor="testModeToggle">Test mode</label>
+                </div>
+              )}
             </div>
+
+            <div className="game-container">
+              <Board
+                gameState={gameState}
+                myTeam={myTeam}
+                hoveredAbilityKey={hoveredAbilityKey}
+                onCellClick={handleCellClick}
+                onBoardClick={handleBoardClick}
+                onPieceClick={handlePieceClick}
+                onMouseEnterPiece={(piece, e) => {
+                  if (gameState?.gameOver) return;
+                  if (e) {
+                    mousePosRef.current = { x: e.clientX, y: e.clientY };
+                    setHoveredMousePos({ x: e.clientX, y: e.clientY });
+                  }
+                  setHoveredPiece(piece);
+                }}
+                onMouseMovePiece={(piece, e) => {
+                  if (e) mousePosRef.current = { x: e.clientX, y: e.clientY };
+                }}
+                onMouseLeavePiece={() => {
+                  mousePosRef.current = null;
+                  setHoveredPiece(null);
+                  setHoveredMousePos(null);
+                }}
+              />
+              <div className="labels-bar">
+                <div id="snowLabel" className="label snow">
+                  <span>Frost Control</span>
+                  <strong>{terrScores.snow.toFixed(1)}%</strong>
+                </div>
+
+                <div id="turnLabel" className={`label turn ${gameState?.currentTurn || 'snow'}`}>
+                  <div className="turn-content">
+                    <div className="turn-main">
+                      <Clock3 className="turn-clock-icon" aria-hidden="true" />
+                      <span>{turnLabel}</span>
+                    </div>
+                    {terrScores.neutral !== undefined && terrScores.neutral > 0 && (
+                      <span className="uncontested-label">
+                        Uncontested: {terrScores.neutral.toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div id="ashLabel" className="label ash">
+                  <span>Ash Control</span>
+                  <strong>{terrScores.ash.toFixed(1)}%</strong>
+                </div>
+              </div>
+            </div>
+
+            <GameActionDrawer
+              eventLog={eventLog}
+              isLocal={isLocal}
+              playerCount={playerCount}
+              isOpponentDisconnected={isOpponentDisconnected}
+              disconnectTimeout={disconnectTimeout}
+              drawerExpanded={drawerExpanded}
+              setDrawerExpanded={setDrawerExpanded}
+              selectedPiece={selectedPiece}
+              selectedPieceName={selectedPieceName}
+              hasPrimaryAbility={hasPrimaryAbility}
+              hasSiphon={hasSiphon}
+              hasRiftPulse={hasRiftPulse}
+              canDespawn={canDespawn}
+              isMyTurn={isMyTurn}
+              sendAction={sendAction}
+              setHoveredAbilityKey={setHoveredAbilityKey}
+              fallenSnow={fallenSnow}
+              fallenAsh={fallenAsh}
+            />
           </div>
         </div>
-
-        <PieceTooltip hoveredPiece={hoveredPiece} gameState={gameState} initialMousePos={hoveredMousePos} />
       </div>
-    );
+
+      <PieceTooltip hoveredPiece={hoveredPiece} gameState={gameState} initialMousePos={hoveredMousePos} />
+    </div>
+  );
 }

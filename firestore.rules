@@ -51,8 +51,9 @@ service cloud.firestore {
         && request.resource.data.gameState is string
         && request.resource.data.gameState.size() <= 150000;
 
-      // 4. Prohibit client-side deletions (managed server-side via automated TTL retention policy).
-      allow delete: if false;
+      // 4. Client-side room deletions (allow removing DISBANDED or inactive empty rooms)
+      allow delete: if resource.data.status == 'DISBANDED'
+        || (resource.data.players is list && resource.data.players.size() == 0);
     }
   }
 }
