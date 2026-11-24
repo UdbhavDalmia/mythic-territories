@@ -130,6 +130,163 @@ export const getPieceAt = (r, c, pieces) => {
 };
 export const inBounds = (r, c) => r >= 0 && r < ROWS && c >= 0 && c < COLS;
 
+/**
+ * Determines whether there is an unobstructed continuous line of sight between
+ * a source position and a target position.
+ * Obstacles include: other live pieces, glacial walls / obsidian pillars,
+ * void squares, and craters.
+ * 
+ * @param {number} fromR - Source row
+ * @param {number} fromC - Source col
+ * @param {number} toR - Target row
+ * @param {number} toC - Target col
+ * @param {Object} gameState - Current game state
+ * @param {Object} [options] - Optional settings
+ * @param {number} [options.ignoredPieceId] - ID of piece that should not block (e.g. caster)
+ * @param {number} [options.targetPieceId] - ID of piece being targeted (should not block itself)
+ * @param {boolean} [options.ignoreTargetPiece=true] - If true, any entity within 0.45 of target does not block
+ * @returns {{ hasLos: boolean, blocker: Object|null, hitDistance: number|null, hitRow: number|null, hitCol: number|null }}
+ */
+export function hasLineOfSight(fromR, fromC, toR, toC, gameState, options = {}) {
+  const { ignoredPieceId = null, targetPieceId = null, ignoreTargetPiece = true } = options;
+  const dr = toR - fromR;
+  const dc = toC - fromC;
+  const totalDist = Math.hypot(dr, dc);
+
+  // If source and target are essentially the same point, line of sight is clear
+  if (totalDist < 0.15) {
+    return { hasLos: true, blocker: null, hitDistance: null, hitRow: null, hitCol: null };
+  }
+
+  const uR = dr / totalDist;
+  const uC = dc / totalDist;
+
+  let closestBlocker = null;
+  let minHitDist = Infinity;
+  let hitR = null;
+  let hitC = null;
+
+  // 1. Check pieces as obstacles
+  if (gameState && Array.isArray(gameState.pieces)) {
+    const pLen = gameState.pieces.length;
+    for (let i = 0; i < pLen; i++) {
+      const p = gameState.pieces[i];
+      if (!p || (typeof p.currentHp === 'number' && p.currentHp <= 0)) continue;
+      if (ignoredPieceId !== null && p.id === ignoredPieceId) continue;
+      if (targetPieceId !== null && p.id === targetPieceId) continue;
+
+      const distToTarget = Math.hypot(p.row - toR, p.col - toC);
+      if (ignoreTargetPiece && distToTarget < 0.45) continue;
+
+      const wR = p.row - fromR;
+      const wC = p.col - fromC;
+      const t = wR * uR + wC * uC;
+      if (t <= 0.25 || t >= totalDist - 0.25) continue;
+
+      const perpDistSq = (wR * wR + wC * wC) - (t * t);
+      const pieceRadius = 0.38;
+      if (perpDistSq < pieceRadius * pieceRadius) {
+        if (t < minHitDist) {
+          minHitDist = t;
+          hitR = fromR + uR * t;
+          hitC = fromC + uC * t;
+          closestBlocker = { type: 'piece', piece: p, row: p.row, col: p.col };
+        }
+      }
+    }
+  }
+
+  // 2. Check Glacial Walls / Obsidian Pillars
+  if (gameState && Array.isArray(gameState.glacialWalls)) {
+    const wLen = gameState.glacialWalls.length;
+    for (let i = 0; i < wLen; i++) {
+      const w = gameState.glacialWalls[i];
+      if (!w || (w.duration !== undefined && w.duration <= 0)) continue;
+
+      const distToTarget = Math.hypot(w.row - toR, w.col - toC);
+      if (ignoreTargetPiece && distToTarget < 0.45) continue;
+
+      const wR = w.row - fromR;
+      const wC = w.col - fromC;
+      const t = wR * uR + wC * uC;
+      if (t <= 0.25 || t >= totalDist - 0.25) continue;
+
+      const perpDistSq = (wR * wR + wC * wC) - (t * t);
+      const wallRadius = 0.44;
+      if (perpDistSq < wallRadius * wallRadius) {
+        if (t < minHitDist) {
+          minHitDist = t;
+          hitR = fromR + uR * t;
+          hitC = fromC + uC * t;
+          closestBlocker = { type: 'wall', wall: w, row: w.row, col: w.col };
+        }
+      }
+    }
+  }
+
+  // 3. Check Void Squares
+  if (gameState && Array.isArray(gameState.voidSquares)) {
+    const vLen = gameState.voidSquares.length;
+    for (let i = 0; i < vLen; i++) {
+      const v = gameState.voidSquares[i];
+      if (!v) continue;
+
+      const distToTarget = Math.hypot(v.row - toR, v.col - toC);
+      if (ignoreTargetPiece && distToTarget < 0.45) continue;
+
+      const wR = v.row - fromR;
+      const wC = v.col - fromC;
+      const t = wR * uR + wC * uC;
+      if (t <= 0.25 || t >= totalDist - 0.25) continue;
+
+      const perpDistSq = (wR * wR + wC * wC) - (t * t);
+      const voidRadius = 0.44;
+      if (perpDistSq < voidRadius * voidRadius) {
+        if (t < minHitDist) {
+          minHitDist = t;
+          hitR = fromR + uR * t;
+          hitC = fromC + uC * t;
+          closestBlocker = { type: 'void', void: v, row: v.row, col: v.col };
+        }
+      }
+    }
+  }
+
+  // 4. Check Craters (Special Terrains)
+  if (gameState && Array.isArray(gameState.specialTerrains)) {
+    const stLen = gameState.specialTerrains.length;
+    for (let i = 0; i < stLen; i++) {
+      const st = gameState.specialTerrains[i];
+      if (!st || st.type !== 'crater') continue;
+
+      const distToTarget = Math.hypot(st.row - toR, st.col - toC);
+      if (ignoreTargetPiece && distToTarget < 0.45) continue;
+
+      const wR = st.row - fromR;
+      const wC = st.col - fromC;
+      const t = wR * uR + wC * uC;
+      if (t <= 0.25 || t >= totalDist - 0.25) continue;
+
+      const perpDistSq = (wR * wR + wC * wC) - (t * t);
+      const craterRadius = 0.44;
+      if (perpDistSq < craterRadius * craterRadius) {
+        if (t < minHitDist) {
+          minHitDist = t;
+          hitR = fromR + uR * t;
+          hitC = fromC + uC * t;
+          closestBlocker = { type: 'crater', terrain: st, row: st.row, col: st.col };
+        }
+      }
+    }
+  }
+
+  if (closestBlocker) {
+    return { hasLos: false, blocker: closestBlocker, hitDistance: minHitDist, hitRow: hitR, hitCol: hitC };
+  }
+
+  return { hasLos: true, blocker: null, hitDistance: null, hitRow: null, hitCol: null };
+}
+
 export function emit(gs, eventPayload) {
   if (!gs.events) gs.events = [];
   gs.events.push(eventPayload);

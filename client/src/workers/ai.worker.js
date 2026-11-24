@@ -479,6 +479,10 @@ function getOrderedActions(gameState, team) {
                 if (!ability) return false;
                 const distance = Math.max(Math.abs(p.row - r), Math.abs(p.col - c));
                 if (ability.range >= 0 && distance > ability.range) return false;
+                if (ability.canBeBlocked && !['FrostfallBlessing', 'ReignOfFire', 'GlacialFracture'].includes(ability.key || ability.name)) {
+                    const los = C.hasLineOfSight(p.row, p.col, r, c, gameState, { ignoredPieceId: p.id });
+                    if (!los.hasLos) return false;
+                }
                 if (ability.specialTargeting) return ability.specialTargeting(p, { r, c }, gameState);
                 const targetPiece = C.getPieceAt(r, c, gameState.pieces);
                 switch (ability.targetType) {

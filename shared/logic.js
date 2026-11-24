@@ -991,6 +991,16 @@ function isTargetValid(piece, target, ability, gameStateLocal = gameState) {
   if (abilityRange > 0 && distance > abilityRange) return false;
   if (targetPiece?.hasDefensiveWard && ability.canBeBlocked) return false;
 
+  // Vision / Line of Sight Check:
+  // Abilities that can be blocked require an unobstructed line of sight from the caster to target
+  if (ability.canBeBlocked && !['FrostfallBlessing', 'ReignOfFire', 'GlacialFracture'].includes(ability.key || ability.name)) {
+    const los = C.hasLineOfSight(piece.row, piece.col, r, c, gameStateLocal, {
+      ignoredPieceId: piece.id,
+      targetPieceId: targetPiece?.id || null
+    });
+    if (!los.hasLos) return false;
+  }
+
   switch (ability.targetType) {
     case "enemy":
       return targetPiece && targetPiece.team !== piece.team;

@@ -511,6 +511,131 @@ export function renderInteractiveReticles(ctx, currentGs, isAshLocal, CS, mouseP
           ctx.arc(cCx, cCy, rangePx, 0, Math.PI * 2);
           ctx.fill();
 
+          // 1b. Dynamic Vision Blocking & Line-of-Sight Shadow Cones (Continuous Obstacle Occlusion)
+          const isSkyAbility = ['FrostfallBlessing', 'ReignOfFire', 'GlacialFracture'].includes(abilityKey);
+          if (ability.canBeBlocked && !isSkyAbility) {
+            const obstacles = [];
+
+            // Collect all obstacles within the ability range
+            // (a) Other units (allies & enemies)
+            (currentGs.pieces || []).forEach(p => {
+              if (p.id === caster.id || (typeof p.currentHp === 'number' && p.currentHp <= 0)) return;
+              obstacles.push({
+                x: (p.col + 0.5) * CS,
+                y: (p.row + 0.5) * CS,
+                radius: 0.38 * CS,
+                type: 'piece',
+                ref: p
+              });
+            });
+
+            // (b) Glacial walls / Obsidian pillars
+            (currentGs.glacialWalls || []).forEach(w => {
+              if (w.duration !== undefined && w.duration <= 0) return;
+              obstacles.push({
+                x: (w.col + 0.5) * CS,
+                y: (w.row + 0.5) * CS,
+                radius: 0.44 * CS,
+                type: 'wall',
+                ref: w
+              });
+            });
+
+            // (c) Void squares
+            (currentGs.voidSquares || []).forEach(v => {
+              obstacles.push({
+                x: (v.col + 0.5) * CS,
+                y: (v.row + 0.5) * CS,
+                radius: 0.44 * CS,
+                type: 'void',
+                ref: v
+              });
+            });
+
+            // (d) Craters
+            (currentGs.specialTerrains || []).forEach(st => {
+              if (st.type === 'crater') {
+                obstacles.push({
+                  x: (st.col + 0.5) * CS,
+                  y: (st.row + 0.5) * CS,
+                  radius: 0.44 * CS,
+                  type: 'crater',
+                  ref: st
+                });
+              }
+            });
+
+            // Render shadow cones cast behind each obstacle
+            obstacles.forEach(obs => {
+              const dx = obs.x - cCx;
+              const dy = obs.y - cCy;
+              const dist = Math.hypot(dx, dy);
+
+              if (dist <= obs.radius + 2 || dist > rangePx + obs.radius) return;
+
+              const alpha = Math.atan2(dy, dx);
+              const halfSpread = Math.asin(Math.min(0.999, obs.radius / dist));
+              const theta1 = alpha - halfSpread;
+              const theta2 = alpha + halfSpread;
+              const L = Math.sqrt(Math.max(0, dist * dist - obs.radius * obs.radius));
+
+              // Tangent contact points on obstacle silhouette
+              const t1x = cCx + L * Math.cos(theta1);
+              const t1y = cCy + L * Math.sin(theta1);
+              const t2x = cCx + L * Math.cos(theta2);
+              const t2y = cCy + L * Math.sin(theta2);
+
+              // Projection points extending out to the range boundary
+              const f1x = cCx + (rangePx + 20) * Math.cos(theta1);
+              const f1y = cCy + (rangePx + 20) * Math.sin(theta1);
+              const f2x = cCx + (rangePx + 20) * Math.cos(theta2);
+              const f2y = cCy + (rangePx + 20) * Math.sin(theta2);
+
+              ctx.save();
+              ctx.beginPath();
+              ctx.arc(cCx, cCy, rangePx, 0, Math.PI * 2);
+              ctx.clip(); // Restrict shadow polygon strictly to the valid range circle
+
+              // Dark occlusion shadow polygon
+              ctx.beginPath();
+              ctx.moveTo(t1x, t1y);
+              ctx.lineTo(f1x, f1y);
+              ctx.arc(cCx, cCy, rangePx + 20, theta1, theta2);
+              ctx.lineTo(t2x, t2y);
+              ctx.closePath();
+
+              const shadowGrad = ctx.createRadialGradient(obs.x, obs.y, 0, obs.x, obs.y, rangePx);
+              shadowGrad.addColorStop(0, 'rgba(8, 6, 14, 0.90)');
+              shadowGrad.addColorStop(1, 'rgba(3, 2, 8, 0.97)');
+              ctx.fillStyle = shadowGrad;
+              ctx.fill();
+
+              // Draw the two vision blocking tangent boundary rays
+              ctx.strokeStyle = isSnow ? 'rgba(56, 189, 248, 0.45)' : 'rgba(239, 68, 68, 0.45)';
+              ctx.lineWidth = 1.4;
+              ctx.setLineDash([5, 5]);
+              ctx.beginPath();
+              ctx.moveTo(t1x, t1y);
+              ctx.lineTo(f1x, f1y);
+              ctx.moveTo(t2x, t2y);
+              ctx.lineTo(f2x, f2y);
+              ctx.stroke();
+
+              ctx.restore();
+
+              // Illuminated front rim on obstacle catching the caster's aura
+              ctx.save();
+              ctx.strokeStyle = isSnow ? 'rgba(186, 230, 253, 0.75)' : 'rgba(254, 215, 170, 0.75)';
+              ctx.lineWidth = 2;
+              ctx.shadowColor = isSnow ? '#38bdf8' : '#f59e0b';
+              ctx.shadowBlur = 8;
+              ctx.beginPath();
+              ctx.arc(obs.x, obs.y, obs.radius, alpha + Math.PI / 2, alpha - Math.PI / 2, true);
+              ctx.stroke();
+              ctx.restore();
+            });
+          }
+
           // 2. High-Luminance Perimeter Boundary Ring (The crisp boundary of valid range)
           ctx.strokeStyle = isSnow ? 'rgba(186, 230, 253, 0.95)' : 'rgba(254, 240, 138, 0.95)';
           ctx.lineWidth = 2.4;
@@ -551,9 +676,25 @@ export function renderInteractiveReticles(ctx, currentGs, isAshLocal, CS, mouseP
             const mR = mousePos.r;
             const mC = mousePos.c;
             const distFromCaster = Math.hypot(mC - casterCenterC, mR - casterCenterR);
-            const isValidTarget = distFromCaster <= maxEffectiveRange + 0.15;
+            let isValidTarget = distFromCaster <= maxEffectiveRange + 0.15;
             const mCx = mC * CS;
             const mCy = mR * CS;
+
+            // Line-of-sight obstruction check for mouse hover
+            const targetPiece = C.getPieceAt(mR, mC, currentGs.pieces);
+            let isVisionBlocked = false;
+            let blockerInfo = null;
+            if (isValidTarget && ability.canBeBlocked && !isSkyAbility) {
+              const losResult = C.hasLineOfSight(caster.row, caster.col, mR, mC, currentGs, {
+                ignoredPieceId: caster.id,
+                targetPieceId: targetPiece?.id || null
+              });
+              if (!losResult.hasLos) {
+                isVisionBlocked = true;
+                blockerInfo = losResult.blocker;
+                isValidTarget = false;
+              }
+            }
 
             // Targeting guide line from caster to reticle
             ctx.save();
@@ -561,17 +702,70 @@ export function renderInteractiveReticles(ctx, currentGs, isAshLocal, CS, mouseP
             if (isValidTarget) {
               ctx.strokeStyle = isSnow ? 'rgba(186, 230, 253, 0.45)' : 'rgba(254, 240, 138, 0.45)';
               ctx.setLineDash([4, 6]);
+              ctx.beginPath();
+              ctx.moveTo(cCx, cCy);
+              ctx.lineTo(mCx, mCy);
+              ctx.stroke();
+            } else if (isVisionBlocked) {
+              ctx.strokeStyle = 'rgba(239, 68, 68, 0.75)';
+              ctx.setLineDash([3, 4]);
+              ctx.beginPath();
+              ctx.moveTo(cCx, cCy);
+              if (blockerInfo) {
+                const bX = (blockerInfo.col + 0.5) * CS;
+                const bY = (blockerInfo.row + 0.5) * CS;
+                ctx.lineTo(bX, bY);
+                ctx.stroke();
+
+                // Collision impact ring at blocker
+                ctx.strokeStyle = 'rgba(239, 68, 68, 0.9)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([]);
+                ctx.beginPath();
+                ctx.arc(bX, bY, 0.42 * CS, 0, Math.PI * 2);
+                ctx.stroke();
+              } else {
+                ctx.lineTo(mCx, mCy);
+                ctx.stroke();
+              }
             } else {
               ctx.strokeStyle = 'rgba(239, 68, 68, 0.45)';
               ctx.setLineDash([3, 4]);
+              ctx.beginPath();
+              ctx.moveTo(cCx, cCy);
+              ctx.lineTo(mCx, mCy);
+              ctx.stroke();
             }
-            ctx.beginPath();
-            ctx.moveTo(cCx, cCy);
-            ctx.lineTo(mCx, mCy);
-            ctx.stroke();
             ctx.restore();
 
-            if (['FrostfallBlessing', 'ReignOfFire', 'GlacialFracture'].includes(abilityKey)) {
+            if (isVisionBlocked) {
+              ctx.save();
+              ctx.translate(mCx, mCy);
+              // Red obstruction ring
+              ctx.strokeStyle = '#ef4444';
+              ctx.lineWidth = 2;
+              ctx.fillStyle = 'rgba(239, 68, 68, 0.18)';
+              ctx.beginPath();
+              ctx.arc(0, 0, 14, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.stroke();
+
+              // Diagonal slash
+              ctx.beginPath();
+              ctx.moveTo(-9, -9);
+              ctx.lineTo(9, 9);
+              ctx.stroke();
+
+              // Badge text
+              ctx.font = 'bold 10px monospace';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillStyle = '#fca5a5';
+              ctx.shadowColor = 'rgba(0,0,0,0.9)';
+              ctx.shadowBlur = 4;
+              ctx.fillText('BLOCKED', 0, 22);
+              ctx.restore();
+            } else if (['FrostfallBlessing', 'ReignOfFire', 'GlacialFracture'].includes(abilityKey)) {
               if (isValidTarget) {
                 ctx.setLineDash([]);
                 if (abilityKey === 'FrostfallBlessing') {

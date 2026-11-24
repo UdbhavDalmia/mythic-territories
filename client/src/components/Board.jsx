@@ -173,11 +173,7 @@ function Board({
     const wallSet = new Set((gameState?.glacialWalls || []).map(w => `${w.row},${w.col}`));
     const craterSet = new Set((gameState?.specialTerrains || []).filter(st => st.type === 'crater').map(st => `${Math.round(st.row)},${Math.round(st.col)}`));
 
-    // Ability targeting highlights
-    const isAbilityTargeting = gameState?.currentState === 'ABILITY_TARGETING' || gameState?.currentState === 'WALL_PLACEMENT_FIRST' || gameState?.currentState === 'TETHER_TARGETING' || gameState?.currentState === 'WALL_PLACEMENT_SECOND';
-    const pieceByCoord = isAbilityTargeting && gameState?.pieces
-      ? new Map(gameState.pieces.map(p => [`${p.row},${p.col}`, p]))
-      : null;
+
 
     for (let i = 0; i < 100; i++) {
       const { r, c } = getCellCoords(i);
@@ -191,68 +187,7 @@ function Board({
       
       const riftOwner = isRiftCell(r, c);
 
-      // Check if cell is valid for ability target
-      let isAbilityTarget = false;
-      if (isAbilityTargeting && gameState?.selectedPiece) {
-        const piece = gameState.selectedPiece;
-        const abilityKey = gameState.abilityContext?.abilityKey || piece.ability?.key;
-        const ability = C.ABILITIES[abilityKey];
 
-        if (gameState.currentState === 'WALL_PLACEMENT_SECOND' && gameState.firstWallCoords) {
-          const { row: fR, col: fC } = gameState.firstWallCoords;
-          const isNeighbor = Math.max(Math.abs(fR - r), Math.abs(fC - c)) === 1;
-          const hasUnit = pieceByCoord ? pieceByCoord.has(posKey) : (gameState.pieces || []).some(p => p.row === r && p.col === c);
-          isAbilityTarget = isNeighbor && !hasUnit;
-        } else if (gameState.currentState === 'TETHER_TARGETING' && gameState.abilityContext) {
-          const { siphoner, mode, allyTarget } = gameState.abilityContext;
-          const siphonerOnRift = isRiftCell(siphoner.row, siphoner.col);
-          const maxRange = siphonerOnRift ? 4 : 3;
-          const distance = Math.max(Math.abs(siphoner.row - r), Math.abs(siphoner.col - c));
-          
-          if (distance <= maxRange) {
-            const targetPiece = pieceByCoord ? pieceByCoord.get(posKey) : (gameState.pieces || []).find(p => p.row === r && p.col === c);
-            if (mode === 'resonance') {
-              if (!allyTarget) isAbilityTarget = targetPiece && targetPiece.team === siphoner.team && targetPiece.id !== siphoner.id;
-              else isAbilityTarget = targetPiece && targetPiece.team !== siphoner.team && (targetPiece.power || 0) > 0;
-            } else if (mode === 'benevolent' || mode === 'parasitic') {
-              if (mode === 'parasitic') isAbilityTarget = targetPiece && targetPiece.team === siphoner.team && (targetPiece.power || 0) > 0;
-              else isAbilityTarget = targetPiece && targetPiece.team === siphoner.team;
-            } else if (mode === 'hostile') {
-              isAbilityTarget = targetPiece && targetPiece.team !== siphoner.team && (targetPiece.power || 0) > 0;
-            }
-          }
-        } else if (ability) {
-          let abilityRange = ability.range;
-          if (gameState.testMode && ['ashMagmaShaper', 'snowFrostLord', 'ashAshTyrant', 'snowGlacialMage', 'snowSoulLinker', 'ashAshReaper', 'snowIceWisp'].includes(piece.key)) {
-            abilityRange = 10;
-          }
-          const distance = Math.max(Math.abs(piece.row - r), Math.abs(piece.col - c));
-          if (abilityRange < 0 || distance <= abilityRange) {
-            if (ability.specialTargeting) {
-              isAbilityTarget = ability.specialTargeting(piece, { r, c }, gameState);
-            } else {
-              const targetPiece = pieceByCoord ? pieceByCoord.get(posKey) : (gameState.pieces || []).find(p => p.row === r && p.col === c);
-              switch (ability.targetType) {
-                case 'enemy': isAbilityTarget = targetPiece && targetPiece.team !== piece.team && !targetPiece.hasDefensiveWard; break;
-                case 'friendly': isAbilityTarget = targetPiece && targetPiece.team === piece.team; break;
-                case 'empty': isAbilityTarget = !targetPiece && !isWall && !isVoid; break;
-                case 'any': {
-                  if (abilityKey === 'ObsidianPillar') {
-                    if (targetPiece) {
-                      isAbilityTarget = targetPiece.team === piece.team || !targetPiece.hasDefensiveWard;
-                    } else {
-                      isAbilityTarget = !isWall && !isVoid && !hasCrater;
-                    }
-                  } else {
-                    isAbilityTarget = true;
-                  }
-                  break;
-                }
-              }
-            }
-          }
-        }
-      }
 
       const wallObj = isWall ? (gameState?.glacialWalls || []).find(w => w.row === r && w.col === c) : null;
       const isObsidian = wallObj && wallObj.type === 'obsidianPillar';
@@ -311,31 +246,7 @@ function Board({
             </div>
           )}
 
-          {/* Faction-tuned ethereal ability target rune */}
-          {isAbilityTarget && !['FrostfallBlessing', 'ReignOfFire', 'GlacialFracture'].includes(gameState?.abilityContext?.abilityKey || gameState?.selectedPiece?.ability?.key) && (
-            <div 
-              className="absolute inset-1 pointer-events-none rounded-full flex items-center justify-center"
-              style={{
-                background: gameState?.selectedPiece?.team === 'snow'
-                  ? 'radial-gradient(circle, rgba(56, 189, 248, 0.25) 0%, rgba(14, 165, 233, 0.08) 65%, transparent 100%)'
-                  : 'radial-gradient(circle, rgba(249, 115, 22, 0.25) 0%, rgba(239, 68, 68, 0.08) 65%, transparent 100%)',
-                border: gameState?.selectedPiece?.team === 'snow'
-                  ? '1.5px solid rgba(186, 230, 253, 0.75)'
-                  : '1.5px solid rgba(254, 215, 170, 0.75)',
-                boxShadow: gameState?.selectedPiece?.team === 'snow'
-                  ? '0 0 10px rgba(56, 189, 248, 0.5), inset 0 0 6px rgba(56, 189, 248, 0.2)'
-                  : '0 0 10px rgba(249, 115, 22, 0.5), inset 0 0 6px rgba(249, 115, 22, 0.2)',
-              }}
-            >
-              <div 
-                className="w-2 h-2 rounded-full"
-                style={{
-                  backgroundColor: gameState?.selectedPiece?.team === 'snow' ? '#e0f2fe' : '#fef3c7',
-                  boxShadow: '0 0 6px #ffffff'
-                }}
-              />
-            </div>
-          )}
+
         </div>
       );
     }
