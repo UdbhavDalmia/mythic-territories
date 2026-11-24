@@ -26,7 +26,6 @@ export const ABILITY_VALUES = {
   HuntersRage: { duration: 3, cooldown: 4, powerBoost: 1 },
   InnerFurnace: { duration: 4, powerBoost: 1 },
   KindleArmor: { range: 1, duration: 3, cooldown: 3, powerBoost: 1 },
-  KingsEdict: { duration: 4, powerDebuff: 1 },
   LavaGlob: { cooldown: 10, range: 4, damage: 1, maxTargetPower: 2 },
   ObsidianPillar: { range: 2, duration: 2, cooldown: 5 },
   MarkOfCinder: { cooldown: 4, range: 2, duration: 3, powerDebuff: 1 },
@@ -280,21 +279,6 @@ export const ABILITIES = {
         amount: ABILITY_VALUES.HuntersRage.powerBoost,
         duration: ABILITY_VALUES.HuntersRage.duration,
         name: "HuntersRage"
-      })
-  },
-  KingsEdict: {
-    name: "King's Edict",
-    requiresTargeting: false,
-    isUltimate: true,
-    effect: (p, t, gs) =>
-      gs.pieces.forEach((op) => {
-        if (op.team !== p.team && !op.hasDefensiveWard)
-          applyDebuff(gs, {
-            pieceId: op.id,
-            amount: ABILITY_VALUES.KingsEdict.powerDebuff,
-            duration: ABILITY_VALUES.KingsEdict.duration,
-            name: "Edict"
-          });
       })
   },
   KindleArmor: {

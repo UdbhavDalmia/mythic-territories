@@ -60,22 +60,68 @@ export function deepClone(obj) {
     return newState;
 }
 
+// High-speed lightweight state cloner specifically for search simulations (avoids structuredClone overhead)
+function cloneStateForSimulation(gameState) {
+    if (!gameState) return gameState;
+    const pieces = (gameState.pieces || []).map(p => ({
+        ...p,
+        ability: p.ability ? { ...p.ability } : undefined
+    }));
+    const pieceMap = new Map(pieces.map(p => [p.id, p]));
+
+    return {
+        ...gameState,
+        pieces,
+        snowTerritory: gameState.snowTerritory ? new Set(gameState.snowTerritory) : new Set(),
+        ashTerritory: gameState.ashTerritory ? new Set(gameState.ashTerritory) : new Set(),
+        specialTerrains: gameState.specialTerrains ? gameState.specialTerrains.map(t => ({ ...t })) : [],
+        glacialWalls: gameState.glacialWalls ? gameState.glacialWalls.map(w => ({ ...w })) : [],
+        unstableGrounds: gameState.unstableGrounds ? gameState.unstableGrounds.map(g => ({ ...g })) : [],
+        temporaryBoosts: gameState.temporaryBoosts ? gameState.temporaryBoosts.map(b => ({
+            ...b,
+            piece: b.pieceId != null ? pieceMap.get(b.pieceId) : b.piece
+        })) : [],
+        debuffs: gameState.debuffs ? gameState.debuffs.map(d => ({
+            ...d,
+            piece: d.pieceId != null ? pieceMap.get(d.pieceId) : d.piece
+        })) : [],
+        markedPieces: gameState.markedPieces ? gameState.markedPieces.map(m => ({
+            ...m,
+            target: m.targetId != null ? pieceMap.get(m.targetId) : m.target
+        })) : [],
+        shields: gameState.shields ? gameState.shields.map(s => ({
+            ...s,
+            piece: s.pieceId != null ? pieceMap.get(s.pieceId) : s.piece
+        })) : [],
+        dynamicRifts: gameState.dynamicRifts || [
+            { cells: [[0, 0], [0, 1], [1, 0], [1, 1]] },
+            { cells: [[8, 8], [8, 9], [9, 8], [9, 9]] }
+        ]
+    };
+}
+
 // Evaluates piece abilities, cooldowns, and active effects.
-function evaluateAbilityStatus(gameState, aiTeam, opponentTeam, aiConfig) {
+function evaluateAbilityStatus(gameState, aiTeam, opponentTeam, aiConfig, evalIndex) {
     let score = 0;
+    const hasBoost = evalIndex ? (id) => evalIndex.boostedPieceIds.has(id) : (id) => (gameState.temporaryBoosts || []).some(b => b.pieceId === id);
+    const hasDebuffOrMark = evalIndex
+        ? (id) => evalIndex.debuffedPieceIds.has(id) || evalIndex.markedPieceIds.has(id)
+        : (id) => (gameState.debuffs || []).some(d => d.pieceId === id) || (gameState.markedPieces || []).some(m => m.targetId === id);
+    const hasShield = evalIndex ? (id) => evalIndex.shieldedPieceIds.has(id) : (id) => (gameState.shields || []).some(s => s.pieceId === id);
+
     gameState.pieces.forEach(p => {
         const valueModifier = (C.PIECE_VALUES[p.key] || 200) / 1000;
         if (p.team === aiTeam) {
             if (p.ability?.cooldown > 0) score -= p.ability.cooldown * 50 * valueModifier;
-            if ((gameState.temporaryBoosts || []).some(b => b.pieceId === p.id)) score += 300 * valueModifier;
-            if ((gameState.debuffs || []).some(d => d.pieceId === p.id) || (gameState.markedPieces || []).some(m => m.targetId === p.id)) score -= 400 * valueModifier;
-            if ((gameState.shields || []).some(s => s.pieceId === p.id)) score += 350 * valueModifier;
+            if (hasBoost(p.id)) score += 300 * valueModifier;
+            if (hasDebuffOrMark(p.id)) score -= 400 * valueModifier;
+            if (hasShield(p.id)) score += 350 * valueModifier;
             if (p.ability && !p.ability.cooldown) score += 50 * valueModifier;
         } else {
             if (p.ability?.cooldown > 0) score += p.ability.cooldown * 30 * valueModifier;
-            if ((gameState.temporaryBoosts || []).some(b => b.pieceId === p.id)) score -= 300 * valueModifier;
-            if ((gameState.debuffs || []).some(d => d.pieceId === p.id) || (gameState.markedPieces || []).some(m => m.targetId === p.id)) score += 400 * valueModifier;
-            if ((gameState.shields || []).some(s => s.pieceId === p.id)) score -= 350 * valueModifier;
+            if (hasBoost(p.id)) score -= 300 * valueModifier;
+            if (hasDebuffOrMark(p.id)) score += 400 * valueModifier;
+            if (hasShield(p.id)) score -= 350 * valueModifier;
             if (p.ability && !p.ability.cooldown) score -= 50 * valueModifier;
         }
     });
@@ -147,6 +193,30 @@ function evaluateBoardState(gameState, aiTeam, aiConfig) {
         }
     }
 
+    // Pre-index status effects for O(1) membership lookups (Optimization 4)
+    const evalIndex = {
+        boostedPieceIds: new Set((gameState.temporaryBoosts || []).map(b => b.pieceId)),
+        debuffedPieceIds: new Set((gameState.debuffs || []).map(d => d.pieceId)),
+        markedPieceIds: new Set((gameState.markedPieces || []).map(m => m.targetId)),
+        shieldedPieceIds: new Set((gameState.shields || []).map(s => s.pieceId)),
+        hamstrungIds: new Set((gameState.debuffs || [])
+            .filter(d => d.name === 'Hamstrung')
+            .map(d => d.pieceId)
+        )
+    };
+
+    // Cache valid moves computed during this board evaluation (Optimization 1)
+    const movesCache = new Map();
+    const getMoves = (piece) => {
+        if (!piece) return [];
+        let m = movesCache.get(piece.id);
+        if (!m) {
+            m = getValidMoves(piece, gameState);
+            movesCache.set(piece.id, m);
+        }
+        return m;
+    };
+
     const W_LEADER_SAFETY = aiConfig.W_LEADER_SAFETY;
     const W_PIECE_SAFETY = aiConfig.W_PIECE_SAFETY;
     const W_LEADER_THREAT = aiConfig.W_LEADER_THREAT;
@@ -160,16 +230,16 @@ function evaluateBoardState(gameState, aiTeam, aiConfig) {
     const W_POSITIONAL = aiConfig.W_POSITIONAL;
     const W_HAZARDS = aiConfig.W_HAZARDS;
 
-    score += evaluateLeaderSafety(aiLeader, opponentTeam, gameState, aiConfig) * W_LEADER_SAFETY;
-    score += evaluatePieceSafety(gameState, aiTeam, opponentTeam, aiConfig) * W_PIECE_SAFETY;
-    score += evaluateOpponentLeaderThreat(opponentLeader, aiTeam, gameState, aiConfig) * W_LEADER_THREAT;
+    score += evaluateLeaderSafety(aiLeader, opponentTeam, gameState, aiConfig, getMoves, evalIndex) * W_LEADER_SAFETY;
+    score += evaluatePieceSafety(gameState, aiTeam, opponentTeam, aiConfig, getMoves, evalIndex) * W_PIECE_SAFETY;
+    score += evaluateOpponentLeaderThreat(opponentLeader, aiTeam, gameState, aiConfig, getMoves) * W_LEADER_THREAT;
     score += evaluateNetPieceValue(gameState, aiTeam, opponentTeam, aiConfig) * W_NET_VALUE;
     score += evaluateNetEffectivePower(gameState, aiTeam, opponentTeam, aiConfig) * W_NET_POWER;
     score += evaluateSiphonCharges(gameState, aiTeam, opponentTeam, aiConfig) * W_SIPHON;
     score += evaluateConduitLink(gameState, aiTeam, opponentTeam, aiConfig) * W_CONDUIT;
     score += evaluateShrine(gameState, aiTeam, opponentTeam, aiConfig) * W_SHRINE;
-    score += evaluateAbilityStatus(gameState, aiTeam, opponentTeam, aiConfig) * W_ABILITY;
-    score += evaluateTerritoryAndMobility(gameState, aiTeam, opponentTeam, aiConfig) * W_TERR_MOB;
+    score += evaluateAbilityStatus(gameState, aiTeam, opponentTeam, aiConfig, evalIndex) * W_ABILITY;
+    score += evaluateTerritoryAndMobility(gameState, aiTeam, opponentTeam, aiConfig, getMoves) * W_TERR_MOB;
     score += evaluatePositionalValue(gameState, aiTeam, opponentTeam, aiConfig) * W_POSITIONAL;
     score += evaluateBoardHazards(gameState, aiTeam, opponentTeam, aiConfig) * W_HAZARDS;
 
@@ -186,13 +256,13 @@ function evaluateConduitLink(gameState, aiTeam, opponentTeam, aiConfig) {
         }
     }
     const aiPiecesOnRifts = C.SHAPES.riftAreas.filter(rift =>
-        rift.cells.some(([r, c]) => C.getPieceAt(r, c, gameState.boardMap)?.team === aiTeam)
+        rift.cells.some(([r, c]) => C.getPieceAt(r, c, gameState.pieces)?.team === aiTeam)
     ).length;
     return aiPiecesOnRifts * 1000;
 }
 
 // Evaluates the safety of the AI's leader.
-function evaluateLeaderSafety(leader, opponentTeam, gameState, aiConfig) {
+function evaluateLeaderSafety(leader, opponentTeam, gameState, aiConfig, getMoves, evalIndex) {
     if (!leader) return -1000000;
 
     let safetyScore = 0;
@@ -209,7 +279,7 @@ function evaluateLeaderSafety(leader, opponentTeam, gameState, aiConfig) {
     const opponentPieces = gameState.pieces.filter(p => p.team === opponentTeam);
 
     for (const enemy of opponentPieces) {
-        const enemyMoves = getValidMoves(enemy, gameState);
+        const enemyMoves = getMoves ? getMoves(enemy) : getValidMoves(enemy, gameState);
 
         if (Math.max(Math.abs(leader.row - enemy.row), Math.abs(leader.col - enemy.col)) <= 1) {
             safetyScore -= 10000 + getEffectivePower(enemy, gameState) * 100;
@@ -222,7 +292,8 @@ function evaluateLeaderSafety(leader, opponentTeam, gameState, aiConfig) {
         }
     }
 
-    if ((gameState.debuffs || []).some(d => d.pieceId === leader.id && (d.name === 'Edict' || d.name === 'Hamstrung'))) {
+    const hasHamstrung = evalIndex ? evalIndex.hamstrungIds.has(leader.id) : (gameState.debuffs || []).some(d => d.pieceId === leader.id && d.name === 'Hamstrung');
+    if (hasHamstrung) {
         safetyScore -= 1000;
     }
     if ((leader.stuck || 0) > 0) {
@@ -258,14 +329,14 @@ function evaluateNetPieceValue(gameState, aiTeam, opponentTeam, aiConfig) {
 }
 
 // Evaluates the threat posed by the opponent's leader.
-function evaluateOpponentLeaderThreat(opponentLeader, aiTeam, gameState, aiConfig) {
+function evaluateOpponentLeaderThreat(opponentLeader, aiTeam, gameState, aiConfig, getMoves) {
     let threatScore = 0;
     if (!opponentLeader) return 1000000;
 
     const aiPieces = gameState.pieces.filter(p => p.team === aiTeam);
 
     for (const piece of aiPieces) {
-        const moves = getValidMoves(piece, gameState);
+        const moves = getMoves ? getMoves(piece) : getValidMoves(piece, gameState);
         if (moves.some(move => move.row === opponentLeader.row && move.col === opponentLeader.col)) {
             threatScore += 20000 + (C.PIECE_VALUES[piece.key] || 0) * 5;
         } else if (moves.some(move => Math.max(Math.abs(move.row - opponentLeader.row), Math.abs(move.col - opponentLeader.col)) <= 1)) {
@@ -276,27 +347,32 @@ function evaluateOpponentLeaderThreat(opponentLeader, aiTeam, gameState, aiConfi
 }
 
 // Evaluates the safety of non-leader pieces.
-function evaluatePieceSafety(gameState, aiTeam, opponentTeam, aiConfig) {
+function evaluatePieceSafety(gameState, aiTeam, opponentTeam, aiConfig, getMoves, evalIndex) {
     let safetyScore = 0;
     const aiPieces = gameState.pieces.filter(p => p.team === aiTeam);
     const opponentPieces = gameState.pieces.filter(p => p.team === opponentTeam);
 
+    // Build reachability threat set from enemy moves (Optimization 1)
+    const enemyThreatSquares = new Set();
+    for (const enemyPiece of opponentPieces) {
+        const moves = getMoves ? getMoves(enemyPiece) : getValidMoves(enemyPiece, gameState);
+        for (const m of moves) {
+            enemyThreatSquares.add(`${m.row},${m.col}`);
+        }
+    }
+
     for (const myPiece of aiPieces) {
         if (myPiece.key.includes('Lord') || myPiece.key.includes('Tyrant')) continue;
 
-        if ((gameState.shields || []).some(s => s.pieceId === myPiece.id)) {
+        const hasShield = evalIndex ? evalIndex.shieldedPieceIds.has(myPiece.id) : (gameState.shields || []).some(s => s.pieceId === myPiece.id);
+        if (hasShield) {
             safetyScore += 150;
         }
 
-        let isThreatened = false;
-        for (const enemyPiece of opponentPieces) {
-            if (getValidMoves(enemyPiece, gameState).some(move => move.row === myPiece.row && move.col === myPiece.col)) {
-                safetyScore -= (C.PIECE_VALUES[myPiece.key] || 50) * 1.5;
-                isThreatened = true;
-                break;
-            }
-        }
-        if (!isThreatened) {
+        const isThreatened = enemyThreatSquares.has(`${myPiece.row},${myPiece.col}`);
+        if (isThreatened) {
+            safetyScore -= (C.PIECE_VALUES[myPiece.key] || 50) * 1.5;
+        } else {
             safetyScore += (C.PIECE_VALUES[myPiece.key] || 50) * 0.1;
         }
     }
@@ -346,8 +422,8 @@ function evaluateShrine(gameState, aiTeam, opponentTeam, aiConfig) {
         }
     }
 
-    const aiControl = C.SHAPES.shrineArea.filter(([r, c]) => C.getPieceAt(r, c, gameState.boardMap)?.team === aiTeam).length;
-    const oppControl = C.SHAPES.shrineArea.filter(([r, c]) => C.getPieceAt(r, c, gameState.boardMap)?.team === opponentTeam).length;
+    const aiControl = C.SHAPES.shrineArea.filter(([r, c]) => C.getPieceAt(r, c, gameState.pieces)?.team === aiTeam).length;
+    const oppControl = C.SHAPES.shrineArea.filter(([r, c]) => C.getPieceAt(r, c, gameState.pieces)?.team === opponentTeam).length;
     score += (aiControl - oppControl) * 200;
 
     return score;
@@ -366,14 +442,15 @@ function evaluateSiphonCharges(gameState, aiTeam, opponentTeam, aiConfig) {
 }
 
 // Evaluates the difference in territory control and piece mobility.
-function evaluateTerritoryAndMobility(gameState, aiTeam, opponentTeam, aiConfig) {
+function evaluateTerritoryAndMobility(gameState, aiTeam, opponentTeam, aiConfig, getMoves) {
     const territoryScore = (gameState.snowTerritory.size - gameState.ashTerritory.size) * 50 * (aiTeam === 'snow' ? 1 : -1);
 
     let aiMoves = 0, opponentMoves = 0;
     gameState.pieces.forEach(p => {
         if (!(p.key.includes('Lord') || p.key.includes('Tyrant'))) {
-            if (p.team === aiTeam) aiMoves += getValidMoves(p, gameState).length;
-            else if (p.team === opponentTeam) opponentMoves += getValidMoves(p, gameState).length;
+            const count = getMoves ? getMoves(p).length : getValidMoves(p, gameState).length;
+            if (p.team === aiTeam) aiMoves += count;
+            else if (p.team === opponentTeam) opponentMoves += count;
         }
     });
     const mobilityScore = (aiMoves - opponentMoves) * 25;
@@ -403,7 +480,7 @@ function getOrderedActions(gameState, team) {
                 const distance = Math.max(Math.abs(p.row - r), Math.abs(p.col - c));
                 if (ability.range >= 0 && distance > ability.range) return false;
                 if (ability.specialTargeting) return ability.specialTargeting(p, { r, c }, gameState);
-                const targetPiece = C.getPieceAt(r, c, gameState.boardMap);
+                const targetPiece = C.getPieceAt(r, c, gameState.pieces);
                 switch (ability.targetType) {
                     case 'enemy': return !!targetPiece && targetPiece.team === opponentTeam;
                     case 'friendly': return !!targetPiece && targetPiece.team === team;
@@ -432,7 +509,7 @@ function getOrderedActions(gameState, team) {
                                 for (let r = 0; r < C.ROWS; r++) {
                                     for (let c = 0; c < C.COLS; c++) {
                                         if (!abilityTargetIsValid(ability, p, r, c)) continue;
-                                        const targetPiece = C.getPieceAt(r, c, gameState.boardMap);
+                                        const targetPiece = C.getPieceAt(r, c, gameState.pieces);
                                         if (ability.canBeBlocked && targetPiece?.hasDefensiveWard) continue;
                                         possibleActions.push({ type: 'ability', piece: p, abilityKey: p.ability.key, target: { r, c } });
                                     }
@@ -559,7 +636,7 @@ function scoreActionHeuristically(action, gameState, aiTeam) {
     const opponentLeader = gameState.pieces.find(p => p.team === opponentTeam && (p.key.includes('Lord') || p.key.includes('Tyrant')));
 
     if (action.type === 'move') {
-        const defender = target ? C.getPieceAt(target.row, target.col, gameState.boardMap) : null;
+        const defender = target ? C.getPieceAt(target.row, target.col, gameState.pieces) : null;
         if (defender) {
             score += 1000 + (C.PIECE_VALUES[defender.key] || 0) * 10;
             if ((C.PIECE_VALUES[piece.key] || 0) < (C.PIECE_VALUES[defender.key] || 0)) score -= 50;
@@ -586,12 +663,10 @@ function scoreActionHeuristically(action, gameState, aiTeam) {
 
     } else if (action.type === 'ability') {
         const abilityKey = action.abilityKey;
-        const targetPiece = action.target ? C.getPieceAt(action.target.r, action.target.c, gameState.boardMap) : null;
+        const targetPiece = action.target ? C.getPieceAt(action.target.r, action.target.c, gameState.pieces) : null;
 
         if (abilityKey === 'Siphon') {
             score += 700;
-        } else if (abilityKey === 'KingsEdict') {
-            score += 1000;
         } else if (abilityKey === 'MarkOfCinder' || abilityKey === 'LavaGlob') {
             if (targetPiece) {
                 score += 800 + (C.PIECE_VALUES[targetPiece.key] || 0) * 2;
@@ -611,7 +686,7 @@ function simulateAction(gameState, action) {
 
 // Simulates the use of an ability.
 function simulateAbility(gameState, piece, abilityKey, target = null) {
-    const tempState = deepClone(gameState);
+    const tempState = cloneStateForSimulation(gameState);
     const simPiece = findPieceInState(tempState, piece);
     if (!simPiece) return tempState;
 
@@ -630,7 +705,7 @@ function simulateAbility(gameState, piece, abilityKey, target = null) {
     if (ability?.effect) {
         let canApplyEffect = true;
         if (target && ability.canBeBlocked) {
-            const targetPiece = C.getPieceAt(target.r, target.c, tempState.boardMap);
+            const targetPiece = C.getPieceAt(target.r, target.c, tempState.pieces);
             if (targetPiece && targetPiece.hasDefensiveWard) canApplyEffect = false;
         }
 
@@ -648,8 +723,6 @@ function simulateAbility(gameState, piece, abilityKey, target = null) {
             }
         }
 
-        tempState.boardMap = Array.from({ length: C.ROWS }, () => Array(C.COLS).fill(null));
-        tempState.pieces.forEach(p => { tempState.boardMap[p.row][p.col] = p; });
         updateConduitLink(tempState);
     }
     return tempState;
@@ -657,11 +730,11 @@ function simulateAbility(gameState, piece, abilityKey, target = null) {
 
 // Simulates a piece movement and potential combat/ground effects.
 function simulateMove(gameState, piece, target) {
-    const tempState = deepClone(gameState);
+    const tempState = cloneStateForSimulation(gameState);
     const simPiece = findPieceInState(tempState, piece);
     if (!simPiece) return tempState;
 
-    const defender = C.getPieceAt(target.row, target.col, tempState.boardMap);
+    const defender = C.getPieceAt(target.row, target.col, tempState.pieces);
     if (defender) {
         tempState.pieces = tempState.pieces.filter(p => p.id !== defender.id);
     }
@@ -698,8 +771,6 @@ function simulateMove(gameState, piece, target) {
         }
     }
 
-    tempState.boardMap = Array.from({ length: C.ROWS }, () => Array(C.COLS).fill(null));
-    tempState.pieces.forEach(p => { tempState.boardMap[p.row][p.col] = p; });
     updateConduitLink(tempState);
     return tempState;
 }

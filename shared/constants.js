@@ -114,7 +114,20 @@ export function cellIntersectsSector(r, c, sourceR, sourceC, targetR, targetC, r
    SECTION 4: ENGINE HELPERS & TARGETING LOGIC
    Pure functions used heavily by abilities to validate board state.
    ========================================================================== */
-export const getPieceAt = (r, c, pieces) => pieces ? pieces.find(p => Math.hypot(p.col - c, p.row - r) < 0.7) || null : null;
+export const getPieceAt = (r, c, pieces) => {
+  if (!pieces) return null;
+  const len = pieces.length;
+  for (let i = 0; i < len; i++) {
+    const p = pieces[i];
+    if (!p) continue;
+    const dr = p.row - r;
+    if (dr > 0.7 || dr < -0.7) continue;
+    const dc = p.col - c;
+    if (dc > 0.7 || dc < -0.7) continue;
+    if (dr * dr + dc * dc < 0.49) return p;
+  }
+  return null;
+};
 export const inBounds = (r, c) => r >= 0 && r < ROWS && c >= 0 && c < COLS;
 
 export function emit(gs, eventPayload) {

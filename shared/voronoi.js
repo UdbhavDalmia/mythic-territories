@@ -272,6 +272,25 @@ function extractContestedFrontlines(cells) {
   const frostCells = cells.filter((c) => c.team === 'snow' && c.polygon.length >= 3);
   const ashCells = cells.filter((c) => c.team === 'ash' && c.polygon.length >= 3);
 
+  // Helper to ensure bounding box on cell
+  function getBBox(c) {
+    if (c._bbox) return c._bbox;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    const poly = c.polygon;
+    for (let i = 0; i < poly.length; i++) {
+      const p = poly[i];
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    }
+    c._bbox = { minX, maxX, minY, maxY };
+    return c._bbox;
+  }
+
+  for (let i = 0; i < frostCells.length; i++) getBBox(frostCells[i]);
+  for (let j = 0; j < ashCells.length; j++) getBBox(ashCells[j]);
+
   // Helper to test if a point lies on a line segment
   function isPointOnSegment(p, a, b, eps = 0.02) {
     const cross = Math.abs((p.y - a.y) * (b.x - a.x) - (p.x - a.x) * (b.y - a.y));
@@ -285,20 +304,46 @@ function extractContestedFrontlines(cells) {
 
   // Helper to find segment overlap
   for (const fc of frostCells) {
+    const fBBox = fc._bbox;
     const fPoly = fc.polygon;
     const fLen = fPoly.length;
 
-    for (let fi = 0; fi < fLen; fi++) {
-      const f1 = fPoly[fi];
-      const f2 = fPoly[(fi + 1) % fLen];
+    for (const ac of ashCells) {
+      const aBBox = ac._bbox;
+      // Fast AABB rejection: if cell bounding boxes don't touch within tolerance, skip edge comparisons
+      if (
+        fBBox.maxX < aBBox.minX - 0.05 ||
+        fBBox.minX > aBBox.maxX + 0.05 ||
+        fBBox.maxY < aBBox.minY - 0.05 ||
+        fBBox.minY > aBBox.maxY + 0.05
+      ) {
+        continue;
+      }
 
-      for (const ac of ashCells) {
-        const aPoly = ac.polygon;
-        const aLen = aPoly.length;
+      const aPoly = ac.polygon;
+      const aLen = aPoly.length;
+
+      for (let fi = 0; fi < fLen; fi++) {
+        const f1 = fPoly[fi];
+        const f2 = fPoly[(fi + 1) % fLen];
+        const fMinX = Math.min(f1.x, f2.x) - 0.02;
+        const fMaxX = Math.max(f1.x, f2.x) + 0.02;
+        const fMinY = Math.min(f1.y, f2.y) - 0.02;
+        const fMaxY = Math.max(f1.y, f2.y) + 0.02;
 
         for (let ai = 0; ai < aLen; ai++) {
           const a1 = aPoly[ai];
           const a2 = aPoly[(ai + 1) % aLen];
+
+          // Fast edge AABB rejection
+          if (
+            fMaxX < Math.min(a1.x, a2.x) ||
+            fMinX > Math.max(a1.x, a2.x) ||
+            fMaxY < Math.min(a1.y, a2.y) ||
+            fMinY > Math.max(a1.y, a2.y)
+          ) {
+            continue;
+          }
 
           // Check if segments are collinear and overlapping
           const p1InA = isPointOnSegment(f1, a1, a2);
@@ -388,6 +433,19 @@ export function syncTerritorySetsFromVoronoi(gameState, voronoiData) {
   const activeCells = voronoiData.cells.filter(c => c.polygon && c.polygon.length >= 3);
   if (activeCells.length === 0) return;
 
+  // Pre-calculate 2D bounding boxes to avoid expensive polygon ray-casting on distant cells
+  const boundedCells = activeCells.map(cell => {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (let p = 0; p < cell.polygon.length; p++) {
+      const pt = cell.polygon[p];
+      if (pt.x < minX) minX = pt.x;
+      if (pt.x > maxX) maxX = pt.x;
+      if (pt.y < minY) minY = pt.y;
+      if (pt.y > maxY) maxY = pt.y;
+    }
+    return { cell, minX, maxX, minY, maxY };
+  });
+
   gameState.snowTerritory.clear();
   gameState.ashTerritory.clear();
 
@@ -398,8 +456,12 @@ export function syncTerritorySetsFromVoronoi(gameState, voronoiData) {
       let bestTeam = null;
       let minPow = Infinity;
 
-      for (let i = 0; i < activeCells.length; i++) {
-        const cell = activeCells[i];
+      for (let i = 0; i < boundedCells.length; i++) {
+        const b = boundedCells[i];
+        if (px < b.minX || px > b.maxX || py < b.minY || py > b.maxY) {
+          continue;
+        }
+        const cell = b.cell;
         if (isPointInPolygon(px, py, cell.polygon)) {
           const dx = px - cell.center.x;
           const dy = py - cell.center.y;

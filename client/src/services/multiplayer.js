@@ -68,12 +68,11 @@ export const getRoomTtl = (status = 'WAITING') => {
 // Serialize GameState to JSON string for Firestore (bypassing Firestore nested-array restrictions)
 export const serializeGameState = (gs) => {
   if (!gs) return null;
-  const raw = JSON.parse(JSON.stringify(gs));
-  raw.snowTerritory = Array.from(gs.snowTerritory || []);
-  raw.ashTerritory = Array.from(gs.ashTerritory || []);
-  delete raw.images;
-  delete raw.boardImgs;
-  return JSON.stringify(raw);
+  const { images, boardImgs, ...rest } = gs;
+  return JSON.stringify(rest, (key, value) => {
+    if (value instanceof Set) return Array.from(value);
+    return value;
+  });
 };
 
 // Serialize only mutable gameplay delta to JSON string for Firestore turn sync
@@ -84,7 +83,7 @@ export const serializeDelta = (gs) => {
     turnCount: gs.turnCount,
     currentTurn: gs.currentTurn,
     currentState: gs.currentState,
-    events: gs.events || [],
+    events: (gs.events || []).slice(-20),
     selectedPiece: gs.selectedPiece || null,
     snowTerritory: Array.from(gs.snowTerritory || []),
     ashTerritory: Array.from(gs.ashTerritory || []),
@@ -103,15 +102,15 @@ export const serializeDelta = (gs) => {
     shrineChargeLevel: gs.shrineChargeLevel || 0,
     shrineIsOverloaded: !!gs.shrineIsOverloaded,
     glacialWalls: gs.glacialWalls || [],
-    markedPieces: gs.markedPieces || [],
+    markedPieces: (gs.markedPieces || []).map(m => (m.target ? { ...m, target: undefined } : m)),
     unstableGrounds: (gs.unstableGrounds || []).filter(Boolean).map(g => ({
       ...g,
       creator: (typeof g.creator === 'object' && g.creator !== null) ? g.creator.id : g.creator
     })),
     specialTerrains: gs.specialTerrains || [],
-    shields: gs.shields || [],
-    temporaryBoosts: gs.temporaryBoosts || [],
-    debuffs: gs.debuffs || [],
+    shields: (gs.shields || []).map(s => (s.piece ? { ...s, piece: undefined } : s)),
+    temporaryBoosts: (gs.temporaryBoosts || []).map(b => (b.piece ? { ...b, piece: undefined } : b)),
+    debuffs: (gs.debuffs || []).map(d => (d.piece ? { ...d, piece: undefined } : d)),
     abilityContext: gs.abilityContext || null,
     conduit: gs.conduit || null,
     conduitLinkActive: !!gs.conduitLinkActive,

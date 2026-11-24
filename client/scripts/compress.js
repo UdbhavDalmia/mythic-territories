@@ -31,9 +31,10 @@ if (fs.existsSync(indexPath)) {
     /<link rel="stylesheet" crossorigin href="(\/assets\/index-[^"]+\.css)">/,
     '<link rel="preload" as="style" href="$1" crossorigin><link rel="stylesheet" href="$1" crossorigin media="print" onload="this.media=\'all\'"><noscript><link rel="stylesheet" href="$1" crossorigin></noscript>'
   );
+  // Match entry module script tag and add modulepreload hint immediately before it to eliminate critical request chain warning
   html = html.replace(
     /<script(?:\s+async)?\s+type="module"\s+crossorigin\s+src="(\/assets\/index-[^"]+\.js)"><\/script>/,
-    '<script type="module" async crossorigin src="$1"></script>'
+    '<link rel="modulepreload" crossorigin href="$1">\n  <script type="module" async crossorigin src="$1"></script>'
   );
   fs.writeFileSync(indexPath, html);
   console.log('  ✓ Optimized dist/index.html: Made CSS non-render-blocking & entry JS async');

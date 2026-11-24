@@ -137,26 +137,17 @@ export default function Settings({ navigateTo }) {
               <div className="text-xs text-slate-300 mt-0.5">Control particle effects, screen shakes, and motion.</div>
             </div>
 
-            {/* Segmented Control with animated sliding pill (Reduced on left, On on right so it slides from Reduced to On) */}
+            {/* Segmented Control with animated sliding pill (On on left, Reduced on right) */}
             <div className="relative inline-flex rounded-lg bg-slate-800/80 p-1 border border-slate-700/60 self-start sm:self-auto shrink-0 select-none">
               {/* Sliding background indicator pill */}
               <div
                 className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-md transition-all duration-300 ease-out pointer-events-none shadow-sm ${
                   motionMode === 'reduced'
-                    ? 'left-1 bg-slate-200'
-                    : 'left-[calc(50%)] bg-amber-400'
+                    ? 'left-[calc(50%)] bg-slate-200'
+                    : 'left-1 bg-amber-400'
                 }`}
               />
 
-              <button
-                type="button"
-                onClick={() => handleSelectMotion('reduced')}
-                className={`relative z-10 w-20 py-1.5 text-xs font-semibold rounded-md transition-colors duration-200 cursor-pointer text-center ${
-                  motionMode === 'reduced' ? 'text-slate-950' : 'text-slate-300 hover:text-white'
-                }`}
-              >
-                Reduced
-              </button>
               <button
                 type="button"
                 onClick={() => handleSelectMotion('full')}
@@ -165,6 +156,15 @@ export default function Settings({ navigateTo }) {
                 }`}
               >
                 On
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectMotion('reduced')}
+                className={`relative z-10 w-20 py-1.5 text-xs font-semibold rounded-md transition-colors duration-200 cursor-pointer text-center ${
+                  motionMode === 'reduced' ? 'text-slate-950' : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                Reduced
               </button>
             </div>
           </div>

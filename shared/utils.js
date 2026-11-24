@@ -505,7 +505,7 @@ export function getValidMoves(piece, gameState) {
     boardMap = gameState.pieces || [],
     debuffs = gameState.debuffs || [];
   const isRestricted = debuffs.some(
-    (d) => d.pieceId === piece.id && ["Edict", "Hamstrung"].includes(d.name)
+    (d) => d.pieceId === piece.id && d.name === "Hamstrung"
   );
   const isIcyHighways =
     piece.team === "snow" &&
@@ -595,8 +595,9 @@ export function getValidMoves(piece, gameState) {
   const visited = new Set([`${piece.row},${piece.col}`]);
   const normalMovesMap = new Map(); // posKey -> moveObject
 
-  while (queue.length > 0) {
-    const curr = queue.shift();
+  let queueHead = 0;
+  while (queueHead < queue.length) {
+    const curr = queue[queueHead++];
     if (curr.d >= moveRadius) continue;
 
     for (let dr = -1; dr <= 1; dr++) {

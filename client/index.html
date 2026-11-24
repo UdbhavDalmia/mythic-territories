@@ -184,6 +184,15 @@
   ════════════════════════════════════════════ -->
   <style>
     @font-face {
+      font-family: 'Almendra SC Fallback';
+      src: local('Times New Roman'), local('Georgia'), local('serif');
+      ascent-override: 88%;
+      descent-override: 22%;
+      line-gap-override: 0%;
+      size-adjust: 104%;
+    }
+
+    @font-face {
       font-family: 'Almendra SC';
       font-style: normal;
       font-weight: 400 700;
@@ -250,7 +259,7 @@
     .z-0 { z-index: 0; }
     .z-10 { z-index: 10; }
     .bg-void-black { background-color: #0B1019; }
-    .almendra-font { font-family: 'Almendra SC', serif; }
+    .almendra-font { font-family: 'Almendra SC', 'Almendra SC Fallback', Georgia, serif; }
     .rye-font { font-family: 'Rye', cursive; }
   </style>
 </head>
@@ -315,7 +324,7 @@
               <line x1="3" x2="5" y1="19" y2="21"></line>
             </svg><span>Frost versus Ash</span><span class="h-px w-8 bg-magma-core/50" style="display: inline-block; height: 1px; width: 2rem; background-color: rgba(239, 68, 68, 0.5);"></span></div>
           <h1 class="almendra-font animate-title-shimmer uppercase max-w-4xl leading-tight"
-            style="font-family: 'Almendra SC', serif; text-transform: uppercase; max-width: 56rem; line-height: 1.25; background: linear-gradient(135deg, rgb(137, 206, 255) 0%, rgb(245, 158, 11) 50%, rgb(137, 206, 255) 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(rgba(137, 206, 255, 0.4) 0px 0px 20px) drop-shadow(rgba(245, 158, 11, 0.4) 0px 0px 20px); font-weight: 700; font-size: clamp(42px, 8vw, 78px); margin: 0 auto;">
+            style="font-family: 'Almendra SC', 'Almendra SC Fallback', Georgia, serif; text-transform: uppercase; max-width: 56rem; line-height: 1.25; background: linear-gradient(135deg, rgb(137, 206, 255) 0%, rgb(245, 158, 11) 50%, rgb(137, 206, 255) 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(rgba(137, 206, 255, 0.4) 0px 0px 20px) drop-shadow(rgba(245, 158, 11, 0.4) 0px 0px 20px); font-weight: 700; font-size: clamp(42px, 8vw, 78px); margin: 0 auto;">
             MYTHIC TERRITORIES</h1>
           <p class="home-subtitle mt-5 max-w-2xl text-base sm:text-xl md:text-2xl leading-relaxed text-slate-200/90" style="margin-top: 1.25rem; max-width: 42rem; font-family: 'Almendra SC', 'Cinzel', serif; letter-spacing: 0.05em; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.85); font-size: clamp(1rem, 2vw, 1.5rem); line-height: 1.625; color: rgba(226, 232, 240, 0.9);">
             Command <span class="home-subtitle-frost" style="color: #A5F3FC; font-weight: 700; text-shadow: 0 0 16px rgba(165, 243, 252, 0.8), 0 0 32px rgba(137, 206, 255, 0.45);">Frost</span> <span

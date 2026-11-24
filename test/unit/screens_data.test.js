@@ -107,21 +107,21 @@ describe('Static Screens & Documentation Integrity', () => {
     const motionPrefPath = path.resolve(rootDir, 'client/src/services/motionPreference.js');
     const hapticsPath = path.resolve(rootDir, 'client/src/services/haptics.js');
 
-    test('Settings.jsx provides sliding animation from Reduced to On', () => {
+    test('Settings.jsx provides sliding animation for motion toggle (On on left, Reduced on right)', () => {
       assert.ok(fs.existsSync(settingsPath), 'Settings.jsx must exist');
       const content = fs.readFileSync(settingsPath, 'utf8');
 
-      // Check for the segmented control arrangement: Reduced first (left), On second (right)
-      const reducedIndex = content.indexOf("handleSelectMotion('reduced')");
+      // Check for the segmented control arrangement: On first (left), Reduced second (right)
       const onIndex = content.indexOf("handleSelectMotion('full')");
+      const reducedIndex = content.indexOf("handleSelectMotion('reduced')");
       assert.ok(reducedIndex > 0 && onIndex > 0, 'Both motion buttons must exist');
-      assert.ok(reducedIndex < onIndex, 'Reduced must precede On so the pill slides from Reduced (left) to On (right)');
+      assert.ok(onIndex < reducedIndex, 'On must precede Reduced in order (On left, Reduced right)');
 
       // Check for sliding pill classes
       assert.ok(content.includes('transition-all duration-300 ease-out'));
       assert.ok(content.includes("motionMode === 'reduced'"));
-      assert.ok(content.includes("'left-1 bg-slate-200'"));
-      assert.ok(content.includes("'left-[calc(50%)] bg-amber-400'"));
+      assert.ok(content.includes("'left-[calc(50%)] bg-slate-200'"));
+      assert.ok(content.includes("'left-1 bg-amber-400'"));
     });
 
     test('motionPreference.js functions operate safely in all environments', async () => {

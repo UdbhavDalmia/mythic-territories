@@ -63,6 +63,7 @@ export default function Game({ navigateTo }) {
   const [battleCountdown, setBattleCountdown] = useState(null);
   const [showGameOverModal, setShowGameOverModal] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [timers, setTimers] = useState({ snow: 600, ash: 600 });
   const gameStateRef = useRef(gameState);
   const pageRef = useRef(null);
   const mousePosRef = useRef({ x: 0, y: 0 });
@@ -95,6 +96,14 @@ export default function Game({ navigateTo }) {
   useEffect(() => {
     if (gameState?.gameOver) {
       clearActiveSession();
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
+        heartbeatIntervalRef.current = null;
+      }
+      if (aiWorkerRef.current) {
+        aiWorkerRef.current.terminate();
+        aiWorkerRef.current = null;
+      }
       const isWinner = gameState.winner === myTeam;
       if (isWinner) {
         triggerHaptic('victory');
@@ -117,6 +126,14 @@ export default function Game({ navigateTo }) {
 
   useEffect(() => {
     gameStateRef.current = gameState;
+    if (gameState?.timers) {
+      setTimers(prev => {
+        if (prev.snow !== gameState.timers.snow || prev.ash !== gameState.timers.ash) {
+          return { snow: gameState.timers.snow, ash: gameState.timers.ash };
+        }
+        return prev;
+      });
+    }
   }, [gameState]);
 
   // Global 5s Battle Countdown when match begins in multiplayer
@@ -201,19 +218,19 @@ export default function Game({ navigateTo }) {
         ability: p.ability ? { ...p.ability } : undefined,
         veteranAbility: p.veteranAbility ? { ...p.veteranAbility } : undefined
       })) : [],
-      frostfallBlessings: gs.frostfallBlessings ? gs.frostfallBlessings.map(b => ({ ...b })) : [],
-      spikeRains: gs.spikeRains ? gs.spikeRains.map(s => ({ ...s })) : [],
-      reignOfFires: gs.reignOfFires ? gs.reignOfFires.map(r => ({ ...r })) : [],
-      shields: gs.shields ? gs.shields.map(s => ({ ...s })) : [],
-      debuffs: gs.debuffs ? gs.debuffs.map(d => ({ ...d })) : [],
-      temporaryBoosts: gs.temporaryBoosts ? gs.temporaryBoosts.map(b => ({ ...b })) : [],
-      specialTerrains: gs.specialTerrains ? gs.specialTerrains.map(t => ({ ...t })) : [],
-      unstableGrounds: gs.unstableGrounds ? gs.unstableGrounds.map(u => ({ ...u })) : [],
-      glacialWalls: gs.glacialWalls ? gs.glacialWalls.map(w => ({ ...w })) : [],
-      deathMeteors: gs.deathMeteors ? gs.deathMeteors.map(m => ({ ...m })) : [],
-      events: gs.events ? [...gs.events] : [],
-      snowTerritory: gs.snowTerritory ? Array.from(gs.snowTerritory) : [],
-      ashTerritory: gs.ashTerritory ? Array.from(gs.ashTerritory) : []
+      frostfallBlessings: gs.frostfallBlessings?.length ? gs.frostfallBlessings.map(b => ({ ...b })) : [],
+      spikeRains: gs.spikeRains?.length ? gs.spikeRains.map(s => ({ ...s })) : [],
+      reignOfFires: gs.reignOfFires?.length ? gs.reignOfFires.map(r => ({ ...r })) : [],
+      shields: gs.shields?.length ? gs.shields.map(s => ({ ...s })) : [],
+      debuffs: gs.debuffs?.length ? gs.debuffs.map(d => ({ ...d })) : [],
+      temporaryBoosts: gs.temporaryBoosts?.length ? gs.temporaryBoosts.map(b => ({ ...b })) : [],
+      specialTerrains: gs.specialTerrains?.length ? gs.specialTerrains.map(t => ({ ...t })) : [],
+      unstableGrounds: gs.unstableGrounds?.length ? gs.unstableGrounds.map(u => ({ ...u })) : [],
+      glacialWalls: gs.glacialWalls?.length ? gs.glacialWalls.map(w => ({ ...w })) : [],
+      deathMeteors: gs.deathMeteors?.length ? gs.deathMeteors.map(m => ({ ...m })) : [],
+      events: gs.events?.length ? [...gs.events] : [],
+      snowTerritory: Array.isArray(gs.snowTerritory) ? gs.snowTerritory : (gs.snowTerritory ? Array.from(gs.snowTerritory) : []),
+      ashTerritory: Array.isArray(gs.ashTerritory) ? gs.ashTerritory : (gs.ashTerritory ? Array.from(gs.ashTerritory) : [])
     };
   };
 
@@ -318,7 +335,12 @@ export default function Game({ navigateTo }) {
       updatePlayerHeartbeat(roomId, playerId);
       if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
       heartbeatIntervalRef.current = setInterval(() => {
-        updatePlayerHeartbeat(roomId, playerId);
+        if (!gameStateRef.current?.gameOver) {
+          updatePlayerHeartbeat(roomId, playerId);
+        } else if (heartbeatIntervalRef.current) {
+          clearInterval(heartbeatIntervalRef.current);
+          heartbeatIntervalRef.current = null;
+        }
       }, 20000);
 
       roomUnsubRef.current = subscribeToRoom(roomId, (roomData) => {
@@ -458,24 +480,27 @@ export default function Game({ navigateTo }) {
       const deltaSec = Math.floor(elapsed);
       lastTick += deltaSec * 1000;
 
-      setGameState(prev => {
-        if (!prev || prev.gameOver || !prev.gameStarted) return prev;
+      const gs = gameStateRef.current;
+      if (!gs || gs.gameOver || !gs.gameStarted) return;
 
-        // Hold turn timers during pre-battle countdown
-        if (prev.battleStartTime && Date.now() < prev.battleStartTime) {
-          lastTick = Date.now();
-          return prev;
-        }
+      // Hold turn timers during pre-battle countdown
+      if (gs.battleStartTime && Date.now() < gs.battleStartTime) {
+        lastTick = Date.now();
+        return;
+      }
 
-        const turn = prev.currentTurn || 'snow';
-        const updated = { ...prev };
-        if (!updated.timers) updated.timers = { snow: 600, ash: 600 };
+      const turn = gs.currentTurn || 'snow';
+      if (!gs.timers) gs.timers = { snow: 600, ash: 600 };
 
-        if (updated.timers[turn] > 0) {
-          updated.timers[turn] = Math.max(0, updated.timers[turn] - 1);
-        } else {
-          // Timeout trigger
-          if (isLocal) {
+      if (gs.timers[turn] > 0) {
+        gs.timers[turn] = Math.max(0, gs.timers[turn] - 1);
+        setTimers({ snow: gs.timers.snow, ash: gs.timers.ash });
+      } else {
+        // Timeout trigger
+        if (isLocal) {
+          setGameState(prev => {
+            if (!prev) return null;
+            const updated = cloneState(prev);
             Logic.initGameState(updated);
             Logic.endGame(turn === 'snow' ? 'ash' : 'snow', updated);
             const newGs = Logic.getGameState(updated);
@@ -485,12 +510,11 @@ export default function Game({ navigateTo }) {
               gameBackgroundAsh: preloadedImagesRef.current.gameBackgroundAsh
             };
             return cloneState(newGs);
-          } else {
-            dispatchGameAction(roomId, getOrCreatePlayerId(), 'TIMEOUT', { team: turn }).catch(console.warn);
-          }
+          });
+        } else {
+          dispatchGameAction(roomId, getOrCreatePlayerId(), 'TIMEOUT', { team: turn }).catch(console.warn);
         }
-        return updated;
-      });
+      }
     }, 1000);
   };
 
@@ -517,8 +541,9 @@ export default function Game({ navigateTo }) {
     }
   }, [gameState?.selectedPiece?.id]);
 
-  const terrScores = useMemo(() => calculateDynamicTerritoryAreas(gameState), [gameState?.pieces]);
-  const { fallenSnow, fallenAsh } = useMemo(() => getFallenUnits(gameState?.pieces), [gameState?.pieces]);
+  const piecesKey = gameState?._piecesKey || (gameState?.pieces ? gameState.pieces.map(p => `${p.id}:${Number(p.col).toFixed(2)},${Number(p.row).toFixed(2)},${p.currentHp},${p.power}`).join('|') : '');
+  const terrScores = useMemo(() => calculateDynamicTerritoryAreas(gameState), [gameState, piecesKey]);
+  const { fallenSnow, fallenAsh } = useMemo(() => getFallenUnits(gameState?.pieces), [piecesKey]);
 
   const handleExitToLobby = () => {
     clearActiveSession();
@@ -572,6 +597,13 @@ export default function Game({ navigateTo }) {
     }, 1000);
   };
 
+  const getOrCreateAiWorker = () => {
+    if (!aiWorkerRef.current) {
+      aiWorkerRef.current = new Worker(new URL('../workers/ai.worker.js', import.meta.url), { type: 'module' });
+    }
+    return aiWorkerRef.current;
+  };
+
   // Web Worker AI player decision execution
   const checkAITurn = () => {
     if (!isLocal || !vsAI || !gameState || gameState.gameOver) return;
@@ -579,10 +611,7 @@ export default function Game({ navigateTo }) {
     const aiTeam = myTeam === 'snow' ? 'ash' : 'snow';
     if (gameState.currentTurn !== aiTeam) return;
 
-    if (aiWorkerRef.current) aiWorkerRef.current.terminate();
-
-    const worker = new Worker(new URL('../workers/ai.worker.js', import.meta.url), { type: 'module' });
-    aiWorkerRef.current = worker;
+    const worker = getOrCreateAiWorker();
 
     worker.onmessage = (ev) => {
       const { bestAction } = ev.data;
@@ -602,8 +631,6 @@ export default function Game({ navigateTo }) {
           });
         }
       }
-      worker.terminate();
-      aiWorkerRef.current = null;
     };
 
     const workerState = cloneState(gameState);
@@ -716,20 +743,8 @@ export default function Game({ navigateTo }) {
             if (!nextState.originalPieces) {
               nextState.originalPieces = JSON.parse(JSON.stringify(nextState.pieces));
             }
-            nextState.pieces = nextState.pieces.filter(x =>
-              x.key === 'snowFrostLord' ||
-              x.key === 'ashAshTyrant' ||
-              x.key === 'ashMagmaShaper' ||
-              x.key === 'snowGlacialMage' ||
-              x.key === 'snowIceWisp'
-            );
-            // Spawn a test Ice Wisp next to Glacial Mage if one isn't present yet
-            const hasWisp = nextState.pieces.some(x => x.key === 'snowIceWisp');
-            const mage = nextState.pieces.find(x => x.key === 'snowGlacialMage');
-            if (!hasWisp && mage) {
-              const testWisp = Logic.createPiece(Math.min(9, mage.row + 1), mage.col, 'snowIceWisp', 'snow', nextState);
-              if (testWisp) nextState.pieces.push(testWisp);
-            }
+            const testKeys = ['snowFrostLord', 'snowGlacialMage', 'snowSoulLinker', 'ashAshTyrant', 'ashMagmaShaper', 'ashAshReaper'];
+            nextState.pieces = nextState.pieces.filter(x => testKeys.includes(x.key));
           } else {
             if (nextState.originalPieces) {
               nextState.pieces = JSON.parse(JSON.stringify(nextState.originalPieces));
@@ -928,6 +943,11 @@ export default function Game({ navigateTo }) {
 
   const handleStartReset = () => {
     if (!isLocal) return; // In multiplayer, match start & turns are automated
+    if (aiWorkerRef.current) {
+      aiWorkerRef.current.terminate();
+      aiWorkerRef.current = null;
+    }
+    setTimers({ snow: 600, ash: 600 });
     setGameState(prev => {
       if (!prev) return null;
       const gs = { ...prev };
@@ -938,6 +958,10 @@ export default function Game({ navigateTo }) {
         Logic.initGameState(gs);
         Logic.initGame(gs);
         const nextGs = Logic.getGameState(gs);
+        if (nextGs.testMode) {
+          const freshFullGame = Logic.initGame({});
+          nextGs.originalPieces = JSON.parse(JSON.stringify(freshFullGame.pieces));
+        }
         nextGs.images = preloadedImagesRef.current;
         nextGs.boardImgs = {
           gameBackgroundSnow: preloadedImagesRef.current.gameBackgroundSnow,
@@ -1239,12 +1263,12 @@ export default function Game({ navigateTo }) {
               <div className="mobile-timer-stack" title="Remaining match timers">
                 <div className={`mobile-timer-card snow-card ${gameState?.currentTurn === 'snow' ? 'active' : ''}`}>
                   <span className="mobile-timer-name">Frost</span>
-                  <span id="miniTimerSnow" className="mobile-timer-val">{formatTime(gameState?.timers?.snow)}</span>
+                  <span id="miniTimerSnow" className="mobile-timer-val">{formatTime(timers?.snow ?? gameState?.timers?.snow)}</span>
                 </div>
                 <span className="mobile-timer-vs">VS</span>
                 <div className={`mobile-timer-card ash-card ${gameState?.currentTurn === 'ash' ? 'active' : ''}`}>
                   <span className="mobile-timer-name">Ash</span>
-                  <span id="miniTimerAsh" className="mobile-timer-val">{formatTime(gameState?.timers?.ash)}</span>
+                  <span id="miniTimerAsh" className="mobile-timer-val">{formatTime(timers?.ash ?? gameState?.timers?.ash)}</span>
                 </div>
               </div>
             </div>
@@ -1283,11 +1307,11 @@ export default function Game({ navigateTo }) {
               <div className="timer-stack">
                 <div className={`timer-card snow-card ${gameState?.currentTurn === 'snow' ? 'active' : ''}`}>
                   <span className="timer-faction-name">Frost</span>
-                  <div id="snowTimer" className="timer-display">{formatTime(gameState?.timers?.snow)}</div>
+                  <div id="snowTimer" className="timer-display">{formatTime(timers?.snow ?? gameState?.timers?.snow)}</div>
                 </div>
                 <div className={`timer-card ash-card ${gameState?.currentTurn === 'ash' ? 'active' : ''}`}>
                   <span className="timer-faction-name">Ash</span>
-                  <div id="ashTimer" className="timer-display">{formatTime(gameState?.timers?.ash)}</div>
+                  <div id="ashTimer" className="timer-display">{formatTime(timers?.ash ?? gameState?.timers?.ash)}</div>
                 </div>
               </div>
 

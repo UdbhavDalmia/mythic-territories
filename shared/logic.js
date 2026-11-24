@@ -11,6 +11,13 @@ let gameState = {};
  */
 export function updateVoronoiState(gs = gameState) {
   if (!gs || !gs.pieces) return;
+  const piecesKey = gs._piecesKey || gs.pieces
+    .map(p => `${p.id}:${Number(p.col).toFixed(2)},${Number(p.row).toFixed(2)},${p.currentHp},${p.power}`)
+    .join('|');
+  if (gs._piecesKey === piecesKey && gs.voronoiData && Array.isArray(gs.voronoiData.cells) && gs.snowTerritory && gs.ashTerritory) {
+    return;
+  }
+  gs._piecesKey = piecesKey;
   const voronoi = computePowerDiagram(gs.pieces);
   gs.voronoiData = voronoi;
   syncTerritorySetsFromVoronoi(gs, voronoi);
@@ -978,7 +985,7 @@ function isTargetValid(piece, target, ability, gameStateLocal = gameState) {
     distance = Math.max(Math.abs(piece.row - r), Math.abs(piece.col - c));
   }
   let abilityRange = ability.range;
-  if (gameStateLocal?.testMode && (piece.key === 'ashMagmaShaper' || piece.key === 'snowFrostLord' || piece.key === 'ashAshTyrant')) {
+  if (gameStateLocal?.testMode && (['ashMagmaShaper', 'snowFrostLord', 'ashAshTyrant', 'snowGlacialMage', 'snowSoulLinker', 'ashAshReaper', 'snowIceWisp'].includes(piece.key))) {
     abilityRange = 10;
   }
   if (abilityRange > 0 && distance > abilityRange) return false;
@@ -2819,7 +2826,8 @@ export function initGame(gs = gameState) {
   // Base territories are seeded entirely by the pieces' starting positions
 
   if (isTestMode) {
-    gs.pieces = gs.pieces.filter(p => p.key === 'snowFrostLord' || p.key === 'ashAshTyrant' || p.key === 'ashMagmaShaper');
+    const testKeys = ['snowFrostLord', 'snowGlacialMage', 'snowSoulLinker', 'ashAshTyrant', 'ashMagmaShaper', 'ashAshReaper'];
+    gs.pieces = gs.pieces.filter(p => testKeys.includes(p.key));
   }
 
   gs.pieces.forEach((p) => {

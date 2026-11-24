@@ -94,7 +94,6 @@ export const HISTORICAL_PATCHES = [
     date: "08/11/2025",
     colorTheme: "magma",
     bullets: [
-      { prefix: "Leader Ultimates: Leaders gain a one-time-use Ultimate: King's Edict (Frost Lord). A new visual flair shows when the ultimate is ready.", color: "text-magma-core" },
       { prefix: "Shrine Rework - The Primal Sacrifice: The Overloaded Shrine now \"Traps\" a unit. The owner can then choose to \"Sacrifice\" it (faction-wide +1 Power buff) or \"Release\" it (-1 perm power & Daze).", color: "text-magma-core" },
       { prefix: "Steal the Sacrifice: While a unit is Trapped, an opponent can move onto the Shrine to \"Steal\" the sacrifice, claiming the buff for their team.", color: "text-magma-core" },
       { prefix: "New Synergies: Ignition Point (Mark of Cinder + Lava Glob) and Conduit of Frost (Chilling Aura + Glacial Wall) have been discovered.", color: "text-magma-core" }

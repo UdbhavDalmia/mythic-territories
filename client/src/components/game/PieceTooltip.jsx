@@ -176,6 +176,11 @@ export default function PieceTooltip({ hoveredPiece, gameState, initialMousePos 
   const targetMousePosRef = useRef(initialMousePos || { x: 0, y: 0 });
   const currentMousePosRef = useRef(initialMousePos || { x: 0, y: 0 });
   const popupRafRef = useRef(null);
+  const sizeRef = useRef({ w: 400, h: 280, measured: false });
+
+  useEffect(() => {
+    sizeRef.current.measured = false;
+  }, [hoveredPiece?.id]);
 
   useEffect(() => {
     if (initialMousePos && initialMousePos.x > 0 && initialMousePos.y > 0) {
@@ -194,43 +199,68 @@ export default function PieceTooltip({ hoveredPiece, gameState, initialMousePos 
       return;
     }
 
-    const handlePointerMove = (e) => {
-      targetMousePosRef.current = { x: e.clientX, y: e.clientY };
-    };
+    const applyTransform = (x, y) => {
+      if (!popupRef.current) return;
+      if (!sizeRef.current.measured && popupRef.current.offsetWidth) {
+        sizeRef.current.w = popupRef.current.offsetWidth;
+        sizeRef.current.h = popupRef.current.offsetHeight;
+        sizeRef.current.measured = true;
+      }
 
-    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+      const tooltipWidth = sizeRef.current.w;
+      const tooltipHeight = sizeRef.current.h;
+
+      let left = x + 18;
+      let top = y + 18;
+
+      if (left + tooltipWidth > window.innerWidth - 15) {
+        left = x - tooltipWidth - 18;
+      }
+      if (top + tooltipHeight > window.innerHeight - 15) {
+        top = window.innerHeight - tooltipHeight - 15;
+      }
+      left = Math.max(10, left);
+      top = Math.max(10, top);
+
+      popupRef.current.style.transform = `translate3d(${Math.round(left)}px, ${Math.round(top)}px, 0)`;
+    };
 
     const updatePosition = () => {
       const target = targetMousePosRef.current;
       const current = currentMousePosRef.current;
 
-      // Organic fluid trailing lerp (factor: 0.22)
-      current.x += (target.x - current.x) * 0.22;
-      current.y += (target.y - current.y) * 0.22;
+      const dx = target.x - current.x;
+      const dy = target.y - current.y;
 
-      if (popupRef.current) {
-        const tooltipWidth = popupRef.current.offsetWidth || 400;
-        const tooltipHeight = popupRef.current.offsetHeight || 280;
-
-        let left = current.x + 18;
-        let top = current.y + 18;
-
-        if (left + tooltipWidth > window.innerWidth - 15) {
-          left = current.x - tooltipWidth - 18;
-        }
-        if (top + tooltipHeight > window.innerHeight - 15) {
-          top = window.innerHeight - tooltipHeight - 15;
-        }
-        left = Math.max(10, left);
-        top = Math.max(10, top);
-
-        popupRef.current.style.transform = `translate3d(${Math.round(left)}px, ${Math.round(top)}px, 0)`;
+      // When settled within 0.2px, snap and sleep animation loop to prevent continuous CPU usage & layout thrash
+      if (Math.abs(dx) < 0.2 && Math.abs(dy) < 0.2) {
+        current.x = target.x;
+        current.y = target.y;
+        applyTransform(current.x, current.y);
+        popupRafRef.current = null;
+        return;
       }
 
+      // Organic fluid trailing lerp (factor: 0.22)
+      current.x += dx * 0.22;
+      current.y += dy * 0.22;
+
+      applyTransform(current.x, current.y);
       popupRafRef.current = requestAnimationFrame(updatePosition);
     };
 
-    popupRafRef.current = requestAnimationFrame(updatePosition);
+    const handlePointerMove = (e) => {
+      targetMousePosRef.current = { x: e.clientX, y: e.clientY };
+      if (!popupRafRef.current) {
+        popupRafRef.current = requestAnimationFrame(updatePosition);
+      }
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+
+    if (!popupRafRef.current) {
+      popupRafRef.current = requestAnimationFrame(updatePosition);
+    }
 
     return () => {
       window.removeEventListener('pointermove', handlePointerMove);

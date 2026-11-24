@@ -13,6 +13,25 @@ export function isPointInTeamTerritory(px, py, cells, CS) {
     const dy = gy - cell.center.y;
     const maxR = (cell.radius || 2.5) * 1.05;
     if (dx * dx + dy * dy > maxR * maxR) continue;
+
+    // Cache polygon bounding box on cell for fast rejection (Optimization 7)
+    if (!cell._bbox && cell.polygon && cell.polygon.length >= 3) {
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (let p = 0; p < cell.polygon.length; p++) {
+        const pt = cell.polygon[p];
+        if (pt.x < minX) minX = pt.x;
+        if (pt.x > maxX) maxX = pt.x;
+        if (pt.y < minY) minY = pt.y;
+        if (pt.y > maxY) maxY = pt.y;
+      }
+      cell._bbox = { minX, maxX, minY, maxY };
+    }
+    if (cell._bbox) {
+      if (gx < cell._bbox.minX || gx > cell._bbox.maxX || gy < cell._bbox.minY || gy > cell._bbox.maxY) {
+        continue;
+      }
+    }
+
     if (cell.polygon && cell.polygon.length >= 3 && isPointInPolygon(gx, gy, cell.polygon)) {
       return true;
     }
@@ -20,9 +39,12 @@ export function isPointInTeamTerritory(px, py, cells, CS) {
   return false;
 }
 
-
-
 export const craterCache = new Map();
+let lastRecordedCS = null;
+
+export function clearCraterCache() {
+  craterCache.clear();
+}
 
 export function renderTerritoryLayer(bgCtx, currentGs, isAshLocal, arg4, arg5, arg6, arg7) {
       let CS, terrCacheRef, terrKeyRef, gradCache;
@@ -41,6 +63,12 @@ export function renderTerritoryLayer(bgCtx, currentGs, isAshLocal, arg4, arg5, a
       if (!terrCacheRef) terrCacheRef = { current: null };
       if (!CS) CS = 70;
 
+      // Invalidate craterCache if cell size (CS) changed upon window resize (Optimization 9)
+      if (lastRecordedCS !== null && lastRecordedCS !== CS) {
+        craterCache.clear();
+      }
+      lastRecordedCS = CS;
+
       // --- Background canvas: Territory Trails (renders UNDER pieces at z-5) ---
       if (bgCtx) {
         bgCtx.save();
@@ -53,7 +81,8 @@ export function renderTerritoryLayer(bgCtx, currentGs, isAshLocal, arg4, arg5, a
         const piecesKey = currentGs?._piecesKey || (currentGs ? (currentGs._piecesKey = pieces
           .map(p => `${p.id}:${Number(p.col).toFixed(2)},${Number(p.row).toFixed(2)},${p.currentHp},${p.power}`)
           .join('|')) : '');
-        const newKey = `${piecesKey}_${currentGs?.gameStarted ? 1 : 0}_${currentGs?.turnCount || 1}`;
+        // Cache key tracks piece configuration and game start without forcing cache invalidation on idle turn switches
+        const newKey = `${piecesKey}_${currentGs?.gameStarted ? 1 : 0}`;
 
         if (newKey !== terrKeyRef.current || !terrCacheRef.current) {
           terrKeyRef.current = newKey;
@@ -83,22 +112,30 @@ export function renderTerritoryLayer(bgCtx, currentGs, isAshLocal, arg4, arg5, a
               const cx = cell.center.x * CS;
               const cy = cell.center.y * CS;
               const radiusPx = (cell.radius || 2.0) * CS;
-              const grad = tCtx.createRadialGradient(cx, cy, CS * 0.1, cx, cy, radiusPx);
-
-              if (cell.team === 'snow') {
-                // Deep Glacial Permafrost (Darkened, Rich Cold Ice)
-                grad.addColorStop(0, 'rgba(8, 47, 73, 0.72)');
-                grad.addColorStop(0.3, 'rgba(3, 105, 161, 0.42)');
-                grad.addColorStop(0.65, 'rgba(14, 165, 233, 0.18)');
-                grad.addColorStop(0.85, 'rgba(56, 189, 248, 0.06)');
-                grad.addColorStop(1, 'rgba(2, 132, 199, 0.0)');
-              } else {
-                // Deep Volcanic Scorched Magma (Darkened, Basalt Obsidian)
-                grad.addColorStop(0, 'rgba(50, 10, 8, 0.76)');
-                grad.addColorStop(0.3, 'rgba(153, 27, 27, 0.44)');
-                grad.addColorStop(0.65, 'rgba(220, 38, 38, 0.18)');
-                grad.addColorStop(0.85, 'rgba(239, 68, 68, 0.06)');
-                grad.addColorStop(1, 'rgba(185, 28, 28, 0.0)');
+              
+              // Reuse cached gradient if available (Optimization 10)
+              const gradKey = `${cell.team}_${Math.round(cx)}_${Math.round(cy)}_${Math.round(radiusPx)}`;
+              let grad = gradCache && typeof gradCache.get === 'function' ? gradCache.get(gradKey) : null;
+              if (!grad) {
+                grad = tCtx.createRadialGradient(cx, cy, CS * 0.1, cx, cy, radiusPx);
+                if (cell.team === 'snow') {
+                  // Deep Glacial Permafrost (Darkened, Rich Cold Ice)
+                  grad.addColorStop(0, 'rgba(8, 47, 73, 0.72)');
+                  grad.addColorStop(0.3, 'rgba(3, 105, 161, 0.42)');
+                  grad.addColorStop(0.65, 'rgba(14, 165, 233, 0.18)');
+                  grad.addColorStop(0.85, 'rgba(56, 189, 248, 0.06)');
+                  grad.addColorStop(1, 'rgba(2, 132, 199, 0.0)');
+                } else {
+                  // Deep Volcanic Scorched Magma (Darkened, Basalt Obsidian)
+                  grad.addColorStop(0, 'rgba(50, 10, 8, 0.76)');
+                  grad.addColorStop(0.3, 'rgba(153, 27, 27, 0.44)');
+                  grad.addColorStop(0.65, 'rgba(220, 38, 38, 0.18)');
+                  grad.addColorStop(0.85, 'rgba(239, 68, 68, 0.06)');
+                  grad.addColorStop(1, 'rgba(185, 28, 28, 0.0)');
+                }
+                if (gradCache && typeof gradCache.set === 'function') {
+                  gradCache.set(gradKey, grad);
+                }
               }
 
               tCtx.fillStyle = grad;
@@ -447,7 +484,7 @@ export function renderInteractiveReticles(ctx, currentGs, isAshLocal, CS, mouseP
           const casterCenterR = caster.row + 0.5;
           const cCx = casterCenterC * CS;
           const cCy = casterCenterR * CS;
-          const isTestCaster = currentGs.testMode && ['ashMagmaShaper', 'snowFrostLord', 'ashAshTyrant', 'snowGlacialMage', 'snowIceWisp'].includes(caster.key);
+          const isTestCaster = currentGs.testMode && ['ashMagmaShaper', 'snowFrostLord', 'ashAshTyrant', 'snowGlacialMage', 'snowSoulLinker', 'ashAshReaper', 'snowIceWisp'].includes(caster.key);
           const maxEffectiveRange = isTestCaster ? 10 : (ability.range !== undefined ? ability.range : 2.5);
           const rangePx = maxEffectiveRange * CS;
           const radiusPx = (ability.radius || (abilityKey === 'ObsidianPillar' ? 1.0 : 2.0)) * CS;
@@ -757,13 +794,15 @@ export function renderEnvironmentalEffects(ctx, currentGs, isAshLocal, CS, dt, a
         if (!currentGs.knownGlacialRemnants) currentGs.knownGlacialRemnants = [];
         if (!currentGs.dyingGlacialRemnants) currentGs.dyingGlacialRemnants = [];
 
-        const activeRemnantKeys = (currentGs.glacialRemnants || []).map(r => `${r.r},${r.c}`);
-        currentGs.knownGlacialRemnants.forEach(known => {
-          if (!activeRemnantKeys.includes(`${known.r},${known.c}`)) {
-            currentGs.dyingGlacialRemnants.push({ ...known, thawLife: 1.0 });
-          }
-        });
-        currentGs.knownGlacialRemnants = (currentGs.glacialRemnants || []).map(r => ({ ...r }));
+        if (currentGs.glacialRemnants?.length || currentGs.knownGlacialRemnants.length) {
+          const activeRemnantKeys = (currentGs.glacialRemnants || []).map(r => `${r.r},${r.c}`);
+          currentGs.knownGlacialRemnants.forEach(known => {
+            if (!activeRemnantKeys.includes(`${known.r},${known.c}`)) {
+              currentGs.dyingGlacialRemnants.push({ ...known, thawLife: 1.0 });
+            }
+          });
+          currentGs.knownGlacialRemnants = (currentGs.glacialRemnants || []).map(r => ({ ...r }));
+        }
       }
 
       // Draw persistent Glacial Fracture Remnants (frost fissures, glassy ice glaze, protruding crystal shards)
@@ -976,6 +1015,7 @@ export function renderEnvironmentalEffects(ctx, currentGs, isAshLocal, CS, dt, a
       // --- Ambient Elemental Territory Effects & Contested Frontline Particle Tension ---
       const isReducedMotion = typeof window !== 'undefined' && (
         window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+        document.documentElement.classList.contains('reduced-motion') ||
         document.body.classList.contains('reduced-motion')
       );
 
@@ -984,7 +1024,7 @@ export function renderEnvironmentalEffects(ctx, currentGs, isAshLocal, CS, dt, a
         const now = performance.now();
 
         // 1. Ambient Snow across Map (Full intensity in Frost territory, lessened intensity in rest of map)
-        const snowCells = (voronoi.cells || []).filter(c => c.team === 'snow' && c.polygon && c.polygon.length >= 3);
+        const snowCells = voronoi._snowCells || (voronoi._snowCells = (voronoi.cells || []).filter(c => c.team === 'snow' && c.polygon && c.polygon.length >= 3));
         ctx.save();
         while (ambientSnowRef.current.length < 28) {
           const inTerritorySpawn = snowCells.length > 0 && Math.random() < 0.65;
@@ -1032,7 +1072,8 @@ export function renderEnvironmentalEffects(ctx, currentGs, isAshLocal, CS, dt, a
           const fadeOut = Math.min(1, flake.life / 25);
           const a = flake.baseAlpha * fadeIn * fadeOut * flake.intensity;
 
-          ctx.shadowBlur = inFrost ? 3 : 1;
+          // Only incur shadow blur compositing for prominent visible flakes in Frost territory (Optimization 8)
+          ctx.shadowBlur = (inFrost && a >= 0.15) ? 3 : 0;
           ctx.fillStyle = `rgba(224, 242, 254, ${a})`;
           ctx.beginPath();
           ctx.arc(flake.x, flake.y, flake.size * (inFrost ? 1.0 : 0.85), 0, Math.PI * 2);
@@ -1045,7 +1086,7 @@ export function renderEnvironmentalEffects(ctx, currentGs, isAshLocal, CS, dt, a
         ctx.restore();
 
         // 3. Ambient Flickering Embers across Map (Full intensity in Ash territory, lessened intensity in rest of map)
-        const ashCells = (voronoi.cells || []).filter(c => c.team === 'ash' && c.polygon && c.polygon.length >= 3);
+        const ashCells = voronoi._ashCells || (voronoi._ashCells = (voronoi.cells || []).filter(c => c.team === 'ash' && c.polygon && c.polygon.length >= 3));
         ctx.save();
         while (ambientEmbersRef.current.length < 28) {
           const inTerritorySpawn = ashCells.length > 0 && Math.random() < 0.65;
@@ -1094,7 +1135,8 @@ export function renderEnvironmentalEffects(ctx, currentGs, isAshLocal, CS, dt, a
 
           ctx.fillStyle = `rgba(${ember.color}, ${a})`;
           ctx.shadowColor = `rgba(${ember.color}, ${inAsh ? 0.75 : 0.25})`;
-          ctx.shadowBlur = inAsh ? 4 : 1.5;
+          // Only incur shadow blur compositing for prominent visible embers in Ash territory (Optimization 8)
+          ctx.shadowBlur = (inAsh && a >= 0.15) ? 4 : 0;
           ctx.beginPath();
           ctx.arc(ember.x, ember.y, ember.size * (inAsh ? 1.0 : 0.85), 0, Math.PI * 2);
           ctx.fill();

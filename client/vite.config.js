@@ -23,6 +23,12 @@ export default defineConfig({
     minify: 'esbuild',
     sourcemap: false,
     reportCompressedSize: false,
+    modulePreload: {
+      resolveDependencies(filename, deps, { hostId, hostType }) {
+        // Only preload critical core runtime dependencies, deferring on-demand multiplayer chunks
+        return deps.filter(dep => !dep.includes('multiplayer'));
+      }
+    },
     rollupOptions: {
       output: {
         manualChunks(id) {

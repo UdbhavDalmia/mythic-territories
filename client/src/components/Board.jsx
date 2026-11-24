@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import Piece from './Piece.jsx';
 import * as C from '@shared/constants.js';
 import * as Effects from '@/effects';
@@ -82,16 +82,26 @@ function Board({
       if (dt > 100) dt = 16.67; // Cap dt for smooth animations
       lastAnimTime.current = time;
 
-      // Clear main canvas and background canvas
+      // Clear main canvas (dynamic particles & reticles)
       ctx.clearRect(0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
-      if (bgCtx) bgCtx.clearRect(0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
 
       // Determine orientation once for the whole frame
       const isAshLocal = (currentGs.playerTeam || myTeam || 'snow') === 'ash';
       const CS = C.CANVAS_SIZE / 10;
 
-      // Render background territory & terrain layers
-      renderTerritoryLayer(bgCtx, currentGs, isAshLocal, CS, terrCacheCanvasRef, terrCacheKeyRef, gradCacheRef.current);
+      // Render background territory & terrain layers only when invalidated or dynamic ground effects active
+      if (bgCtx) {
+        const pieces = currentGs?.pieces || [];
+        const piecesKey = currentGs?._piecesKey || (currentGs ? (currentGs._piecesKey = pieces
+          .map(p => `${p.id}:${Number(p.col).toFixed(2)},${Number(p.row).toFixed(2)},${p.currentHp},${p.power}`)
+          .join('|')) : '');
+        const newKey = `${piecesKey}_${currentGs?.gameStarted ? 1 : 0}`;
+        const hasDynamicGround = (currentGs.deathMeteors && currentGs.deathMeteors.length > 0);
+        if (newKey !== terrCacheKeyRef.current || hasDynamicGround || !terrCacheCanvasRef.current) {
+          bgCtx.clearRect(0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
+          renderTerritoryLayer(bgCtx, currentGs, isAshLocal, CS, terrCacheCanvasRef, terrCacheKeyRef, gradCacheRef.current);
+        }
+      }
 
       ctx.save();
       // Apply screenshake if active
@@ -149,8 +159,8 @@ function Board({
     return null;
   };
 
-  // Render grid cells
-  const renderCells = () => {
+  // Render grid cells (memoized to eliminate redundant 100-cell VDOM allocations)
+  const memoizedCells = useMemo(() => {
     if (!gameState) return null;
     const cells = [];
     const snowSet = gameState?.snowTerritory instanceof Set
@@ -213,7 +223,7 @@ function Board({
           }
         } else if (ability) {
           let abilityRange = ability.range;
-          if (gameState.testMode && ['ashMagmaShaper', 'snowFrostLord', 'ashAshTyrant', 'snowGlacialMage', 'snowIceWisp'].includes(piece.key)) {
+          if (gameState.testMode && ['ashMagmaShaper', 'snowFrostLord', 'ashAshTyrant', 'snowGlacialMage', 'snowSoulLinker', 'ashAshReaper', 'snowIceWisp'].includes(piece.key)) {
             abilityRange = 10;
           }
           const distance = Math.max(Math.abs(piece.row - r), Math.abs(piece.col - c));
@@ -287,7 +297,18 @@ function Board({
       );
     }
     return cells;
-  };
+  }, [
+    gameState?.pieces,
+    gameState?.currentState,
+    gameState?.selectedPiece?.id,
+    gameState?.specialTerrains,
+    gameState?.voidSquares,
+    gameState?.glacialWalls,
+    gameState?.snowTerritory,
+    gameState?.ashTerritory,
+    gameState?.abilityContext,
+    isAsh
+  ]);
 
   // Render SVG Paths representing active tethers and energy links
   const renderSVGOverlays = () => {
@@ -436,7 +457,7 @@ function Board({
     >
       {/* 1. Grid Cells Layer */}
       <div className="absolute inset-0 grid grid-cols-10 grid-rows-10 z-0">
-        {renderCells()}
+        {memoizedCells}
       </div>
 
       {/* 1b. Background Canvas Layer for territory trails (renders UNDER pieces) */}
