@@ -383,13 +383,24 @@ function Piece({
           }`} 
         />
 
-        {/* Shield Overlay Glow Ring */}
+        {/* Shield Overlay Glow Ring & HP Badge */}
         {activeShield && (
-          <div className={`absolute inset-0 rounded-full border-2 animate-pulse pointer-events-none ${
-            activeShield.name === 'ObsidianPillarShield' 
-              ? 'border-purple-600 shadow-[0_0_12px_rgba(147,51,234,0.8)]' 
-              : 'border-yellow-200 shadow-[0_0_12px_rgba(253,224,71,0.8)]'
-          }`} />
+          <>
+            <div className={`absolute inset-0 rounded-full border-2 animate-pulse pointer-events-none ${
+              activeShield.name === 'ObsidianPillarShield' 
+                ? 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.95)]' 
+                : 'border-yellow-200 shadow-[0_0_12px_rgba(253,224,71,0.8)]'
+            }`} />
+            {activeShield.name === 'ObsidianPillarShield' && (
+              <div 
+                className="absolute -top-1 -left-1 z-30 px-1 py-0.5 rounded-full bg-purple-950/90 border border-purple-400/80 text-[9px] font-bold text-purple-200 flex items-center gap-0.5 shadow-[0_0_8px_rgba(168,85,247,0.8)] pointer-events-none"
+                title={`Obsidian Shield: ${activeShield.hp !== undefined ? activeShield.hp : 2} HP`}
+              >
+                <span>🛡️</span>
+                <span>{activeShield.hp !== undefined ? activeShield.hp : 2}</span>
+              </div>
+            )}
+          </>
         )}
 
         {/* Power Level Badge (Top Right) */}

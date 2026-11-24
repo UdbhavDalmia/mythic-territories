@@ -878,7 +878,7 @@ export default function Game({ navigateTo }) {
         Effects.spawnGlacialWallEffect(anim.r, anim.c, gs);
         break;
       case 'WallShatter':
-        Effects.spawnWallShatterEffect(anim.r, anim.c, gs);
+        Effects.spawnWallShatterEffect(anim.r, anim.c, gs, anim.wallType === 'obsidianPillar');
         break;
       case 'SiphonParticles':
         const siphoner = gs.pieces.find(p => p.id === anim.pieceId);
@@ -912,6 +912,9 @@ export default function Game({ navigateTo }) {
         break;
       case 'ShieldBreak':
         if (Effects.spawnShieldBreakEffect) Effects.spawnShieldBreakEffect(anim.r, anim.c, anim.faction, gs);
+        break;
+      case 'ObsidianPillarCast':
+        if (Effects.spawnObsidianPillarCastEffect) Effects.spawnObsidianPillarCastEffect(anim, gs);
         break;
     }
   };

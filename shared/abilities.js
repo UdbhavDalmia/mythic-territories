@@ -27,7 +27,7 @@ export const ABILITY_VALUES = {
   InnerFurnace: { duration: 4, powerBoost: 1 },
   KindleArmor: { range: 1, duration: 3, cooldown: 3, powerBoost: 1 },
   LavaGlob: { cooldown: 10, range: 4, damage: 1, maxTargetPower: 2 },
-  ObsidianPillar: { range: 2, duration: 2, cooldown: 5 },
+  ObsidianPillar: { range: 2, duration: 2, wallDuration: 4, shieldDuration: 2, shieldHp: 2, cooldown: 5, damage: 1 },
   MarkOfCinder: { cooldown: 4, range: 2, duration: 3, powerDebuff: 1 },
   PowerInfusion: { powerBoost: 4, duration: 5 },
   Pummel: { range: 1, cooldown: 3 },
@@ -348,24 +348,57 @@ export const ABILITIES = {
         gs.glacialWalls.push({
           row: t.r,
           col: t.c,
-          duration: 4,
+          duration: ABILITY_VALUES.ObsidianPillar.wallDuration || 4,
           type: 'obsidianPillar'
+        });
+
+        // Claim/reinforce Ash territory on the created pillar
+        const pos = `${t.r},${t.c}`;
+        if (gs.ashTerritory) gs.ashTerritory.add(pos);
+        if (gs.snowTerritory) gs.snowTerritory.delete(pos);
+        if (gs.territoryCaptureTurn) gs.territoryCaptureTurn[pos] = gs.turnCount;
+
+        emit(gs, {
+          type: "ANIMATION",
+          name: "ObsidianPillarCast",
+          subType: "wall",
+          targetR: t.r,
+          targetC: t.c,
+          casterR: p.row,
+          casterC: p.col,
+          casterId: p.id
         });
         return;
       }
       if (tp.team === p.team) {
         gs.shields = gs.shields || [];
-        if (!gs.shields.some((s) => s.pieceId === tp.id)) {
-          gs.shields.push({
-            pieceId: tp.id,
-            duration: ABILITY_VALUES.ObsidianPillar.duration,
-            hp: 2,
-            maxHp: 2,
-            name: "ObsidianPillarShield"
-          });
+        const existingIdx = gs.shields.findIndex((s) => s.pieceId === tp.id);
+        const shieldData = {
+          pieceId: tp.id,
+          duration: ABILITY_VALUES.ObsidianPillar.shieldDuration || 2,
+          hp: ABILITY_VALUES.ObsidianPillar.shieldHp || 2,
+          maxHp: ABILITY_VALUES.ObsidianPillar.shieldHp || 2,
+          name: "ObsidianPillarShield"
+        };
+        if (existingIdx !== -1) {
+          gs.shields[existingIdx] = shieldData;
+        } else {
+          gs.shields.push(shieldData);
         }
+
+        emit(gs, {
+          type: "ANIMATION",
+          name: "ObsidianPillarCast",
+          subType: "shield",
+          targetR: t.r,
+          targetC: t.c,
+          casterR: p.row,
+          casterC: p.col,
+          casterId: p.id,
+          targetPieceId: tp.id
+        });
       } else {
-        const dmg = 1;
+        const dmg = ABILITY_VALUES.ObsidianPillar.damage || 1;
         tp.power = Math.max(0, tp.power - dmg);
         if (typeof tp.currentHp === "number") {
           if (!(tp.key === 'snowFrostLord' && tp.hasHelpFromAboveActive)) {
@@ -385,19 +418,23 @@ export const ABILITIES = {
         const isValid = inBounds(destR, destC) &&
           !getPieceAt(destR, destC, gs.pieces) &&
           !gs.glacialWalls.some(w => w.row === destR && w.col === destC) &&
-          !(gs.voidSquares || []).some(v => v.row === destR && v.col === destC);
+          !(gs.voidSquares || []).some(v => v.row === destR && v.col === destC) &&
+          !(gs.specialTerrains || []).some(st => st.type === 'crater' && Math.round(st.row) === destR && Math.round(st.col) === destC);
 
         if (isValid) {
           emit(gs, {
             type: "ANIMATION",
-            name: "PummelKnockback",
+            name: "ObsidianPillarCast",
+            subType: "knockback",
             targetPieceId: tp.id,
-            attackerR: p.row,
-            attackerC: p.col,
+            casterR: p.row,
+            casterC: p.col,
             oldRow: tp.row,
             oldCol: tp.col,
             newRow: destR,
-            newCol: destC
+            newCol: destC,
+            pillarR: t.r,
+            pillarC: t.c
           });
           tp.row = destR;
           tp.col = destC;
@@ -411,9 +448,13 @@ export const ABILITIES = {
           gs.glacialWalls.push({
             row: t.r,
             col: t.c,
-            duration: 4,
+            duration: ABILITY_VALUES.ObsidianPillar.wallDuration || 4,
             type: 'obsidianPillar'
           });
+          const pillarPos = `${t.r},${t.c}`;
+          if (gs.ashTerritory) gs.ashTerritory.add(pillarPos);
+          if (gs.snowTerritory) gs.snowTerritory.delete(pillarPos);
+          if (gs.territoryCaptureTurn) gs.territoryCaptureTurn[pillarPos] = gs.turnCount;
         } else {
           tp.isDazed = true;
           tp.dazedFor = Math.max(tp.dazedFor || 0, 2);
@@ -423,6 +464,19 @@ export const ABILITIES = {
             blocker.isDazed = true;
             blocker.dazedFor = Math.max(blocker.dazedFor || 0, 2);
           }
+
+          emit(gs, {
+            type: "ANIMATION",
+            name: "ObsidianPillarCast",
+            subType: "slam",
+            targetPieceId: tp.id,
+            casterR: p.row,
+            casterC: p.col,
+            targetR: t.r,
+            targetC: t.c,
+            impactR: destR,
+            impactC: destC
+          });
         }
       }
     }

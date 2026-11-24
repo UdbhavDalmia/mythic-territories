@@ -42,7 +42,7 @@ export function drawGlacialWallAnimations(ctx, gameState) {
         if (s.alpha <= 0) { anim.shards.splice(k, 1); continue; }
 
         ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.rot);
-        ctx.fillStyle = `rgba(150, 230, 255, ${s.alpha})`;
+        ctx.fillStyle = s.color ? s.color.replace('ALPHA', Math.max(0, s.alpha)) : `rgba(150, 230, 255, ${s.alpha})`;
         ctx.beginPath(); ctx.moveTo(0, -s.size); ctx.lineTo(s.size / 2, s.size); ctx.lineTo(-s.size / 2, s.size); ctx.fill(); ctx.restore();
       }
 
@@ -71,18 +71,35 @@ export function drawGlacialWallAnimations(ctx, gameState) {
   }
 }
 
-export function spawnWallShatterEffect(row, col, gameState) {
+export function spawnWallShatterEffect(row, col, gameState, isObsidian = false) {
   gameState.wallAnimations = gameState.wallAnimations || [];
   const shards = [];
   const targetX = col * C.CELL_SIZE + C.CELL_SIZE / 2;
   const targetY = row * C.CELL_SIZE + C.CELL_SIZE / 2;
+  const shardColor = isObsidian ? 'rgba(80, 25, 120, ALPHA)' : 'rgba(150, 230, 255, ALPHA)';
   for (let i = 0; i < 20; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = Math.random() * 6 + 2;
-    shards.push({ x: targetX, y: targetY, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 2, alpha: 1, size: Math.random() * 6 + 3, rot: Math.random() * Math.PI, vrot: (Math.random() - 0.5) * 0.5 });
+    shards.push({
+      x: targetX,
+      y: targetY,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 2,
+      alpha: 1,
+      size: Math.random() * 6 + 3,
+      rot: Math.random() * Math.PI,
+      vrot: (Math.random() - 0.5) * 0.5,
+      color: shardColor
+    });
   }
   gameState.shockwaves = gameState.shockwaves || [];
-  gameState.shockwaves.push({ x: targetX, y: targetY, radius: 15, life: 1, color: '0, 191, 255' });
+  gameState.shockwaves.push({
+    x: targetX,
+    y: targetY,
+    radius: 15,
+    life: 1,
+    color: isObsidian ? '168, 85, 247' : '0, 191, 255'
+  });
   gameState.wallAnimations.push({ isShatter: true, shards });
 }
 

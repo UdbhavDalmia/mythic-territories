@@ -238,7 +238,11 @@ function Board({
                 case 'empty': isAbilityTarget = !targetPiece && !isWall && !isVoid; break;
                 case 'any': {
                   if (abilityKey === 'ObsidianPillar') {
-                    isAbilityTarget = !targetPiece && !isWall && !isVoid && !hasCrater;
+                    if (targetPiece) {
+                      isAbilityTarget = targetPiece.team === piece.team || !targetPiece.hasDefensiveWard;
+                    } else {
+                      isAbilityTarget = !isWall && !isVoid && !hasCrater;
+                    }
                   } else {
                     isAbilityTarget = true;
                   }
@@ -250,6 +254,9 @@ function Board({
         }
       }
 
+      const wallObj = isWall ? (gameState?.glacialWalls || []).find(w => w.row === r && w.col === c) : null;
+      const isObsidian = wallObj && wallObj.type === 'obsidianPillar';
+
       // Boundless continuous board styling (no rigid box boundaries)
       let cellStyle = { border: 'none' };
       let cellClass = '';
@@ -258,8 +265,17 @@ function Board({
       } else if (isVoid) {
         cellStyle = { backgroundColor: 'rgba(15, 10, 25, 0.95)', border: '1.5px solid rgba(147, 51, 234, 0.2)' };
       } else if (isWall) {
-        cellStyle = { backgroundColor: 'rgba(14, 165, 233, 0.25)', border: '2px solid rgba(125, 211, 252, 0.5)' };
-        cellClass = 'animate-pulse';
+        if (isObsidian) {
+          cellStyle = { 
+            backgroundColor: 'rgba(35, 12, 55, 0.85)', 
+            border: '1.5px solid rgba(192, 132, 252, 0.65)',
+            boxShadow: 'inset 0 0 10px rgba(147, 51, 234, 0.5), 0 0 14px rgba(168, 85, 247, 0.35)'
+          };
+          cellClass = 'z-10';
+        } else {
+          cellStyle = { backgroundColor: 'rgba(14, 165, 233, 0.25)', border: '2px solid rgba(125, 211, 252, 0.5)' };
+          cellClass = 'animate-pulse';
+        }
       }
 
       cells.push(
@@ -268,8 +284,35 @@ function Board({
           style={cellStyle}
           className={`relative w-full aspect-square flex items-center justify-center pointer-events-none ${cellClass}`}
         >
+          {/* Wall Visualization: Obsidian Pillar or Ice Wall */}
+          {isWall && wallObj && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-1">
+              {isObsidian ? (
+                <>
+                  <img 
+                    src="/images/obsidian-pillar.webp" 
+                    alt="Obsidian Pillar" 
+                    className="w-full h-full object-contain filter drop-shadow-[0_0_10px_rgba(168,85,247,0.95)] select-none pointer-events-none" 
+                  />
+                  <div className="absolute bottom-1 right-1 bg-purple-950/90 text-purple-200 border border-purple-400/70 rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold shadow pointer-events-none">
+                    {wallObj.duration}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-full h-full rounded border border-cyan-300/40 bg-cyan-500/20 backdrop-blur-[1px] flex items-center justify-center shadow-[0_0_8px_rgba(6,182,212,0.4)]">
+                    <span className="text-cyan-200 text-xs font-mono select-none">❄</span>
+                  </div>
+                  <div className="absolute bottom-1 right-1 bg-cyan-950/90 text-cyan-200 border border-cyan-400/70 rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold shadow pointer-events-none">
+                    {wallObj.duration}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           {/* Faction-tuned ethereal ability target rune */}
-          {isAbilityTarget && !['FrostfallBlessing', 'ReignOfFire', 'GlacialFracture', 'ObsidianPillar'].includes(gameState?.abilityContext?.abilityKey || gameState?.selectedPiece?.ability?.key) && (
+          {isAbilityTarget && !['FrostfallBlessing', 'ReignOfFire', 'GlacialFracture'].includes(gameState?.abilityContext?.abilityKey || gameState?.selectedPiece?.ability?.key) && (
             <div 
               className="absolute inset-1 pointer-events-none rounded-full flex items-center justify-center"
               style={{

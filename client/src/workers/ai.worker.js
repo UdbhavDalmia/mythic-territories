@@ -485,6 +485,15 @@ function getOrderedActions(gameState, team) {
                     case 'enemy': return !!targetPiece && targetPiece.team === opponentTeam;
                     case 'friendly': return !!targetPiece && targetPiece.team === team;
                     case 'empty': return !targetPiece;
+                    case 'any': {
+                        if (targetPiece) {
+                            return targetPiece.team === team || targetPiece.team === opponentTeam;
+                        }
+                        const isWall = (gameState.glacialWalls || []).some(w => w.row === r && w.col === c);
+                        const isVoid = (gameState.voidSquares || []).some(v => v.row === r && v.col === c);
+                        const isCrater = (gameState.specialTerrains || []).some(t => t.type === 'crater' && Math.round(t.row) === r && Math.round(t.col) === c);
+                        return !isWall && !isVoid && !isCrater;
+                    }
                     default: return false;
                 }
             };
@@ -671,6 +680,17 @@ function scoreActionHeuristically(action, gameState, aiTeam) {
             if (targetPiece) {
                 score += 800 + (C.PIECE_VALUES[targetPiece.key] || 0) * 2;
                 if (targetPiece.key.includes('Lord') || targetPiece.key.includes('Tyrant')) score += 5000;
+            }
+        } else if (abilityKey === 'ObsidianPillar') {
+            if (targetPiece) {
+                if (targetPiece.team === team) {
+                    score += 650 + (targetPiece.currentHp < 5 ? 500 : 0) + (targetPiece.key.includes('Lord') || targetPiece.key.includes('Tyrant') ? 2000 : 0);
+                } else {
+                    score += 950 + (C.PIECE_VALUES[targetPiece.key] || 0) * 2;
+                    if (targetPiece.key.includes('Lord') || targetPiece.key.includes('Tyrant')) score += 5000;
+                }
+            } else {
+                score += 450;
             }
         }
     }

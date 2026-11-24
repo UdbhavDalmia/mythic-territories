@@ -98,6 +98,9 @@ export const drawAColdFarewellAnimations = makeDrawProxy('drawAColdFarewellAnima
 export const spawnGuardianSaveEffect = makeSpawnProxy('spawnGuardianSaveEffect');
 export const drawGuardianSaveAnimations = makeDrawProxy('drawGuardianSaveAnimations');
 export const drawHelpFromAboveFog = makeDrawProxy('drawHelpFromAboveFog');
+
+export const spawnObsidianPillarCastEffect = makeSpawnProxy('spawnObsidianPillarCastEffect');
+export const drawObsidianPillarAnimations = makeDrawProxy('drawObsidianPillarAnimations');
 export const drawHelpFromAboveVapors = makeDrawProxy('drawHelpFromAboveVapors');
 export const spawnReignOfFireEffect = makeSpawnProxy('spawnReignOfFireEffect');
 export const drawReignOfFireAnimations = makeDrawProxy('drawReignOfFireAnimations');

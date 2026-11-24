@@ -1010,6 +1010,13 @@ function isTargetValid(piece, target, ability, gameStateLocal = gameState) {
         )
       );
     case "any":
+      if (ability.name === "Obsidian Pillar" || ability?.key === "ObsidianPillar") {
+        if (targetPiece) return true;
+        const isWall = (gameStateLocal.glacialWalls || []).some(w => w.row === r && w.col === c);
+        const isVoid = (gameStateLocal.voidSquares || []).some(v => v.row === r && v.col === c);
+        const isCrater = (gameStateLocal.specialTerrains || []).some(t => t.type === 'crater' && Math.round(t.row) === r && Math.round(t.col) === c);
+        return !isWall && !isVoid && !isCrater;
+      }
       return true;
     case "special":
       return ability.specialTargeting(piece, target, gameStateLocal);
@@ -2466,7 +2473,8 @@ function endOfTurnUpkeep(gs = gameState) {
           type: "ANIMATION",
           name: "WallShatter",
           r: w.row,
-          c: w.col
+          c: w.col,
+          wallType: w.type
         });
         if (w.type === 'obsidianPillar') {
           gs.specialTerrains = gs.specialTerrains || [];

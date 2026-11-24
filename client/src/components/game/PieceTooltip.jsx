@@ -94,7 +94,8 @@ export function generatePieceInfoHtml(piece, gameState) {
   const activeShield = (gameState?.shields || []).find(s => s.pieceId === piece.id);
   if (activeShield) {
     if (activeShield.name === 'ObsidianPillarShield') {
-      statuses.push(`Obsidian Shield (${activeShield.duration} turns)`);
+      const sHp = activeShield.hp !== undefined ? activeShield.hp : 2;
+      statuses.push(`Obsidian Shield: ${sHp} HP (${activeShield.duration} turns)`);
     } else {
       statuses.push(`Frost Shield (${activeShield.duration} turns)`);
     }

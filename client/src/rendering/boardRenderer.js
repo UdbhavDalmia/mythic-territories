@@ -571,7 +571,7 @@ export function renderInteractiveReticles(ctx, currentGs, isAshLocal, CS, mouseP
             ctx.stroke();
             ctx.restore();
 
-            if (['FrostfallBlessing', 'ReignOfFire', 'GlacialFracture', 'ObsidianPillar'].includes(abilityKey)) {
+            if (['FrostfallBlessing', 'ReignOfFire', 'GlacialFracture'].includes(abilityKey)) {
               if (isValidTarget) {
                 ctx.setLineDash([]);
                 if (abilityKey === 'FrostfallBlessing') {
@@ -656,16 +656,6 @@ export function renderInteractiveReticles(ctx, currentGs, isAshLocal, CS, mouseP
                   ctx.moveTo(mCx, mCy - 8);
                   ctx.lineTo(mCx, mCy + 8);
                   ctx.stroke();
-                } else if (abilityKey === 'ObsidianPillar') {
-                  ctx.fillStyle = 'rgba(147, 51, 234, 0.28)';
-                  ctx.strokeStyle = 'rgba(192, 132, 252, 0.95)';
-                  ctx.lineWidth = 2.5;
-                  ctx.shadowColor = 'rgba(147, 51, 234, 0.85)';
-                  ctx.shadowBlur = 12;
-                  ctx.beginPath();
-                  ctx.arc(mCx, mCy, radiusPx, 0, Math.PI * 2);
-                  ctx.fill();
-                  ctx.stroke();
                 }
               } else {
                 // Out of range indicator at mouse position
@@ -687,6 +677,155 @@ export function renderInteractiveReticles(ctx, currentGs, isAshLocal, CS, mouseP
                 ctx.lineTo(mCx + 6, mCy + 6);
                 ctx.moveTo(mCx + 6, mCy - 6);
                 ctx.lineTo(mCx - 6, mCy + 6);
+                ctx.stroke();
+                ctx.restore();
+              }
+            } else if (abilityKey === 'ObsidianPillar') {
+              if (isValidTarget) {
+                const targetPiece = C.getPieceAt(mR, mC, currentGs.pieces);
+                const isWall = (currentGs.glacialWalls || []).some(w => w.row === mR && w.col === mC);
+                const isVoid = (currentGs.voidSquares || []).some(v => v.row === mR && v.col === mC);
+                const isCrater = (currentGs.specialTerrains || []).some(t => t.type === 'crater' && Math.round(t.row) === mR && Math.round(t.col) === mC);
+
+                if (targetPiece) {
+                  if (targetPiece.team === caster.team) {
+                    // MODE 1: Friendly Ally -> Protective Obsidian Shield Hexagon
+                    ctx.save();
+                    const shieldR = CS * 0.44;
+                    ctx.strokeStyle = 'rgba(192, 132, 252, 0.95)';
+                    ctx.lineWidth = 2.4;
+                    ctx.shadowColor = 'rgba(168, 85, 247, 0.9)';
+                    ctx.shadowBlur = 12;
+                    ctx.fillStyle = 'rgba(147, 51, 234, 0.22)';
+                    ctx.beginPath();
+                    for (let h = 0; h < 6; h++) {
+                      const ang = (h * Math.PI) / 3 - Math.PI / 6;
+                      const hx = mCx + Math.cos(ang) * shieldR;
+                      const hy = mCy + Math.sin(ang) * shieldR;
+                      if (h === 0) ctx.moveTo(hx, hy);
+                      else ctx.lineTo(hx, hy);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#f3e8ff';
+                    ctx.font = 'bold 10px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.shadowColor = 'rgba(0,0,0,0.85)';
+                    ctx.shadowBlur = 4;
+                    ctx.fillText('+2 SHIELD', mCx, mCy - shieldR - 4);
+                    ctx.restore();
+                  } else {
+                    // MODE 2: Enemy Unit -> Strike + Knockback + Pillar
+                    ctx.save();
+                    const tgtR = CS * 0.44;
+                    ctx.strokeStyle = 'rgba(239, 68, 68, 0.95)';
+                    ctx.lineWidth = 2.2;
+                    ctx.shadowColor = 'rgba(239, 68, 68, 0.85)';
+                    ctx.shadowBlur = 12;
+
+                    // Corner brackets
+                    const bLen = CS * 0.14;
+                    ctx.beginPath();
+                    ctx.moveTo(mCx - tgtR, mCy - tgtR + bLen);
+                    ctx.lineTo(mCx - tgtR, mCy - tgtR);
+                    ctx.lineTo(mCx - tgtR + bLen, mCy - tgtR);
+                    ctx.moveTo(mCx + tgtR - bLen, mCy - tgtR);
+                    ctx.lineTo(mCx + tgtR, mCy - tgtR);
+                    ctx.lineTo(mCx + tgtR, mCy - tgtR + bLen);
+                    ctx.moveTo(mCx - tgtR, mCy + tgtR - bLen);
+                    ctx.lineTo(mCx - tgtR, mCy + tgtR);
+                    ctx.lineTo(mCx - tgtR + bLen, mCy + tgtR);
+                    ctx.moveTo(mCx + tgtR - bLen, mCy + tgtR);
+                    ctx.lineTo(mCx + tgtR, mCy + tgtR);
+                    ctx.lineTo(mCx + tgtR, mCy + tgtR - bLen);
+                    ctx.stroke();
+
+                    // Direction vector for knockback
+                    const dr = targetPiece.row - caster.row;
+                    const dc = targetPiece.col - caster.col;
+                    const maxDist = Math.max(Math.abs(dr), Math.abs(dc));
+                    const stepR = maxDist > 0 ? Math.round(dr / maxDist) : 0;
+                    const stepC = maxDist > 0 ? Math.round(dc / maxDist) : 0;
+                    const destR = targetPiece.row + stepR;
+                    const destC = targetPiece.col + stepC;
+
+                    const canMove = destR >= 0 && destR < 10 && destC >= 0 && destC < 10 &&
+                      !C.getPieceAt(destR, destC, currentGs.pieces) &&
+                      !(currentGs.glacialWalls || []).some(w => w.row === destR && w.col === destC) &&
+                      !(currentGs.voidSquares || []).some(v => v.row === destR && v.col === destC);
+
+                    const arrowDx = stepC * CS * 0.65;
+                    const arrowDy = stepR * CS * 0.65;
+                    ctx.strokeStyle = canMove ? 'rgba(249, 115, 22, 0.95)' : 'rgba(239, 68, 68, 0.95)';
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.moveTo(mCx, mCy);
+                    ctx.lineTo(mCx + arrowDx, mCy + arrowDy);
+                    ctx.stroke();
+
+                    ctx.fillStyle = canMove ? '#fed7aa' : '#fecaca';
+                    ctx.font = 'bold 9px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.shadowColor = 'rgba(0,0,0,0.85)';
+                    ctx.shadowBlur = 4;
+                    ctx.fillText(canMove ? 'KNOCKBACK' : 'COLLISION (DAZE)', mCx, mCy + tgtR + 12);
+                    ctx.restore();
+                  }
+                } else if (!isWall && !isVoid && !isCrater) {
+                  // MODE 3: Empty Tile -> Erect Obsidian Pillar Monolith Preview
+                  ctx.save();
+                  const pW = CS * 0.38;
+                  const pH = CS * 0.42;
+                  ctx.fillStyle = 'rgba(147, 51, 234, 0.28)';
+                  ctx.strokeStyle = 'rgba(192, 132, 252, 0.95)';
+                  ctx.lineWidth = 2;
+                  ctx.shadowColor = 'rgba(168, 85, 247, 0.8)';
+                  ctx.shadowBlur = 10;
+                  ctx.fillRect(mCx - pW, mCy - pH, pW * 2, pH * 2);
+                  ctx.strokeRect(mCx - pW, mCy - pH, pW * 2, pH * 2);
+
+                  // Diamond rune center
+                  ctx.strokeStyle = '#ffffff';
+                  ctx.lineWidth = 1.5;
+                  ctx.beginPath();
+                  ctx.moveTo(mCx, mCy - 8);
+                  ctx.lineTo(mCx + 8, mCy);
+                  ctx.lineTo(mCx, mCy + 8);
+                  ctx.lineTo(mCx - 8, mCy);
+                  ctx.closePath();
+                  ctx.stroke();
+
+                  ctx.fillStyle = '#e9d5ff';
+                  ctx.font = 'bold 9px monospace';
+                  ctx.textAlign = 'center';
+                  ctx.shadowColor = 'rgba(0,0,0,0.85)';
+                  ctx.shadowBlur = 4;
+                  ctx.fillText('ERECT PILLAR', mCx, mCy - pH - 4);
+                  ctx.restore();
+                } else {
+                  // Blocked terrain
+                  ctx.save();
+                  ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
+                  ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)';
+                  ctx.lineWidth = 2;
+                  ctx.setLineDash([4, 4]);
+                  ctx.beginPath();
+                  ctx.arc(mCx, mCy, CS * 0.4, 0, Math.PI * 2);
+                  ctx.fill();
+                  ctx.stroke();
+                  ctx.restore();
+                }
+              } else {
+                ctx.save();
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.12)';
+                ctx.strokeStyle = 'rgba(239, 68, 68, 0.75)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.arc(mCx, mCy, CS * 0.4, 0, Math.PI * 2);
+                ctx.fill();
                 ctx.stroke();
                 ctx.restore();
               }
@@ -731,6 +870,7 @@ export function renderEnvironmentalEffects(ctx, currentGs, isAshLocal, CS, dt, a
       if (Effects.drawVentAnimations) Effects.drawVentAnimations(currentGs);
       if (Effects.drawGlacialFractureAnimations) Effects.drawGlacialFractureAnimations(currentGs);
       if (Effects.drawAColdFarewellAnimations) Effects.drawAColdFarewellAnimations(currentGs);
+      if (Effects.drawObsidianPillarAnimations) Effects.drawObsidianPillarAnimations(currentGs);
 
       // Draw persistent Blizzard Storms (4-turn healing and swirling frost aura from A Cold Farewell)
       if (currentGs.blizzardStorms && currentGs.blizzardStorms.length > 0) {

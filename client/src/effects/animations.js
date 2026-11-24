@@ -17,3 +17,4 @@ export * from './units/frostLord.js';
 export * from './units/soulLinker.js';
 export * from './units/ashTyrant.js';
 export * from './units/shieldBreak.js';
+export * from './units/magmaShaper.js';
