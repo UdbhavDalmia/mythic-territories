@@ -13,13 +13,13 @@ let gameState = {};
  */
 export function updateVoronoiState(gs = gameState) {
   if (!gs || !gs.pieces) return;
-  const piecesKey = gs._piecesKey || gs.pieces
+  const newPiecesKey = gs.pieces
     .map(p => `${p.id}:${Number(p.col).toFixed(2)},${Number(p.row).toFixed(2)},${p.currentHp},${p.power}`)
     .join('|');
-  if (gs._piecesKey === piecesKey && gs.voronoiData && Array.isArray(gs.voronoiData.cells) && gs.snowTerritory && gs.ashTerritory) {
+  if (gs._piecesKey === newPiecesKey && gs.voronoiData && Array.isArray(gs.voronoiData.cells) && gs.snowTerritory && gs.ashTerritory) {
     return;
   }
-  gs._piecesKey = piecesKey;
+  gs._piecesKey = newPiecesKey;
   const voronoi = computePowerDiagram(gs.pieces);
   gs.voronoiData = voronoi;
   syncTerritorySetsFromVoronoi(gs, voronoi);
@@ -734,8 +734,9 @@ function isTargetValid(piece, target, ability, gameStateLocal = gameState) {
   if (targetPiece?.hasDefensiveWard && ability.canBeBlocked) return false;
 
   // Vision / Line of Sight Check:
-  // Abilities that can be blocked require an unobstructed line of sight from the caster to target
-  if (ability.canBeBlocked && !['FrostfallBlessing', 'ReignOfFire', 'GlacialFracture'].includes(ability.key || ability.name)) {
+  // Targeted abilities require an unobstructed line of sight unless it's an unblockable/sky ability
+  const isSkyAbility = ['FrostfallBlessing', 'ReignOfFire', 'GlacialFracture'].includes(ability.key || ability.name) || ability.canBeBlocked === false;
+  if (!isSkyAbility) {
     const los = C.hasLineOfSight(piece.row, piece.col, r, c, gameStateLocal, {
       ignoredPieceId: piece.id,
       targetPieceId: targetPiece?.id || null
@@ -874,6 +875,13 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false, gs
 
   // Inside movePiece, replace the capture block
   if (defender && defender.team !== piece.team) {
+    // Attack requires line of sight to defender
+    const los = C.hasLineOfSight(piece.row, piece.col, defender.row, defender.col, gs, {
+      ignoredPieceId: piece.id,
+      targetPieceId: defender.id
+    });
+    if (!los.hasLos) return false;
+
     if (isCaptureSuccessful(piece, defender, gs)) {
       const actuallyCaptured = handlePieceCapture(defender, piece, gs);
 
@@ -925,6 +933,17 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false, gs
       (gs.specialTerrains || []).some(t => t.type === 'crater' && Math.hypot(t.row - targetRow, t.col - targetCol) < 0.65);
     if (isBlocked) return false;
 
+    if (!isHighwayMove) {
+      const validMoves = getValidMoves(piece, gs);
+      const isLegalBfs = validMoves.some(m => Math.hypot((m.row !== undefined ? m.row : m.r) - targetRow, (m.col !== undefined ? m.col : m.c) - targetCol) <= 0.65);
+      if (!isLegalBfs) {
+        const los = C.hasLineOfSight(startRow, startCol, targetRow, targetCol, gs, {
+          ignoredPieceId: piece.id
+        });
+        if (!los.hasLos) return false;
+      }
+    }
+
     if (!gs.movePulses) gs.movePulses = [];
     gs.movePulses.push({ startRow, startCol, targetRow, targetCol, team: piece.team, life: 1.0 });
     updatePiecePosition(piece, targetRow, targetCol, gs);
@@ -937,11 +956,13 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false, gs
 }
 
 function paintTerritoryPath(piece, startRow, startCol, endRow, endCol, gs = gameState) {
+  ensureSets(gs);
   if (!gs.territoryTrails) gs.territoryTrails = [];
   if (!gs.territoryCaptureTurn) gs.territoryCaptureTurn = {};
 
   const dist = Math.hypot(endCol - startCol, endRow - startRow);
-  const radius = piece ? getEffectiveControl(piece, gs) : 1;
+  const effCtrl = piece ? getEffectiveControl(piece, gs) : 1;
+  const radius = Math.max(0.75, effCtrl);
   const team = piece ? piece.team : 'snow';
   const steps = dist === 0 ? 0 : Math.max(1, Math.ceil(dist / 0.5));
   const newPoints = [];
@@ -1024,6 +1045,7 @@ function updatePiecePosition(p, r, c, gs = gameState) {
   const startC = p.col;
   p.row = r;
   p.col = c;
+  delete gs._piecesKey;
   paintTerritoryPath(p, startR, startC, r, c, gs);
   updateVoronoiState(gs);
 }

@@ -178,15 +178,15 @@ export function hasLineOfSight(fromR, fromC, toR, toC, gameState, options = {}) 
       if (targetPieceId !== null && p.id === targetPieceId) continue;
 
       const distToTarget = Math.hypot(p.row - toR, p.col - toC);
-      if (ignoreTargetPiece && distToTarget < 0.45) continue;
+      if (ignoreTargetPiece && targetPieceId !== null && distToTarget < 0.45) continue;
 
       const wR = p.row - fromR;
       const wC = p.col - fromC;
       const t = wR * uR + wC * uC;
-      if (t <= 0.25 || t >= totalDist - 0.25) continue;
+      if (t <= 0.1 || t >= totalDist - 0.1) continue;
 
       const perpDistSq = (wR * wR + wC * wC) - (t * t);
-      const pieceRadius = 0.38;
+      const pieceRadius = 0.40;
       if (perpDistSq < pieceRadius * pieceRadius) {
         if (t < minHitDist) {
           minHitDist = t;
@@ -205,16 +205,13 @@ export function hasLineOfSight(fromR, fromC, toR, toC, gameState, options = {}) 
       const w = gameState.glacialWalls[i];
       if (!w || (w.duration !== undefined && w.duration <= 0)) continue;
 
-      const distToTarget = Math.hypot(w.row - toR, w.col - toC);
-      if (ignoreTargetPiece && distToTarget < 0.45) continue;
-
       const wR = w.row - fromR;
       const wC = w.col - fromC;
       const t = wR * uR + wC * uC;
-      if (t <= 0.25 || t >= totalDist - 0.25) continue;
+      if (t <= 0.1 || t >= totalDist + 0.1) continue;
 
       const perpDistSq = (wR * wR + wC * wC) - (t * t);
-      const wallRadius = 0.44;
+      const wallRadius = 0.48;
       if (perpDistSq < wallRadius * wallRadius) {
         if (t < minHitDist) {
           minHitDist = t;
@@ -233,16 +230,13 @@ export function hasLineOfSight(fromR, fromC, toR, toC, gameState, options = {}) 
       const v = gameState.voidSquares[i];
       if (!v) continue;
 
-      const distToTarget = Math.hypot(v.row - toR, v.col - toC);
-      if (ignoreTargetPiece && distToTarget < 0.45) continue;
-
       const wR = v.row - fromR;
       const wC = v.col - fromC;
       const t = wR * uR + wC * uC;
-      if (t <= 0.25 || t >= totalDist - 0.25) continue;
+      if (t <= 0.1 || t >= totalDist + 0.1) continue;
 
       const perpDistSq = (wR * wR + wC * wC) - (t * t);
-      const voidRadius = 0.44;
+      const voidRadius = 0.48;
       if (perpDistSq < voidRadius * voidRadius) {
         if (t < minHitDist) {
           minHitDist = t;
@@ -261,16 +255,13 @@ export function hasLineOfSight(fromR, fromC, toR, toC, gameState, options = {}) 
       const st = gameState.specialTerrains[i];
       if (!st || st.type !== 'crater') continue;
 
-      const distToTarget = Math.hypot(st.row - toR, st.col - toC);
-      if (ignoreTargetPiece && distToTarget < 0.45) continue;
-
       const wR = st.row - fromR;
       const wC = st.col - fromC;
       const t = wR * uR + wC * uC;
-      if (t <= 0.25 || t >= totalDist - 0.25) continue;
+      if (t <= 0.1 || t >= totalDist + 0.1) continue;
 
       const perpDistSq = (wR * wR + wC * wC) - (t * t);
-      const craterRadius = 0.44;
+      const craterRadius = 0.48;
       if (perpDistSq < craterRadius * craterRadius) {
         if (t < minHitDist) {
           minHitDist = t;

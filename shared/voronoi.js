@@ -482,5 +482,33 @@ export function syncTerritorySetsFromVoronoi(gameState, voronoiData) {
       // Unoccupied terrain is neither in snowTerritory nor in ashTerritory
     }
   }
+
+  // Preserve and merge dynamic territory trails from unit movement
+  if (Array.isArray(gameState.territoryTrails)) {
+    for (let i = 0; i < gameState.territoryTrails.length; i++) {
+      const tr = gameState.territoryTrails[i];
+      const rad = Math.max(0.75, tr.radius || 1);
+      const minR = Math.max(0, Math.floor(tr.row - rad));
+      const maxR = Math.min(9, Math.ceil(tr.row + rad));
+      const minC = Math.max(0, Math.floor(tr.col - rad));
+      const maxC = Math.min(9, Math.ceil(tr.col + rad));
+      for (let gr = minR; gr <= maxR; gr++) {
+        for (let gc = minC; gc <= maxC; gc++) {
+          const dx = gr - tr.row;
+          const dy = gc - tr.col;
+          if ((dx * dx + dy * dy) <= rad * rad) {
+            const pos = `${gr},${gc}`;
+            if (tr.team === 'snow') {
+              gameState.snowTerritory.add(pos);
+              gameState.ashTerritory.delete(pos);
+            } else {
+              gameState.ashTerritory.add(pos);
+              gameState.snowTerritory.delete(pos);
+            }
+          }
+        }
+      }
+    }
+  }
 }
 

@@ -1079,6 +1079,14 @@ export default function Game({ navigateTo }) {
           );
 
           if (defender) {
+            const los = C.hasLineOfSight(currentGs.selectedPiece.row, currentGs.selectedPiece.col, defender.row, defender.col, currentGs, {
+              ignoredPieceId: currentGs.selectedPiece.id,
+              targetPieceId: defender.id
+            });
+            if (!los.hasLos) {
+              triggerHaptic('error');
+              return;
+            }
             triggerHaptic('capture');
             sendAction('MOVE', { pieceId: currentGs.selectedPiece.id, r: defender.row, c: defender.col, isHighway: false });
           } else if (matchingLegalCell) {
@@ -1096,6 +1104,13 @@ export default function Game({ navigateTo }) {
               p => p.team === currentGs.selectedPiece.team && p.id !== currentGs.selectedPiece.id && Math.hypot((p.row + 0.5) - r, (p.col + 0.5) - c) < 0.65
             );
             if (!tooCloseToAlly) {
+              const los = C.hasLineOfSight(currentGs.selectedPiece.row, currentGs.selectedPiece.col, placeRow, placeCol, currentGs, {
+                ignoredPieceId: currentGs.selectedPiece.id
+              });
+              if (!los.hasLos) {
+                triggerHaptic('error');
+                return;
+              }
               triggerHaptic('move');
               sendAction('MOVE', { pieceId: currentGs.selectedPiece.id, r: Number(placeRow.toFixed(2)), c: Number(placeCol.toFixed(2)), isHighway: false });
             }
@@ -1149,6 +1164,14 @@ export default function Game({ navigateTo }) {
       const maxRadius = E.getPieceMoveRadius ? E.getPieceMoveRadius(currentGs.selectedPiece, currentGs) : (currentGs.selectedPiece.agility || 2);
 
       if (dist <= maxRadius) {
+        const los = C.hasLineOfSight(currentGs.selectedPiece.row, currentGs.selectedPiece.col, piece.row, piece.col, currentGs, {
+          ignoredPieceId: currentGs.selectedPiece.id,
+          targetPieceId: piece.id
+        });
+        if (!los.hasLos) {
+          triggerHaptic('error');
+          return;
+        }
         triggerHaptic('capture');
         sendAction('MOVE', { pieceId: currentGs.selectedPiece.id, r: piece.row, c: piece.col, isHighway: false });
       }
