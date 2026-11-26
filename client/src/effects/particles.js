@@ -1,6 +1,10 @@
 import * as C from '@shared/constants.js';
+import { initCastAnimations } from '../services/spriteAnimator.js';
 
 export function drawAttackTexts(ctx, gameState) {
+  if (!gameState?.attackTexts?.length) return;
+  ctx.font = `bold ${C.CELL_SIZE * 0.25}px Arial`;
+  ctx.textAlign = 'center';
   for (let i = gameState.attackTexts.length - 1; i >= 0; i--) {
     const t = gameState.attackTexts[i];
     t.alpha -= 0.03;
@@ -9,9 +13,7 @@ export function drawAttackTexts(ctx, gameState) {
       continue;
     }
     t.y += t.vy;
-    ctx.font = `bold ${C.CELL_SIZE * 0.25}px Arial`;
     ctx.fillStyle = `rgba(255, 255, 255, ${t.alpha})`;
-    ctx.textAlign = 'center';
     ctx.fillText(t.text, t.x, t.y);
   }
 }
@@ -48,6 +50,30 @@ export function drawMarkOfCinderSparks(ctx, gameState) {
 // Module-scoped persistent pools to maintain smooth animation across React renders
 let snowParticlesPool = [];
 let ashParticlesPool = [];
+
+// Cache territory extraction across frames to eliminate GC thrashing
+const cachedTerritory = {
+  snow: { raw: null, trails: null, trailsLen: -1, cells: [], set: new Set() },
+  ash: { raw: null, trails: null, trailsLen: -1, cells: [], set: new Set() }
+};
+
+function getTerritoryData(territory, territoryTrails, team) {
+  const cache = cachedTerritory[team];
+  const trailsLen = Array.isArray(territoryTrails) ? territoryTrails.length : 0;
+
+  if (cache.raw === territory && cache.trails === territoryTrails && cache.trailsLen === trailsLen) {
+    return cache;
+  }
+
+  const cells = extractTerritoryCells(territory, territoryTrails, team);
+  const set = new Set(cells.map(c => c.key));
+  cache.raw = territory;
+  cache.trails = territoryTrails;
+  cache.trailsLen = trailsLen;
+  cache.cells = cells;
+  cache.set = set;
+  return cache;
+}
 
 // Helper to extract clean array of { r, c, key: 'r,c' } from any territory data shape or trails
 function extractTerritoryCells(territory, territoryTrails, team) {
@@ -104,11 +130,8 @@ function extractTerritoryCells(territory, territoryTrails, team) {
 export function drawParticles(ctx, gameState) {
   if (!gameState || !ctx) return;
 
-  const snowCells = extractTerritoryCells(gameState.snowTerritory, gameState.territoryTrails, 'snow');
-  const ashCells = extractTerritoryCells(gameState.ashTerritory, gameState.territoryTrails, 'ash');
-
-  const snowSet = new Set(snowCells.map(c => c.key));
-  const ashSet = new Set(ashCells.map(c => c.key));
+  const { cells: snowCells, set: snowSet } = getTerritoryData(gameState.snowTerritory, gameState.territoryTrails, 'snow');
+  const { cells: ashCells, set: ashSet } = getTerritoryData(gameState.ashTerritory, gameState.territoryTrails, 'ash');
 
   const targetSnowCount = snowCells.length > 0 ? Math.min(Math.max(snowCells.length * 3, 8), 50) : 0;
   const targetAshCount = ashCells.length > 0 ? Math.min(Math.max(ashCells.length * 3, 8), 50) : 0;
@@ -140,47 +163,48 @@ export function drawParticles(ctx, gameState) {
     }
   }
 
-  for (let i = snowParticlesPool.length - 1; i >= 0; i--) {
-    const p = snowParticlesPool[i];
-    p.swayOffset += 0.04;
-    p.x += p.vx + Math.sin(p.swayOffset) * 0.25;
-    p.y += p.vy;
-    p.life--;
-
-    // Fade in / out
-    if (p.fadeIn) {
-      p.alpha = Math.min(p.baseAlpha, p.alpha + 0.04);
-      if (p.alpha >= p.baseAlpha) p.fadeIn = false;
-    } else if (p.life < 20) {
-      p.alpha = Math.max(0, p.alpha - 0.03);
-    }
-
-    const cellR = Math.floor(p.y / C.CELL_SIZE);
-    const cellC = Math.floor(p.x / C.CELL_SIZE);
-    const inTerritory = snowSet.has(`${cellR},${cellC}`);
-
-    if (!inTerritory || p.life <= 0 || p.alpha <= 0) {
-      if (snowCells.length > 0) {
-        const cell = snowCells[Math.floor(Math.random() * snowCells.length)];
-        p.x = cell.c * C.CELL_SIZE + Math.random() * C.CELL_SIZE;
-        p.y = cell.r * C.CELL_SIZE + Math.random() * 6; // Respawn at top of cell
-        p.life = Math.floor(Math.random() * 80 + 80);
-        p.alpha = 0;
-        p.fadeIn = true;
-      } else {
-        snowParticlesPool.splice(i, 1);
-        continue;
-      }
-    }
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(180, 230, 255, ${p.alpha})`;
+  if (snowParticlesPool.length > 0) {
     ctx.shadowColor = '#66ccff';
     ctx.shadowBlur = 4;
-    ctx.fill();
-    ctx.restore();
+    for (let i = snowParticlesPool.length - 1; i >= 0; i--) {
+      const p = snowParticlesPool[i];
+      p.swayOffset += 0.04;
+      p.x += p.vx + Math.sin(p.swayOffset) * 0.25;
+      p.y += p.vy;
+      p.life--;
+
+      // Fade in / out
+      if (p.fadeIn) {
+        p.alpha = Math.min(p.baseAlpha, p.alpha + 0.04);
+        if (p.alpha >= p.baseAlpha) p.fadeIn = false;
+      } else if (p.life < 20) {
+        p.alpha = Math.max(0, p.alpha - 0.03);
+      }
+
+      const cellR = Math.floor(p.y / C.CELL_SIZE);
+      const cellC = Math.floor(p.x / C.CELL_SIZE);
+      const inTerritory = snowSet.has(`${cellR},${cellC}`);
+
+      if (!inTerritory || p.life <= 0 || p.alpha <= 0) {
+        if (snowCells.length > 0) {
+          const cell = snowCells[Math.floor(Math.random() * snowCells.length)];
+          p.x = cell.c * C.CELL_SIZE + Math.random() * C.CELL_SIZE;
+          p.y = cell.r * C.CELL_SIZE + Math.random() * 6; // Respawn at top of cell
+          p.life = Math.floor(Math.random() * 80 + 80);
+          p.alpha = 0;
+          p.fadeIn = true;
+        } else {
+          snowParticlesPool.splice(i, 1);
+          continue;
+        }
+      }
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(180, 230, 255, ${p.alpha})`;
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
   }
 
   // 2. Ash Particles Update & Draw (strictly inside captured territory)
@@ -210,47 +234,48 @@ export function drawParticles(ctx, gameState) {
     }
   }
 
-  for (let i = ashParticlesPool.length - 1; i >= 0; i--) {
-    const p = ashParticlesPool[i];
-    p.wobbleOffset += 0.05;
-    p.x += p.vx + Math.cos(p.wobbleOffset) * 0.25;
-    p.y += p.vy;
-    p.life--;
-
-    // Fade in / out
-    if (p.fadeIn) {
-      p.alpha = Math.min(p.baseAlpha, p.alpha + 0.04);
-      if (p.alpha >= p.baseAlpha) p.fadeIn = false;
-    } else if (p.life < 20) {
-      p.alpha = Math.max(0, p.alpha - 0.03);
-    }
-
-    const cellR = Math.floor(p.y / C.CELL_SIZE);
-    const cellC = Math.floor(p.x / C.CELL_SIZE);
-    const inTerritory = ashSet.has(`${cellR},${cellC}`);
-
-    if (!inTerritory || p.life <= 0 || p.alpha <= 0) {
-      if (ashCells.length > 0) {
-        const cell = ashCells[Math.floor(Math.random() * ashCells.length)];
-        p.x = cell.c * C.CELL_SIZE + Math.random() * C.CELL_SIZE;
-        p.y = (cell.r + 1) * C.CELL_SIZE - Math.random() * 6; // Respawn at bottom of cell
-        p.life = Math.floor(Math.random() * 80 + 80);
-        p.alpha = 0;
-        p.fadeIn = true;
-      } else {
-        ashParticlesPool.splice(i, 1);
-        continue;
-      }
-    }
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(255, 120, 50, ${p.alpha})`;
+  if (ashParticlesPool.length > 0) {
     ctx.shadowColor = '#ff6622';
     ctx.shadowBlur = 4;
-    ctx.fill();
-    ctx.restore();
+    for (let i = ashParticlesPool.length - 1; i >= 0; i--) {
+      const p = ashParticlesPool[i];
+      p.wobbleOffset += 0.05;
+      p.x += p.vx + Math.cos(p.wobbleOffset) * 0.25;
+      p.y += p.vy;
+      p.life--;
+
+      // Fade in / out
+      if (p.fadeIn) {
+        p.alpha = Math.min(p.baseAlpha, p.alpha + 0.04);
+        if (p.alpha >= p.baseAlpha) p.fadeIn = false;
+      } else if (p.life < 20) {
+        p.alpha = Math.max(0, p.alpha - 0.03);
+      }
+
+      const cellR = Math.floor(p.y / C.CELL_SIZE);
+      const cellC = Math.floor(p.x / C.CELL_SIZE);
+      const inTerritory = ashSet.has(`${cellR},${cellC}`);
+
+      if (!inTerritory || p.life <= 0 || p.alpha <= 0) {
+        if (ashCells.length > 0) {
+          const cell = ashCells[Math.floor(Math.random() * ashCells.length)];
+          p.x = cell.c * C.CELL_SIZE + Math.random() * C.CELL_SIZE;
+          p.y = (cell.r + 1) * C.CELL_SIZE - Math.random() * 6; // Respawn at bottom of cell
+          p.life = Math.floor(Math.random() * 80 + 80);
+          p.alpha = 0;
+          p.fadeIn = true;
+        } else {
+          ashParticlesPool.splice(i, 1);
+          continue;
+        }
+      }
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 120, 50, ${p.alpha})`;
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
   }
 
   // Sync with gameState arrays for backwards-compatibility
@@ -276,6 +301,8 @@ export function drawParticles(ctx, gameState) {
 }
 
 export function drawProjectiles(ctx, gameState) {
+  if (!gameState?.projectiles?.length) return;
+  const shadowBlurAmount = gameState.lowDetail ? 4 : 15;
   for (let i = gameState.projectiles.length - 1; i >= 0; i--) {
     const proj = gameState.projectiles[i];
     const targetX = proj.targetCol * C.CELL_SIZE + C.CELL_SIZE / 2;
@@ -295,12 +322,12 @@ export function drawProjectiles(ctx, gameState) {
 
     ctx.fillStyle = proj.color;
     ctx.shadowColor = proj.color;
-    ctx.shadowBlur = gameState.lowDetail ? 4 : 15;
+    ctx.shadowBlur = shadowBlurAmount;
     ctx.beginPath();
     ctx.arc(proj.x, proj.y, proj.size, 0, Math.PI * 2);
     ctx.fill();
-    ctx.shadowBlur = 0;
   }
+  ctx.shadowBlur = 0;
 }
 
 export function drawShockwaves(ctx, gameState) {
@@ -324,6 +351,8 @@ export function drawShockwaves(ctx, gameState) {
 export function initParticles(gameState) {
   snowParticlesPool = [];
   ashParticlesPool = [];
+  cachedTerritory.snow.raw = null;
+  cachedTerritory.ash.raw = null;
   if (gameState) {
     gameState.snowParticles = snowParticlesPool;
     gameState.ashParticles = ashParticlesPool;
@@ -342,6 +371,7 @@ export function initParticles(gameState) {
     gameState.glacialFractureAnimations = [];
     gameState.aColdFarewellAnimations = [];
     gameState.farewellVignette = null;
+    initCastAnimations(gameState);
   }
 }
 

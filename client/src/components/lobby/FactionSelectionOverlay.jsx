@@ -13,7 +13,7 @@ import Shield from 'lucide-react/dist/esm/icons/shield.js';
 import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
 import Lock from 'lucide-react/dist/esm/icons/lock.js';
 
-export default function FactionSelectionOverlay({
+function FactionSelectionOverlay({
   showFactionSelection,
   factionOverlayRef,
   currentRoomId,
@@ -418,3 +418,5 @@ export default function FactionSelectionOverlay({
 
   );
 }
+
+export default React.memo(FactionSelectionOverlay);

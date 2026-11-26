@@ -172,7 +172,7 @@ export function generatePieceInfoHtml(piece, gameState) {
   return info;
 }
 
-export default function PieceTooltip({ hoveredPiece, gameState, initialMousePos }) {
+function PieceTooltip({ hoveredPiece, gameState, initialMousePos }) {
   const popupRef = useRef(null);
   const targetMousePosRef = useRef(initialMousePos || { x: 0, y: 0 });
   const currentMousePosRef = useRef(initialMousePos || { x: 0, y: 0 });
@@ -294,3 +294,5 @@ export default function PieceTooltip({ hoveredPiece, gameState, initialMousePos 
     />
   );
 }
+
+export default React.memo(PieceTooltip);

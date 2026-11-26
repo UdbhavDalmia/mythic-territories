@@ -4,7 +4,7 @@ import BookOpen from 'lucide-react/dist/esm/icons/book-open.js';
 import Settings from 'lucide-react/dist/esm/icons/settings.js';
 import { hasUnreadPatchNotes } from '../../services/patchTracking.js';
 
-export default function LobbyFooter({
+function LobbyFooter({
   footerLinksRef,
   handleNavigate,
   onWarm
@@ -63,3 +63,5 @@ export default function LobbyFooter({
     </footer>
   );
 }
+
+export default React.memo(LobbyFooter);

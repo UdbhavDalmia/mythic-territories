@@ -31,11 +31,12 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Cache-first for static fonts, images, and units
+  // Cache-first for static fonts, images, units, and badges
   if (
     url.pathname.startsWith('/fonts/') ||
     url.pathname.startsWith('/images/') ||
-    url.pathname.startsWith('/units/')
+    url.pathname.startsWith('/units/') ||
+    url.pathname.startsWith('/badges/')
   ) {
     event.respondWith(
       caches.match(event.request).then((cached) => {

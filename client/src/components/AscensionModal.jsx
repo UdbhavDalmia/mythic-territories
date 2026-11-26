@@ -1,7 +1,7 @@
 import React from 'react';
 import * as C from '@shared/constants.js';
 
-export default function AscensionModal({ gameState, sendAction }) {
+function AscensionModal({ gameState, sendAction }) {
   const pending = gameState?.pendingAscension;
   if (!pending) return null;
 
@@ -69,3 +69,5 @@ export default function AscensionModal({ gameState, sendAction }) {
     </div>
   );
 }
+
+export default React.memo(AscensionModal);

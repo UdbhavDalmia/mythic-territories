@@ -1,17 +1,31 @@
 /**
  * Safe mobile haptic feedback helper
  * Gracefully ignores unsupported devices, desktop browsers, or restricted execution contexts.
+ * In-memory caching avoids synchronous localStorage reads during rapid touch/interaction loops.
  */
 
+let cachedHapticsEnabled = null;
+
 export function getHapticsEnabled() {
+  if (cachedHapticsEnabled !== null) return cachedHapticsEnabled;
   if (typeof window === 'undefined') return true;
-  const val = localStorage.getItem('mt_haptics_enabled');
-  return val === null ? true : val === 'true';
+  try {
+    const val = localStorage.getItem('mt_haptics_enabled');
+    cachedHapticsEnabled = val === null ? true : val === 'true';
+  } catch {
+    cachedHapticsEnabled = true;
+  }
+  return cachedHapticsEnabled;
 }
 
 export function setHapticsEnabled(enabled) {
+  cachedHapticsEnabled = !!enabled;
   if (typeof window === 'undefined') return;
-  localStorage.setItem('mt_haptics_enabled', enabled ? 'true' : 'false');
+  try {
+    localStorage.setItem('mt_haptics_enabled', enabled ? 'true' : 'false');
+  } catch {
+    // Graceful no-op on restricted storage
+  }
 }
 
 export function triggerHaptic(type = 'light') {

@@ -5,6 +5,7 @@
    Kept for badge rendering, AI scoring, and backwards-compatibility.
    ========================================================================== */
 import * as C from "./constants.js";
+import { UNIT_REGISTRY, isUnitInvulnerable, getUnitDynamicStats } from "./units/registry.js";
 
 const safe = (v, d = 0) => (typeof v === "number" ? v : d);
 
@@ -45,8 +46,9 @@ export function getEffectivePower(
     return 0;
 
   let basePower = safe(piece.power);
-  if (piece.key === 'snowFrostLord' && piece.hasHelpFromAboveActive) {
-    basePower = 3;
+  const powerDynamicStats = getUnitDynamicStats(piece, gameState);
+  if (powerDynamicStats?.strengthOverride !== undefined) {
+    basePower = powerDynamicStats.strengthOverride;
   }
   let base =
     basePower + safe(piece.shrineBoost) + safe(piece.anchorBoost);
@@ -151,8 +153,9 @@ export function getEffectiveStrength(piece, gameState, opponent = null) {
 
   // Base from RPG stat (fall back to legacy power for old-format pieces)
   let str = safe(piece.strength, safe(piece.power, 1));
-  if (piece.key === 'snowFrostLord' && piece.hasHelpFromAboveActive) {
-    str = 3;
+  const dynamicStats = getUnitDynamicStats(piece, gameState);
+  if (dynamicStats?.strengthOverride !== undefined) {
+    str = dynamicStats.strengthOverride;
   }
 
   // Shrine and anchor boosts apply to all combat stats
@@ -174,12 +177,9 @@ export function getEffectiveStrength(piece, gameState, opponent = null) {
       else str += safe(b.amount);
     });
 
-  // Frost Duo (Glacial Mage Passive)
-  if (piece.key === "snowGlacialMage") {
-    const wisps = (gameState.pieces || []).filter(p => p.key === "snowIceWisp" && p.team === piece.team && p.currentHp > 0);
-    if (wisps.length >= 2) {
-      str += 1;
-    }
+  // Dynamic Unit Passive Stats (e.g. Frost Duo)
+  if (dynamicStats?.strengthBonus) {
+    str += dynamicStats.strengthBonus;
   }
 
   // Help From Above aura removed
@@ -279,10 +279,10 @@ export function getEffectiveControl(piece, gameState) {
   if (!piece) return 0;
   let ctrl = piece.control || 0.1;
 
-  // Frost Duo (Glacial Mage Passive)
-  if (piece.key === "snowGlacialMage" && gameState) {
-    const wisps = (gameState.pieces || []).filter(p => p.key === "snowIceWisp" && p.team === piece.team && p.currentHp > 0);
-    ctrl += 0.2 * wisps.length;
+  // Dynamic Unit Passive Stats (e.g. Frost Duo)
+  const dynamicStats = getUnitDynamicStats(piece, gameState);
+  if (dynamicStats?.controlBonus) {
+    ctrl += dynamicStats.controlBonus;
   }
 
   // Apply AColdFarewell Control Lock debuffs
@@ -317,10 +317,7 @@ export function dealDamage(attacker, defender, gameState) {
   }
 
   let actualDmg = Math.min(defender.currentHp, dmg);
-  if (defender.key === 'snowFrostLord' && defender.hasHelpFromAboveActive) {
-    actualDmg = 0;
-  }
-  if (defender.key === 'ashAshTyrant' && defender.hasDeathMeteorInvincibility) {
+  if (isUnitInvulnerable(defender, gameState)) {
     actualDmg = 0;
   }
 
@@ -428,10 +425,7 @@ export function isCaptureSuccessful(attacker, defender, gameState) {
  * Used by the Tactical Predictor in the client mousemove handler.
  */
 export function previewDamage(attacker, defender, gameState) {
-  if (defender.key === 'snowFrostLord' && defender.hasHelpFromAboveActive) {
-    return { dmg: 0, isFatal: false };
-  }
-  if (defender.key === 'ashAshTyrant' && defender.hasDeathMeteorInvincibility) {
+  if (isUnitInvulnerable(defender, gameState)) {
     return { dmg: 0, isFatal: false };
   }
   const str = getEffectiveStrength(attacker, gameState, defender);
@@ -464,10 +458,10 @@ export function getEffectiveAgility(piece, gameState) {
   if (!piece) return 2;
   let agi = typeof piece.agility === "number" ? piece.agility : 2;
 
-  // Apply Frost Duo bonus
-  if (piece.key === "snowGlacialMage" && gameState) {
-    const wisps = (gameState.pieces || []).filter(p => p.key === "snowIceWisp" && p.team === piece.team && p.currentHp > 0);
-    agi += 0.2 * wisps.length;
+  // Apply Dynamic Unit Agility (e.g. Frost Duo bonus)
+  const dynamicStats = getUnitDynamicStats(piece, gameState);
+  if (dynamicStats?.agilityBonus) {
+    agi += dynamicStats.agilityBonus;
   }
 
   // Apply AColdFarewell debuffs
@@ -490,7 +484,7 @@ export function getPieceMoveRadius(piece, gameState) {
   if (!piece) return 2;
 
   if (gameState?.testMode) {
-    if (piece.key === 'snowFrostLord' || piece.key === 'ashAshTyrant' || piece.key === 'ashMagmaShaper' || piece.key === 'snowGlacialMage' || piece.key === 'snowIceWisp') {
+    if (UNIT_REGISTRY[piece.key]) {
       return 10;
     }
     return 0;

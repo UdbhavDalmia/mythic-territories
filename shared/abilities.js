@@ -15,6 +15,37 @@ import {
   applyDebuff
 } from './constants.js';
 
+import { 
+  FrostfallBlessingAbility, 
+  FROSTFALL_BLESSING_VALUES, 
+  HELP_FROM_ABOVE_VALUES 
+} from '@frostLord/index.js';
+import { 
+  ReignOfFireAbility,
+  REIGN_OF_FIRE_VALUES 
+} from '@ashTyrant/index.js';
+import { 
+  GlacialFractureAbility,
+  GLACIAL_FRACTURE_VALUES, 
+  WISP_ENHANCEMENT_VALUES 
+} from '@glacialMage/index.js';
+import { 
+  FateLinkAbility,
+  FATE_LINK_VALUES 
+} from '@soulLinker/index.js';
+import { 
+  ObsidianPillarAbility,
+  OBSIDIAN_PILLAR_VALUES 
+} from '@magmaShaper/index.js';
+import { 
+  TheReapersTollAbility,
+  THE_REAPERS_TOLL_VALUES 
+} from '@ashReaper/index.js';
+import { 
+  A_COLD_FAREWELL_VALUES, 
+  SUMMON_ICE_WISP_VALUES 
+} from '@iceWisp/index.js';
+
 export const ABILITY_VALUES = {
   ChillingAura: { cooldown: 4, duration: 3, powerDebuff: 1 },
   FrenziedDash: { range: 2, cooldown: 3 },
@@ -27,7 +58,7 @@ export const ABILITY_VALUES = {
   InnerFurnace: { duration: 4, powerBoost: 1 },
   KindleArmor: { range: 1, duration: 3, cooldown: 3, powerBoost: 1 },
   LavaGlob: { cooldown: 10, range: 4, damage: 1, maxTargetPower: 2 },
-  ObsidianPillar: { range: 2, duration: 2, wallDuration: 4, shieldDuration: 2, shieldHp: 2, cooldown: 5, damage: 1 },
+  ObsidianPillar: OBSIDIAN_PILLAR_VALUES,
   MarkOfCinder: { cooldown: 4, range: 2, duration: 3, powerDebuff: 1 },
   PowerInfusion: { powerBoost: 4, duration: 5 },
   Pummel: { range: 1, cooldown: 3 },
@@ -36,9 +67,9 @@ export const ABILITY_VALUES = {
   SetSnare: { range: 2, cooldown: 4, duration: 3 },
   Shrine: { powerBoost: 1, overloadCharges: 2 },
   Siphon: { maxCharges: 3 },
-  GlacialFracture: { cooldown: 9, range: 2.5, radius: 2, damage: 2, wispCap: 2, remnantDuration: 3 },
-  AColdFarewell: { radius: 1.5, duration: 4, damage: 2, heal: 1, strengthBoost: 1, agilityDebuff: 0.4 },
-  SummonIceWisp: { cooldown: 4, range: 4 },
+  GlacialFracture: GLACIAL_FRACTURE_VALUES,
+  AColdFarewell: A_COLD_FAREWELL_VALUES,
+  SummonIceWisp: SUMMON_ICE_WISP_VALUES,
   UnstableGround: { cooldown: 4, range: 4, duration: 3, damage: 1 },
   FrostStomp: { cooldown: 3, duration: 1 },
   HardenedIce: { cooldown: 5, duration: 4 },
@@ -52,16 +83,16 @@ export const ABILITY_VALUES = {
   SoulfireBurst: { cooldown: 6, range: 3, damage: 1 },
   TacticalSwapAsh: { cooldown: 4, range: 2, duration: 2 },
   CinderSurge: { cooldown: 4, range: 1 },
-  WispEnhancement: { powerBoost: 1 },
+  WispEnhancement: WISP_ENHANCEMENT_VALUES,
   GlacialFortress: { cooldown: 8, duration: 3 },
   VolatileForge: { places: 2 },
   MagmaAnchor: { powerBoost: 1 },
   SpikeRain: { cooldown: 11, duration: 5, range: 2.5, radius: 2, damage: 2, heal: 1 },
-  HelpFromAbove: { cooldown: 10, radius: 1.5, strengthBoost: 1, activeDuration: 3 },
-  FateLink: { cooldown: 7, range: 3, duration: 4 },
-  TheReapersToll: { cooldown: 7, range: 3, duration: 4 },
-  ReignOfFire: { cooldown: 11, duration: 3, range: 2.5, radius: 2, damage: 2, allyDamage: 1, strengthBoost: 2 },
-  FrostfallBlessing: { cooldown: 11, duration: 5, range: 2.5, radius: 2, damage: 2, heal: 1 }
+  HelpFromAbove: HELP_FROM_ABOVE_VALUES,
+  FateLink: FATE_LINK_VALUES,
+  TheReapersToll: THE_REAPERS_TOLL_VALUES,
+  ReignOfFire: REIGN_OF_FIRE_VALUES,
+  FrostfallBlessing: FROSTFALL_BLESSING_VALUES
 };
 
 const glacialWallTargeting = (p, t, gs) => {
@@ -329,158 +360,7 @@ export const ABILITIES = {
       }
     }
   },
-  ObsidianPillar: {
-    name: "Obsidian Pillar",
-    cooldown: ABILITY_VALUES.ObsidianPillar.cooldown,
-    range: ABILITY_VALUES.ObsidianPillar.range,
-    targetType: "any",
-    canBeBlocked: true,
-    requiresTargeting: true,
-    effect: (p, t, gs) => {
-      const tp = getPieceAt(t.r, t.c, gs.pieces);
-      if (!tp) {
-        const hasWall = (gs.glacialWalls || []).some(w => Math.hypot(w.row - t.r, w.col - t.c) < 0.6);
-        const hasVoid = (gs.voidSquares || []).some(v => Math.hypot(v.row - t.r, v.col - t.c) < 0.6);
-        const hasCrater = (gs.specialTerrains || []).some(st => st.type === 'crater' && Math.hypot(st.row - t.r, st.col - t.c) < 0.6);
-        if (hasWall || hasVoid || hasCrater) return;
-
-        gs.glacialWalls = gs.glacialWalls || [];
-        gs.glacialWalls.push({
-          row: t.r,
-          col: t.c,
-          duration: ABILITY_VALUES.ObsidianPillar.wallDuration || 4,
-          type: 'obsidianPillar'
-        });
-
-        // Claim/reinforce Ash territory on the created pillar
-        const pos = `${t.r},${t.c}`;
-        if (gs.ashTerritory) gs.ashTerritory.add(pos);
-        if (gs.snowTerritory) gs.snowTerritory.delete(pos);
-        if (gs.territoryCaptureTurn) gs.territoryCaptureTurn[pos] = gs.turnCount;
-
-        emit(gs, {
-          type: "ANIMATION",
-          name: "ObsidianPillarCast",
-          subType: "wall",
-          targetR: t.r,
-          targetC: t.c,
-          casterR: p.row,
-          casterC: p.col,
-          casterId: p.id
-        });
-        return;
-      }
-      if (tp.team === p.team) {
-        gs.shields = gs.shields || [];
-        const existingIdx = gs.shields.findIndex((s) => s.pieceId === tp.id);
-        const shieldData = {
-          pieceId: tp.id,
-          duration: ABILITY_VALUES.ObsidianPillar.shieldDuration || 2,
-          hp: ABILITY_VALUES.ObsidianPillar.shieldHp || 2,
-          maxHp: ABILITY_VALUES.ObsidianPillar.shieldHp || 2,
-          name: "ObsidianPillarShield"
-        };
-        if (existingIdx !== -1) {
-          gs.shields[existingIdx] = shieldData;
-        } else {
-          gs.shields.push(shieldData);
-        }
-
-        emit(gs, {
-          type: "ANIMATION",
-          name: "ObsidianPillarCast",
-          subType: "shield",
-          targetR: t.r,
-          targetC: t.c,
-          casterR: p.row,
-          casterC: p.col,
-          casterId: p.id,
-          targetPieceId: tp.id
-        });
-      } else {
-        const dmg = ABILITY_VALUES.ObsidianPillar.damage || 1;
-        tp.power = Math.max(0, tp.power - dmg);
-        if (typeof tp.currentHp === "number") {
-          if (!(tp.key === 'snowFrostLord' && tp.hasHelpFromAboveActive)) {
-            tp.currentHp = Math.max(0, Math.round((tp.currentHp - dmg) * 10) / 10);
-          }
-        }
-
-        const dr = tp.row - p.row;
-        const dc = tp.col - p.col;
-        const maxDist = Math.max(Math.abs(dr), Math.abs(dc));
-        const stepR = maxDist > 0 ? Math.round(dr / maxDist) : 0;
-        const stepC = maxDist > 0 ? Math.round(dc / maxDist) : 0;
-
-        const destR = tp.row + stepR;
-        const destC = tp.col + stepC;
-
-        const isValid = inBounds(destR, destC) &&
-          !getPieceAt(destR, destC, gs.pieces) &&
-          !gs.glacialWalls.some(w => w.row === destR && w.col === destC) &&
-          !(gs.voidSquares || []).some(v => v.row === destR && v.col === destC) &&
-          !(gs.specialTerrains || []).some(st => st.type === 'crater' && Math.round(st.row) === destR && Math.round(st.col) === destC);
-
-        if (isValid) {
-          emit(gs, {
-            type: "ANIMATION",
-            name: "ObsidianPillarCast",
-            subType: "knockback",
-            targetPieceId: tp.id,
-            casterR: p.row,
-            casterC: p.col,
-            oldRow: tp.row,
-            oldCol: tp.col,
-            newRow: destR,
-            newCol: destC,
-            pillarR: t.r,
-            pillarC: t.c
-          });
-          tp.row = destR;
-          tp.col = destC;
-
-          const pos = `${destR},${destC}`;
-          (tp.team === "snow" ? gs.snowTerritory : gs.ashTerritory).add(pos);
-          (tp.team === "snow" ? gs.ashTerritory : gs.snowTerritory).delete(pos);
-          gs.territoryCaptureTurn[pos] = gs.turnCount;
-
-          gs.glacialWalls = gs.glacialWalls || [];
-          gs.glacialWalls.push({
-            row: t.r,
-            col: t.c,
-            duration: ABILITY_VALUES.ObsidianPillar.wallDuration || 4,
-            type: 'obsidianPillar'
-          });
-          const pillarPos = `${t.r},${t.c}`;
-          if (gs.ashTerritory) gs.ashTerritory.add(pillarPos);
-          if (gs.snowTerritory) gs.snowTerritory.delete(pillarPos);
-          if (gs.territoryCaptureTurn) gs.territoryCaptureTurn[pillarPos] = gs.turnCount;
-        } else {
-          tp.isDazed = true;
-          tp.dazedFor = Math.max(tp.dazedFor || 0, 2);
-
-          const blocker = getPieceAt(destR, destC, gs.pieces);
-          if (blocker && !blocker.isSteadfast) {
-            blocker.isDazed = true;
-            blocker.dazedFor = Math.max(blocker.dazedFor || 0, 2);
-          }
-
-          emit(gs, {
-            type: "ANIMATION",
-            name: "ObsidianPillarCast",
-            subType: "slam",
-            targetPieceId: tp.id,
-            casterR: p.row,
-            casterC: p.col,
-            targetR: t.r,
-            targetC: t.c,
-            impactR: destR,
-            impactC: destC
-          });
-        }
-      }
-    }
-  },
+  ObsidianPillar: ObsidianPillarAbility,
   MarkOfCinder: {
     name: "Mark of Cinder",
     cooldown: ABILITY_VALUES.MarkOfCinder.cooldown,
@@ -613,18 +493,7 @@ export const ABILITIES = {
       });
     }
   },
-  GlacialFracture: {
-    name: "Glacial Fracture",
-    cooldown: ABILITY_VALUES.GlacialFracture.cooldown,
-    requiresTargeting: true,
-    circularRange: true,
-    range: ABILITY_VALUES.GlacialFracture.range,
-    radius: ABILITY_VALUES.GlacialFracture.radius,
-    targetType: "any",
-    effect: (piece, target, gameState, createPiece) => {
-      // Handled in logic.js
-    }
-  },
+  GlacialFracture: GlacialFractureAbility,
   SummonIceWisp: {
     name: "Summon Ice Wisp",
     cooldown: ABILITY_VALUES.SummonIceWisp.cooldown,
@@ -892,151 +761,9 @@ export const ABILITIES = {
       }
     }
   },
-  FateLink: {
-    name: "Fate Link",
-    cooldown: ABILITY_VALUES.FateLink.cooldown,
-    requiresTargeting: true,
-    range: ABILITY_VALUES.FateLink.range,
-    targetType: "special",
-    specialTargeting: (p, t, gs) => {
-      const tp = getPieceAt(t.r, t.c, gs.pieces);
-      if (gs.abilityContext && gs.abilityContext.abilityKey === 'FateLink' && gs.abilityContext.step === 1) {
-        return tp && tp.team === p.team;
-      }
-      return tp && tp.team !== p.team;
-    },
-    effect: (p, t, gs) => {
-      const target2 = getPieceAt(t.r, t.c, gs.pieces);
-      const target1 = t.target1 ? gs.pieces.find(pc => pc.id === t.target1.id) : null;
-      if (target1 && target2) {
-        gs.fateLinks = gs.fateLinks || [];
-        gs.fateLinks.push({
-          sourceId: target1.id,
-          targetId: target2.id,
-          duration: ABILITY_VALUES.FateLink.duration
-        });
-        emit(gs, { type: "ANIMATION", name: "FateLinkCast", sourceId: target1.id, targetId: target2.id });
-      }
-    }
-  },
-  TheReapersToll: {
-    name: "The Reaper's Toll",
-    cooldown: ABILITY_VALUES.TheReapersToll.cooldown,
-    requiresTargeting: true,
-    range: ABILITY_VALUES.TheReapersToll.range,
-    targetType: "enemy",
-    canBeBlocked: true,
-    effect: (p, t, gs) => {
-      const tp = getPieceAt(t.r, t.c, gs.pieces);
-      if (tp) {
-        const defSteal = 1;
-        const agiSteal = 0.4;
-        gs.TheReapersTolls = gs.TheReapersTolls || [];
-        gs.TheReapersTolls.push({
-          harvesterId: p.id,
-          targetId: tp.id,
-          duration: ABILITY_VALUES.TheReapersToll.duration,
-          defStolen: defSteal,
-          agiStolen: agiSteal
-        });
-        // Immediately steal stats
-        tp.def = Math.max(0, (tp.def || 0) - defSteal);
-        tp.agility = Math.max(0.1, (tp.agility || 1) - agiSteal);
-        p.def = (p.def || 0) + defSteal;
-        p.agility = (p.agility || 1) + agiSteal;
-      }
-    }
-  },
-  ReignOfFire: {
-    name: "Reign of Fire",
-    cooldown: ABILITY_VALUES.ReignOfFire.cooldown,
-    requiresTargeting: true,
-    circularRange: true,
-    range: ABILITY_VALUES.ReignOfFire.range,
-    radius: ABILITY_VALUES.ReignOfFire.radius,
-    targetType: "any", // AoE targets an area
-    effect: (p, t, gs) => {
-      const dmg = ABILITY_VALUES.ReignOfFire.damage;
-      const allyDmg = ABILITY_VALUES.ReignOfFire.allyDamage;
-      const radius = ABILITY_VALUES.ReignOfFire.radius;
-      const strBoost = ABILITY_VALUES.ReignOfFire.strengthBoost;
-      const duration = ABILITY_VALUES.ReignOfFire.duration;
-
-      const toRemove = [];
-      gs.pieces.forEach(target => {
-        if (cellIntersectsCircle(target.row, target.col, t.r, t.c, radius)) {
-          if (target.key === 'snowFrostLord' && target.hasHelpFromAboveActive) {
-            return; // Immune to damage
-          }
-          if (target.key === 'ashAshTyrant' && target.hasDeathMeteorInvincibility) {
-            return; // Immune to damage
-          }
-          if (target.team !== p.team) {
-            target.currentHp = Math.max(0, Math.round(((target.currentHp || target.stats?.hp || 5) - dmg) * 10) / 10);
-            if (target.currentHp <= 0) toRemove.push({ piece: target });
-          } else {
-            // Deals 1 damage to allies caught in the radius
-            target.currentHp = Math.max(0, Math.round(((target.currentHp || target.stats?.hp || 5) - allyDmg) * 10) / 10);
-            if (target.currentHp <= 0) toRemove.push({ piece: target });
-
-            // Grants +2 Strength for 3 turns
-            gs.temporaryBoosts = gs.temporaryBoosts || [];
-            gs.temporaryBoosts = gs.temporaryBoosts.filter(b => !(b.pieceId === target.id && b.name === "ReignOfFireStr"));
-            gs.temporaryBoosts.push({
-              pieceId: target.id,
-              duration: duration,
-              amount: strBoost,
-              name: "ReignOfFireStr"
-            });
-          }
-        }
-      });
-      // Handle deaths AFTER iterating to avoid mutating array during loop
-      toRemove.forEach(({ piece }) => {
-        // Import not available here; use gs.pendingCaptures array processed in logic.js
-        gs.pendingCaptures = gs.pendingCaptures || [];
-        gs.pendingCaptures.push({ capturedId: piece.id, attackerId: p.id });
-      });
-      gs.reignOfFires = gs.reignOfFires || [];
-      gs.reignOfFires.push({ r: t.r, c: t.c, duration: duration, radius: radius });
-    }
-  },
-  FrostfallBlessing: {
-    name: "Frostfall Blessing",
-    cooldown: ABILITY_VALUES.FrostfallBlessing.cooldown,
-    requiresTargeting: true,
-    circularRange: true,
-    range: ABILITY_VALUES.FrostfallBlessing.range,
-    radius: ABILITY_VALUES.FrostfallBlessing.radius,
-    targetType: "any",
-    effect: (p, t, gs) => {
-      if (!gs.frostfallBlessings) gs.frostfallBlessings = [];
-      const radius = ABILITY_VALUES.FrostfallBlessing.radius;
-      gs.frostfallBlessings.push({
-        creatorId: p.id,
-        team: p.team,
-        r: t.r,
-        c: t.c,
-        duration: ABILITY_VALUES.FrostfallBlessing.duration,
-        radius: radius,
-        damage: ABILITY_VALUES.FrostfallBlessing.damage,
-        heal: ABILITY_VALUES.FrostfallBlessing.heal
-      });
-
-      // Glacial Shrouding: friendly units inside the circle receive a Frost Shield
-      gs.shields = gs.shields || [];
-      gs.pieces.forEach(ally => {
-        if (ally.team === p.team && cellIntersectsCircle(ally.row, ally.col, t.r, t.c, radius)) {
-          if (!gs.shields.some(s => s.pieceId === ally.id)) {
-            gs.shields.push({
-              pieceId: ally.id,
-              duration: 2,
-              name: 'FrostShield'
-            });
-          }
-        }
-      });
-    }
-  }
+  FateLink: FateLinkAbility,
+  TheReapersToll: TheReapersTollAbility,
+  ReignOfFire: ReignOfFireAbility,
+  FrostfallBlessing: FrostfallBlessingAbility
 };
 

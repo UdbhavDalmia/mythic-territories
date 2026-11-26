@@ -172,7 +172,7 @@ export const FACTION_BANNER_CONFIGS = {
 /**
  * FactionBanner
  */
-export default function FactionBanner({ faction = 'frost', className = '', idPrefix = '', options = null }) {
+function FactionBanner({ faction = 'frost', className = '', idPrefix = '', options = null }) {
   const normKey = faction === 'ash' ? 'ash' : 'frost';
   const cfg = FACTION_BANNER_CONFIGS[normKey];
   const Crest = cfg.Crest;
@@ -431,3 +431,5 @@ export default function FactionBanner({ faction = 'frost', className = '', idPre
     </div>
   );
 }
+
+export default React.memo(FactionBanner);

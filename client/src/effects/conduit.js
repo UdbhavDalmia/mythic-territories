@@ -1,12 +1,16 @@
 import * as C from '@shared/constants.js';
 
 export function drawConduitParticles(ctx, gameState) {
+  if (!gameState?.conduitParticles?.length) return;
+  ctx.shadowBlur = 10;
   for (let i = gameState.conduitParticles.length - 1; i >= 0; i--) {
     const p = gameState.conduitParticles[i];
     p.x += p.vx;
     p.y += p.vy;
 
-    if (Math.hypot(p.targetX - p.x, p.targetY - p.y) < 20) {
+    const tdx = p.targetX - p.x;
+    const tdy = p.targetY - p.y;
+    if (tdx * tdx + tdy * tdy < 400) {
       gameState.conduitParticles.splice(i, 1);
       continue;
     }
@@ -19,7 +23,6 @@ export function drawConduitParticles(ctx, gameState) {
 
     ctx.fillStyle = `rgba(${p.color}, ${p.alpha * 0.8})`;
     ctx.shadowColor = `rgba(${p.color}, 1)`;
-    ctx.shadowBlur = 10;
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
     ctx.fill();
@@ -99,17 +102,20 @@ export function spawnSiphonParticles(piece, sourceType, gameState) {
 }
 
 export function drawSiphonParticles(ctx, gameState) {
+  if (!gameState?.siphonParticles?.length) return;
+  ctx.shadowBlur = 8;
   for (let i = gameState.siphonParticles.length - 1; i >= 0; i--) {
     const p = gameState.siphonParticles[i];
     const dx = p.targetX - p.x;
     const dy = p.targetY - p.y;
-    const dist = Math.hypot(dx, dy);
+    const distSq = dx * dx + dy * dy;
 
-    if (dist < p.speed) {
+    if (distSq < p.speed * p.speed) {
       gameState.siphonParticles.splice(i, 1);
       continue;
     }
 
+    const dist = Math.sqrt(distSq);
     p.x += (dx / dist) * p.speed;
     p.y += (dy / dist) * p.speed;
     p.alpha -= 0.01;
@@ -120,7 +126,6 @@ export function drawSiphonParticles(ctx, gameState) {
 
     ctx.fillStyle = `rgba(${p.color}, ${p.alpha})`;
     ctx.shadowColor = `rgba(${p.color}, 1)`;
-    ctx.shadowBlur = 8;
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
     ctx.fill();

@@ -33,6 +33,12 @@ export function spawnBurningGroundParticle(row, col, gameState) {
   });
 }
 
+function getSeededRandom(r, c, index, rFactor = 2000, cFactor = 300) {
+  const seed = ((r + 1) * rFactor) + ((c + 1) * cFactor) + index;
+  const val = Math.sin(seed) * 10000;
+  return val - Math.floor(val);
+}
+
 export function drawBurningGroundBlock(ctx, row, col, cellSize, duration, maxDuration = 2) {
   const x = col * cellSize;
   const y = row * cellSize;
@@ -40,12 +46,6 @@ export function drawBurningGroundBlock(ctx, row, col, cellSize, duration, maxDur
   // Progress goes from 1.0 (hot) to 0.5 (fading/cooling)
   const progress = Math.max(0.3, duration / maxDuration);
   const pulse = (Math.sin(performance.now() * 0.005) + 1) / 2; // 0 to 1
-
-  function getSeededRandom(r, c, index) {
-    let seed = ((r + 1) * 2000) + ((c + 1) * 300) + index;
-    let val = Math.sin(seed) * 10000;
-    return val - Math.floor(val);
-  }
 
   // 1. Dark Charcoal Base
   ctx.fillStyle = `rgba(30, 20, 20, ${0.9 * progress})`;
@@ -60,14 +60,14 @@ export function drawBurningGroundBlock(ctx, row, col, cellSize, duration, maxDur
   let seedIndex = 50;
   for (let i = 0; i < 4; i++) {
     ctx.beginPath();
-    let cx = x + (getSeededRandom(row, col, seedIndex++) * cellSize);
-    let cy = y + (getSeededRandom(row, col, seedIndex++) * cellSize);
+    let cx = x + (getSeededRandom(row, col, seedIndex++, 2000, 300) * cellSize);
+    let cy = y + (getSeededRandom(row, col, seedIndex++, 2000, 300) * cellSize);
     ctx.moveTo(cx, cy);
 
-    const segments = Math.floor(getSeededRandom(row, col, seedIndex++) * 3) + 2;
+    const segments = Math.floor(getSeededRandom(row, col, seedIndex++, 2000, 300) * 3) + 2;
     for (let j = 0; j < segments; j++) {
-      cx += (getSeededRandom(row, col, seedIndex++) - 0.5) * (cellSize * 0.8);
-      cy += (getSeededRandom(row, col, seedIndex++) - 0.5) * (cellSize * 0.8);
+      cx += (getSeededRandom(row, col, seedIndex++, 2000, 300) - 0.5) * (cellSize * 0.8);
+      cy += (getSeededRandom(row, col, seedIndex++, 2000, 300) - 0.5) * (cellSize * 0.8);
       cx = Math.max(x + 2, Math.min(x + cellSize - 2, cx));
       cy = Math.max(y + 2, Math.min(y + cellSize - 2, cy));
       ctx.lineTo(cx, cy);
@@ -82,9 +82,9 @@ export function drawBurningGroundBlock(ctx, row, col, cellSize, duration, maxDur
 
   // 3. Smoldering Coals (Dark geometric rocks floating on the magma)
   for (let i = 0; i < 5; i++) {
-    const coalX = x + (getSeededRandom(row, col, seedIndex++) * cellSize);
-    const coalY = y + (getSeededRandom(row, col, seedIndex++) * cellSize);
-    const coalSize = (getSeededRandom(row, col, seedIndex++) * 8) + 4;
+    const coalX = x + (getSeededRandom(row, col, seedIndex++, 2000, 300) * cellSize);
+    const coalY = y + (getSeededRandom(row, col, seedIndex++, 2000, 300) * cellSize);
+    const coalSize = (getSeededRandom(row, col, seedIndex++, 2000, 300) * 8) + 4;
 
     ctx.fillStyle = `rgba(15, 10, 10, ${0.95 * progress})`;
     ctx.beginPath();
@@ -151,30 +151,22 @@ export function drawGlacialWallBlock(ctx, row, col, cellSize, gameState, duratio
     return gameState.glacialWalls.some(w => w.row === r && w.col === c && (w.type === 'obsidianPillar') === isObsidian);
   };
 
-  let minRow = row, maxRow = row;
-  if (gameState && gameState.glacialWalls) {
-    const visited = new Set();
-    const stack = [{ r: row, c: col }];
-    visited.add(`${row},${col}`);
-    while (stack.length) {
-      const curr = stack.pop();
-      minRow = Math.min(minRow, curr.r);
-      maxRow = Math.max(maxRow, curr.r);
-      const neighbors = [{ r: curr.r - 1, c: curr.c }, { r: curr.r + 1, c: curr.c }, { r: curr.r, c: curr.c - 1 }, { r: curr.r, c: curr.c + 1 }];
-      neighbors.forEach(n => {
-        const key = `${n.r},${n.c}`;
-        if (!visited.has(key) && hasNeighbor(n.r, n.c)) { visited.add(key); stack.push(n); }
-      });
-    }
+  let minRow = row;
+  while (minRow > 0 && hasNeighbor(minRow - 1, col)) {
+    minRow--;
+  }
+  let maxRow = row;
+  while (maxRow < 9 && hasNeighbor(maxRow + 1, col)) {
+    maxRow++;
   }
 
   const startY = minRow * cellSize;
   const endY = (maxRow + 1) * cellSize;
   const gradient = ctx.createLinearGradient(0, startY, 0, endY);
   if (isObsidian) {
-    gradient.addColorStop(0, 'rgba(60, 20, 95, 0.95)');
-    gradient.addColorStop(0.5, 'rgba(40, 10, 65, 0.9)');
-    gradient.addColorStop(1, 'rgba(20, 5, 35, 0.95)');
+    gradient.addColorStop(0, 'rgba(28, 33, 40, 0.95)');
+    gradient.addColorStop(0.5, 'rgba(15, 18, 22, 0.95)');
+    gradient.addColorStop(1, 'rgba(6, 8, 10, 0.98)');
   } else {
     gradient.addColorStop(0, 'rgba(200, 255, 255, 0.9)');
     gradient.addColorStop(0.5, 'rgba(100, 200, 255, 0.7)');
@@ -184,20 +176,18 @@ export function drawGlacialWallBlock(ctx, row, col, cellSize, gameState, duratio
   ctx.fillStyle = gradient;
   ctx.fillRect(x, y, cellSize, cellSize);
 
-  function getSeededRandom(r, c, index) { let seed = ((r + 1) * 1000) + ((c + 1) * 100) + index; let val = Math.sin(seed) * 10000; return val - Math.floor(val); }
-
-  ctx.strokeStyle = isObsidian ? 'rgba(180, 60, 255, 0.55)' : 'rgba(255, 255, 255, 0.5)'; ctx.lineWidth = 1.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = isObsidian ? 'rgba(200, 215, 230, 0.45)' : 'rgba(255, 255, 255, 0.5)'; ctx.lineWidth = 1.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   const age = 3 - duration; const numCracks = 4 + (age * 6);
   let seedIndex = 1;
   for (let i = 0; i < numCracks; i++) {
     ctx.beginPath();
-    let cx = x + (getSeededRandom(row, col, seedIndex++) * cellSize);
-    let cy = y + (getSeededRandom(row, col, seedIndex++) * (cellSize * 0.4));
+    let cx = x + (getSeededRandom(row, col, seedIndex++, 1000, 100) * cellSize);
+    let cy = y + (getSeededRandom(row, col, seedIndex++, 1000, 100) * (cellSize * 0.4));
     ctx.moveTo(cx, cy);
-    const segments = Math.floor(getSeededRandom(row, col, seedIndex++) * 2) + 2;
+    const segments = Math.floor(getSeededRandom(row, col, seedIndex++, 1000, 100) * 2) + 2;
     for (let j = 0; j < segments; j++) {
-      cx += (getSeededRandom(row, col, seedIndex++) - 0.5) * (cellSize * 0.6);
-      cy += getSeededRandom(row, col, seedIndex++) * (cellSize * 0.4);
+      cx += (getSeededRandom(row, col, seedIndex++, 1000, 100) - 0.5) * (cellSize * 0.6);
+      cy += getSeededRandom(row, col, seedIndex++, 1000, 100) * (cellSize * 0.4);
       cx = Math.max(x + 2, Math.min(x + cellSize - 2, cx));
       cy = Math.max(y + 2, Math.min(y + cellSize - 2, cy));
       ctx.lineTo(cx, cy);
@@ -210,7 +200,7 @@ export function drawGlacialWallBlock(ctx, row, col, cellSize, gameState, duratio
   const left = hasNeighbor(row, col - 1);
   const right = hasNeighbor(row, col + 1);
 
-  ctx.strokeStyle = isObsidian ? 'rgba(130, 20, 200, 0.7)' : 'rgba(200, 255, 255, 0.6)'; ctx.lineWidth = 2; ctx.beginPath();
+  ctx.strokeStyle = isObsidian ? 'rgba(148, 163, 184, 0.55)' : 'rgba(200, 255, 255, 0.6)'; ctx.lineWidth = 2; ctx.beginPath();
   if (!up) ctx.moveTo(x, y), ctx.lineTo(x + cellSize, y);
   if (!right) ctx.moveTo(x + cellSize, y), ctx.lineTo(x + cellSize, y + cellSize);
   if (!down) ctx.moveTo(x + cellSize, y + cellSize), ctx.lineTo(x, y + cellSize);
@@ -219,26 +209,23 @@ export function drawGlacialWallBlock(ctx, row, col, cellSize, gameState, duratio
 }
 
 export function drawIcyGroundBlock(ctx, row, col, cellSize) {
-  const x = col * cellSize; const y = row * cellSize; const time = performance.now();
-  // Simplified icy tile rendering to reduce CPU when many tiles are active.
-  ctx.save(); ctx.translate(x, y);
-  const bgGradient = ctx.createLinearGradient(0, 0, cellSize, cellSize);
+  const x = col * cellSize; const y = row * cellSize;
+  // Simplified icy tile rendering without matrix save/restore overhead
+  const bgGradient = ctx.createLinearGradient(x, y, x + cellSize, y + cellSize);
   bgGradient.addColorStop(0, 'rgba(110, 210, 255, 0.28)');
   bgGradient.addColorStop(1, 'rgba(30, 120, 200, 0.6)');
-  ctx.fillStyle = bgGradient; ctx.fillRect(0, 0, cellSize, cellSize);
+  ctx.fillStyle = bgGradient; ctx.fillRect(x, y, cellSize, cellSize);
 
-  // Light crack accents (reduced complexity)
+  // Light crack accents
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)'; ctx.lineWidth = 1; ctx.beginPath();
-  ctx.moveTo(cellSize * 0.2, cellSize * 0.2);
-  ctx.lineTo(cellSize * 0.8, cellSize * 0.35);
-  ctx.lineTo(cellSize * 0.3, cellSize * 0.7);
+  ctx.moveTo(x + cellSize * 0.2, y + cellSize * 0.2);
+  ctx.lineTo(x + cellSize * 0.8, y + cellSize * 0.35);
+  ctx.lineTo(x + cellSize * 0.3, y + cellSize * 0.7);
   ctx.stroke();
 
   // Subtle sheen without expensive composite operations
   ctx.fillStyle = 'rgba(255,255,255,0.08)';
-  ctx.fillRect(cellSize * 0.05, cellSize * 0.05, cellSize * 0.25, cellSize * 0.6);
-
-  ctx.restore();
+  ctx.fillRect(x + cellSize * 0.05, y + cellSize * 0.05, cellSize * 0.25, cellSize * 0.6);
 }
 
 export function drawSnareTrapBlock(ctx, row, col, cellSize, age, team, playerTeam) {
@@ -265,12 +252,6 @@ export function drawMagmaShardsBlock(ctx, row, col, cellSize, duration, maxDurat
   const progress = Math.max(0.3, duration / maxDuration);
   const pulse = (Math.sin(performance.now() * 0.005) + 1) / 2; // 0 to 1
 
-  function getSeededRandom(r, c, index) {
-    let seed = ((r + 1) * 3000) + ((c + 1) * 400) + index;
-    let val = Math.sin(seed) * 10000;
-    return val - Math.floor(val);
-  }
-
   // 1. Dark volcanic floor base (dark violetish-charcoal)
   ctx.fillStyle = `rgba(20, 10, 25, ${0.85 * progress})`;
   ctx.fillRect(x, y, cellSize, cellSize);
@@ -284,13 +265,13 @@ export function drawMagmaShardsBlock(ctx, row, col, cellSize, duration, maxDurat
   let seedIndex = 120;
   for (let i = 0; i < 3; i++) {
     ctx.beginPath();
-    let cx = x + (getSeededRandom(row, col, seedIndex++) * cellSize);
-    let cy = y + (getSeededRandom(row, col, seedIndex++) * cellSize);
+    let cx = x + (getSeededRandom(row, col, seedIndex++, 3000, 400) * cellSize);
+    let cy = y + (getSeededRandom(row, col, seedIndex++, 3000, 400) * cellSize);
     ctx.moveTo(cx, cy);
-    const segments = Math.floor(getSeededRandom(row, col, seedIndex++) * 2) + 2;
+    const segments = Math.floor(getSeededRandom(row, col, seedIndex++, 3000, 400) * 2) + 2;
     for (let j = 0; j < segments; j++) {
-      cx += (getSeededRandom(row, col, seedIndex++) - 0.5) * (cellSize * 0.5);
-      cy += (getSeededRandom(row, col, seedIndex++) - 0.5) * (cellSize * 0.5);
+      cx += (getSeededRandom(row, col, seedIndex++, 3000, 400) - 0.5) * (cellSize * 0.5);
+      cy += (getSeededRandom(row, col, seedIndex++, 3000, 400) - 0.5) * (cellSize * 0.5);
       cx = Math.max(x + 4, Math.min(x + cellSize - 4, cx));
       cy = Math.max(y + 4, Math.min(y + cellSize - 4, cy));
       ctx.lineTo(cx, cy);
@@ -302,11 +283,11 @@ export function drawMagmaShardsBlock(ctx, row, col, cellSize, duration, maxDurat
   // 3. Jagged obsidian / magma shards pointing upwards
   const numShards = 4;
   for (let i = 0; i < numShards; i++) {
-    const shardX = x + cellSize * (0.2 + 0.6 * getSeededRandom(row, col, seedIndex++));
-    const shardY = y + cellSize * (0.2 + 0.6 * getSeededRandom(row, col, seedIndex++));
-    const shardWidth = 6 + getSeededRandom(row, col, seedIndex++) * 8;
-    const shardHeight = 12 + getSeededRandom(row, col, seedIndex++) * 14;
-    const angle = (getSeededRandom(row, col, seedIndex++) - 0.5) * 0.6; // tilt angle
+    const shardX = x + cellSize * (0.2 + 0.6 * getSeededRandom(row, col, seedIndex++, 3000, 400));
+    const shardY = y + cellSize * (0.2 + 0.6 * getSeededRandom(row, col, seedIndex++, 3000, 400));
+    const shardWidth = 6 + getSeededRandom(row, col, seedIndex++, 3000, 400) * 8;
+    const shardHeight = 12 + getSeededRandom(row, col, seedIndex++, 3000, 400) * 14;
+    const angle = (getSeededRandom(row, col, seedIndex++, 3000, 400) - 0.5) * 0.6; // tilt angle
 
     ctx.save();
     ctx.translate(shardX, shardY);

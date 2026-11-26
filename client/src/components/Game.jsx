@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import '@/styles/game.css';
 import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left.js';
 import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down.js';
@@ -14,6 +14,9 @@ import Swords from 'lucide-react/dist/esm/icons/swords.js';
 import Trophy from 'lucide-react/dist/esm/icons/trophy.js';
 import Users from 'lucide-react/dist/esm/icons/users.js';
 import WifiOff from 'lucide-react/dist/esm/icons/wifi-off.js';
+import X from 'lucide-react/dist/esm/icons/x.js';
+import Crosshair from 'lucide-react/dist/esm/icons/crosshair.js';
+import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle.js';
 import Board from './Board.jsx';
 import AscensionModal from './AscensionModal.jsx';
 import VictoryScreen from './VictoryScreen.jsx';
@@ -25,6 +28,7 @@ import * as Logic from '@shared/logic.js';
 import * as C from '@shared/constants.js';
 import * as E from '@shared/utils.js';
 import * as Effects from '@/effects';
+import { spawnCastAnimation } from '../services/spriteAnimator.js';
 import {
   getOrCreatePlayerId,
   saveActiveSession,
@@ -541,9 +545,30 @@ export default function Game({ navigateTo }) {
     }
   }, [gameState?.selectedPiece?.id]);
 
-  const piecesKey = gameState?._piecesKey || (gameState?.pieces ? gameState.pieces.map(p => `${p.id}:${Number(p.col).toFixed(2)},${Number(p.row).toFixed(2)},${p.currentHp},${p.power}`).join('|') : '');
+  const piecesKey = useMemo(() => {
+    return gameState?._piecesKey || (gameState?.pieces ? gameState.pieces.map(p => `${p.id}:${Number(p.col).toFixed(2)},${Number(p.row).toFixed(2)},${p.currentHp},${p.power}`).join('|') : '');
+  }, [gameState?.pieces, gameState?._piecesKey]);
   const terrScores = useMemo(() => calculateDynamicTerritoryAreas(gameState), [gameState, piecesKey]);
   const { fallenSnow, fallenAsh } = useMemo(() => getFallenUnits(gameState?.pieces), [piecesKey]);
+
+  const handleMouseEnterPiece = useCallback((piece, e) => {
+    if (gameStateRef.current?.gameOver) return;
+    if (e) {
+      mousePosRef.current = { x: e.clientX, y: e.clientY };
+      setHoveredMousePos({ x: e.clientX, y: e.clientY });
+    }
+    setHoveredPiece(piece);
+  }, []);
+
+  const handleMouseMovePiece = useCallback((piece, e) => {
+    if (e) mousePosRef.current = { x: e.clientX, y: e.clientY };
+  }, []);
+
+  const handleMouseLeavePiece = useCallback(() => {
+    mousePosRef.current = null;
+    setHoveredPiece(null);
+    setHoveredMousePos(null);
+  }, []);
 
   const handleExitToLobby = () => {
     clearActiveSession();
@@ -863,19 +888,24 @@ export default function Game({ navigateTo }) {
         break;
       case 'LavaGlob':
         Effects.spawnLavaGlobEffect(anim.oldRow, anim.oldCol, anim.targetR, anim.targetC, gs);
+        { const casterLG = gs.pieces.find(p => p.id === anim.pieceId); if (casterLG) spawnCastAnimation(casterLG, 'LavaGlob', gs); }
         break;
       case 'PummelKnockback':
         const target = gs.pieces.find(p => p.id === anim.targetPieceId);
         Effects.spawnPummelKnockbackEffect(target, anim.attackerR, anim.attackerC, anim.oldRow, anim.oldCol, anim.newRow, anim.newCol, gs);
+        { const casterPK = gs.pieces.find(p => p.row === anim.attackerR && p.col === anim.attackerC); if (casterPK) spawnCastAnimation(casterPK, 'PummelKnockback', gs); }
         break;
       case 'TrapDeployment':
         Effects.spawnTrapDeploymentEffect(anim.oldRow, anim.oldCol, anim.targetR, anim.targetC, gs);
+        { const casterTD = gs.pieces.find(p => p.id === anim.pieceId); if (casterTD) spawnCastAnimation(casterTD, 'TrapDeployment', gs); }
         break;
       case 'FrigidPath':
         Effects.spawnFrigidPathEffect(anim.oldRow, anim.oldCol, anim.targetR, anim.targetC, gs);
+        { const casterFP = gs.pieces.find(p => p.id === anim.pieceId); if (casterFP) spawnCastAnimation(casterFP, 'FrigidPath', gs); }
         break;
       case 'GlacialWall':
         Effects.spawnGlacialWallEffect(anim.r, anim.c, gs);
+        { const casterGW = gs.pieces.find(p => p.id === anim.pieceId); if (casterGW) spawnCastAnimation(casterGW, 'GlacialWall', gs); }
         break;
       case 'WallShatter':
         Effects.spawnWallShatterEffect(anim.r, anim.c, gs, anim.wallType === 'obsidianPillar');
@@ -890,31 +920,38 @@ export default function Game({ navigateTo }) {
         break;
       case 'FrostfallBlessing':
         Effects.spawnFrostfallBlessingEffect(anim.targetR, anim.targetC, gs);
+        { const casterFB = gs.pieces.find(p => p.id === anim.pieceId); if (casterFB) spawnCastAnimation(casterFB, 'FrostfallBlessing', gs); }
         break;
       case 'FateLinkCast':
         const src = gs.pieces.find(p => p.id === anim.sourceId);
         const dst = gs.pieces.find(p => p.id === anim.targetId);
         Effects.spawnFateLinkCast(src, dst, gs);
+        if (src) spawnCastAnimation(src, 'FateLinkCast', gs);
         break;
       case 'GlacialFracture':
         Effects.spawnGlacialFractureEffect(anim.targetR, anim.targetC, gs);
+        { const casterGF = gs.pieces.find(p => p.id === anim.pieceId); if (casterGF) spawnCastAnimation(casterGF, 'GlacialFracture', gs); }
         break;
       case 'AColdFarewell':
         Effects.spawnAColdFarewellEffect(anim.r, anim.c, gs);
+        { const casterAC = gs.pieces.find(p => p.id === anim.pieceId); if (casterAC) spawnCastAnimation(casterAC, 'AColdFarewell', gs); }
         break;
       case 'ReignOfFire':
         const tyrant = gs.pieces.find(p => p.id === anim.pieceId);
         if (tyrant) Effects.spawnReignOfFireEffect(tyrant, anim.targetR, anim.targetC, gs);
+        if (tyrant) spawnCastAnimation(tyrant, 'ReignOfFire', gs);
         break;
       case 'DeathMeteor':
         const ashTyrant = (gs.pieces || []).find(p => p.id === anim.pieceId) || (gs.pieces || []).find(p => p.key === 'ashAshTyrant');
         if (ashTyrant) Effects.spawnDeathMeteorEffect(ashTyrant, gs, anim.originR, anim.originC, anim.targetR, anim.targetC);
+        if (ashTyrant) spawnCastAnimation(ashTyrant, 'DeathMeteor', gs);
         break;
       case 'ShieldBreak':
         if (Effects.spawnShieldBreakEffect) Effects.spawnShieldBreakEffect(anim.r, anim.c, anim.faction, gs);
         break;
       case 'ObsidianPillarCast':
         if (Effects.spawnObsidianPillarCastEffect) Effects.spawnObsidianPillarCastEffect(anim, gs);
+        { const casterOP = gs.pieces.find(p => p.id === anim.pieceId); if (casterOP) spawnCastAnimation(casterOP, 'ObsidianPillar', gs); }
         break;
     }
   };
@@ -1212,6 +1249,92 @@ export default function Game({ navigateTo }) {
         <AscensionModal gameState={gameState} sendAction={sendAction} />
       )}
 
+      {/* Floating Flash Toast Notification */}
+      {flashMessage && (
+        <div id="flashMessage" className="floating-flash-toast-container" role="status" aria-live="polite">
+          <div className={`floating-flash-toast ${
+            flashMessage.type === 'snow' ? 'snow' : 
+            flashMessage.type === 'ash' ? 'ash' : 
+            flashMessage.type === 'error' ? 'error' : 'neutral'
+          }`}>
+            <AlertCircle className="flash-toast-icon" aria-hidden="true" />
+            <span className="flash-toast-text">{flashMessage.msg}</span>
+            <button 
+              type="button"
+              className="flash-toast-close"
+              aria-label="Dismiss alert"
+              onClick={() => setFlashMessage(null)}
+            >
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Ability / Tether Targeting Prompt Action Banner */}
+      {(() => {
+        const isTargeting = gameState?.currentState === 'ABILITY_TARGETING' ||
+          gameState?.currentState === 'WALL_PLACEMENT_FIRST' ||
+          gameState?.currentState === 'WALL_PLACEMENT_SECOND' ||
+          gameState?.currentState === 'TETHER_TARGETING';
+
+        if (!isTargeting || !isMyTurn) return null;
+
+        const currentAbilityKey = gameState?.abilityContext?.abilityKey || selectedPiece?.ability?.key;
+        const abilityDef = C.ABILITIES[currentAbilityKey] || {};
+        const abilityDisplayName = abilityDef.name || selectedPiece?.ability?.name || 'Target Ability';
+
+        let promptText = 'Select a valid target on the battlefield.';
+        if (gameState?.currentState === 'WALL_PLACEMENT_FIRST') {
+          promptText = 'Select location for the first glacial wall.';
+        } else if (gameState?.currentState === 'WALL_PLACEMENT_SECOND') {
+          promptText = 'Select location for the second glacial wall.';
+        } else if (gameState?.currentState === 'TETHER_TARGETING') {
+          const mode = gameState?.abilityContext?.mode;
+          if (mode === 'resonance') {
+            promptText = gameState?.abilityContext?.allyTarget ? 'Select an enemy target for Resonance.' : 'Select a friendly target for Resonance.';
+          } else if (mode === 'benevolent' || mode === 'parasitic') {
+            promptText = 'Select a friendly target.';
+          } else {
+            promptText = 'Select an enemy target.';
+          }
+        } else if (currentAbilityKey === 'FateLink') {
+          promptText = gameState?.abilityContext?.step === 2 ? 'Select an enemy target for Fate Link.' : 'Select a friendly target for Fate Link.';
+        } else if (currentAbilityKey === 'ObsidianPillar') {
+          promptText = 'Target empty tile for Pillar, ally for Shield, or enemy to strike.';
+        }
+
+        const bannerTeam = selectedPiece?.team || gameState?.currentTurn || 'neutral';
+
+        return (
+          <div className="targeting-banner-wrapper" role="region" aria-label="Ability targeting active">
+            <div className={`targeting-banner ${bannerTeam}`}>
+              <div className="targeting-banner-left">
+                <div className="targeting-pulse-ring">
+                  <Crosshair className="targeting-icon" aria-hidden="true" />
+                </div>
+                <div className="targeting-info">
+                  <span className="targeting-ability-title">{abilityDisplayName}</span>
+                  <span className="targeting-prompt-subtitle">{promptText}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="targeting-cancel-btn"
+                onClick={() => {
+                  triggerHaptic('light');
+                  sendAction('SELECT_PIECE', { pieceId: null });
+                }}
+                title="Cancel ability targeting"
+              >
+                <X className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
+                <span>Cancel</span>
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Game Over Modal — Full-Screen Victory Presentation with Animated Heraldic Banners */}
       {showGameOverModal && gameState?.gameOver && (() => {
         const isWinnerSnow = gameState.winner === 'snow';
@@ -1473,22 +1596,9 @@ export default function Game({ navigateTo }) {
                 onCellClick={handleCellClick}
                 onBoardClick={handleBoardClick}
                 onPieceClick={handlePieceClick}
-                onMouseEnterPiece={(piece, e) => {
-                  if (gameState?.gameOver) return;
-                  if (e) {
-                    mousePosRef.current = { x: e.clientX, y: e.clientY };
-                    setHoveredMousePos({ x: e.clientX, y: e.clientY });
-                  }
-                  setHoveredPiece(piece);
-                }}
-                onMouseMovePiece={(piece, e) => {
-                  if (e) mousePosRef.current = { x: e.clientX, y: e.clientY };
-                }}
-                onMouseLeavePiece={() => {
-                  mousePosRef.current = null;
-                  setHoveredPiece(null);
-                  setHoveredMousePos(null);
-                }}
+                onMouseEnterPiece={handleMouseEnterPiece}
+                onMouseMovePiece={handleMouseMovePiece}
+                onMouseLeavePiece={handleMouseLeavePiece}
               />
               <div className="labels-bar">
                 <div id="snowLabel" className="label snow">

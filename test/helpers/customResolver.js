@@ -41,6 +41,49 @@ export async function resolve(specifier, context, nextResolve) {
     }
   }
 
+  // 1b. Handle @services alias
+  if (specifier === '@services' || specifier.startsWith('@services/')) {
+    const subpath = specifier === '@services' ? '' : specifier.slice('@services/'.length);
+    const basePath = path.resolve(rootDir, 'client/src/services', subpath);
+    const resolved = tryPathExtensions(basePath);
+    if (resolved) {
+      return nextResolve(pathToFileURL(resolved).href, context);
+    }
+  }
+
+  // 1b. Handle unit-specific aliases: @frostLord, @ashTyrant, etc.
+  const sharedUnits = [
+    'frostLord', 'ashTyrant', 'glacialMage', 'soulLinker',
+    'magmaShaper', 'ashReaper', 'iceWisp'
+  ];
+  for (const u of sharedUnits) {
+    const sharedPrefix = `@${u}`;
+    if (specifier === sharedPrefix || specifier.startsWith(`${sharedPrefix}/`)) {
+      const subpath = specifier === sharedPrefix ? '' : specifier.slice(`${sharedPrefix}/`.length);
+      const basePath = path.resolve(rootDir, 'shared/units', u, subpath);
+      const resolved = tryPathExtensions(basePath);
+      if (resolved) {
+        return nextResolve(pathToFileURL(resolved).href, context);
+      }
+    }
+  }
+
+  const clientUnits = [
+    'frostLord', 'ashTyrant', 'glacialMage', 'soulLinker',
+    'magmaShaper', 'ashReaper', 'iceWisp'
+  ];
+  for (const u of clientUnits) {
+    const clientPrefix = `@${u}Client`;
+    if (specifier === clientPrefix || specifier.startsWith(`${clientPrefix}/`)) {
+      const subpath = specifier === clientPrefix ? '' : specifier.slice(`${clientPrefix}/`.length);
+      const basePath = path.resolve(rootDir, 'client/src/units', u, subpath);
+      const resolved = tryPathExtensions(basePath);
+      if (resolved) {
+        return nextResolve(pathToFileURL(resolved).href, context);
+      }
+    }
+  }
+
   // 2. Handle @/* alias
   if (specifier === '@' || specifier.startsWith('@/')) {
     const subpath = specifier === '@' ? '' : specifier.slice('@/'.length);

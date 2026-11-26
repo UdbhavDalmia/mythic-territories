@@ -3,6 +3,7 @@ import * as Particles from './particles.js';
 import * as Shrine from './shrine.js';
 import * as Conduit from './conduit.js';
 import * as Terrain from './terrain.js';
+import { spawnCastAnimation } from '../services/spriteAnimator.js';
 
 let ctx, effectsCtx;
 const legacyParticles = [];
@@ -28,19 +29,17 @@ export const drawParticles = gs => Particles.drawParticles(ctx, gs);
 export const drawProjectiles = gs => Particles.drawProjectiles(ctx, gs);
 
 export function drawRifts(gs) {
-  if (!effectsCtx) return;
-  effectsCtx.clearRect(0, 0, C.CANVAS_SIZE, C.CANVAS_SIZE);
+  const targetCtx = ctx || effectsCtx;
+  if (!targetCtx) return;
+  
   C.SHAPES.riftAreas.forEach(r => {
     r.pulsePhase += 0.06;
     const p = 0.25 + 0.08 * Math.sin(r.pulsePhase);
+    targetCtx.fillStyle = `rgba(190,120,255,${p * 0.5})`;
     r.cells.forEach(([rr, cc]) => {
-      effectsCtx.fillStyle = `rgba(190,120,255,${p * 0.5})`;
-      effectsCtx.fillRect(cc * C.CELL_SIZE, rr * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
+      targetCtx.fillRect(cc * C.CELL_SIZE, rr * C.CELL_SIZE, C.CELL_SIZE, C.CELL_SIZE);
     });
   });
-  if (ctx) {
-    ctx.drawImage(effectsCtx.canvas, 0, 0);
-  }
 }
 
 export const drawShockwaves = gs => Particles.drawShockwaves(ctx, gs);
@@ -103,16 +102,19 @@ export function updateEffects() {
 
 export function renderEffects(ctxParam) {
   const c = ctxParam || ctx;
-  if (!c) return;
-  legacyParticles.forEach(p => {
-    c.save();
+  if (!c || legacyParticles.length === 0) return;
+  c.save();
+  for (let i = 0; i < legacyParticles.length; i++) {
+    const p = legacyParticles[i];
     c.globalAlpha = p.life;
-    c.translate(p.x, p.y);
-    c.rotate(p.rotation);
+    const cos = Math.cos(p.rotation);
+    const sin = Math.sin(p.rotation);
+    c.setTransform(cos, sin, -sin, cos, p.x, p.y);
     c.fillStyle = p.color;
-    c.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
-    c.restore();
-  });
+    const half = p.size * 0.5;
+    c.fillRect(-half, -half, p.size, p.size);
+  }
+  c.restore();
 }
 
 export const drawGlacialWallBlock = (...a) => Terrain.drawGlacialWallBlock(...a);
@@ -120,3 +122,6 @@ export const drawBurningGroundBlock = (...a) => Terrain.drawBurningGroundBlock(.
 export const drawSnareTrapBlock = (...a) => Terrain.drawSnareTrapBlock(...a);
 export const drawIcyGroundBlock = (...a) => Terrain.drawIcyGroundBlock(...a);
 export const drawMagmaShardsBlock = (...a) => Terrain.drawMagmaShardsBlock(...a);
+
+// ── Ability cast-frame animations ──
+export { spawnCastAnimation };

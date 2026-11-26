@@ -17,16 +17,12 @@ export async function loadUnitEffects() {
   return unitEffectsPromise;
 }
 
+const ANIMATED_UNITS_REGEX = /Lord|Tyrant|Glacial|Prowler|Wisp|Trapper|Spitter|Yeti|Mystic|Strider|Weaver|Shaper/;
+
 // Preload unit effects if active units on board have custom abilities
 export function checkAndPreloadUnitEffects(gs) {
   if (unitEffectsModule || !gs?.pieces) return;
-  const hasAnimatedUnits = gs.pieces.some(p => {
-    const k = p?.key || '';
-    return k.includes('Lord') || k.includes('Tyrant') || k.includes('Glacial') ||
-           k.includes('Prowler') || k.includes('Wisp') || k.includes('Trapper') ||
-           k.includes('Spitter') || k.includes('Yeti') || k.includes('Mystic') ||
-           k.includes('Strider') || k.includes('Weaver');
-  });
+  const hasAnimatedUnits = gs.pieces.some(p => ANIMATED_UNITS_REGEX.test(p?.key || ''));
   if (hasAnimatedUnits) {
     loadUnitEffects();
   }

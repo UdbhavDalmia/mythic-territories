@@ -1,7 +1,7 @@
 import React from 'react';
 import Swords from 'lucide-react/dist/esm/icons/swords.js';
 
-export default function RecoverableSessionBanner({
+function RecoverableSessionBanner({
   recoverableSession,
   handleResumeSession,
   handleAbandonSession
@@ -44,3 +44,5 @@ export default function RecoverableSessionBanner({
     </div>
   );
 }
+
+export default React.memo(RecoverableSessionBanner);

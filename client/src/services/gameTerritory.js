@@ -1,6 +1,7 @@
 import { computePowerDiagram } from '@shared/voronoi.js';
+import { TEAM_PIECES } from '@shared/constants.js';
 
-export const INITIAL_SNOW_KEYS = [
+export const INITIAL_SNOW_KEYS = TEAM_PIECES?.snow ? Object.values(TEAM_PIECES.snow) : [
   'snowFrostLord',
   'snowSoulLinker',
   'snowRampagingYeti',
@@ -13,7 +14,7 @@ export const INITIAL_SNOW_KEYS = [
   'snowHoarfrostMystic'
 ];
 
-export const INITIAL_ASH_KEYS = [
+export const INITIAL_ASH_KEYS = TEAM_PIECES?.ash ? Object.values(TEAM_PIECES.ash) : [
   'ashAshTyrant',
   'ashAshReaper',
   'ashBlazeboundBeast',
@@ -76,13 +77,15 @@ export function calculateDynamicTerritoryAreas(gs) {
 }
 
 let lastPiecesRef = null;
+let lastPiecesCount = -1;
 let lastFallenCache = {
   fallenSnow: [],
   fallenAsh: []
 };
 
 export function getFallenUnits(pieces) {
-  if (pieces === lastPiecesRef && lastPiecesRef !== null) {
+  const count = pieces ? pieces.length : 0;
+  if (pieces === lastPiecesRef && lastPiecesRef !== null && count === lastPiecesCount) {
     return lastFallenCache;
   }
   const aliveSnowKeys = new Set(pieces ? pieces.filter(p => p.team === 'snow').map(p => p.key) : []);
@@ -90,6 +93,7 @@ export function getFallenUnits(pieces) {
   const fallenSnow = INITIAL_SNOW_KEYS.filter(k => !aliveSnowKeys.has(k));
   const fallenAsh = INITIAL_ASH_KEYS.filter(k => !aliveAshKeys.has(k));
   lastPiecesRef = pieces;
+  lastPiecesCount = count;
   lastFallenCache = { fallenSnow, fallenAsh };
   return lastFallenCache;
 }
@@ -97,9 +101,11 @@ export function getFallenUnits(pieces) {
 export function resetTerritoryCache() {
   lastTerritoryCache = {
     piecesKey: '',
-    scores: { snow: 13.3, ash: 13.3 }
+    voronoiData: null,
+    scores: { snow: 50.0, ash: 50.0, neutral: 0.0 }
   };
   lastPiecesRef = null;
+  lastPiecesCount = -1;
   lastFallenCache = {
     fallenSnow: [],
     fallenAsh: []

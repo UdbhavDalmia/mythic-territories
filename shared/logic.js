@@ -2,6 +2,8 @@ import * as C from "./constants.js";
 import { updateBoardMap, isCaptureSuccessful, getValidMoves, dealDamage, previewDamage, getPieceMoveRadius, getEffectiveControl } from "./utils.js";
 import { executeAscensionChoice as _executeAscensionLogic } from "./ascension.js";
 import { computePowerDiagram, syncTerritorySetsFromVoronoi } from "./voronoi.js";
+import { UNIT_REGISTRY, isUnitInvulnerable, handleUnitLethalBlow, handleUnitDeath } from "./units/registry.js";
+import { executeGlacialFracture } from "@glacialMage/index.js";
 
 let gameState = {};
 
@@ -108,7 +110,7 @@ export function checkSpecialTerrains(p, r, c, gs = gameState) {
       const dmg = 1;
       p.power = Math.max(0, p.power - dmg);
       if (typeof p.currentHp === "number") {
-        if (!(p.key === 'snowFrostLord' && p.hasHelpFromAboveActive) && !(p.key === 'ashAshTyrant' && p.hasDeathMeteorInvincibility)) {
+        if (!isUnitInvulnerable(p, gs)) {
           p.currentHp = Math.max(0, Math.round((p.currentHp - dmg) * 10) / 10);
         }
       }
@@ -151,174 +153,14 @@ export function resolveDeaths(gs = gameState, defaultAttacker = null) {
 export function applyAoeLethalPassives(piece, gs = gameState) {
   if (!piece || typeof piece.currentHp !== "number" || piece.currentHp > 0) return false;
 
-  // Frost Lord – Help From Above
-  if (piece.key === 'snowFrostLord') {
-    if (piece.hasHelpFromAboveActive) {
-      piece.currentHp = 1;
-      return true; // Intercept death: Frost Lord is immune to death/damage during his active state
-    }
-    if ((piece.helpFromAboveCooldown || 0) <= 0) {
-      piece.currentHp = 1;
-      piece.helpFromAboveCooldown = C.ABILITY_VALUES.HelpFromAbove?.cooldown || 15;
-      piece.hasHelpFromAboveActive = true;
-      piece.helpFromAboveActiveTurns = C.ABILITY_VALUES.HelpFromAbove?.activeDuration || 3;
-
-      // Grant nearby allies (Rad 1.5) +1 Strength for 3 turns
-      const rad = C.ABILITY_VALUES.HelpFromAbove?.radius || 1.5;
-      const strBoost = C.ABILITY_VALUES.HelpFromAbove?.strengthBoost || 1;
-      const duration = C.ABILITY_VALUES.HelpFromAbove?.activeDuration || 3;
-      if (gs.pieces) {
-        gs.temporaryBoosts = gs.temporaryBoosts || [];
-        gs.pieces.forEach(p => {
-          if (p.team === piece.team && p.id !== piece.id && Math.hypot(p.row - piece.row, p.col - piece.col) <= rad) {
-            gs.temporaryBoosts.push({
-              pieceId: p.id,
-              duration: duration,
-              amount: strBoost,
-              name: 'HelpFromAboveStr'
-            });
-          }
-        });
-      }
-
-      flash(`Help From Above! Frost Lord is shielded and bolsters nearby allies.`, piece.team, gs);
-
-      // Emit the animation trigger for the client
-      if (typeof window === 'undefined' || gs.isLocalSimulation !== true) {
-        if (!gs.events) gs.events = [];
-        gs.events.push({
-          type: "ANIMATION",
-          name: "GuardianSave",
-          pieceId: piece.id,
-          r: piece.row,
-          c: piece.col
-        });
-      }
-
-      return true; // intercept: do NOT capture
-    }
-  }
-
-  // Ash Tyrant – Death Meteor
-  if (piece.key === "ashAshTyrant") {
-    if (piece.hasDeathMeteorInvincibility) {
-      piece.currentHp = 1;
-      return true; // Intercept death: Tyrant is immune to death/damage during his active invincibility state
-    }
-    if ((piece.deathMeteorCooldown || 0) <= 0) {
-      piece.currentHp = 1;
-      piece.deathMeteorCooldown = 15;
-      piece.hasDeathMeteorInvincibility = true;
-      piece.deathMeteorInvincibilityTurns = 2;
-      piece.hasTriggeredDeathMeteor = true;
-
-      const currentR = piece.row;
-      const currentC = piece.col;
-
-      // 1. AoE Damage to all units within Radius 2 (enemies take 4 dmg, allies take 2 dmg)
-      let aoeHits = 0;
-      if (gs.pieces) {
-        gs.pieces.forEach(p => {
-          if (C.cellIntersectsCircle(p.row, p.col, currentR, currentC, 2) && p.id !== piece.id) {
-            if (p.key === 'snowFrostLord' && p.hasHelpFromAboveActive) {
-              return; // Skip damage due to active Help From Above protective state
-            }
-            if (p.key === 'ashAshTyrant' && p.hasDeathMeteorInvincibility) {
-              return;
-            }
-            const maxHp = p.maxHp || C.PIECE_TYPES[p.key]?.stats?.hp || 5;
-            const curHp = typeof p.currentHp === 'number' ? p.currentHp : maxHp;
-            const dmg = p.team !== piece.team ? 4 : 2;
-            p.currentHp = Math.max(0, Math.round((curHp - dmg) * 10) / 10);
-            aoeHits++;
-          }
-        });
-      }
-
-      flash(`Death Meteor strikes! 4 AoE damage dealt to nearby enemies.`, piece.team, gs);
-
-      // 2. Create the permanent crater and scorched ground at original position
-      gs.deathMeteors = gs.deathMeteors || [];
-      gs.deathMeteors.push({ r: currentR, c: currentC, duration: 6 });
-
-      gs.specialTerrains = gs.specialTerrains || [];
-      gs.specialTerrains.push({
-        row: currentR,
-        col: currentC,
-        type: "crater",
-        duration: 99999
-      });
-
-      // Secondary explosive payload logic: spawn Unstable Ground with isBurningGround on center position
-      gs.unstableGrounds = gs.unstableGrounds || [];
-      if (!gs.unstableGrounds.some(g => Math.hypot(g.row - currentR, g.col - currentC) < 0.4)) {
-        gs.unstableGrounds.push({
-          row: currentR,
-          col: currentC,
-          duration: 3,
-          isBurningGround: true,
-          creator: piece
-        });
-      }
-
-      // 3. Find a safe adjacent point to move the Tyrant to
-      const isCandidateValid = cand => {
-        if (cand.r < 0 || cand.r >= C.ROWS || cand.c < 0 || cand.c >= C.COLS) return false;
-        if ((gs.voidSquares || []).some(v => Math.hypot(v.row - cand.r, v.col - cand.c) < 0.6)) return false;
-        if ((gs.glacialWalls || []).some(w => Math.hypot(w.row - cand.r, w.col - cand.c) < 0.6)) return false;
-        if ((gs.specialTerrains || []).some(t => t.type === 'crater' && Math.hypot(t.row - cand.r, t.col - cand.c) < 0.6 && !(Math.hypot(t.row - currentR, t.col - currentC) < 0.2))) return false;
-        if ((gs.pieces || []).some(p => p.id !== piece.id && Math.hypot(p.row - cand.r, p.col - cand.c) < 0.7)) return false;
-        return true;
-      };
-
-      const candidates = [];
-      for (let dr = -1; dr <= 1; dr++) {
-        for (let dc = -1; dc <= 1; dc++) {
-          if (dr === 0 && dc === 0) continue;
-          candidates.push({ r: currentR + dr, c: currentC + dc });
-        }
-      }
-      let validCandidates = candidates.filter(isCandidateValid);
-
-      // Fallback to radius 2 if all adjacent cells are blocked
-      if (validCandidates.length === 0) {
-        const radius2Candidates = [];
-        for (let dr = -2; dr <= 2; dr++) {
-          for (let dc = -2; dc <= 2; dc++) {
-            if (Math.abs(dr) <= 1 && Math.abs(dc) <= 1) continue;
-            radius2Candidates.push({ r: currentR + dr, c: currentC + dc });
-          }
-        }
-        radius2Candidates.sort((a, b) => Math.hypot(a.r - currentR, a.c - currentC) - Math.hypot(b.r - currentR, b.c - currentC));
-        validCandidates = radius2Candidates.filter(isCandidateValid);
-      }
-
-      const choice = validCandidates.length > 0 ? validCandidates[0] : null;
-
-      // Emit DeathMeteor animation with explicit origin and destination
-      emit(gs, {
-        type: 'ANIMATION',
-        name: 'DeathMeteor',
-        pieceId: piece.id,
-        originR: currentR,
-        originC: currentC,
-        targetR: choice ? choice.r : currentR,
-        targetC: choice ? choice.c : currentC
-      });
-
-      if (choice) {
-        piece.deathMeteorOrigin = { row: currentR, col: currentC };
-        updatePiecePosition(piece, choice.r, choice.c, gs);
-      }
-
-      // Resolve collateral deaths caused by the explosion
-      resolveDeaths(gs, piece);
-
-      return true; // intercept: do NOT capture
-    }
-  }
-
-  return false;
+  return handleUnitLethalBlow(piece, gs, {
+    flash,
+    emit,
+    resolveDeaths,
+    updatePiecePosition,
+    ROWS: C.ROWS,
+    COLS: C.COLS
+  });
 }
 
 // Unified handler for unit destruction (reverts tethers, triggers passives)
@@ -389,37 +231,8 @@ export function handlePieceCapture(capturedPiece, attacker = null, gs = gameStat
     }
   }
 
-  // 3b. A Cold Farewell (Ice Wisp death passive)
-  if (capturedPiece.key === "snowIceWisp") {
-    const rad = C.ABILITY_VALUES.AColdFarewell?.radius || 1.5;
-    gs.temporaryBoosts = gs.temporaryBoosts || [];
-    gs.debuffs = gs.debuffs || [];
-
-    gs.pieces.forEach(p => {
-      if (p.id !== capturedPiece.id && p.currentHp > 0) {
-        if (Math.hypot(p.row - capturedPiece.row, p.col - capturedPiece.col) <= rad) {
-          if (p.team !== capturedPiece.team) {
-            p.currentHp = Math.max(0, Math.round((p.currentHp - (C.ABILITY_VALUES.AColdFarewell?.damage || 2)) * 10) / 10);
-            gs.debuffs.push({ pieceId: p.id, duration: C.ABILITY_VALUES.AColdFarewell?.duration || 4, amount: C.ABILITY_VALUES.AColdFarewell?.agilityDebuff || 0.4, name: "ColdFarewellAgi" });
-            gs.debuffs.push({ pieceId: p.id, duration: 2, amount: 0, name: "ColdFarewellControlLock" }); // 2 turns = "their next move"
-          } else {
-            gs.temporaryBoosts.push({ pieceId: p.id, duration: C.ABILITY_VALUES.AColdFarewell?.duration || 4, amount: C.ABILITY_VALUES.AColdFarewell?.strengthBoost || 1, name: "ColdFarewellStr" });
-          }
-        }
-      }
-    });
-
-    gs.blizzardStorms = gs.blizzardStorms || [];
-    gs.blizzardStorms.push({
-      r: capturedPiece.row,
-      c: capturedPiece.col,
-      duration: C.ABILITY_VALUES.AColdFarewell?.duration || 4,
-      radius: rad,
-      team: capturedPiece.team
-    });
-
-    emit(gs, { type: "ANIMATION", name: "AColdFarewell", r: capturedPiece.row, c: capturedPiece.col });
-  }
+  // 3b. Trigger unit death passive handlers (e.g. A Cold Farewell for Ice Wisp)
+  handleUnitDeath(capturedPiece, attacker, gs, { flash, emit });
 
   // Drop Magma Shards if captured unit has ObsidianPillarShield
   const activeShield = gs.shields && gs.shields.find(s => s.pieceId === capturedPiece.id && s.name === 'ObsidianPillarShield');
@@ -618,6 +431,9 @@ export function executeAbility(
       if (targetPiece.row !== tgtOldR || targetPiece.col !== tgtOldC) {
         emit(gameStateLocal, { type: "ANIMATION", name: "PummelKnockback", targetPieceId: targetPiece.id, attackerR: oldRow, attackerC: oldCol, oldRow: tgtOldR, oldCol: tgtOldC, newRow: targetPiece.row, newCol: targetPiece.col });
       }
+    } else if (abilityKey === "GlacialFracture") {
+      const success = executeGlacialFracture(piece, target, gameStateLocal, (r, c, k, t) => createPiece(r, c, k, t, gameStateLocal), { flash, emit, inBounds });
+      if (success === false) return false;
     } else if (ability.effect) {
       ability.effect(piece, target, gameStateLocal, (r, c, k, t) => createPiece(r, c, k, t, gameStateLocal));
     }
@@ -625,89 +441,6 @@ export function executeAbility(
     // Attach specific animations
     if (abilityKey === "FrenziedDash") {
       emit(gameStateLocal, { type: "ANIMATION", name: "FrenziedDash", pieceId: piece.id, oldRow, oldCol, targetR: target.r, targetC: target.c });
-    } else if (abilityKey === "GlacialFracture") {
-      // 1. Damage enemies within continuous radius
-      let enemiesCaught = [];
-      const rad = C.ABILITY_VALUES.GlacialFracture.radius;
-      (gameStateLocal.pieces || []).forEach(p => {
-        if (p.team !== piece.team && p.currentHp > 0) {
-          if (Math.hypot(p.row - target.r, p.col - target.c) <= rad + 0.45) {
-            enemiesCaught.push(p);
-            p.currentHp = Math.max(0, Math.round((p.currentHp - C.ABILITY_VALUES.GlacialFracture.damage) * 10) / 10);
-          }
-        }
-      });
-
-      // Convert nearby ground to snow territory
-      for (let r = -Math.floor(rad + 0.5); r <= Math.ceil(rad + 0.5); r++) {
-        for (let c = -Math.floor(rad + 0.5); c <= Math.ceil(rad + 0.5); c++) {
-          if (Math.hypot(r, c) <= rad + 0.5) {
-            const tr = Math.round(target.r + r);
-            const tc = Math.round(target.c + c);
-            if (inBounds(tr, tc)) {
-              gameStateLocal.snowTerritory.add(`${tr},${tc}`);
-              gameStateLocal.ashTerritory.delete(`${tr},${tc}`);
-            }
-          }
-        }
-      }
-
-      // 3. Check wisp resonance limit
-      const currentWisps = gameStateLocal.pieces.filter(p => p.key === "snowIceWisp" && p.team === piece.team && p.currentHp > 0);
-      if (currentWisps.length >= C.ABILITY_VALUES.GlacialFracture.wispCap) {
-        flash("Glacial Mage Resonance Maxed: No further Wisps can be sustained", "snow", gameStateLocal);
-        return false; // Preserves turn action
-      }
-
-      // 4. Spawn Ice Wisp logic at optimal open continuous location
-      let bestTile = null;
-      let maxDistSum = -1;
-      let closestToMage = Infinity;
-
-      for (let r = -Math.floor(rad); r <= Math.ceil(rad); r++) {
-        for (let c = -Math.floor(rad); c <= Math.ceil(rad); c++) {
-          if (Math.hypot(r, c) <= rad) {
-            const tr = Math.round((target.r + r) * 10) / 10;
-            const tc = Math.round((target.c + c) * 10) / 10;
-            const isBlocked = (gameStateLocal.pieces || []).some(p => Math.hypot(p.row - tr, p.col - tc) < 0.7) ||
-                              (gameStateLocal.glacialWalls || []).some(w => Math.hypot(w.row - tr, w.col - tc) < 0.6) ||
-                              (gameStateLocal.voidSquares || []).some(v => Math.hypot(v.row - tr, v.col - tc) < 0.6);
-            if (inBounds(Math.round(tr), Math.round(tc)) && !isBlocked) {
-              if (enemiesCaught.length > 0) {
-                let distSum = 0;
-                enemiesCaught.forEach(ep => {
-                  distSum += Math.hypot(ep.row - tr, ep.col - tc);
-                });
-                if (distSum > maxDistSum) {
-                  maxDistSum = distSum;
-                  bestTile = { r: tr, c: tc };
-                }
-              } else {
-                let distToMage = Math.hypot(piece.row - tr, piece.col - tc);
-                if (distToMage < closestToMage) {
-                  closestToMage = distToMage;
-                  bestTile = { r: tr, c: tc };
-                }
-              }
-            }
-          }
-        }
-      }
-
-      if (bestTile && createPiece) {
-        let isPower1 = false;
-        if (piece.isVeteran && C.PIECE_TYPES[piece.key]?.veteranAbility?.key === "WispEnhancement") {
-          isPower1 = true;
-        } else if (gameStateLocal.factionPassives?.[piece.team]?.ascension?.PrimalPower) {
-          isPower1 = true;
-        }
-        const newWisp = createPiece(bestTile.r, bestTile.c, "snowIceWisp", piece.team, gameStateLocal);
-        newWisp.power = isPower1 ? 1 : 0;
-        gameStateLocal.pieces.push(newWisp);
-        emit(gameStateLocal, { type: "ANIMATION", name: "GlacialFracture", targetR: target.r, targetC: target.c, wispId: newWisp.id });
-      } else {
-        emit(gameStateLocal, { type: "ANIMATION", name: "GlacialFracture", targetR: target.r, targetC: target.c });
-      }
     } else {
       if (abilityKey === "LavaGlob") {
         emit(gameStateLocal, { type: "ANIMATION", name: "LavaGlob", oldRow, oldCol, targetR: target.r, targetC: target.c });
@@ -765,15 +498,18 @@ export function executeAbility(
 }
 
 export function handleAbilityClick(row, col, gs = gameState) {
+  const gridR = Math.max(0, Math.min(9, Math.floor(row)));
+  const gridC = Math.max(0, Math.min(9, Math.floor(col)));
+
   if (
     isState(GameState.WALL_PLACEMENT_FIRST, gs) ||
     isState(GameState.WALL_PLACEMENT_SECOND, gs)
   )
-    return handleGlacialWall(row, col, gs);
+    return handleGlacialWall(gridR, gridC, gs);
 
   if (isState(GameState.TETHER_TARGETING, gs)) {
     const { siphoner, mode, allyTarget } = gs.abilityContext;
-    const targetPiece = C.getPieceAt(row, col, gs.pieces);
+    const targetPiece = C.getPieceAt(row, col, gs.pieces) || C.getPieceAt(gridR, gridC, gs.pieces);
 
     if (mode === "resonance") {
       if (!allyTarget) {
@@ -833,8 +569,11 @@ export function handleAbilityClick(row, col, gs = gameState) {
 
   if (isState(GameState.ABILITY_TARGETING, gs)) {
     const { piece, abilityKey, step, target1 } = gs.abilityContext;
+    const gridR = Math.max(0, Math.min(9, Math.floor(row)));
+    const gridC = Math.max(0, Math.min(9, Math.floor(col)));
+
     if (abilityKey === "FateLink") {
-      const tp = C.getPieceAt(row, col, gs.pieces);
+      const tp = C.getPieceAt(row, col, gs.pieces) || C.getPieceAt(gridR, gridC, gs.pieces);
       if (step === 1) {
         if (tp && tp.team === piece.team && Math.hypot(tp.col - piece.col, tp.row - piece.row) <= C.ABILITIES.FateLink.range) {
           gs.abilityContext.step = 2;
@@ -855,7 +594,10 @@ export function handleAbilityClick(row, col, gs = gameState) {
         }
       }
     }
-    return executeAbility(piece, { r: row, c: col }, abilityKey, gs);
+    // Snap target to discrete grid cell for board tile structures (e.g. Obsidian Pillar wall, traps)
+    const targetPiece = C.getPieceAt(row, col, gs.pieces) || C.getPieceAt(gridR, gridC, gs.pieces);
+    const targetCoords = targetPiece ? { r: targetPiece.row, c: targetPiece.col } : { r: gridR, c: gridC };
+    return executeAbility(piece, targetCoords, abilityKey, gs);
   }
   return false;
 }
@@ -985,7 +727,7 @@ function isTargetValid(piece, target, ability, gameStateLocal = gameState) {
     distance = Math.max(Math.abs(piece.row - r), Math.abs(piece.col - c));
   }
   let abilityRange = ability.range;
-  if (gameStateLocal?.testMode && (['ashMagmaShaper', 'snowFrostLord', 'ashAshTyrant', 'snowGlacialMage', 'snowSoulLinker', 'ashAshReaper', 'snowIceWisp'].includes(piece.key))) {
+  if (gameStateLocal?.testMode && UNIT_REGISTRY[piece.key]) {
     abilityRange = 10;
   }
   if (abilityRange > 0 && distance > abilityRange) return false;
@@ -1179,8 +921,8 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false, gs
   } else {
     // Empty ground move: ensure target position is not blocked by an impassable obstacle
     const isBlocked = (gs.voidSquares || []).some(v => Math.hypot(v.row - targetRow, v.col - targetCol) < 0.6) ||
-                      (gs.glacialWalls || []).some(w => Math.hypot(w.row - targetRow, w.col - targetCol) < 0.6) ||
-                      (gs.specialTerrains || []).some(t => t.type === 'crater' && Math.hypot(t.row - targetRow, t.col - targetCol) < 0.65);
+      (gs.glacialWalls || []).some(w => Math.hypot(w.row - targetRow, w.col - targetCol) < 0.6) ||
+      (gs.specialTerrains || []).some(t => t.type === 'crater' && Math.hypot(t.row - targetRow, t.col - targetCol) < 0.65);
     if (isBlocked) return false;
 
     if (!gs.movePulses) gs.movePulses = [];
@@ -1826,7 +1568,7 @@ export function executeSacrifice(piece, gs = gameState) {
     snowGlacialBrute: "Warrior",
     ashMagmaProwler: "Warrior"
   };
-  const role = roles[piece.key] || "Other";
+  const role = UNIT_REGISTRY[piece.key]?.role || roles[piece.key] || "Other";
   if (role === "Other") return false;
   flash(
     `Sacrificing ${C.PIECE_TYPES[piece.key].name} for Ascension!`,
@@ -2550,10 +2292,7 @@ function endOfTurnUpkeep(gs = gameState) {
           gs.pieces.forEach(p => {
             if (C.cellIntersectsCircle(p.row, p.col, s.r, s.c, s.radius)) {
               if (p.team !== s.team) {
-                if (p.key === 'snowFrostLord' && p.hasHelpFromAboveActive) {
-                  return; // Immune
-                }
-                if (p.key === 'ashAshTyrant' && p.hasDeathMeteorInvincibility) {
+                if (isUnitInvulnerable(p, gs)) {
                   return; // Immune
                 }
                 const prevHp = p.currentHp;
@@ -2590,10 +2329,7 @@ function endOfTurnUpkeep(gs = gameState) {
           gs.pieces.forEach(p => {
             if (C.cellIntersectsCircle(p.row, p.col, s.r, s.c, s.radius)) {
               if (p.team !== s.team) {
-                if (p.key === 'snowFrostLord' && p.hasHelpFromAboveActive) {
-                  return; // Immune
-                }
-                if (p.key === 'ashAshTyrant' && p.hasDeathMeteorInvincibility) {
+                if (isUnitInvulnerable(p, gs)) {
                   return; // Immune
                 }
                 const prevHp = p.currentHp;
@@ -2603,8 +2339,8 @@ function endOfTurnUpkeep(gs = gameState) {
                   if (!creator.isVeteran && creator.damageDealt >= (creator.maxHp || 5)) creator.readyForVeteranPromotion = true;
                 }
               } else {
-                // Tyrants cannot heal from Frostfall Blessing
-                if (p.key !== 'ashAshTyrant' && p.key !== 'snowFrostLord') {
+                // Leaders cannot heal from Frostfall Blessing
+                if (UNIT_REGISTRY[p.key]?.role !== 'Leader') {
                   p.currentHp = Math.min(p.maxHp || 5, Math.round((p.currentHp + s.heal) * 10) / 10);
                 }
               }
@@ -2619,14 +2355,22 @@ function endOfTurnUpkeep(gs = gameState) {
 
   if (gs.fateLinks) {
     gs.fateLinks = gs.fateLinks.filter((fl) => {
-      fl.duration -= 1;
+      // Decrement duration only on the caster's faction turn so it lasts the full intended rounds
+      const sourcePiece = gs.pieces.find(p => p.id === fl.sourceId);
+      if (!sourcePiece?.team || gs.currentTurn === sourcePiece.team) {
+        fl.duration -= 1;
+      }
       return fl.duration > 0;
     });
   }
 
   if (gs.TheReapersTolls) {
     gs.TheReapersTolls = gs.TheReapersTolls.filter((mg) => {
-      mg.duration -= 1;
+      const harvester = gs.pieces.find(p => p.id === mg.harvesterId);
+      // Decrement duration only on harvester's team turn
+      if (!harvester?.team || gs.currentTurn === harvester.team) {
+        mg.duration -= 1;
+      }
       if (mg.duration <= 0) {
         // AshesToAshes passive: revert stats, then 50% chance to shatter for 1 damage
         const target = gs.pieces.find(p => p.id === mg.targetId);
@@ -2844,7 +2588,7 @@ export function initGame(gs = gameState) {
   // Base territories are seeded entirely by the pieces' starting positions
 
   if (isTestMode) {
-    const testKeys = ['snowFrostLord', 'snowGlacialMage', 'snowSoulLinker', 'ashAshTyrant', 'ashMagmaShaper', 'ashAshReaper'];
+    const testKeys = Object.keys(UNIT_REGISTRY);
     gs.pieces = gs.pieces.filter(p => testKeys.includes(p.key));
   }
 

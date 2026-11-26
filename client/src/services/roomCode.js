@@ -56,17 +56,35 @@ export function isValidRoomCode(code) {
 
 export function getOrCreatePlayerId() {
   if (typeof window === 'undefined') return 'p_node';
-  let tabId = window.name;
-  if (!tabId || !tabId.startsWith('mt_tab_')) {
-    tabId = 'mt_tab_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
-    window.name = tabId;
+  let tabId = '';
+  try {
+    tabId = window.name;
+    if (!tabId || !tabId.startsWith('mt_tab_')) {
+      tabId = 'mt_tab_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+      window.name = tabId;
+    }
+  } catch (_) {
+    tabId = 'mt_tab_fallback';
   }
-  let pid = sessionStorage.getItem('mythic_pid_' + tabId) || localStorage.getItem('mythic_player_id');
+
+  let pid = null;
+  try {
+    pid = sessionStorage.getItem('mythic_pid_' + tabId) || localStorage.getItem('mythic_player_id');
+  } catch (_) {
+    // Storage restricted
+  }
+
   if (!pid) {
     pid = 'p_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
   }
-  sessionStorage.setItem('mythic_pid_' + tabId, pid);
-  localStorage.setItem('mythic_player_id', pid);
+
+  try {
+    sessionStorage.setItem('mythic_pid_' + tabId, pid);
+    localStorage.setItem('mythic_player_id', pid);
+  } catch (_) {
+    // Storage restricted
+  }
+
   return pid;
 }
 

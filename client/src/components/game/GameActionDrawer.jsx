@@ -7,7 +7,7 @@ import Skull from 'lucide-react/dist/esm/icons/skull.js';
 import Zap from 'lucide-react/dist/esm/icons/zap.js';
 import * as C from '@shared/constants.js';
 
-export default function GameActionDrawer({
+function GameActionDrawer({
   eventLog = [],
   isLocal,
   playerCount,
@@ -361,3 +361,5 @@ export default function GameActionDrawer({
     </>
   );
 }
+
+export default React.memo(GameActionDrawer);

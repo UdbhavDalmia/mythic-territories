@@ -201,10 +201,11 @@ function Board({
         cellStyle = { backgroundColor: 'rgba(15, 10, 25, 0.95)', border: '1.5px solid rgba(147, 51, 234, 0.2)' };
       } else if (isWall) {
         if (isObsidian) {
+          // Minimal, natural blend into the terrain without high-contrast black box cutoff
           cellStyle = { 
-            backgroundColor: 'rgba(35, 12, 55, 0.85)', 
-            border: '1.5px solid rgba(192, 132, 252, 0.65)',
-            boxShadow: 'inset 0 0 10px rgba(147, 51, 234, 0.5), 0 0 14px rgba(168, 85, 247, 0.35)'
+            backgroundColor: 'transparent',
+            border: 'none',
+            boxShadow: 'none'
           };
           cellClass = 'z-10';
         } else {
@@ -221,15 +222,15 @@ function Board({
         >
           {/* Wall Visualization: Obsidian Pillar or Ice Wall */}
           {isWall && wallObj && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-1">
+            <div className={`absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-0.5 ${isObsidian ? 'overflow-hidden' : ''}`}>
               {isObsidian ? (
                 <>
                   <img 
                     src="/images/obsidian-pillar.webp" 
                     alt="Obsidian Pillar" 
-                    className="w-full h-full object-contain filter drop-shadow-[0_0_10px_rgba(168,85,247,0.95)] select-none pointer-events-none" 
+                    className="w-full h-full object-contain filter drop-shadow-[0_8px_14px_rgba(0,0,0,0.7)] select-none pointer-events-none animate-pillar-erupt" 
                   />
-                  <div className="absolute bottom-1 right-1 bg-purple-950/90 text-purple-200 border border-purple-400/70 rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold shadow pointer-events-none">
+                  <div className="absolute bottom-1 right-1 bg-black/80 text-orange-200 border border-orange-500/50 rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold shadow-md pointer-events-none z-10">
                     {wallObj.duration}
                   </div>
                 </>

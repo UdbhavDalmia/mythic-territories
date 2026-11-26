@@ -39,35 +39,42 @@ export function drawShrineEffects(ctx, gameState) {
   const centerY = 5 * C.CELL_SIZE;
   // Ensure the shrineParticles array exists so drawing can safely run
   gameState.shrineParticles = gameState.shrineParticles || [];
+  if (gameState.shrineParticles.length === 0) return;
+
+  ctx.fillStyle = 'rgba(220, 20, 60, 0.85)';
+  const now = performance.now();
 
   if (!gameState.infusionTarget) {
+    const isOverloaded = gameState.shrineIsOverloaded;
     for (let i = gameState.shrineParticles.length - 1; i >= 0; i--) {
       const p = gameState.shrineParticles[i];
       let currentX = centerX + Math.cos(p.angle) * p.radius;
       let currentY = centerY + Math.sin(p.angle) * p.radius;
 
-      if (gameState.shrineIsOverloaded) {
+      if (isOverloaded) {
         p.angle += p.speed * 4;
-        p.radius += Math.sin(performance.now() * 0.008 + p.angle * 5) * 1.0;
+        p.radius += Math.sin(now * 0.008 + p.angle * 5) * 1.0;
       } else {
         p.angle += p.speed;
       }
 
       ctx.beginPath();
       ctx.arc(currentX, currentY, p.size, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(220, 20, 60, 0.85)';
       ctx.fill();
     }
   } else {
     // Infusion phase drawing
+    const target = gameState.infusionTarget;
+    const targetX = target.col * C.CELL_SIZE + C.CELL_SIZE / 2;
+    const targetY = target.row * C.CELL_SIZE + C.CELL_SIZE / 2;
+
     for (let i = gameState.shrineParticles.length - 1; i >= 0; i--) {
       const p = gameState.shrineParticles[i];
       let currentX = centerX + Math.cos(p.angle) * p.radius;
       let currentY = centerY + Math.sin(p.angle) * p.radius;
-      const target = gameState.infusionTarget;
-      const targetX = target.col * C.CELL_SIZE + C.CELL_SIZE / 2;
-      const targetY = target.row * C.CELL_SIZE + C.CELL_SIZE / 2;
-      if (Math.hypot(targetX - currentX, targetY - currentY) < 10) {
+      const tdx = targetX - currentX;
+      const tdy = targetY - currentY;
+      if (tdx * tdx + tdy * tdy < 100) {
         gameState.shrineParticles.splice(i, 1);
         continue;
       }
@@ -75,7 +82,6 @@ export function drawShrineEffects(ctx, gameState) {
       p.radius -= 5;
       ctx.beginPath();
       ctx.arc(currentX, currentY, p.size, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(220, 20, 60, 0.85)';
       ctx.fill();
     }
   }
@@ -88,7 +94,8 @@ export function drawShrineOverloadEffects(ctx, gameState) {
   const shrineCenterX = 5 * C.CELL_SIZE;
   const shrineCenterY = 5 * C.CELL_SIZE;
 
-  const flicker = 0.5 + Math.sin(performance.now() * 0.01) * 0.2;
+  const now = performance.now();
+  const flicker = 0.5 + Math.sin(now * 0.01) * 0.2;
   ctx.strokeStyle = `rgba(255, 0, 0, ${flicker})`;
   ctx.lineWidth = 2.0;
   ctx.beginPath();

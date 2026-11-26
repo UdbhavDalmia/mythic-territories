@@ -3,6 +3,8 @@
    Defines the fundamental grid math, tile types, and rendering dimensions 
    shared by both the logic engine and the client renderer.
    ========================================================================== */
+import { UNIT_REGISTRY } from './units/registry.js';
+
 export const CANVAS_SIZE = 920;
 export const COLS = 10;
 export const ROWS = 10;
@@ -25,29 +27,29 @@ export const RIFT_COLORS = { VOID: "#11001C", SNOW: "#00BFFF", ASH: "#FF4500" };
 export const BOARD_IMAGE_KEYS = ["gameBackgroundSnow", "gameBackgroundAsh"];
 export const IMAGES = {
   ashAshStrider: "units/blaze-runner.webp",
-  ashAshTyrant: "units/ash-tyrant.webp",
+  ashAshTyrant: UNIT_REGISTRY.ashAshTyrant.image,
   ashBlazeboundBeast: "units/hell-hound.webp",
   ashCinderScout: "units/cinder-scout.webp",
   ashMagmaProwler: "units/magma-prowler.webp",
   ashMagmaSpitter: "units/magma-spitter.webp",
-  ashMagmaShaper: "units/magma-shaper.webp",
+  ashMagmaShaper: UNIT_REGISTRY.ashMagmaShaper.image,
   ashRiftForger: "units/rift-forger.webp",
-  ashAshReaper: "units/ash-reaper.webp",
+  ashAshReaper: UNIT_REGISTRY.ashAshReaper.image,
   ashScorchPriest: "units/scorch-priest.webp",
   gameBackgroundAsh: "images/bg-game2.webp",
   gameBackgroundSnow: "images/bg-game.webp",
   obsidianPillar: "images/obsidian-pillar.webp",
   snowArcticTrapper: "units/arctic-trapper.webp",
-  snowGlacialMage: "units/cryomancer.webp",
-  snowFrostLord: "units/frost-lord.webp",
+  snowGlacialMage: UNIT_REGISTRY.snowGlacialMage.image,
+  snowFrostLord: UNIT_REGISTRY.snowFrostLord.image,
   snowFrostbiteStalker: "units/snow-wolf.webp",
   snowGlacialBrute: "units/glacial-brute.webp",
   snowHoarfrostMystic: "units/hoarfrost-mystic.webp",
   snowIceWeaver: "units/ice-weaver.webp",
-  snowIceWisp: "units/wisp.webp",
+  snowIceWisp: UNIT_REGISTRY.snowIceWisp.image,
   snowRampagingYeti: "units/yeti.webp",
   snowSoulFreeze: "units/soul-freeze.webp",
-  snowSoulLinker: "units/soul-linker.webp"
+  snowSoulLinker: UNIT_REGISTRY.snowSoulLinker.image
 };
 
 /* ==========================================================================
@@ -323,13 +325,7 @@ export const PIECE_TYPES = {
       cooldown: ABILITY_VALUES.TacticalSwapAsh.cooldown
     }
   },
-  ashAshTyrant: {
-    name: "Ash Tyrant",
-    power: 5,
-    stats: { hp: 12, def: 3, strength: 5, range: 1.5, agility: 1.8, control: 1.3 },
-    ability: { name: "Reign of Fire", key: "ReignOfFire" },
-    veteranAbility: null
-  },
+  ashAshTyrant: UNIT_REGISTRY.ashAshTyrant.stats,
   ashBlazeboundBeast: {
     name: "Blazebound Beast",
     power: 3,
@@ -367,13 +363,7 @@ export const PIECE_TYPES = {
       cooldown: ABILITY_VALUES.VolatileCinder.cooldown
     }
   },
-  ashMagmaShaper: {
-    name: "Magma Shaper",
-    power: 2,
-    stats: { hp: 7, def: 1, strength: 2, range: 2, agility: 2, control: 0.6 },
-    ability: { name: "Obsidian Pillar", key: "ObsidianPillar" },
-    veteranAbility: null
-  },
+  ashMagmaShaper: UNIT_REGISTRY.ashMagmaShaper.stats,
   ashRiftForger: {
     name: "Rift Forger",
     power: 2,
@@ -385,13 +375,7 @@ export const PIECE_TYPES = {
       isPassive: true
     }
   },
-  ashAshReaper: {
-    name: "Ash Reaper",
-    power: 3,
-    stats: { hp: 8, def: 2, strength: 3, range: 2, agility: 1.8, control: 0.8 },
-    ability: { name: "The Reaper's Toll", key: "TheReapersToll" },
-    veteranAbility: null
-  },
+  ashAshReaper: UNIT_REGISTRY.ashAshReaper.stats,
   ashScorchPriest: {
     name: "Scorch Priest",
     power: 2,
@@ -412,17 +396,7 @@ export const PIECE_TYPES = {
       cooldown: ABILITY_VALUES.DistractingRoar.cooldown
     }
   },
-  snowGlacialMage: {
-    name: "Glacial Mage",
-    power: 5,
-    stats: { hp: 7, def: 2, strength: 2, range: 2.5, agility: 1.4, control: 1.2 },
-    ability: { name: "Glacial Fracture", key: "GlacialFracture" },
-    veteranAbility: {
-      key: "WispEnhancement",
-      isPermanentUpgrade: true,
-      isPassive: true
-    }
-  },
+  snowGlacialMage: UNIT_REGISTRY.snowGlacialMage.stats,
   snowFrostbiteStalker: {
     name: "Frostbite Stalker",
     power: 2,
@@ -433,13 +407,7 @@ export const PIECE_TYPES = {
       cooldown: ABILITY_VALUES.IcyShift.cooldown
     }
   },
-  snowFrostLord: {
-    name: "Frost Lord",
-    power: 5,
-    stats: { hp: 12, def: 3, strength: 5, range: 1.5, agility: 1.8, control: 1.3 },
-    ability: { name: "Frostfall Blessing", key: "FrostfallBlessing" },
-    veteranAbility: null
-  },
+  snowFrostLord: UNIT_REGISTRY.snowFrostLord.stats,
   snowGlacialBrute: {
     name: "Glacial Brute",
     power: 3,
@@ -471,12 +439,7 @@ export const PIECE_TYPES = {
       isPassive: true
     }
   },
-  snowIceWisp: {
-    name: "Ice Wisp",
-    power: 0,
-    stats: { hp: 2, def: 1, strength: 1, range: 1, agility: 2, control: 0.4 },
-    passiveAbility: "AColdFarewell"
-  },
+  snowIceWisp: UNIT_REGISTRY.snowIceWisp.stats,
   snowRampagingYeti: {
     name: "Rampaging Yeti",
     power: 3,
@@ -497,62 +460,56 @@ export const PIECE_TYPES = {
       cooldown: ABILITY_VALUES.FrostbiteCurse.cooldown
     }
   },
-  snowSoulLinker: {
-    name: "Soul Linker",
-    power: 3,
-    stats: { hp: 8, def: 2, strength: 3, range: 2, agility: 1.8, control: 0.8 },
-    ability: { name: "Fate Link", key: "FateLink" },
-    veteranAbility: null
-  }
+  snowSoulLinker: UNIT_REGISTRY.snowSoulLinker.stats
 };
 
 export const PIECE_VALUES = {
   ashAshStrider: 150,
-  ashAshTyrant: 1000,
+  ashAshTyrant: UNIT_REGISTRY.ashAshTyrant.value,
   ashBlazeboundBeast: 300,
   ashCinderScout: 150,
   ashMagmaProwler: 300,
   ashMagmaSpitter: 500,
-  ashMagmaShaper: 250,
+  ashMagmaShaper: UNIT_REGISTRY.ashMagmaShaper.value,
   ashRiftForger: 250,
-  ashAshReaper: 700,
+  ashAshReaper: UNIT_REGISTRY.ashAshReaper.value,
   ashScorchPriest: 450,
   snowArcticTrapper: 150,
-  snowGlacialMage: 500,
+  snowGlacialMage: UNIT_REGISTRY.snowGlacialMage.value,
   snowFrostbiteStalker: 150,
-  snowFrostLord: 1000,
+  snowFrostLord: UNIT_REGISTRY.snowFrostLord.value,
   snowGlacialBrute: 300,
   snowHoarfrostMystic: 250,
   snowIceWeaver: 250,
-  snowIceWisp: 50,
+  snowIceWisp: UNIT_REGISTRY.snowIceWisp.value,
   snowRampagingYeti: 300,
   snowSoulFreeze: 450,
-  snowSoulLinker: 700
+  snowSoulLinker: UNIT_REGISTRY.snowSoulLinker.value
 };
 
 export const TEAM_PIECES = {
   ash: {
     Brawler: "ashBlazeboundBeast",
     Mage: "ashMagmaSpitter",
-    Mystic: "ashMagmaShaper",
+    Mystic: UNIT_REGISTRY.ashMagmaShaper.key,
     Priest: "ashScorchPriest",
     Shaper: "ashRiftForger",
-    Siphoner: "ashAshReaper",
+    Siphoner: UNIT_REGISTRY.ashAshReaper.key,
     Skirmisher: "ashAshStrider",
     Striker: "ashCinderScout",
-    Tyrant: "ashAshTyrant",
+    Tyrant: UNIT_REGISTRY.ashAshTyrant.key,
     Warrior: "ashMagmaProwler"
   },
   snow: {
     Brawler: "snowRampagingYeti",
-    Mage: "snowGlacialMage",
+    Mage: UNIT_REGISTRY.snowGlacialMage.key,
     Mystic: "snowHoarfrostMystic",
     Priest: "snowSoulFreeze",
     Shaper: "snowIceWeaver",
-    Siphoner: "snowSoulLinker",
+    Siphoner: UNIT_REGISTRY.snowSoulLinker.key,
     Skirmisher: "snowArcticTrapper",
     Striker: "snowFrostbiteStalker",
-    Tyrant: "snowFrostLord",
+    Tyrant: UNIT_REGISTRY.snowFrostLord.key,
     Warrior: "snowGlacialBrute"
   }
 };
@@ -811,11 +768,13 @@ export const ABILITY_DESCRIPTIONS = {
 };
 
 export const PASSIVE_DESCRIPTIONS = {
-  snowFrostLord: 'Help From Above — Lethal damage is negated; becomes invulnerable for 3 turns and grants nearby allies (Rad 1.5) +1 Strength.',
-  ashAshTyrant: 'Death Meteor — Lethal damage is negated; survives at 1 HP and triggers an explosion (Rad 2) dealing 4 damage to enemies and 2 damage to allies.',
-  snowSoulLinker: 'Cold Snap — If the bound enemy dies, the Soul Linker heals 2 HP; excess healing is converted into a 1-damage absorb shield.',
-  ashAshReaper: "Ashes To Ashes — When The Reaper's Toll expires, the stolen stats return and the enemy has a 50% chance to take 1 unavoidable damage.",
-  snowGlacialMage: 'Frost Duo — Gains +0.2 Control and +0.2 Agility per active Ice Wisp; gains an additional +1 Strength if both Wisps are active.',
-  snowIceWisp: 'A Cold Farewell — On death, explodes (Rad 1.5) for 4 turns; allies heal 1 HP/turn and get +1 Strength; enemies lose 0.4 Agility and have Control reduced to 0.'
+  snowFrostLord: UNIT_REGISTRY.snowFrostLord.passiveDescription,
+  ashAshTyrant: UNIT_REGISTRY.ashAshTyrant.passiveDescription,
+  snowSoulLinker: UNIT_REGISTRY.snowSoulLinker.passiveDescription,
+  ashAshReaper: UNIT_REGISTRY.ashAshReaper.passiveDescription,
+  snowGlacialMage: UNIT_REGISTRY.snowGlacialMage.passiveDescription,
+  snowIceWisp: UNIT_REGISTRY.snowIceWisp.passiveDescription
 };
+
+export { UNIT_REGISTRY, getUnit } from './units/registry.js';
 

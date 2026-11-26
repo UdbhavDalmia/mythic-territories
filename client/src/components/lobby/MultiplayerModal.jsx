@@ -25,7 +25,7 @@ const formatTimeAgo = (ts) => {
   return `${mins}m ago`;
 };
 
-export default function MultiplayerModal({
+function MultiplayerModal({
   showMultiplayer,
   showModes,
   mpOverlayRef,
@@ -359,3 +359,5 @@ export default function MultiplayerModal({
 
   );
 }
+
+export default React.memo(MultiplayerModal);

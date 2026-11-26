@@ -1,5 +1,5 @@
 import * as C from '@shared/constants.js';
-import { getPieceVisualState } from './helpers.js';
+import { getPieceVisualState } from '../../effects/units/helpers.js';
 
 export function spawnFrostfallBlessingEffect(r, c, gameState) {
   // Just add a shockwave when cast

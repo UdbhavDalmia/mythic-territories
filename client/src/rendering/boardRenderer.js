@@ -2,6 +2,7 @@ import * as C from '@shared/constants.js';
 import { computePowerDiagram, isPointInPolygon } from '@shared/voronoi.js';
 import { getValidMoves, getPieceMoveRadius } from '@shared/utils.js';
 import * as Effects from '@/effects';
+import { drawCastAnimations } from '../services/spriteAnimator.js';
 
 export function isPointInTeamTerritory(px, py, cells, CS) {
   if (!cells || cells.length === 0) return false;
@@ -511,130 +512,9 @@ export function renderInteractiveReticles(ctx, currentGs, isAshLocal, CS, mouseP
           ctx.arc(cCx, cCy, rangePx, 0, Math.PI * 2);
           ctx.fill();
 
-          // 1b. Dynamic Vision Blocking & Line-of-Sight Shadow Cones (Continuous Obstacle Occlusion)
+          // 1b. Dynamic Vision Blocking & Line-of-Sight Indicators (No heavy blackening cone overlays)
+          // Line-of-sight checks are evaluated dynamically for the targeting reticle/guide line without casting dark shadow cones across the board.
           const isSkyAbility = ['FrostfallBlessing', 'ReignOfFire', 'GlacialFracture'].includes(abilityKey);
-          if (ability.canBeBlocked && !isSkyAbility) {
-            const obstacles = [];
-
-            // Collect all obstacles within the ability range
-            // (a) Other units (allies & enemies)
-            (currentGs.pieces || []).forEach(p => {
-              if (p.id === caster.id || (typeof p.currentHp === 'number' && p.currentHp <= 0)) return;
-              obstacles.push({
-                x: (p.col + 0.5) * CS,
-                y: (p.row + 0.5) * CS,
-                radius: 0.38 * CS,
-                type: 'piece',
-                ref: p
-              });
-            });
-
-            // (b) Glacial walls / Obsidian pillars
-            (currentGs.glacialWalls || []).forEach(w => {
-              if (w.duration !== undefined && w.duration <= 0) return;
-              obstacles.push({
-                x: (w.col + 0.5) * CS,
-                y: (w.row + 0.5) * CS,
-                radius: 0.44 * CS,
-                type: 'wall',
-                ref: w
-              });
-            });
-
-            // (c) Void squares
-            (currentGs.voidSquares || []).forEach(v => {
-              obstacles.push({
-                x: (v.col + 0.5) * CS,
-                y: (v.row + 0.5) * CS,
-                radius: 0.44 * CS,
-                type: 'void',
-                ref: v
-              });
-            });
-
-            // (d) Craters
-            (currentGs.specialTerrains || []).forEach(st => {
-              if (st.type === 'crater') {
-                obstacles.push({
-                  x: (st.col + 0.5) * CS,
-                  y: (st.row + 0.5) * CS,
-                  radius: 0.44 * CS,
-                  type: 'crater',
-                  ref: st
-                });
-              }
-            });
-
-            // Render shadow cones cast behind each obstacle
-            obstacles.forEach(obs => {
-              const dx = obs.x - cCx;
-              const dy = obs.y - cCy;
-              const dist = Math.hypot(dx, dy);
-
-              if (dist <= obs.radius + 2 || dist > rangePx + obs.radius) return;
-
-              const alpha = Math.atan2(dy, dx);
-              const halfSpread = Math.asin(Math.min(0.999, obs.radius / dist));
-              const theta1 = alpha - halfSpread;
-              const theta2 = alpha + halfSpread;
-              const L = Math.sqrt(Math.max(0, dist * dist - obs.radius * obs.radius));
-
-              // Tangent contact points on obstacle silhouette
-              const t1x = cCx + L * Math.cos(theta1);
-              const t1y = cCy + L * Math.sin(theta1);
-              const t2x = cCx + L * Math.cos(theta2);
-              const t2y = cCy + L * Math.sin(theta2);
-
-              // Projection points extending out to the range boundary
-              const f1x = cCx + (rangePx + 20) * Math.cos(theta1);
-              const f1y = cCy + (rangePx + 20) * Math.sin(theta1);
-              const f2x = cCx + (rangePx + 20) * Math.cos(theta2);
-              const f2y = cCy + (rangePx + 20) * Math.sin(theta2);
-
-              ctx.save();
-              ctx.beginPath();
-              ctx.arc(cCx, cCy, rangePx, 0, Math.PI * 2);
-              ctx.clip(); // Restrict shadow polygon strictly to the valid range circle
-
-              // Dark occlusion shadow polygon
-              ctx.beginPath();
-              ctx.moveTo(t1x, t1y);
-              ctx.lineTo(f1x, f1y);
-              ctx.arc(cCx, cCy, rangePx + 20, theta1, theta2);
-              ctx.lineTo(t2x, t2y);
-              ctx.closePath();
-
-              const shadowGrad = ctx.createRadialGradient(obs.x, obs.y, 0, obs.x, obs.y, rangePx);
-              shadowGrad.addColorStop(0, 'rgba(8, 6, 14, 0.90)');
-              shadowGrad.addColorStop(1, 'rgba(3, 2, 8, 0.97)');
-              ctx.fillStyle = shadowGrad;
-              ctx.fill();
-
-              // Draw the two vision blocking tangent boundary rays
-              ctx.strokeStyle = isSnow ? 'rgba(56, 189, 248, 0.45)' : 'rgba(239, 68, 68, 0.45)';
-              ctx.lineWidth = 1.4;
-              ctx.setLineDash([5, 5]);
-              ctx.beginPath();
-              ctx.moveTo(t1x, t1y);
-              ctx.lineTo(f1x, f1y);
-              ctx.moveTo(t2x, t2y);
-              ctx.lineTo(f2x, f2y);
-              ctx.stroke();
-
-              ctx.restore();
-
-              // Illuminated front rim on obstacle catching the caster's aura
-              ctx.save();
-              ctx.strokeStyle = isSnow ? 'rgba(186, 230, 253, 0.75)' : 'rgba(254, 215, 170, 0.75)';
-              ctx.lineWidth = 2;
-              ctx.shadowColor = isSnow ? '#38bdf8' : '#f59e0b';
-              ctx.shadowBlur = 8;
-              ctx.beginPath();
-              ctx.arc(obs.x, obs.y, obs.radius, alpha + Math.PI / 2, alpha - Math.PI / 2, true);
-              ctx.stroke();
-              ctx.restore();
-            });
-          }
 
           // 2. High-Luminance Perimeter Boundary Ring (The crisp boundary of valid range)
           ctx.strokeStyle = isSnow ? 'rgba(186, 230, 253, 0.95)' : 'rgba(254, 240, 138, 0.95)';
@@ -968,35 +848,43 @@ export function renderInteractiveReticles(ctx, currentGs, isAshLocal, CS, mouseP
                     ctx.restore();
                   }
                 } else if (!isWall && !isVoid && !isCrater) {
-                  // MODE 3: Empty Tile -> Erect Obsidian Pillar Monolith Preview
+                  // MODE 3: Empty Tile -> Minimal Obsidian Pillar Reticle Preview
                   ctx.save();
-                  const pW = CS * 0.38;
-                  const pH = CS * 0.42;
-                  ctx.fillStyle = 'rgba(147, 51, 234, 0.28)';
-                  ctx.strokeStyle = 'rgba(192, 132, 252, 0.95)';
-                  ctx.lineWidth = 2;
-                  ctx.shadowColor = 'rgba(168, 85, 247, 0.8)';
-                  ctx.shadowBlur = 10;
-                  ctx.fillRect(mCx - pW, mCy - pH, pW * 2, pH * 2);
+                  const pW = CS * 0.32;
+                  const pH = CS * 0.32;
+                  ctx.fillStyle = 'rgba(148, 163, 184, 0.08)';
+                  ctx.strokeStyle = 'rgba(203, 213, 225, 0.55)';
+                  ctx.lineWidth = 1.2;
                   ctx.strokeRect(mCx - pW, mCy - pH, pW * 2, pH * 2);
 
-                  // Diamond rune center
-                  ctx.strokeStyle = '#ffffff';
+                  // Minimal corner tick accents
+                  const cLen = CS * 0.08;
+                  ctx.strokeStyle = '#f8fafc';
                   ctx.lineWidth = 1.5;
                   ctx.beginPath();
-                  ctx.moveTo(mCx, mCy - 8);
-                  ctx.lineTo(mCx + 8, mCy);
-                  ctx.lineTo(mCx, mCy + 8);
-                  ctx.lineTo(mCx - 8, mCy);
-                  ctx.closePath();
+                  // Top-left
+                  ctx.moveTo(mCx - pW, mCy - pH + cLen);
+                  ctx.lineTo(mCx - pW, mCy - pH);
+                  ctx.lineTo(mCx - pW + cLen, mCy - pH);
+                  // Top-right
+                  ctx.moveTo(mCx + pW - cLen, mCy - pH);
+                  ctx.lineTo(mCx + pW, mCy - pH);
+                  ctx.lineTo(mCx + pW, mCy - pH + cLen);
+                  // Bottom-left
+                  ctx.moveTo(mCx - pW, mCy + pH - cLen);
+                  ctx.lineTo(mCx - pW, mCy + pH);
+                  ctx.lineTo(mCx - pW + cLen, mCy + pH);
+                  // Bottom-right
+                  ctx.moveTo(mCx + pW - cLen, mCy + pH);
+                  ctx.lineTo(mCx + pW, mCy + pH);
+                  ctx.lineTo(mCx + pW, mCy + pH - cLen);
                   ctx.stroke();
 
-                  ctx.fillStyle = '#e9d5ff';
-                  ctx.font = 'bold 9px monospace';
-                  ctx.textAlign = 'center';
-                  ctx.shadowColor = 'rgba(0,0,0,0.85)';
-                  ctx.shadowBlur = 4;
-                  ctx.fillText('ERECT PILLAR', mCx, mCy - pH - 4);
+                  // Subtle center dot
+                  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                  ctx.beginPath();
+                  ctx.arc(mCx, mCy, 2, 0, Math.PI * 2);
+                  ctx.fill();
                   ctx.restore();
                 } else {
                   // Blocked terrain
@@ -1345,6 +1233,9 @@ export function renderEnvironmentalEffects(ctx, currentGs, isAshLocal, CS, dt, a
       }
 
       if (Effects.drawShrineEffects) Effects.drawShrineEffects(currentGs);
+
+      // ── Cast-frame ability animations (ring expand + spike rays per frame) ──
+      drawCastAnimations(ctx, currentGs, CS);
 
       // --- Ambient Elemental Territory Effects & Contested Frontline Particle Tension ---
       const isReducedMotion = typeof window !== 'undefined' && (

@@ -81,7 +81,7 @@ const PARTICLES = Array.from({ length: 34 }, (_, i) => ({
 
 /* ---------- Main Component ---------- */
 
-export default function VictoryScreen({
+function VictoryScreen({
   team = "frost",
   isLocal = true,
   myTeam = null,
@@ -125,14 +125,14 @@ export default function VictoryScreen({
       <div className={`v-exit-veil ${isExiting ? 'active' : ''}`} aria-hidden="true" />
       
       {/* 1. Living Ambient Particle Engine (Snow falling / Embers rising) */}
-      <div className="v-particles" aria-hidden="true" key={key}>
+      <div className="v-particles" aria-hidden="true" key={`v-particles-${key}`}>
         {PARTICLES.map((p, i) => (
           <span key={i} className={`v-p v-p-${theme.particle}`} style={p} />
         ))}
       </div>
 
       {/* 2. Main Compact Single-Viewport Stage */}
-      <section key={key} className="v-stage" aria-labelledby="v-title">
+      <section key={`v-stage-${key}`} className="v-stage" aria-labelledby="v-title">
         {/* Animated Heraldic Faction Banner */}
         <FactionBanner faction={key} mode="storm" className="v-banner" />
 
@@ -204,3 +204,5 @@ export default function VictoryScreen({
     </div>
   );
 }
+
+export default React.memo(VictoryScreen);

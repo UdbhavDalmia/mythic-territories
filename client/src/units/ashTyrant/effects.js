@@ -1,5 +1,5 @@
 import * as C from '@shared/constants.js';
-import { getPieceVisualState, triggerScreenshake } from './helpers.js';
+import { getPieceVisualState, triggerScreenshake } from '../../effects/units/helpers.js';
 
 export function spawnReignOfFireEffect(tyrantPiece, targetR, targetC, gameState) {
   if (!gameState || !tyrantPiece) return;

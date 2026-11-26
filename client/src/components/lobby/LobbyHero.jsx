@@ -4,7 +4,7 @@ import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
 import { triggerHaptic } from '../../services/haptics.js';
 import RecoverableSessionBanner from './RecoverableSessionBanner.jsx';
 
-export default function LobbyHero({
+function LobbyHero({
   recoverableSession,
   handleResumeSession,
   handleAbandonSession,
@@ -85,3 +85,5 @@ export default function LobbyHero({
     </main>
   );
 }
+
+export default React.memo(LobbyHero);

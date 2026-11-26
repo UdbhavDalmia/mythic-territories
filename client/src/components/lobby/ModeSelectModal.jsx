@@ -4,7 +4,7 @@ import Globe2 from 'lucide-react/dist/esm/icons/globe-2.js';
 import Bot from 'lucide-react/dist/esm/icons/bot.js';
 import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left.js';
 
-export default function ModeSelectModal({
+function ModeSelectModal({
   showModes,
   showMultiplayer,
   modesOverlayRef,
@@ -111,3 +111,5 @@ export default function ModeSelectModal({
     </div>
   );
 }
+
+export default React.memo(ModeSelectModal);

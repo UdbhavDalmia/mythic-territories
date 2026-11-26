@@ -76,15 +76,15 @@ export function spawnWallShatterEffect(row, col, gameState, isObsidian = false) 
   const shards = [];
   const targetX = col * C.CELL_SIZE + C.CELL_SIZE / 2;
   const targetY = row * C.CELL_SIZE + C.CELL_SIZE / 2;
-  const shardColor = isObsidian ? 'rgba(80, 25, 120, ALPHA)' : 'rgba(150, 230, 255, ALPHA)';
-  for (let i = 0; i < 20; i++) {
+  const shardColor = isObsidian ? 'rgba(25, 30, 42, ALPHA)' : 'rgba(150, 230, 255, ALPHA)';
+  for (let i = 0; i < 24; i++) {
     const angle = Math.random() * Math.PI * 2;
-    const speed = Math.random() * 6 + 2;
+    const speed = Math.random() * 6 + 2.5;
     shards.push({
       x: targetX,
       y: targetY,
       vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed - 2,
+      vy: Math.sin(angle) * speed - 2.5,
       alpha: 1,
       size: Math.random() * 6 + 3,
       rot: Math.random() * Math.PI,
@@ -98,7 +98,7 @@ export function spawnWallShatterEffect(row, col, gameState, isObsidian = false) 
     y: targetY,
     radius: 15,
     life: 1,
-    color: isObsidian ? '168, 85, 247' : '0, 191, 255'
+    color: isObsidian ? '210, 225, 240' : '0, 191, 255'
   });
   gameState.wallAnimations.push({ isShatter: true, shards });
 }
