@@ -61,7 +61,7 @@ export function spawnObsidianPillarCastEffect(anim, gameState) {
     casterY,
     subType,
     ticks: 0,
-    maxTicks: 30,
+    maxTicks: 75,
     shards,
     embers
   });
@@ -111,9 +111,9 @@ export function drawObsidianPillarAnimations(ctx, gameState) {
       const s = anim.shards[k];
       s.x += s.vx;
       s.y += s.vy;
-      s.vy += 0.35; // gravity
+      s.vy += 0.22; // gravity
       s.rot += s.vrot;
-      s.alpha -= 0.035;
+      s.alpha -= 0.015;
 
       if (s.alpha <= 0) {
         anim.shards.splice(k, 1);
@@ -141,7 +141,7 @@ export function drawObsidianPillarAnimations(ctx, gameState) {
       const em = anim.embers[k];
       em.x += em.vx;
       em.y += em.vy;
-      em.alpha -= 0.04;
+      em.alpha -= 0.016;
 
       if (em.alpha <= 0) {
         anim.embers.splice(k, 1);

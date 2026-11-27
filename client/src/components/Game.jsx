@@ -1079,16 +1079,13 @@ export default function Game({ navigateTo }) {
           );
 
           if (defender) {
-            const isLegalBfs = validMoves.some(m => Math.hypot((m.row !== undefined ? m.row : m.r) - defender.row, (m.col !== undefined ? m.col : m.c) - defender.col) <= 0.65);
-            if (!isLegalBfs) {
-              const los = C.hasLineOfSight(currentGs.selectedPiece.row, currentGs.selectedPiece.col, defender.row, defender.col, currentGs, {
-                ignoredPieceId: currentGs.selectedPiece.id,
-                targetPieceId: defender.id
-              });
-              if (!los.hasLos) {
-                triggerHaptic('error');
-                return;
-              }
+            const los = C.hasLineOfSight(currentGs.selectedPiece.row, currentGs.selectedPiece.col, defender.row, defender.col, currentGs, {
+              ignoredPieceId: currentGs.selectedPiece.id,
+              targetPieceId: defender.id
+            });
+            if (!los.hasLos) {
+              triggerHaptic('error');
+              return;
             }
             triggerHaptic('capture');
             sendAction('MOVE', { pieceId: currentGs.selectedPiece.id, r: defender.row, c: defender.col, isHighway: false });
@@ -1096,6 +1093,13 @@ export default function Game({ navigateTo }) {
             // Legal grid-based move (e.g. stepping around allies or along BFS paths)
             const placeRow = matchingLegalCell.row !== undefined ? matchingLegalCell.row : matchingLegalCell.r;
             const placeCol = matchingLegalCell.col !== undefined ? matchingLegalCell.col : matchingLegalCell.c;
+            const los = C.hasLineOfSight(currentGs.selectedPiece.row, currentGs.selectedPiece.col, placeRow, placeCol, currentGs, {
+              ignoredPieceId: currentGs.selectedPiece.id
+            });
+            if (!los.hasLos) {
+              triggerHaptic('error');
+              return;
+            }
             triggerHaptic('move');
             sendAction('MOVE', { pieceId: currentGs.selectedPiece.id, r: placeRow, c: placeCol, isHighway: matchingLegalCell.isHighway || false });
           } else {
@@ -1167,17 +1171,13 @@ export default function Game({ navigateTo }) {
       const maxRadius = E.getPieceMoveRadius ? E.getPieceMoveRadius(currentGs.selectedPiece, currentGs) : (currentGs.selectedPiece.agility || 2);
 
       if (dist <= maxRadius) {
-        const validMoves = E.getValidMoves ? E.getValidMoves(currentGs.selectedPiece, currentGs) : [];
-        const isLegalBfs = validMoves.some(m => Math.hypot((m.row !== undefined ? m.row : m.r) - piece.row, (m.col !== undefined ? m.col : m.c) - piece.col) <= 0.65);
-        if (!isLegalBfs) {
-          const los = C.hasLineOfSight(currentGs.selectedPiece.row, currentGs.selectedPiece.col, piece.row, piece.col, currentGs, {
-            ignoredPieceId: currentGs.selectedPiece.id,
-            targetPieceId: piece.id
-          });
-          if (!los.hasLos) {
-            triggerHaptic('error');
-            return;
-          }
+        const los = C.hasLineOfSight(currentGs.selectedPiece.row, currentGs.selectedPiece.col, piece.row, piece.col, currentGs, {
+          ignoredPieceId: currentGs.selectedPiece.id,
+          targetPieceId: piece.id
+        });
+        if (!los.hasLos) {
+          triggerHaptic('error');
+          return;
         }
         triggerHaptic('capture');
         sendAction('MOVE', { pieceId: currentGs.selectedPiece.id, r: piece.row, c: piece.col, isHighway: false });

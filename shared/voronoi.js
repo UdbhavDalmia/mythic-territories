@@ -10,6 +10,8 @@
  * the Sutherland-Hodgman convex polygon clipping algorithm.
  */
 
+import { getFormationSynergy } from "./utils.js";
+
 export const MAP_BOUNDS = {
   minX: 0,
   minY: 0,
@@ -22,7 +24,7 @@ export const MAP_BOUNDS = {
  * When uncontested, a unit commands a natural aura of this radius.
  * When contested with enemy units, the Power Diagram bisector partitions the overlap.
  */
-export function getPieceInfluenceRadius(piece) {
+export function getPieceInfluenceRadius(piece, synergy = null) {
   if (!piece) return 1.4;
   const power = Number(piece.power) || 2;
   const control = Number(piece.stats?.control ?? piece.control) || 0.1;
@@ -32,7 +34,8 @@ export function getPieceInfluenceRadius(piece) {
   let r = 1.0 + (power * 0.22) + (control * 0.4);
   if (isLeader) r += 0.8;
   if (piece.isVeteran) r += 0.3;
-  return Math.max(0.8, Math.min(3.2, r));
+  if (synergy?.radiusBonus) r += synergy.radiusBonus;
+  return Math.max(0.8, Math.min(3.6, r));
 }
 
 /**
@@ -57,7 +60,7 @@ export function createBoundedPolygon(cx, cy, radius, numSides = 16, bounds = MAP
 /**
  * Computes the baseline territorial weight for a piece.
  */
-export function getPieceTerritoryWeight(piece) {
+export function getPieceTerritoryWeight(piece, synergy = null) {
   if (!piece) return 1.0;
   const power = Number(piece.power) || 2;
   const control = Number(piece.stats?.control ?? piece.control) || 0.1;
@@ -70,7 +73,11 @@ export function getPieceTerritoryWeight(piece) {
   const leaderBonus = isLeader ? 3.0 : 0.0;
   const veteranBonus = piece.isVeteran ? 1.5 : 0.0;
 
-  return Math.max(0.2, base + leaderBonus + veteranBonus);
+  let total = Math.max(0.2, base + leaderBonus + veteranBonus);
+  if (synergy?.weightMult) {
+    total *= synergy.weightMult;
+  }
+  return total;
 }
 
 /**
@@ -166,8 +173,9 @@ export function computePowerDiagram(pieces = [], bounds = MAP_BOUNDS) {
     // Offset slightly by +0.5 to center on coordinate tiles (0..10)
     const x = p.col + 0.5;
     const y = p.row + 0.5;
-    const weight = getPieceTerritoryWeight(p);
-    const radius = getPieceInfluenceRadius(p);
+    const synergy = getFormationSynergy(p, { pieces: activePieces });
+    const weight = getPieceTerritoryWeight(p, synergy);
+    const radius = getPieceInfluenceRadius(p, synergy);
     const isLeader = p.isLeader || (p.key && (p.key.includes('Lord') || p.key.includes('Tyrant')));
     const numSides = isLeader ? 24 : 16;
     return {
@@ -178,6 +186,7 @@ export function computePowerDiagram(pieces = [], bounds = MAP_BOUNDS) {
       y,
       weight,
       radius,
+      synergy,
       // Bounded territory: starts with an influence envelope around unit according to power
       polygon: createBoundedPolygon(x, y, radius, numSides, bounds),
     };

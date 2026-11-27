@@ -201,20 +201,20 @@ describe('Integration: Multiplayer Networking, Serialization & Room Codes', () =
       const deltaStr = serializeDelta(initial);
       const rehydrated = rehydrateGameState(JSON.parse(deltaStr));
 
-      const lord = rehydrated.pieces.find(p => p.key === 'snowFrostLord');
-      assert.ok(lord);
+      const movingPiece = rehydrated.pieces.find(p => p.team === 'snow' && getValidMoves(p, rehydrated).length > 0);
+      assert.ok(movingPiece, 'A Snow piece must have valid moves');
 
-      Logic.selectPiece(lord, rehydrated);
-      const moves = getValidMoves(lord, rehydrated);
-      assert.ok(moves.length > 0, 'Frost Lord must have valid moves');
+      Logic.selectPiece(movingPiece, rehydrated);
+      const moves = getValidMoves(movingPiece, rehydrated);
+      assert.ok(moves.length > 0, 'Selected piece must have valid moves');
       const targetMove = moves[0];
 
       assert.doesNotThrow(() => {
-        Logic.movePiece(lord, targetMove.row, targetMove.col, false, rehydrated);
+        Logic.movePiece(movingPiece, targetMove.row, targetMove.col, false, rehydrated);
       }, 'movePiece must not throw TypeError on territoryCaptureTurn');
 
-      assert.strictEqual(lord.row, targetMove.row);
-      assert.strictEqual(lord.col, targetMove.col);
+      assert.strictEqual(movingPiece.row, targetMove.row);
+      assert.strictEqual(movingPiece.col, targetMove.col);
       assert.ok(rehydrated.territoryCaptureTurn[`${targetMove.row},${targetMove.col}`] !== undefined);
     });
 

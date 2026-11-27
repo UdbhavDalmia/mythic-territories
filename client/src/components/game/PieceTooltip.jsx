@@ -100,6 +100,17 @@ export function generatePieceInfoHtml(piece, gameState) {
       statuses.push(`Frost Shield (${activeShield.duration} turns)`);
     }
   }
+
+  const synergy = E.getFormationSynergy ? E.getFormationSynergy(piece, gameState) : null;
+  if (synergy && (synergy.strBonus > 0 || synergy.defBonus > 0 || synergy.ctrlBonus > 0)) {
+    const details = [];
+    if (synergy.defBonus > 0) details.push(`+${synergy.defBonus} DEF`);
+    if (synergy.strBonus > 0) details.push(`+${synergy.strBonus} STR`);
+    if (synergy.ctrlBonus > 0) details.push(`+${synergy.ctrlBonus} Ctrl`);
+    const label = synergy.hasStrongAlly ? 'Vanguard Escort' : 'Squad Formation';
+    statuses.push(`${label} (${details.join(', ')})`);
+  }
+
   if (statuses.length > 0) info += `<span style="color:#ffff55;font-size:11px;">Status: ${statuses.join(', ')}</span><br>`;
   
   if (piece.ability?.key && piece.ability.key !== 'Siphon') {

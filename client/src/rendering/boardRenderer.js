@@ -121,17 +121,17 @@ export function renderTerritoryLayer(bgCtx, currentGs, isAshLocal, arg4, arg5, a
                 grad = tCtx.createRadialGradient(cx, cy, CS * 0.1, cx, cy, radiusPx);
                 if (cell.team === 'snow') {
                   // Deep Glacial Permafrost (Darkened, Rich Cold Ice)
-                  grad.addColorStop(0, 'rgba(8, 47, 73, 0.72)');
-                  grad.addColorStop(0.3, 'rgba(3, 105, 161, 0.42)');
-                  grad.addColorStop(0.65, 'rgba(14, 165, 233, 0.18)');
-                  grad.addColorStop(0.85, 'rgba(56, 189, 248, 0.06)');
+                  grad.addColorStop(0, 'rgba(4, 28, 48, 0.84)');
+                  grad.addColorStop(0.3, 'rgba(2, 68, 108, 0.52)');
+                  grad.addColorStop(0.65, 'rgba(7, 112, 160, 0.22)');
+                  grad.addColorStop(0.85, 'rgba(14, 165, 233, 0.07)');
                   grad.addColorStop(1, 'rgba(2, 132, 199, 0.0)');
                 } else {
                   // Deep Volcanic Scorched Magma (Darkened, Basalt Obsidian)
-                  grad.addColorStop(0, 'rgba(50, 10, 8, 0.76)');
-                  grad.addColorStop(0.3, 'rgba(153, 27, 27, 0.44)');
-                  grad.addColorStop(0.65, 'rgba(220, 38, 38, 0.18)');
-                  grad.addColorStop(0.85, 'rgba(239, 68, 68, 0.06)');
+                  grad.addColorStop(0, 'rgba(32, 6, 5, 0.88)');
+                  grad.addColorStop(0.3, 'rgba(105, 18, 18, 0.54)');
+                  grad.addColorStop(0.65, 'rgba(165, 28, 28, 0.22)');
+                  grad.addColorStop(0.85, 'rgba(220, 38, 38, 0.07)');
                   grad.addColorStop(1, 'rgba(185, 28, 28, 0.0)');
                 }
                 if (gradCache && typeof gradCache.set === 'function') {
@@ -353,11 +353,54 @@ export function renderInteractiveReticles(ctx, currentGs, isAshLocal, CS, mouseP
 
         ctx.save();
 
-        // 1. Highlight the possible move region
+        // Collect all obstacles that block line-of-sight
+        const obstacles = [];
+        (currentGs.pieces || []).forEach(p => {
+          if (p.id === selP.id || (typeof p.currentHp === 'number' && p.currentHp <= 0)) return;
+          obstacles.push({
+            x: (p.col + 0.5) * CS,
+            y: (p.row + 0.5) * CS,
+            radius: 0.50 * CS
+          });
+        });
+        (currentGs.glacialWalls || []).forEach(w => {
+          if (w.duration !== undefined && w.duration <= 0) return;
+          obstacles.push({
+            x: (w.col + 0.5) * CS,
+            y: (w.row + 0.5) * CS,
+            radius: 0.50 * CS
+          });
+        });
+        (currentGs.voidSquares || []).forEach(v => {
+          obstacles.push({
+            x: (v.col + 0.5) * CS,
+            y: (v.row + 0.5) * CS,
+            radius: 0.50 * CS
+          });
+        });
+        (currentGs.specialTerrains || []).forEach(st => {
+          if (st.type === 'crater') {
+            obstacles.push({
+              x: (st.col + 0.5) * CS,
+              y: (st.row + 0.5) * CS,
+              radius: 0.50 * CS
+            });
+          }
+        });
+
+        // 1. Highlight the possible move region (Darkened, atmospheric combat aura)
         const moveGrad = ctx.createRadialGradient(selCx, selCy, moveRadiusPx * 0.25, selCx, selCy, moveRadiusPx);
-        moveGrad.addColorStop(0, `${primaryColor}0.0)`);
-        moveGrad.addColorStop(0.7, `${primaryColor}0.05)`);
-        moveGrad.addColorStop(1, `${primaryColor}0.13)`);
+        if (isSnow) {
+          moveGrad.addColorStop(0, 'rgba(3, 20, 36, 0.0)');
+          moveGrad.addColorStop(0.5, 'rgba(3, 40, 68, 0.16)');
+          moveGrad.addColorStop(0.8, 'rgba(7, 72, 115, 0.30)');
+          moveGrad.addColorStop(1, 'rgba(14, 116, 175, 0.44)');
+        } else {
+          moveGrad.addColorStop(0, 'rgba(30, 8, 4, 0.0)');
+          moveGrad.addColorStop(0.5, 'rgba(68, 16, 8, 0.16)');
+          moveGrad.addColorStop(0.8, 'rgba(120, 24, 10, 0.30)');
+          moveGrad.addColorStop(1, 'rgba(185, 38, 14, 0.44)');
+        }
 
         ctx.fillStyle = moveGrad;
         ctx.beginPath();
@@ -365,13 +408,101 @@ export function renderInteractiveReticles(ctx, currentGs, isAshLocal, CS, mouseP
         ctx.fill();
 
         // Elegant perimeter line defining the possible move boundary
-        ctx.strokeStyle = `${primaryColor}0.55)`;
-        ctx.lineWidth = 1.4;
+        ctx.strokeStyle = `${primaryColor}0.65)`;
+        ctx.lineWidth = 1.5;
         ctx.shadowColor = glowColor;
-        ctx.shadowBlur = 6;
+        ctx.shadowBlur = 7;
         ctx.beginPath();
         ctx.arc(selCx, selCy, moveRadiusPx, 0, Math.PI * 2);
         ctx.stroke();
+
+        // 1b. Cut out covered / blocked shadow areas directly behind obstacles and draw line-of-sight borders
+        if (obstacles.length > 0) {
+          ctx.save();
+          // Clip strictly inside the movement circle
+          ctx.beginPath();
+          ctx.arc(selCx, selCy, moveRadiusPx + 2, 0, Math.PI * 2);
+          ctx.clip();
+
+          // Use 'destination-out' to cleanly erase the highlighted move area in the covered cone
+          ctx.globalCompositeOperation = 'destination-out';
+          ctx.fillStyle = 'rgba(0, 0, 0, 1)';
+
+          const visibleRays = [];
+
+          obstacles.forEach(obs => {
+            const dx = obs.x - selCx;
+            const dy = obs.y - selCy;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist <= obs.radius + 2 || dist > moveRadiusPx + obs.radius) return;
+
+            const alpha = Math.atan2(dy, dx);
+            const halfSpread = Math.asin(Math.min(0.999, obs.radius / dist));
+            const theta1 = alpha - halfSpread;
+            const theta2 = alpha + halfSpread;
+            const L = Math.sqrt(Math.max(0, dist * dist - obs.radius * obs.radius));
+
+            // Tangent contact points on obstacle silhouette
+            const t1x = selCx + L * Math.cos(theta1);
+            const t1y = selCy + L * Math.sin(theta1);
+            const t2x = selCx + L * Math.cos(theta2);
+            const t2y = selCy + L * Math.sin(theta2);
+
+            // Projection points extending past movement boundary
+            const farDist = moveRadiusPx + 30;
+            const f1x = selCx + farDist * Math.cos(theta1);
+            const f1y = selCy + farDist * Math.sin(theta1);
+            const f2x = selCx + farDist * Math.cos(theta2);
+            const f2y = selCy + farDist * Math.sin(theta2);
+
+            ctx.beginPath();
+            ctx.moveTo(t1x, t1y);
+            ctx.lineTo(f1x, f1y);
+            ctx.arc(selCx, selCy, farDist, theta1, theta2);
+            ctx.lineTo(t2x, t2y);
+            ctx.closePath();
+            ctx.fill();
+
+            visibleRays.push({ obs, alpha, theta1, theta2, t1x, t1y, t2x, t2y, f1x, f1y, f2x, f2y });
+          });
+
+          ctx.restore();
+
+          // 1c. Render crisp line-of-sight borders and obstacle occlusion silhouettes
+          visibleRays.forEach(ray => {
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(selCx, selCy, moveRadiusPx, 0, Math.PI * 2);
+            ctx.clip();
+
+            // Tangent shadow borders bounding the occluded cone
+            ctx.strokeStyle = isSnow ? 'rgba(56, 189, 248, 0.40)' : 'rgba(249, 115, 22, 0.40)';
+            ctx.lineWidth = 1.3;
+            ctx.shadowColor = glowColor;
+            ctx.shadowBlur = 4;
+            ctx.setLineDash([4, 4]);
+
+            ctx.beginPath();
+            ctx.moveTo(ray.t1x, ray.t1y);
+            ctx.lineTo(ray.f1x, ray.f1y);
+            ctx.moveTo(ray.t2x, ray.t2y);
+            ctx.lineTo(ray.f2x, ray.f2y);
+            ctx.stroke();
+
+            // Tactile illuminated rim on the facing edge of the blocker catching the unit's aura
+            ctx.setLineDash([]);
+            ctx.strokeStyle = isSnow ? 'rgba(186, 230, 253, 0.75)' : 'rgba(254, 215, 170, 0.75)';
+            ctx.lineWidth = 1.6;
+            ctx.shadowColor = glowColor;
+            ctx.shadowBlur = 6;
+            ctx.beginPath();
+            ctx.arc(ray.obs.x, ray.obs.y, ray.obs.radius, ray.alpha + Math.PI / 2, ray.alpha - Math.PI / 2, true);
+            ctx.stroke();
+
+            ctx.restore();
+          });
+        }
 
         // 2. Highlight the final destination spot under the mouse with exact pixel synchronization
         if (mousePos && mousePos.active) {
@@ -379,7 +510,16 @@ export function renderInteractiveReticles(ctx, currentGs, isAshLocal, CS, mouseP
           const mouseC = mousePos.c;
           const mouseDist = Math.hypot(mouseC - selCenterC, mouseR - selCenterR);
 
-          if (mouseDist <= maxRadius + 0.15) {
+          // Verify line-of-sight for hover target so covered area is not highlighted
+          const mouseTargetPiece = (currentGs.pieces || []).find(
+            p => Math.hypot((p.row + 0.5) - mouseR, (p.col + 0.5) - mouseC) <= 0.65
+          );
+          const losToMouse = C.hasLineOfSight(selP.row, selP.col, mouseR - 0.5, mouseC - 0.5, currentGs, {
+            ignoredPieceId: selP.id,
+            targetPieceId: mouseTargetPiece?.id || null
+          });
+
+          if (mouseDist <= maxRadius + 0.15 && losToMouse.hasLos) {
             // Exact canvas coordinates matching mouse position directly (zero offset)
             const mCx = mouseC * CS;
             const mCy = mouseR * CS;
@@ -1251,6 +1391,71 @@ export function renderEnvironmentalEffects(ctx, currentGs, isAshLocal, CS, dt, a
       if (!isReducedMotion && currentGs.voronoiData) {
         const voronoi = currentGs.voronoiData;
         const now = performance.now();
+
+        // 0. Contested Clash Borders: Pure elemental particle tension motion (No harsh solid line)
+        if (voronoi.frontlines && voronoi.frontlines.length > 0) {
+          ctx.save();
+          voronoi.frontlines.forEach((fl, fIdx) => {
+            const x1 = fl.p1.x * CS, y1 = fl.p1.y * CS;
+            const x2 = fl.p2.x * CS, y2 = fl.p2.y * CS;
+            const dx = x2 - x1, dy = y2 - y1;
+            const len = Math.hypot(dx, dy);
+            if (len < 5) return;
+
+            const ux = dx / len, uy = dy / len;
+            const nx = -uy, ny = ux;
+
+            // Find orientation of Ash vs Frost sides
+            const ac = (voronoi.cells || []).find(c => c.pieceId === fl.ashPieceId);
+            const midX = (x1 + x2) / 2, midY = (y1 + y2) / 2;
+            const dotAsh = ac ? (ac.center.x * CS - midX) * nx + (ac.center.y * CS - midY) * ny : 1;
+            const nxAsh = dotAsh >= 0 ? nx : -nx;
+            const nyAsh = dotAsh >= 0 ? ny : -ny;
+            const nxFrost = -nxAsh;
+            const nyFrost = -nyAsh;
+
+            const numTensionParticles = Math.min(22, Math.max(10, Math.floor(len / 10)));
+
+            for (let i = 0; i < numTensionParticles; i++) {
+              const t = (i + 0.5) / numTensionParticles;
+              const baseLX = x1 + t * dx;
+              const baseLY = y1 + t * dy;
+
+              // Ash side: Fiery clash sparks vibrating against the frontline
+              const firePhase = now * 0.012 + i * 1.7 + fIdx;
+              const fireDist = 3 + Math.sin(firePhase) * 5 + (Math.sin(firePhase * 2.3) * 2.5);
+              const fireJitter = Math.cos(firePhase * 1.8) * 2.5;
+              const fx = baseLX + nxAsh * fireDist + ux * fireJitter;
+              const fy = baseLY + nyAsh * fireDist + uy * fireJitter;
+              const fireSize = 1.4 + 0.9 * Math.abs(Math.sin(firePhase));
+              const fireAlpha = 0.65 + 0.35 * Math.sin(firePhase * 1.5);
+
+              ctx.fillStyle = i % 2 === 0 ? `rgba(255, 69, 0, ${fireAlpha})` : `rgba(255, 180, 40, ${fireAlpha})`;
+              ctx.shadowColor = '#ff4500';
+              ctx.shadowBlur = 6;
+              ctx.beginPath();
+              ctx.arc(fx, fy, fireSize, 0, Math.PI * 2);
+              ctx.fill();
+
+              // Frost side: Frost crystal sparks counter-pressing against the frontline
+              const frostPhase = now * 0.010 + i * 2.1 + fIdx * 0.5;
+              const frostDist = 3 + Math.sin(frostPhase) * 5 + (Math.cos(frostPhase * 1.9) * 2.5);
+              const frostJitter = Math.sin(frostPhase * 2.1) * 2.5;
+              const sx = baseLX + nxFrost * frostDist + ux * frostJitter;
+              const sy = baseLY + nyFrost * frostDist + uy * frostJitter;
+              const frostSize = 1.3 + 0.8 * Math.abs(Math.cos(frostPhase));
+              const frostAlpha = 0.60 + 0.40 * Math.cos(frostPhase * 1.4);
+
+              ctx.fillStyle = i % 2 === 0 ? `rgba(224, 242, 254, ${frostAlpha})` : `rgba(56, 189, 248, ${frostAlpha})`;
+              ctx.shadowColor = '#38bdf8';
+              ctx.shadowBlur = 6;
+              ctx.beginPath();
+              ctx.arc(sx, sy, frostSize, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          });
+          ctx.restore();
+        }
 
         // 1. Ambient Snow across Map (Full intensity in Frost territory, lessened intensity in rest of map)
         const snowCells = voronoi._snowCells || (voronoi._snowCells = (voronoi.cells || []).filter(c => c.team === 'snow' && c.polygon && c.polygon.length >= 3));

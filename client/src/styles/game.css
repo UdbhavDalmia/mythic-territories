@@ -109,24 +109,35 @@
 @keyframes pillarEruptRise {
    0% {
       clip-path: inset(100% 0 0 0);
-      transform: translateY(30%) scale(0.95);
-      opacity: 0.2;
+      transform: translateY(60%) scale(0.92);
+      opacity: 0;
       filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
    }
-   35% {
+   20% {
+      opacity: 0.6;
+      clip-path: inset(80% 0 0 0);
+      transform: translateY(45%) scale(0.94);
+   }
+   50% {
       opacity: 1;
+      clip-path: inset(35% 0 0 0);
+      transform: translateY(15%) scale(0.97);
+   }
+   85% {
+      clip-path: inset(0 0 0 0);
+      transform: translateY(-2%) scale(1.02);
    }
    100% {
       clip-path: inset(0 0 0 0);
       transform: translateY(0) scale(1);
       opacity: 1;
-      filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.7));
+      filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.85));
    }
 }
 
 .animate-pillar-erupt {
    transform-origin: bottom center;
-   animation: pillarEruptRise 0.55s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+   animation: pillarEruptRise 1.25s cubic-bezier(0.16, 0.9, 0.25, 1) forwards;
    will-change: transform, clip-path, opacity;
 }
 

@@ -138,11 +138,124 @@ export function getEffectivePower(
 }
 
 /* ==========================================================================
-   SECTION 1b: NEW RPG STAT FUNCTIONS
+   SECTION 1b: NEW RPG STAT FUNCTIONS & FORMATION SYNERGIES
    getEffectiveStrength / getEffectiveDefense build on the same modifier stack
    but use the piece's dedicated strength/def stats instead of the legacy power.
    dealDamage() is the single authoritative combat resolver (no RNG).
    ========================================================================== */
+
+/**
+ * Determines whether a piece is considered "strong" (elite brawlers, tanks, high-damage elites, or leaders).
+ * Strong units do not gain formation bonuses from clustering or weaker units.
+ */
+export function isStrongPiece(piece) {
+  if (!piece) return false;
+  if (piece.isLeader || (piece.key && (piece.key.includes("Lord") || piece.key.includes("Tyrant")))) {
+    return true;
+  }
+  const typeStats = C.PIECE_TYPES[piece.key]?.stats;
+  const baseHp = typeStats?.hp ?? piece.stats?.hp ?? piece.maxHp ?? 0;
+  const baseStr = typeStats?.strength ?? piece.stats?.strength ?? piece.strength ?? 0;
+  return baseHp >= 10 || baseStr >= 4;
+}
+
+/**
+ * Determines whether a piece is considered "weaker" (non-elite minions, flankers, support).
+ */
+export function isWeakerPiece(piece) {
+  if (!piece) return false;
+  return !isStrongPiece(piece);
+}
+
+/**
+ * Computes formation synergy for a piece based on nearby allies and stronger anchors.
+ *
+ * Rules:
+ * 1. Weaker units gain DEF, STR, and Control bonuses when grouped together in numbers
+ *    or accompanied by stronger units.
+ * 2. Weaker units also gain Voronoi territory weight multipliers and influence radius
+ *    expansion to push back enemy territory and claim contested zones.
+ * 3. Stronger units do NOT gain bonuses from weaker units or from grouping with weaker units
+ *    (strictly asymmetric).
+ */
+export function getFormationSynergy(piece, gameState) {
+  const neutral = {
+    strBonus: 0,
+    defBonus: 0,
+    ctrlBonus: 0,
+    weightMult: 1.0,
+    radiusBonus: 0.0,
+    allyCount: 0,
+    hasStrongAlly: false,
+    isWeaker: false,
+  };
+
+  if (!piece || !gameState?.pieces || !Array.isArray(gameState.pieces)) {
+    return neutral;
+  }
+
+  // Stronger units do NOT receive formation synergy boosts
+  if (!isWeakerPiece(piece)) {
+    return neutral;
+  }
+
+  const pCol = typeof piece.col === "number" ? piece.col : 0;
+  const pRow = typeof piece.row === "number" ? piece.row : 0;
+
+  // Search nearby living allies within 2.5 tile radius
+  const nearbyAllies = gameState.pieces.filter((other) => {
+    if (!other || other.id === piece.id || other.team !== piece.team) return false;
+    if (typeof other.row !== "number" || typeof other.col !== "number") return false;
+    if (other.currentHp !== undefined && other.currentHp <= 0) return false;
+
+    const dist = Math.hypot(other.col - pCol, other.row - pRow);
+    return dist > 0.01 && dist <= 2.5;
+  });
+
+  const allyCount = nearbyAllies.length;
+  if (allyCount === 0) {
+    return { ...neutral, isWeaker: true };
+  }
+
+  const hasStrongAlly = nearbyAllies.some((other) => isStrongPiece(other));
+
+  // Stat boosts:
+  // - Defense: +1 with 1+ ally; +2 with a strong anchor or 3+ allies (max +2)
+  let defBonus = 1;
+  if (hasStrongAlly || allyCount >= 3) {
+    defBonus = 2;
+  }
+
+  // - Strength: +1 if 2+ allies (pack tactics) OR if accompanied by a strong ally (vanguard inspiration).
+  //             +2 if both in pack AND accompanied by strong ally.
+  let strBonus = 0;
+  if (allyCount >= 2 && hasStrongAlly) {
+    strBonus = 2;
+  } else if (allyCount >= 2 || hasStrongAlly) {
+    strBonus = 1;
+  }
+
+  // - Control: +0.15 per ally, +0.25 if strong ally present (capped at +0.6)
+  const ctrlBonus = Math.min(0.6, (0.15 * allyCount) + (hasStrongAlly ? 0.25 : 0.0));
+
+  // - Voronoi territory boosts:
+  // Push weight multiplier (repels opposing Voronoi radical bisectors without breaking cell clipping)
+  const weightMult = Math.min(1.35, 1.0 + (0.08 * allyCount) + (hasStrongAlly ? 0.12 : 0.0));
+
+  // - Influence radius bonus (natural territorial reach in neutral/open space)
+  const radiusBonus = Math.min(0.4, (0.1 * allyCount) + (hasStrongAlly ? 0.15 : 0.0));
+
+  return {
+    strBonus,
+    defBonus,
+    ctrlBonus: Number(ctrlBonus.toFixed(2)),
+    weightMult: Number(weightMult.toFixed(2)),
+    radiusBonus: Number(radiusBonus.toFixed(2)),
+    allyCount,
+    hasStrongAlly,
+    isWeaker: true,
+  };
+}
 
 /**
  * Returns the effective Strength of a piece after all modifiers.
@@ -156,6 +269,14 @@ export function getEffectiveStrength(piece, gameState, opponent = null) {
   const dynamicStats = getUnitDynamicStats(piece, gameState);
   if (dynamicStats?.strengthOverride !== undefined) {
     str = dynamicStats.strengthOverride;
+  }
+
+  // Formation Synergy for weaker units
+  if (gameState) {
+    const synergy = getFormationSynergy(piece, gameState);
+    if (synergy?.strBonus) {
+      str += synergy.strBonus;
+    }
   }
 
   // Shrine and anchor boosts apply to all combat stats
@@ -197,7 +318,7 @@ export function getEffectiveStrength(piece, gameState, opponent = null) {
   for (let r = -1; r <= 1; r++)
     for (let c = -1; c <= 1; c++) {
       if (r === 0 && c === 0) continue;
-      const adj = C.getPieceAt(piece.row + r, piece.col + c, gameState.pieces);
+      const adj = C.getPieceAt(piece.row + r, piece.col + c, gameState?.pieces || []);
       if (
         adj?.team === oppTeam &&
         adj.ability?.name === "Chilling Aura" &&
@@ -208,7 +329,7 @@ export function getEffectiveStrength(piece, gameState, opponent = null) {
 
   // TargetedWeakness faction passive — bonus STR when attacking debuffed targets
   if (
-    gameState.factionPassives[piece.team]?.ascension?.TargetedWeakness &&
+    gameState?.factionPassives?.[piece.team]?.ascension?.TargetedWeakness &&
     opponent?.id
   ) {
     if (
@@ -231,11 +352,19 @@ export function getEffectiveDefense(piece, gameState) {
 
   let def = safe(piece.def, 0);
 
+  // Formation Synergy for weaker units
+  if (gameState) {
+    const synergy = getFormationSynergy(piece, gameState);
+    if (synergy?.defBonus) {
+      def += synergy.defBonus;
+    }
+  }
+
   // Shrine and anchor boosts also apply to defense
   def += safe(piece.shrineBoost) + safe(piece.anchorBoost);
 
   // FrostArmor / KindleArmor / AegisDefense specifically boost defense
-  (gameState.temporaryBoosts || [])
+  (gameState?.temporaryBoosts || [])
     .filter((b) => b.pieceId === piece.id)
     .forEach((b) => {
       if (
@@ -249,7 +378,7 @@ export function getEffectiveDefense(piece, gameState) {
 
   // Unstable Ground on own tile reduces effective defense
   if (
-    (gameState.unstableGrounds || []).some(
+    (gameState?.unstableGrounds || []).some(
       (g) =>
         g.row === Math.round(piece.row) &&
         g.col === Math.round(piece.col) &&
@@ -259,7 +388,7 @@ export function getEffectiveDefense(piece, gameState) {
     def -= C.ABILITY_VALUES.UnstableGround?.damage || 0;
 
   // HomeFieldAdvantage adds bonus defense on starting squares
-  if (gameState.factionPassives[piece.team]?.ascension?.HomeFieldAdvantage) {
+  if (gameState?.factionPassives?.[piece.team]?.ascension?.HomeFieldAdvantage) {
     if (
       (piece.team === "snow"
         ? C.SHAPES.topLayout
@@ -283,6 +412,14 @@ export function getEffectiveControl(piece, gameState) {
   const dynamicStats = getUnitDynamicStats(piece, gameState);
   if (dynamicStats?.controlBonus) {
     ctrl += dynamicStats.controlBonus;
+  }
+
+  // Formation Synergy for weaker units
+  if (gameState) {
+    const synergy = getFormationSynergy(piece, gameState);
+    if (synergy?.ctrlBonus) {
+      ctrl += synergy.ctrlBonus;
+    }
   }
 
   // Apply AColdFarewell Control Lock debuffs
@@ -620,8 +757,13 @@ export function getValidMoves(piece, gameState) {
         const target = C.getPieceAt(nr, nc, gameState.pieces);
 
         if (!target) {
-          // Empty cell: always landable
-          normalMovesMap.set(posKey, { row: nr, col: nc });
+          // Empty cell: landable only if direct line of sight from the moving piece is unobstructed (cannot move directly behind other pieces/obstacles)
+          const los = C.hasLineOfSight(piece.row, piece.col, nr, nc, gameState, {
+            ignoredPieceId: piece.id
+          });
+          if (los.hasLos) {
+            normalMovesMap.set(posKey, { row: nr, col: nc });
+          }
 
           // TRAP-STOP: hostile trap cells halt further BFS expansion from this tile.
           // The unit CAN land here but cannot continue moving through.
@@ -629,10 +771,16 @@ export function getValidMoves(piece, gameState) {
             queue.push({ r: nr, c: nc, d: curr.d + 1 });
           }
         } else if (target.team !== piece.team) {
-          // Enemy cell: landable only if attack deals damage. Not passable.
+          // Enemy cell: landable only if attack deals damage and has clear line of sight. Not passable.
           const preview = previewDamage(piece, target, gameState);
           if (preview.dmg > 0) {
-            normalMovesMap.set(posKey, { row: nr, col: nc });
+            const los = C.hasLineOfSight(piece.row, piece.col, target.row, target.col, gameState, {
+              ignoredPieceId: piece.id,
+              targetPieceId: target.id
+            });
+            if (los.hasLos) {
+              normalMovesMap.set(posKey, { row: nr, col: nc });
+            }
           }
         } else {
           // Ally cell: passable but NOT landable
