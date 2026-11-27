@@ -565,7 +565,11 @@ export function renderInteractiveReticles(ctx, currentGs, isAshLocal, CS, mouseP
             let isVisionBlocked = false;
             let blockerInfo = null;
             if (isValidTarget && !isSkyAbility && ability.canBeBlocked !== false) {
-              const losResult = C.hasLineOfSight(caster.row, caster.col, mR, mC, currentGs, {
+              const targetTileR = Math.max(0, Math.min(9, Math.floor(mR)));
+              const targetTileC = Math.max(0, Math.min(9, Math.floor(mC)));
+              const targetR = targetPiece ? targetPiece.row : targetTileR;
+              const targetC = targetPiece ? targetPiece.col : targetTileC;
+              const losResult = C.hasLineOfSight(caster.row, caster.col, targetR, targetC, currentGs, {
                 ignoredPieceId: caster.id,
                 targetPieceId: targetPiece?.id || null
               });

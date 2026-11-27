@@ -875,12 +875,17 @@ export function movePiece(piece, targetRow, targetCol, isHighwayMove = false, gs
 
   // Inside movePiece, replace the capture block
   if (defender && defender.team !== piece.team) {
-    // Attack requires line of sight to defender
-    const los = C.hasLineOfSight(piece.row, piece.col, defender.row, defender.col, gs, {
-      ignoredPieceId: piece.id,
-      targetPieceId: defender.id
-    });
-    if (!los.hasLos) return false;
+    if (!isHighwayMove) {
+      const validMoves = getValidMoves(piece, gs);
+      const isLegalBfs = validMoves.some(m => Math.hypot((m.row !== undefined ? m.row : m.r) - targetRow, (m.col !== undefined ? m.col : m.c) - targetCol) <= 0.65);
+      if (!isLegalBfs) {
+        const los = C.hasLineOfSight(piece.row, piece.col, defender.row, defender.col, gs, {
+          ignoredPieceId: piece.id,
+          targetPieceId: defender.id
+        });
+        if (!los.hasLos) return false;
+      }
+    }
 
     if (isCaptureSuccessful(piece, defender, gs)) {
       const actuallyCaptured = handlePieceCapture(defender, piece, gs);
