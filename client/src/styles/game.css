@@ -1947,7 +1947,11 @@ body.multiplayer #roomStatusOverlay {
    9) Responsive HUD refresh
    ------------------------- */
 .game-screen {
-   min-height: 100dvh;
+   height: 100vh !important;
+   height: 100dvh !important;
+   max-height: 100vh !important;
+   max-height: 100dvh !important;
+   overflow: hidden !important;
    padding: 12px;
    background:
       radial-gradient(circle at 12% 15%, rgba(56, 189, 248, 0.1), transparent 32%),
@@ -2692,7 +2696,11 @@ body.multiplayer #roomStatusOverlay {
    }
 
    .game-screen {
-      min-height: 100dvh;
+      height: 100vh !important;
+      height: 100dvh !important;
+      max-height: 100vh !important;
+      max-height: 100dvh !important;
+      overflow: hidden !important;
       padding: 0;
    }
 

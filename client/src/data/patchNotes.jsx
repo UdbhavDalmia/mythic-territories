@@ -217,7 +217,7 @@ const getScope = (text) => {
   return 'Gameplay';
 };
 
-export const versionId = (version) => `version-${version.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`;
+export const versionId = (version) => `version-${String(version).replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase()}`;
 
 export function ChangeRow({ text }) {
   const category = getCategory(text);
@@ -245,14 +245,14 @@ export function ChangeRow({ text }) {
   );
 }
 
-export function ReleaseCard({ patch, expanded, onToggle, onViewRules, featured = false, archived = false }) {
+export function ReleaseCard({ patch, expanded, onToggle, onViewRules, featured = false, archived = false, targeted = false }) {
   const changes = patch.highlights?.map((item) => item.text) || patch.bullets?.map((item) => item.prefix) || [];
   const summary = changes.length ? splitChange(changes[0]).description : '';
 
   return (
     <article
       id={versionId(patch.version)}
-      className="scroll-mt-24 group transition-colors duration-200"
+      className={`scroll-mt-24 group transition-all duration-300 ${targeted ? 'ring-1 ring-amber-400/50 rounded-xl px-4 -mx-4 bg-amber-400/5 shadow-[0_0_20px_rgba(245,158,11,0.1)]' : ''}`}
     >
       <button
         className="w-full py-5 text-left focus:outline-none cursor-pointer flex items-start justify-between gap-4"

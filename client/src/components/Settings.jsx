@@ -99,11 +99,11 @@ export default function Settings({ navigateTo }) {
 
       <div
         ref={pageRef}
-        className="relative z-10 min-h-screen flex flex-col justify-between text-slate-100 select-none overflow-x-hidden font-sans"
+        className="relative z-10 h-screen h-[100dvh] max-h-screen max-h-[100dvh] flex flex-col justify-between text-slate-100 select-none overflow-hidden font-sans"
         style={{ opacity: 0 }}
       >
         {/* Top Header */}
-        <header className="w-full border-b border-slate-700/60 bg-slate-900/80 backdrop-blur-md sticky top-0 z-40">
+        <header className="w-full border-b border-slate-700/60 bg-slate-900/80 backdrop-blur-md sticky top-0 z-40 shrink-0">
           <div className="max-w-2xl mx-auto px-6 py-4 flex items-center justify-between">
             <button
               onClick={() => handleNavigate('LOBBY')}
@@ -117,15 +117,15 @@ export default function Settings({ navigateTo }) {
         </header>
 
       {/* Main Content */}
-      <main className="relative z-10 flex-1 max-w-2xl w-full mx-auto px-6 py-12 flex flex-col justify-center">
+      <main className="relative z-10 flex-1 max-w-2xl w-full mx-auto px-6 py-6 sm:py-8 flex flex-col justify-center overflow-hidden">
         {/* Cinematic Page Heading */}
-        <div className="mb-10">
+        <div className="mb-6 sm:mb-8">
           <div className="flex items-center gap-2 mb-2">
             <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
             <span className="text-[10px] uppercase font-bold tracking-[0.25em] text-amber-400">Battlefield Configuration</span>
           </div>
-          <h1 className="font-almendra text-3xl sm:text-4xl font-bold text-white tracking-wide">Settings & Controls</h1>
-          <p className="text-sm text-slate-300 mt-1 leading-relaxed">Customize sensory feedback, particle animations, and battlefield dynamics.</p>
+          <h1 className="font-almendra text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-wide">Settings & Controls</h1>
+          <p className="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">Customize sensory feedback, particle animations, and battlefield dynamics.</p>
         </div>
 
         {/* Clean, Line-Separated Options (No Heavy Boxes) */}
@@ -197,7 +197,7 @@ export default function Settings({ navigateTo }) {
       </main>
 
       {/* Minimal Footer */}
-      <footer className="relative z-10 w-full border-t border-slate-800/80 bg-slate-900/60 backdrop-blur-sm py-6 text-xs text-slate-400">
+      <footer className="relative z-10 w-full border-t border-slate-800/80 bg-slate-900/60 backdrop-blur-sm py-4 sm:py-6 text-xs text-slate-400 shrink-0">
         <div className="max-w-2xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <span>Mythic Territories</span>
           <div className="flex gap-6">

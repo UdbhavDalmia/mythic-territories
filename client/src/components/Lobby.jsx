@@ -792,7 +792,7 @@ export default function Lobby({ navigateTo, onWarm }) {
   }, [showFactionSelection]);
 
   return (
-    <div ref={pageRef} className="relative min-h-screen flex flex-col justify-between overflow-hidden bg-void-black text-on-surface select-none font-body-md">
+    <div ref={pageRef} className="relative h-screen h-[100dvh] max-h-screen max-h-[100dvh] flex flex-col justify-between overflow-hidden bg-void-black text-on-surface select-none font-body-md">
 
       {/* Background */}
       <div

@@ -1203,7 +1203,7 @@ export default function Game({ navigateTo }) {
     : `TURN ${gameState?.turnCount || 1}: ${gameState?.currentTurn === 'ash' ? 'ASH' : 'FROST'}`;
 
   return (
-    <div ref={pageRef} className="game-screen text-on-surface select-none font-body-md overflow-x-hidden w-full flex flex-col items-center justify-start relative min-h-screen">
+    <div ref={pageRef} className="game-screen text-on-surface select-none font-body-md overflow-hidden w-full h-screen h-[100dvh] max-h-screen max-h-[100dvh] flex flex-col items-center justify-start relative">
 
       {/* Atmospheric Battlefield Page Background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden select-none z-0">

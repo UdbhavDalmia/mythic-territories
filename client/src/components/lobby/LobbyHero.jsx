@@ -20,14 +20,14 @@ function LobbyHero({
   };
 
   return (
-    <main className="relative z-10 w-full flex-grow flex flex-col items-center justify-center px-4 pt-20 pb-12 text-center">
+    <main className="relative z-10 w-full flex-grow flex flex-col items-center justify-center px-4 py-4 sm:py-6 text-center overflow-hidden">
       <RecoverableSessionBanner
         recoverableSession={recoverableSession}
         handleResumeSession={handleResumeSession}
         handleAbandonSession={handleAbandonSession}
       />
 
-      <div className="flex flex-col items-center mb-10 text-center">
+      <div className="flex flex-col items-center mb-6 sm:mb-8 text-center">
         <div className="mb-5 flex items-center gap-3 font-label-caps text-[10px] sm:text-xs tracking-[0.3em] text-on-surface-variant">
           <span className="h-px w-8 bg-ice-light/50" />
           <Swords className="h-3.5 w-3.5 text-ember-gold" aria-hidden="true" />

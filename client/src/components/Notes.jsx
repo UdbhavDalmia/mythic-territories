@@ -17,17 +17,68 @@ import {
 } from '../data/patchNotes.jsx';
 import { markPatchNotesAsViewed } from '../services/patchTracking.js';
 
+const resolveTargetPatch = () => {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  const rawQuery = params.get('version') || params.get('v') || params.get('patch');
+  const rawHash = window.location.hash.replace(/^#/, '');
+  const candidate = rawQuery || rawHash;
+  if (!candidate) return null;
+
+  const allPatches = [...PATCHES, ...HISTORICAL_PATCHES];
+  const clean = candidate.trim().toLowerCase().replace(/^v/, '').replace(/^version-/, '');
+  
+  // 1. Direct match on version
+  const exact = allPatches.find(p => p.version.toLowerCase() === candidate.toLowerCase() || p.version.toLowerCase() === clean);
+  if (exact) return exact;
+
+  // 2. Normalized numerical match
+  const cleanNum = clean.replace(/[^0-9.]+/g, '');
+  if (cleanNum) {
+    const numMatch = allPatches.find(p => {
+      const pClean = p.version.toLowerCase().replace(/[^0-9.]+/g, '');
+      return pClean === cleanNum || pClean.startsWith(cleanNum) || cleanNum.startsWith(pClean);
+    });
+    if (numMatch) return numMatch;
+  }
+
+  // 3. ID match
+  const idMatch = allPatches.find(p => versionId(p.version) === candidate.toLowerCase() || versionId(p.version) === `version-${clean}`);
+  return idMatch || null;
+};
+
 export default function Notes({ navigateTo }) {
-  const requestedVersion = new URLSearchParams(window.location.search).get('version');
-  const archivedVersionRequested = HISTORICAL_PATCHES.some((patch) => patch.version === requestedVersion);
-  const initialVersion = [...PATCHES, ...HISTORICAL_PATCHES].some((patch) => patch.version === requestedVersion)
-    ? requestedVersion
-    : PATCHES[1].version;
+  const initialTarget = resolveTargetPatch();
+  const archivedVersionRequested = initialTarget ? HISTORICAL_PATCHES.some((patch) => patch.version === initialTarget.version) : false;
+  const initialVersion = initialTarget ? initialTarget.version : PATCHES[1]?.version;
   const [showArchive, setShowArchive] = useState(archivedVersionRequested);
-  const [expandedVersions, setExpandedVersions] = useState(() => new Set([initialVersion]));
+  const [expandedVersions, setExpandedVersions] = useState(() => new Set(initialVersion ? [initialVersion] : []));
+  const [targetedVersion, setTargetedVersion] = useState(initialTarget ? initialTarget.version : null);
   const pageRef = useRef(null);
   const upcomingPatch = PATCHES[0];
   const releasedPatches = PATCHES.slice(1);
+
+  const scrollToVersion = (version) => {
+    if (!version) return () => {};
+    const targetId = versionId(version);
+    const scroll = () => {
+      const el = document.getElementById(targetId);
+      if (el) {
+        el.scrollIntoView({
+          behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+          block: 'start'
+        });
+      }
+    };
+    const f1 = window.requestAnimationFrame(scroll);
+    const t1 = setTimeout(scroll, 120);
+    const t2 = setTimeout(scroll, 420);
+    return () => {
+      window.cancelAnimationFrame(f1);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  };
 
   useEffect(() => {
     markPatchNotesAsViewed();
@@ -54,15 +105,30 @@ export default function Notes({ navigateTo }) {
   }, []);
 
   useEffect(() => {
-    if (!requestedVersion) return;
-    const frame = window.requestAnimationFrame(() => {
-      document.getElementById(versionId(requestedVersion))?.scrollIntoView({
-        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
-        block: 'start'
-      });
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [requestedVersion]);
+    if (targetedVersion) {
+      return scrollToVersion(targetedVersion);
+    }
+  }, [targetedVersion]);
+
+  useEffect(() => {
+    const handleUrlChange = () => {
+      const patch = resolveTargetPatch();
+      if (patch) {
+        if (HISTORICAL_PATCHES.some(p => p.version === patch.version)) {
+          setShowArchive(true);
+        }
+        setExpandedVersions(prev => new Set([...prev, patch.version]));
+        setTargetedVersion(patch.version);
+      }
+    };
+
+    window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('hashchange', handleUrlChange);
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('hashchange', handleUrlChange);
+    };
+  }, []);
 
   const handleNavigate = (dest) => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -87,23 +153,28 @@ export default function Notes({ navigateTo }) {
 
     if (isCurrentlyOpen) {
       setExpandedVersions(new Set());
+      setTargetedVersion(null);
       const url = new URL(window.location.href);
       url.searchParams.set('page', 'notes');
       url.searchParams.delete('version');
+      url.searchParams.delete('v');
+      url.searchParams.delete('patch');
+      url.hash = '';
       window.history.replaceState({}, '', url);
     } else {
       setExpandedVersions(new Set([version]));
+      setTargetedVersion(version);
       const url = new URL(window.location.href);
       url.searchParams.set('page', 'notes');
       url.searchParams.set('version', version);
       window.history.replaceState({}, '', url);
 
-      window.requestAnimationFrame(() => {
+      setTimeout(() => {
         document.getElementById(versionId(version))?.scrollIntoView({
           behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
           block: 'start'
         });
-      });
+      }, 50);
     }
   };
 
@@ -173,7 +244,12 @@ export default function Notes({ navigateTo }) {
 
         {/* Roadmap Preview - Cinematic Featured Banner */}
         {upcomingPatch && (
-          <div className="mb-10 pb-8 border-b border-slate-800/80 relative">
+          <div
+            id={versionId(upcomingPatch.version)}
+            className={`mb-10 pb-8 border-b border-slate-800/80 relative scroll-mt-24 transition-all duration-300 ${
+              targetedVersion === upcomingPatch.version ? 'ring-1 ring-amber-400/50 rounded-xl px-4 -mx-4 bg-amber-400/5 shadow-[0_0_20px_rgba(245,158,11,0.1)]' : ''
+            }`}
+          >
             <div className="flex items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2">
@@ -213,6 +289,7 @@ export default function Notes({ navigateTo }) {
                 key={patch.version}
                 patch={patch}
                 featured={index === 0}
+                targeted={targetedVersion === patch.version}
                 expanded={expandedVersions.has(patch.version)}
                 onToggle={() => openVersion(patch.version)}
                 onViewRules={() => handleNavigate('GUIDE')}
@@ -244,6 +321,7 @@ export default function Notes({ navigateTo }) {
                       key={patch.version}
                       patch={patch}
                       archived
+                      targeted={targetedVersion === patch.version}
                       expanded={expandedVersions.has(patch.version)}
                       onToggle={() => openVersion(patch.version, true)}
                       onViewRules={() => handleNavigate('GUIDE')}

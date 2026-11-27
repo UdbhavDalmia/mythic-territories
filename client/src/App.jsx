@@ -107,6 +107,21 @@ export default function App() {
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
+    if (['LOBBY', 'SETTINGS', 'GAME'].includes(view)) {
+      document.documentElement.classList.add('overflow-hidden');
+      document.body.classList.add('overflow-hidden');
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.documentElement.classList.remove('overflow-hidden');
+      document.body.classList.remove('overflow-hidden');
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+    }
+  }, [view]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
     const meta = ROUTE_METADATA[view] || ROUTE_METADATA.LOBBY;
     document.title = meta.title;
 
@@ -156,21 +171,17 @@ export default function App() {
       url.searchParams.set('page', 'settings');
     } else if (newView === 'LOBBY') {
       url.search = '';
-      Object.entries(params).forEach(([key, val]) => {
-        url.searchParams.set(key, val);
-      });
-    } else {
-      Object.entries(params).forEach(([key, val]) => {
-        url.searchParams.set(key, val);
-      });
     }
+    Object.entries(params).forEach(([key, val]) => {
+      url.searchParams.set(key, val);
+    });
 
     window.history.pushState({}, '', url.toString());
     setView(newView);
   };
 
   return (
-    <div className={`min-h-screen w-full flex flex-col ${view === 'GAME' ? 'bg-transparent' : 'bg-surface'} text-on-surface select-none font-body-md`}>
+    <div className={`w-full flex flex-col ${['LOBBY', 'SETTINGS', 'GAME'].includes(view) ? 'h-screen h-[100dvh] max-h-screen max-h-[100dvh] overflow-hidden' : 'min-h-screen'} ${view === 'GAME' ? 'bg-transparent' : 'bg-surface'} text-on-surface select-none font-body-md`}>
       <Suspense fallback={<ScreenLoader />}>
         {view === 'LOBBY' && <Lobby navigateTo={navigateTo} onWarm={warmRoute} />}
         {view === 'GAME' && <Game navigateTo={navigateTo} />}
